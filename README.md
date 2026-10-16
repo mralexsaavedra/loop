@@ -121,19 +121,20 @@ through it: it checks what is already in place, then goes one step at a time.
    ```
 
 3. **Export Apple Health:** iPhone → Health → your photo → *Export All Health Data*. Unzip and put
-   `export.xml` in `data/apple-health/`, then run `node data/apple-health/extract.mjs` (it caches small
+   `export.xml` in `loop-data/files/import/` (`mkdir -p loop-data/files/import` first; `loop-data/` is the
+   gitignored folder that holds all your personal data), then run `node data/apple-health/extract.mjs` (it caches small
    per-metric CSVs; re-run after each new export). No export yet? See the demo first: `npm run build:example` and open `web/dist/example/index.html`.
 4. **Start Claude Code and say hi** (`claude` inside the folder). With no profile yet it runs the
    onboarding interview and writes `profile/about-me.md`, `profile/baseline.md` and `profile/coaches.md`
    for you (all gitignored). Prefer to fill them yourself? Copy each `*.example.md` → `*.md`.
 5. **Ask for an analysis** — or type `/analysis`.
-6. **See the page:** copy `data/nutrition/plan-data.example.json` → `plan-data.json` (and, optionally,
-   `data/training/training-data.example.json` → `training-data.json`, `profile/profile.example.json` →
-   `profile.json`), then `npm run generate` and open `web/dist/personal/index.html`.
+6. **See the page:** `mkdir -p loop-data/cache`, copy `data/nutrition/plan-data.example.json` → `loop-data/cache/plan.json` (and, optionally,
+   `data/training/training-data.example.json` → `loop-data/cache/training.json`, `profile/profile.example.json` →
+   `loop-data/cache/profile.json`), then `npm run generate` and open `web/dist/personal/index.html`.
 
 **Your goal for Claude's analyses** (cut / maintain / bulk and a target weight) normally comes from the
 Level 2 settings. Without the server, tell Claude during onboarding, or create
-`data/profile/settings.json` yourself (gitignored):
+`loop-data/profile/settings.json` yourself (gitignored):
 
 ```json
 { "goal": "cut", "targetWeightKg": 70 }
@@ -141,15 +142,15 @@ Level 2 settings. Without the server, tell Claude during onboarding, or create
 
 The page itself keeps the goal you pick in it, in the browser.
 
-**Language:** the page is in English unless `plan-data.json` says `"locale": "es"` (Spanish); then run
+**Language:** the page is in English unless `loop-data/cache/plan.json` says `"locale": "es"` (Spanish); then run
 `npm run generate` again.
 
 Optional extras for this level:
 
 | Want | Do | Doc |
 | --- | --- | --- |
-| Your own nutrition plan | Edit `plan-data.json` (servings, day plan, `targets.byGoal`); the food DB `ingredients.json` ships tracked | [`docs/guides/your-plan.md`](docs/guides/your-plan.md) |
-| Today's programmed session | Fill `training-data.json` by date (Claude can transcribe a coach's PDF) | [`docs/guides/your-plan.md`](docs/guides/your-plan.md) → The training plan |
+| Your own nutrition plan | Edit `loop-data/cache/plan.json` (servings, day plan, `targets.byGoal`); the food DB `ingredients.json` ships tracked | [`docs/guides/your-plan.md`](docs/guides/your-plan.md) |
+| Today's programmed session | Fill `loop-data/cache/training.json` by date (Claude can transcribe a coach's PDF) | [`docs/guides/your-plan.md`](docs/guides/your-plan.md) → The training plan |
 | Try it with no data | `npm run build:example`, then open `web/dist/example/index.html` (synthetic demo data; its days end on 28 Sep 2026, so open any card to see the history) | [`data/demo/README.md`](data/demo/README.md) |
 
 ### Level 2 — food log + live page on your LAN (Docker)
@@ -201,7 +202,7 @@ Before pushing to any remote, confirm nothing personal is staged or in history:
 
 ```sh
 git status                 # working tree clean of personal data
-git log --all --name-only --format= -- profile/ data/ | sort -u   # should list only .example / tooling / .gitkeep / the synthetic data/demo
+git log --all --name-only --format= -- profile/ data/ loop-data/ | sort -u   # should list only .example / tooling / .gitkeep / the synthetic data/demo
 ```
 
 If you ever committed real data by accident, rewrite history (e.g. `git filter-repo`)

@@ -1,7 +1,10 @@
 # Guard hook (`guard-health-data`)
 
 The Claude Code PreToolUse hook that makes the repo rule "never commit personal / raw health data"
-mechanical.
+mechanical. The personal data lives in the data root `loop-data/` (`/loop-data/` in `.gitignore`;
+`lib/paths.mjs`) and, on a clone not migrated yet, at the old paths under `data/` and `profile/`, which stay
+ignored too: a force-add of either is blocked, by git's ignore check and by the fallback list (`PERSONAL` holds
+`loop-data/`).
 
 > Area design doc. Read it before changing `.claude/hooks/` or the hook wiring in
 > `.claude/settings.json`, and keep it in sync with the code in the same commit.
@@ -75,7 +78,7 @@ target, and so does `--index-info` with or without `--add` (it stages whatever e
    argument, `xargs git add -f`, `--pathspec-from-file`, or a `cd` to an unresolvable directory.
 6. Fallback when git cannot answer (not installed, cwd missing or not a repo): a small hand-maintained
    list of personal fragments (`PERSONAL`, a subset of `.gitignore`, not a mirror: add new personal
-   directories there too) and exceptions (`ALLOWED`, regexes anchored to their directory, never a
+   directories there too; the data root `loop-data/` is one) and exceptions (`ALLOWED`, regexes anchored to their directory, never a
    generic `.test.mjs` suffix), still evaluated per argument; a parent directory of a personal fragment
    (`data`, `.`) counts as personal. `.gitignore` is the source of truth: `ALLOWED` mirrors its `!`
    rules for the `.mjs` data scripts and their tests (e.g. `data/apple-health/*.test.mjs`); keep both

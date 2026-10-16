@@ -7,8 +7,8 @@
 - Name / nickname:
 - Sex (for metabolic calc):
 
-Birthdate, height and weight are NOT written here: they live in `profile/profile.json` and your weigh-ins
-(`data/apple-health/extract/weight.csv`), so they never go stale in prose.
+Birthdate, height and weight are NOT written here: they live in `loop-data/cache/profile.json` and your weigh-ins
+(`loop-data/extract/weight.csv`), so they never go stale in prose.
 
 ## Lifestyle / work
 - Job / activity level (sedentary desk, on-feet, manual…):

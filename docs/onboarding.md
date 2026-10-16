@@ -13,10 +13,10 @@ Level 1. This file covers only the coaching intake.
 sex, date of birth, height, weight, activity, the sports the person does (session length and times a week)
 and the goal, runs the same safety screen, and computes the daily targets per day type
 (`lib/nutrition/energy.mjs`); it saves them with the sports to the ingest service and the build uses them
-(`data/profile/onboarding.json`): the sports set each day type's exercise, which runs and swims count as long
+(`loop-data/profile/onboarding.json`): the sports set each day type's exercise, which runs and swims count as long
 days, and the names the page shows for the day types (`docs/nutrition.md`). The page works fully either way; what needs Claude Code is the coaching:
 reports, the coach subagents, an agent that logs food or plans sessions for you. When a user who started
-with the page assistant later runs this intake, read `data/profile/onboarding.json` first (including its
+with the page assistant later runs this intake, read `loop-data/profile/onboarding.json` first (including its
 `sports`) and do not ask again what it already holds.
 
 When `profile/about-me.md` is missing, your job is to BUILD the user's profile with them,
@@ -42,15 +42,15 @@ conversationally — do not make them fill a form alone. Replicate a real coach 
    (gitignored): reply language, country / jurisdiction (supplement limits, food database), then
    per coach (cycling, HYROX / hybrid, nutrition, and `training-coach` for any other sport they do — its
    **Sports** key) the knowledge sources they want (name, folder under `knowledge/`, how to cite,
-   commercial ties), their gear (with a local manual under `data/gear/` if they have one) and where
+   commercial ties), their gear (with a local manual under `loop-data/files/manuals/` if they have one) and where
    their current program lives. List only sources that already exist under `knowledge/` or that they
    will ingest now (`knowledge/README.md`); never suggest or invent creators for them. Nothing to
    add yet → write only `## Common`: the coaches then answer from the evidence base and the user's
    data and say no source is configured.
 6. **Point them at their data.** Explain the data-drop steps (README → Setup, by level: Apple Health
-   export → `data/apple-health/`, then `extract.mjs`; nutrition → the Level 2 food log, or legacy
+   export → `loop-data/files/import/`, then `extract.mjs`; nutrition → the Level 2 food log, or legacy
    notes in a copy of `food-log.example.md` → `food-log.md`; **training → copy `data/training/training-data.example.json` →
-   `training-data.json`** and transcribe their program by date from whatever their coach/app
+   `loop-data/cache/training.json`** and transcribe their program by date from whatever their coach/app
    provides (PDF grids → render to PNG and read visually; a login-gated training app → have them
    paste/screenshot the sessions), see `docs/training.md` — then
    `npm run generate`). The Home tab (Inicio in Spanish) then shows today's programmed session and the

@@ -36,8 +36,8 @@ al cycling-coach / hybrid-coach / training-coach").
   professional (physician, physiotherapist, dietitian-nutritionist).
 - **Read-only, files only**: you have `Read`, `Grep` and `Glob` — no shell. Never modify anything;
   if data looks stale or missing, tell the user to run `npm run sync`.
-- **Never read `.env*`** or any credentials file (`services/*/.env`, any `.env.*` under `local/` or
-  `data/`, …), not even to "check" something.
+- **Never read `.env*`** or any credentials file (`services/*/.env`, any `.env.*` under `local/`,
+  `data/` or `loop-data/`, …), not even to "check" something.
 - **Sponsor / affiliate bias**: when a source recommends something it sells, is sponsored by or
   links with an affiliate code (a brand, a supplement, a device, a program, an event), say so next
   to the claim.
@@ -51,24 +51,32 @@ al cycling-coach / hybrid-coach / training-coach").
 TODAY is the current date given in the conversation context. If you cannot find it, say so and do
 not compute ages, countdowns or staleness.
 
+Every personal file lives under the data root `loop-data/` (gitignored). A file missing there → say so (no
+data of that kind yet, `npm run sync` not run, or a clone not migrated yet: `npm run migrate:data-root`).
+
 | Fact | Source of truth |
 | --- | --- |
-| Weight | the newest rows of `data/apple-health/extract/weight.csv` (`date,value,source`): the latest reading with its date, plus the mean of the readings of the last 7 days as context. The series mixes scales / apps — compare within one `source`. |
-| Height, birthdate (→ age from TODAY), devices, supplements, upcoming events | `profile/profile.json` |
-| Goal (maintain / cut / bulk) + target weight | `data/profile/settings.json` (`goal`, `targetWeightKg`, `updatedAt`, `fetchedAt`), the snapshot `npm run sync` takes of the page's server-side setting. Missing file → say the goal is unknown (never assume one); `fetchedAt` more than 3 days before TODAY → say it may be stale. |
-| Sports (sessions per week) + accepted daily targets, when the user set up through the page | `data/profile/onboarding.json` (`sports`, `targets` per goal and day type); absent → the plan's own targets |
+| Weight | the newest rows of `loop-data/extract/weight.csv` (`date,value,source`): the latest reading with its date, plus the mean of the readings of the last 7 days as context. The series mixes scales / apps — compare within one `source`. |
+| Height, birthdate (→ age from TODAY), devices, supplements, upcoming events | `loop-data/cache/profile.json` (the copy of the profile document `npm run sync` keeps) |
+| Goal (maintain / cut / bulk) + target weight | `loop-data/profile/settings.json` (`goal`, `targetWeightKg`, `updatedAt`, `fetchedAt`), the snapshot `npm run sync` takes of the page's server-side setting. Missing file → say the goal is unknown (never assume one); `fetchedAt` more than 3 days before TODAY → say it may be stale. |
+| Sports (sessions per week) + accepted daily targets, when the user set up through the page | `loop-data/profile/onboarding.json` (`sports`, `targets` per goal and day type); absent → the plan's own targets |
+| Nutrition plan (meals, servings, `targets.byGoal`, `page` notes) | `loop-data/cache/plan.json` |
+| Programmed sessions by date (optional) | `loop-data/cache/training.json` |
+| Food actually eaten (per-day sums of the food log) | `loop-data/foodlog/foodlog-daily.csv` (`missing_macros` = the sums are minimums; `fetchedAt` in `foodlog-daily.meta.json`) |
+| Training programs, nutritionist and clinical reports (PDFs, coach-only) | `loop-data/files/documents/` (`training/`, `nutritionist/`, `clinical/`), when present |
 | Stable context: injuries, history, preferences, which program when | `profile/about-me.md` |
 | Knowledge sources, gear manuals, program pointers, language, jurisdiction | `profile/coaches.md` (your section + `## Common`) |
 
 - NEVER take a weight, goal, target or date from the prose of `profile/about-me.md`,
   `profile/baseline.md`, `profile/coaches.md` or an old report: those numbers go stale. When the
   prose disagrees with a live file, the live file wins — say so.
-- **Freshness**: before using the extract, read `data/apple-health/extract/_meta.json`
+- **Freshness**: before using the extract, read `loop-data/extract/_meta.json`
   (`exportLastDate`, `shortcutSync`) and find the newest date of every CSV you rely on (`Grep` the
   file for TODAY's month prefix, `^<YYYY-MM>` built from TODAY, then the previous month's, and take
   the last match). Flag any series whose newest date is more than 3 days before TODAY.
 - **Events**: days to go = event date − TODAY (count calendar days); an event before TODAY is
-  history, not a target. No `events` in `profile.json` → say no event is registered.
+  history, not a target. No `events` in `loop-data/cache/profile.json` → say no event is
+  registered.
 
 ## Knowledge source
 
@@ -159,10 +167,10 @@ Labels in the reply language (the config may give them):
 ## The user's data (read-only, when relevant)
 
 - The user facts above — weight (live, from `weight.csv`), goal + target weight
-  (`data/profile/settings.json`), `supplements` / events / birthdate / height (`profile/profile.json`),
+  (`loop-data/profile/settings.json`), `supplements` / events / birthdate / height (`loop-data/cache/profile.json`),
   stable context (`profile/about-me.md`: constraints, injuries, habits). g/kg targets use the live
   weight (7-day context), never a weight from prose.
-- The plan: `data/nutrition/plan-data.json` (the user's personal plan, gitignored) +
+- The plan: `loop-data/cache/plan.json` (the user's personal plan, gitignored) +
   `data/nutrition/ingredients.json` (the food DB, food-composition-database / label values);
   `data/nutrition/plan-tables.md` for the generated tables.
   Targets by goal × day type (rest / gym / bike / bikeLong; maintain / cut / bulk), portion scaling
@@ -170,19 +178,19 @@ Labels in the reply language (the config may give them):
   `docs/nutrition-food-log.md` and computed by `lib/nutrition/targets.mjs`,
   `scale.mjs`, `fuel.mjs`.
 - The **food log** (what the user logs on the LAN page, stored behind `services/loop-ingest`) is
-  exported by `npm run sync` to `data/nutrition/foodlog-daily.csv`: one row per LOGGED day
+  exported by `npm run sync` to `loop-data/foodlog/foodlog-daily.csv`: one row per LOGGED day
   (`date,kcal,protein_g,carbs_g,fat_g,entries,breakfast,lunch,dinner,addon,missing_macros`;
   breakfast..addon = entries per meal group; a blank macro = no entry stated it; a macro listed in
   `missing_macros` was unknown on some entry, so that sum is a MINIMUM — say so). A date with no row =
-  nothing logged that day, not zero intake. Freshness: `data/nutrition/foodlog-daily.meta.json`
+  nothing logged that day, not zero intake. Freshness: `loop-data/foodlog/foodlog-daily.meta.json`
   `fetchedAt` more than 3 days before TODAY → say the export may be stale. Missing file → say the
   food log sync has not run (`npm run sync:foodlog`) and ask the user for the days they want
   reviewed. Only daily sums are exported: individual foods are not visible to you.
-- `data/apple-health/extract/` — `bodyfat.csv` (bioimpedance, trend only ±3–5 %),
+- `loop-data/extract/` — `bodyfat.csv` (bioimpedance, trend only ±3–5 %),
   `dietary-daily.csv` (logged intake: sparse, say how many days exist), `active-energy-daily.csv` +
   `basal-energy-daily.csv` (expenditure, an estimate ±10 %), `rides.csv` / `workouts.csv` (training
   load for fuelling); `_meta.json` for ranges and caveats.
-- `data/nutritionist/` — past assessments and plans from the user's nutritionist, when present.
+- `loop-data/files/documents/nutritionist/` — past assessments and plans from the user's nutritionist, when present.
 
 Use trends (7-day averages, weekly change), not single days.
 

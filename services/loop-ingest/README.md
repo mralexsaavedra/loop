@@ -264,8 +264,8 @@ then restart loop-web so its nginx picks up the `/api/food/` proxy
 
 ## Documents: `/documents/:kind`
 
-The owner's nutrition plan (`plan`, the file `data/nutrition/plan-data.json` in a clone), training program (`training`,
-`data/training/training-data.json`) and profile (`profile`, `profile/profile.json`) live in
+The owner's nutrition plan (`plan`, the file `loop-data/cache/plan.json` in a clone), training program (`training`,
+`loop-data/cache/training.json`) and profile (`profile`, `loop-data/cache/profile.json`) live in
 the table `app_document` (`sql/012_documents.sql`, its own optional group `documents`), one row per kind.
 
 - **Clients.** The coach and the server's own page build, never the browser: the routes take the bearer token
@@ -427,7 +427,7 @@ activities' `device_name` (`[{name, count, lastUsed}]`, `lastUsed` = the local s
 newest activity); summary activities normally carry it, and an activity without it is simply not
 counted. Photo URLs are returned only when they are `https://` (Strava sends a relative
 placeholder path when the athlete has no photo). The repo's `npm run sync`
-(`data/profile/sync-profile.mjs`) reads it into the gitignored `data/profile/`.
+(`data/profile/sync-profile.mjs`) reads it into the gitignored `loop-data/profile/`.
 
 **Gear needs the `profile:read_all` scope.** Strava returns `bikes` / `shoes` (and
 `measurement_preference`) on `GET /athlete` only for a token granted `profile:read_all`. With a

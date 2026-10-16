@@ -169,7 +169,7 @@ What it shows: per modality, the mean and peak HR over a fixed 12-week window �
 executed-sessions dashboard.
 
 - Section `dash`, `tabs/Entrenos.astro`, `client/training-dash.js`.
-- Source (OPTIONAL): `data/apple-health/extract/workouts.csv`.
+- Source (OPTIONAL): `loop-data/extract/workouts.csv`.
 - `lib/training/dashboard.mjs` aggregates it into `DASH`: over 12 weeks (`WEEKS`), per modality the
   minutes + mean / peak HR, and how many sessions carry HR. Only what the page reads is baked (no weekly
   volume, 4-week summary or split %).
@@ -219,7 +219,7 @@ What it shows: for one session, the time in each HR zone (session / day panel).
 | Z4 | 80–90 |
 | Z5 | ≥ 90 % |
 
-- Max HR = `profile/profile.json` `maxHr` if set, else the highest HR Strava recorded in the last 12
+- Max HR = `loop-data/cache/profile.json` `maxHr` if set, else the highest HR Strava recorded in the last 12
   months.
 - Several Strava activities of the same date + modality are summed.
 - No zones for that session (a Watch-only session, an activity the backfill has not reached, no HR, no
@@ -234,7 +234,7 @@ What it shows: the programmed session for today, as a row of Home's "Today's act
 - It sets `window.HCProgram = {date, kind, focus}` for `client/timeline.js` (the row) and registers the
   `hoy-session` detail view (the same markup in the sheet; deep link `#hoy-session`, `VIEW_TAB` → home).
 - `page.hideTabs: ["hoy"]` hides the section; then neither the row nor the view exist.
-- Source: `data/training/training-data.json` (GITIGNORED, personal, and OPTIONAL — see below): the
+- Source: `loop-data/cache/training.json` (GITIGNORED, personal, and OPTIONAL — see below): the
   programmed sessions keyed by ISO date (`days["YYYY-MM-DD"]`); a date with no entry renders as a rest /
   unprogrammed day.
 - The build bakes it into a page-level JSON global; the page picks "today" client-side with `new Date()`.
@@ -245,7 +245,7 @@ What it shows: the programmed session for today, as a row of Home's "Today's act
 
 ### training-data.json is optional
 
-`training-data.json` itself is OPTIONAL for the personal build.
+`loop-data/cache/training.json` itself is OPTIONAL for the personal build.
 
 - Absent file → the build still succeeds: `lib/load/inputs.mjs` degrades to an empty program
   (`{days:{}}`), and Hoy renders every day as a rest / unprogrammed day (the same empty state a real file
@@ -262,7 +262,7 @@ What it shows: the programmed session for today, as a row of Home's "Today's act
 - The program can come from any dated source (coach PDFs, a spreadsheet, or a login-gated training app
   whose content can't be scraped).
 - If the user's program lives in an external app they open directly, a dated copy here is redundant: set
-  `page.hideTabs: ["hoy"]` in `plan-data.json` to hide the section on Home (the markup + baked training
+  `page.hideTabs: ["hoy"]` in `loop-data/cache/plan.json` to hide the section on Home (the markup + baked training
   data stay fully wired, just `hidden`; remove the entry to reactivate).
 - Keep the section visible in the example build (`plan-data.example.json` has no `hideTabs`) as a working
   example.
@@ -273,19 +273,19 @@ What it shows: the programmed session for today, as a row of Home's "Today's act
 
 Whatever the user's coach / app provides: a coach PDF, a spreadsheet, or a login-gated training app.
 
-| Source | How it gets into `training-data.json` |
+| Source | How it gets into `loop-data/cache/training.json` |
 | --- | --- |
 | Can't be fetched (a login-gated app) | the user pastes / screenshots the sessions and you transcribe them |
-| PDF grids in `data/training/*.pdf` (spreadsheet-style weekly grids) | render pages to PNG (`pdftoppm -png -r 130`) and read the grid visually (`pdftotext` interleaves the day columns) |
+| PDF grids in `loop-data/files/documents/training/*.pdf` (spreadsheet-style weekly grids) | render pages to PNG (`pdftoppm -png -r 130`) and read the grid visually (`pdftotext` interleaves the day columns) |
 
 ## Fresh-clone bootstrap and checks
 
-- Copy `data/training/training-data.example.json` → `training-data.json`, edit in the real program, then
+- Copy `data/training/training-data.example.json` → `loop-data/cache/training.json`, edit in the real program, then
   `npm run generate` (part of the shared bootstrap, README → Setup; one `npm run generate` builds all 4
   tabs together).
 - With the LAN data service, this file mirrors a document in its database: after editing it, run `npm run documents -- push training` (an edit not pushed is kept, and `npm run sync` warns about it); [`data-pipeline.md` → Owner documents](data-pipeline.md#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync).
-- Optional: skipping it (or deleting `training-data.json` later) still builds, with Hoy permanently in its
+- Optional: skipping it (or deleting `loop-data/cache/training.json` later) still builds, with Hoy permanently in its
   rest / unprogrammed state.
-- `npm run check` validates `training-data.json` when it exists (`build-web.mjs --check`).
+- `npm run check` validates `loop-data/cache/training.json` when it exists (`build-web.mjs --check`).
 - `npm test` covers the training lib with its own unit tests plus the build-output / i18n / hide-tabs
   integration tests.

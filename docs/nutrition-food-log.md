@@ -358,10 +358,10 @@ The search box also looks in `FOOD_BASICS` (it shows even with no product yet).
 `npm run sync:foodlog` (part of `npm run sync`): read-only consumers (reports, the `nutrition-coach`
 subagent) never query Postgres; they read the snapshot `data/nutrition/sync-foodlog.mjs` writes.
 
-- `data/nutrition/foodlog-daily.csv` (gitignored): one row per LOGGED day (no entry → no row); the last 120
+- `loop-data/foodlog/foodlog-daily.csv` (gitignored): one row per LOGGED day (no entry → no row); the last 120
   days are refreshed from the server, older rows are kept. An unknown macro is blank, never 0;
   `missing_macros` lists the macros some entry lacked, so those sums are **minimums**.
-- `data/nutrition/foodlog-daily.meta.json`: `{from, to, days, fetchedAt}` — the freshness stamp.
+- `loop-data/foodlog/foodlog-daily.meta.json`: `{from, to, days, fetchedAt}` — the freshness stamp.
 - Unreachable / old service → one `WARNING:` line, the old files kept, exit 0 (only a failed write exits 1).
 - `data/nutrition/food-log.md` holds legacy notes + rationale only, not the live log.
 
@@ -472,7 +472,7 @@ it reaches full credit, as there.
 ### Data
 
 - `buildFoodlogBake` (`lib/nutrition/read.mjs`, the build-time reader) bakes `INTAKE.log` = `{asOf, days}`:
-  the last `NSCORE.days` (90) days of `data/nutrition/foodlog-daily.csv` ending at its newest logged day
+  the last `NSCORE.days` (90) days of `loop-data/foodlog/foodlog-daily.csv` ending at its newest logged day
   (the example build: the demo extract's synthetic `foodlog-daily.csv`, `scripts/make-demo-data.mjs`), in
   the summary shape (`{date, k, p, f, n, missing: {p, f}, groups}`).
 - LF or CRLF; a row with an impossible date, no kcal or no entries is skipped and the build prints one
