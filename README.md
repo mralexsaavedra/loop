@@ -45,8 +45,8 @@ disk:
   `training-coach` (any other sport) and `nutrition-coach` each answer only their own field, read the sources *you* chose for that field, and
   cite every claim. Add your own as a Markdown file in `.claude/agents/`.
 
-It can also run **in the background**: the LAN services (Level 2) sync Apple Health, Strava and the food
-log on their own and rebuild the page every hour, and a Claude Code session on an always-on machine next
+It can also run **in the background**: the LOOP server (two Docker images) syncs Apple Health, Strava and the
+food log on its own and rebuilds the page every hour, and a Claude Code session on an always-on machine next
 to them keeps working with the same data — plus [Engram](https://github.com/Gentleman-Programming/engram)
 memory, so it remembers your decisions between sessions.
 
@@ -95,20 +95,75 @@ in the [documentation index](docs/README.md).
 
 ## Prerequisites
 
-- **[Claude Code](https://claude.com/claude-code).**
-- **Node.js `>=22.12`** (`engines` in `package.json`).
-- **An iPhone (Apple Health)** for the health data — the export is made on the phone; any OS can run
-  the tooling.
-- **Docker on a Linux machine that stays on** — only for Level 2 (the LAN services).
-- **[Engram](https://github.com/Gentleman-Programming/engram)** — optional persistent memory across
-  sessions. Without it, durable state lives in the tracked files and `CHANGELOG.md`.
+LOOP comes in two pieces; install one or both:
 
-## Setup — pick your level
+| Piece | For | Needs |
+| --- | --- | --- |
+| **Server** | The page on your home network, the food log, the journal, the iOS Shortcut sync, Strava | A machine that stays on with Docker Compose (images for `linux/amd64` and `linux/arm64`; tested on an amd64 Linux host). No clone, no Node.js |
+| **Coach** | The AI analyses, the coach subagents, an agent that logs food for you | A clone of this repo, **Node.js `>=22.12`**, git and **[Claude Code](https://claude.com/claude-code)** |
 
-Each level works on its own; stop wherever you like. Or run `/setup` in Claude Code and it walks you
-through it: it checks what is already in place, then goes one step at a time.
+Both need **an iPhone (Apple Health)** for the health data. Optional for the coach:
+**[Engram](https://github.com/Gentleman-Programming/engram)**, persistent memory across sessions (without it,
+durable state lives in the tracked files and `CHANGELOG.md`).
 
-### Level 1 — Apple Health + Claude (local only)
+## Setup
+
+Or run `/setup` in Claude Code (from a clone) and it walks you through either path: it checks what is already in
+place, then goes one step at a time.
+
+### Server — the page, the food log and the iPhone sync (Docker, no clone)
+
+What you get: the page at `http://<server-ip>:8090` from any phone or computer at home, a food log and a journal
+you fill from the page, a Sync button that rebuilds the page with your latest data (it also rebuilds every hour),
+and the endpoint the iOS Shortcut sends your Apple Health data to. Three containers: the official `postgres`, the
+`loop-server` image (the data service; it also builds the page) and the `loop-web` image (serves the page).
+
+1. **Get the two files** into a folder of their own, and create the files folder before the first start (Docker
+   would otherwise create it owned by root):
+
+   ```sh
+   mkdir loop && cd loop
+   curl -fsSLO https://raw.githubusercontent.com/mralexsaavedra/loop/v1.0.0/docker/docker-compose.yml
+   curl -fsSL -o .env https://raw.githubusercontent.com/mralexsaavedra/loop/v1.0.0/docker/.env.example
+   mkdir -p files/import files/manuals files/documents
+   ```
+
+2. **Set the secrets** (generated in place, never shown) and read the rest of `.env` (ports, addresses):
+
+   ```sh
+   chmod 600 .env
+   sed -i.tmp "s/^INGEST_TOKEN=.*/INGEST_TOKEN=$(openssl rand -hex 32)/; s/^POSTGRES_PASSWORD=.*/POSTGRES_PASSWORD=$(openssl rand -hex 24)/" .env && rm .env.tmp
+   ```
+
+3. **Start it:** `docker compose up -d` pulls the images and starts the three containers. `docker compose ps`
+   shows all three `healthy` within a minute; `curl -s -o /dev/null -w '%{http_code}\n' http://127.0.0.1:8088/healthz`
+   prints `200`.
+4. **Open the page** at `http://<server-ip>:8090`. On a fresh server it opens an assistant that asks one question at
+   a time (you, the sports you do, your goal and a short safety check) and works out your starting calories and
+   macros for each kind of day. Everything on the page works without Claude Code.
+5. **Your Apple Health history:** iPhone → Health → your photo → *Export All Health Data*. Copy the zip, as it is,
+   into `files/import/` on the server and press **Sync** on the page: the server imports it (a first import of a
+   large export takes a minute or two; the same zip twice is skipped). Repeat with a new export whenever you like.
+6. **The iOS Shortcut** keeps it current between exports: [import the ready-made one](https://www.icloud.com/shortcuts/ceb66eea36fc434a9d2f910421dd18aa)
+   and follow [`docs/ios-shortcut.md`](docs/ios-shortcut.md) → Install the ready-made Shortcut. The token it asks
+   for is `INGEST_TOKEN` in `.env` (`grep '^INGEST_TOKEN=' .env`, read it on your own screen).
+7. **Strava** (optional): create the API app ([`services/loop-ingest/README.md` → Getting the Strava credentials](services/loop-ingest/README.md#getting-the-strava-credentials-once-5-minutes)),
+   put `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` in `.env`, then:
+
+   ```sh
+   docker compose up -d
+   docker compose exec loop-server node services/loop-ingest/scripts/strava-auth.js --print
+   ```
+
+   It asks for the code from the authorization page and prints a `STRAVA_REFRESH_TOKEN=...` line: put it in
+   `.env` and run `docker compose up -d` again.
+
+Updating: [`docs/guides/upgrading.md`](docs/guides/upgrading.md) (`docker compose pull && docker compose up -d`);
+something not working: [`docs/guides/troubleshooting.md`](docs/guides/troubleshooting.md); how the server works
+and its security model: [`docs/lan-services.md`](docs/lan-services.md). A second install for another person on the
+same host: a second folder with its own `HC_INSTANCE` and ports in `.env`.
+
+### Coach — AI analyses in Claude Code (a clone)
 
 1. **Install the tools** (once): [Node.js 22 LTS](https://nodejs.org/) (`node -v` prints `v22.12` or
    newer), [git](https://git-scm.com/downloads) and [Claude Code](https://claude.com/claude-code).
@@ -120,21 +175,41 @@ through it: it checks what is already in place, then goes one step at a time.
    npm ci
    ```
 
-3. **Export Apple Health:** iPhone → Health → your photo → *Export All Health Data*. Put the zip, as it is, in
+3. **Connect it to your server** and pull its data. On the server itself:
+
+   ```sh
+   export INGEST_URL=http://127.0.0.1:8088 INGEST_TOKEN=<INGEST_TOKEN from the server's .env>
+   npm run sync
+   ```
+
+   It prints `Client mode: ...` and a `Mirror: N files ...` line: the clone now holds a copy of the server's data
+   in `loop-data/` (gitignored). From another computer use `http://<server-ip>:8088`, which needs the data port
+   reachable on the LAN: `INGEST_BIND` in the server's `.env` is `127.0.0.1` (loopback only) by default; set it to
+   the server's LAN IP and run `docker compose up -d` there (keep it off the internet:
+   [Network and bind address](docs/lan-services.md#network-and-bind-address)). Details:
+   [`docs/data-pipeline.md` → Coach as a client](docs/data-pipeline.md#coach-as-a-client-of-a-loop-server).
+4. **Start Claude Code and say hi** (`claude` inside the folder). With no profile yet it runs the onboarding
+   interview and writes `profile/about-me.md`, `profile/baseline.md` and `profile/coaches.md` for you (all
+   gitignored). Prefer to fill them yourself? Copy each `*.example.md` → `*.md`.
+5. **Ask for an analysis**, or type `/analysis`. Run `npm run sync` again whenever you want the latest data.
+
+#### Coach without a server (local only)
+
+No server? The coach also works from an Apple Health export alone:
+
+1. Steps 1–2 above.
+2. **Export Apple Health:** iPhone → Health → your photo → *Export All Health Data*. Put the zip, as it is, in
    `loop-data/files/import/` (`mkdir -p loop-data/files/import` first; `loop-data/` is the gitignored folder that
    holds all your personal data), then run `npm run import:health` (it caches small per-metric CSVs; re-run after each
    new export, the same zip twice is skipped). Unzipped it yourself? Put `export.xml` there and run
    `node data/apple-health/extract.mjs`. No export yet? See the demo first: `npm run build:example` and open `web/dist/example/index.html`.
-4. **Start Claude Code and say hi** (`claude` inside the folder). With no profile yet it runs the
-   onboarding interview and writes `profile/about-me.md`, `profile/baseline.md` and `profile/coaches.md`
-   for you (all gitignored). Prefer to fill them yourself? Copy each `*.example.md` → `*.md`.
-5. **Ask for an analysis** — or type `/analysis`.
-6. **See the page:** `mkdir -p loop-data/cache`, copy `data/nutrition/plan-data.example.json` → `loop-data/cache/plan.json` (and, optionally,
+3. Steps 4–5 above.
+4. **See the page:** `mkdir -p loop-data/cache`, copy `data/nutrition/plan-data.example.json` → `loop-data/cache/plan.json` (and, optionally,
    `data/training/training-data.example.json` → `loop-data/cache/training.json`, `profile/profile.example.json` →
    `loop-data/cache/profile.json`), then `npm run generate` and open `web/dist/personal/index.html`.
 
 **Your goal for Claude's analyses** (cut / maintain / bulk and a target weight) normally comes from the
-Level 2 settings. Without the server, tell Claude during onboarding, or create
+server's settings. Without the server, tell Claude during onboarding, or create
 `loop-data/profile/settings.json` yourself (gitignored):
 
 ```json
@@ -146,49 +221,27 @@ The page itself keeps the goal you pick in it, in the browser.
 **Language:** the page is in English unless `loop-data/cache/plan.json` says `"locale": "es"` (Spanish); then run
 `npm run generate` again.
 
-Optional extras for this level:
+Optional extras for the coach:
 
 | Want | Do | Doc |
 | --- | --- | --- |
-| Your own nutrition plan | Edit `loop-data/cache/plan.json` (servings, day plan, `targets.byGoal`); the food DB `ingredients.json` ships tracked | [`docs/guides/your-plan.md`](docs/guides/your-plan.md) |
+| Your own nutrition plan | Edit `loop-data/cache/plan.json` (servings, day plan, `targets.byGoal`); the food DB `ingredients.json` ships tracked. With a server, push it there: `npm run documents -- push plan` | [`docs/guides/your-plan.md`](docs/guides/your-plan.md) |
 | Today's programmed session | Fill `loop-data/cache/training.json` by date (Claude can transcribe a coach's PDF) | [`docs/guides/your-plan.md`](docs/guides/your-plan.md) → The training plan |
+| Your own knowledge base | Transcripts of the experts *you* choose, read by the coach subagents | [`docs/knowledge-base.md`](docs/knowledge-base.md), [`knowledge/README.md`](knowledge/README.md) |
 | Try it with no data | `npm run build:example`, then open `web/dist/example/index.html` (synthetic demo data; its days end on 28 Sep 2026, so open any card to see the history) | [`data/demo/README.md`](data/demo/README.md) |
-
-### Level 2 — food log + live page on your LAN (Docker)
-
-What you get: the page at `http://<server-ip>:8090` from any phone or computer at home, a food log you fill
-from the page, and a Sync button that rebuilds the page with your latest data (it also rebuilds every hour).
-Under the hood: two small Docker services, `services/loop-web` (serves the page) and `services/loop-ingest`
-(stores your food log, settings and incoming data).
-
-**Needs a Linux machine that stays on** (a home server or a mini PC) with Docker, systemd and Node.js;
-macOS and Windows are not supported as the host.
-
-**No Claude Code? The page sets you up.** On a fresh server the page opens an assistant that asks one
-question at a time — you, the sports you do, your goal and a short safety check — and works out your starting
-calories and macros for each kind of day. You can adjust them before saving and reopen it from your profile.
-Everything on the page works without Claude Code; only the reports, the coaches and the agent need it.
-
-1. **Install:** [`services/loop-web/README.md` → Install (host)](services/loop-web/README.md#install-host) —
-   eleven numbered steps (0–10), from the secrets file to opening the page on your phone.
-2. Keeping it up to date: [`docs/guides/upgrading.md`](docs/guides/upgrading.md); something not working:
-   [`docs/guides/troubleshooting.md`](docs/guides/troubleshooting.md).
-3. Reference when you need it: the food log API and every setting
-   ([`services/loop-ingest/README.md`](services/loop-ingest/README.md)); how the refresh and the
-   security model work ([`docs/lan-services.md`](docs/lan-services.md)).
-
-### Level 3 — live sync and your own knowledge base
-
-| Add | What it gives you | Doc |
-| --- | --- | --- |
-| iOS Shortcut | Pushes recent Apple Health samples between full exports. [Import the ready-made one](https://www.icloud.com/shortcuts/ceb66eea36fc434a9d2f910421dd18aa) and set your server, token and watch | [`docs/ios-shortcut.md`](docs/ios-shortcut.md) → Install the ready-made Shortcut |
-| Strava | Rides / runs, Relative Effort for the load dial, your bikes and shoes | [`services/loop-ingest/README.md` → Getting the Strava credentials](services/loop-ingest/README.md#getting-the-strava-credentials-once-5-minutes) |
-| Knowledge base | Transcripts of the experts *you* choose, read by the coach subagents | [`docs/knowledge-base.md`](docs/knowledge-base.md), [`knowledge/README.md`](knowledge/README.md) |
 
 The knowledge base ingest (`scripts/ingest-youtube.mjs`) uses the external
 [`yt-dlp`](https://github.com/yt-dlp/yt-dlp) — optional; skip it and the coaches answer from the
 evidence base and your data. `knowledge/` is gitignored: it is **for personal use only — respect the
 creators' rights** and never publish it.
+
+### Development: host mode
+
+Before the images, the server ran from a clone: `services/loop-ingest` and `services/loop-web` as Docker Compose
+stacks, with the page built on the host by `services/loop-web/refresh.sh` (a trigger file, a systemd path unit and
+an hourly cron line). It is kept for development and for installs not yet moved to the images
+([`services/loop-web/README.md` → Install (host)](services/loop-web/README.md#install-host); needs a Linux host with
+systemd and Node.js).
 
 ## Privacy
 

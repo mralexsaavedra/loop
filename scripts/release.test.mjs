@@ -166,6 +166,18 @@ test('CI runs the data service suite against a real Postgres, the same image and
   assert.equal(JSON.parse(read('services/loop-ingest/package.json')).scripts['test:pg'], 'node --test "test/pg/*.test.js"');
 });
 
+test('the README server quick start downloads the compose files of this release, which exist in the repo', () => {
+  const readme = read('README.md');
+  const urls = [...readme.matchAll(/https:\/\/raw\.githubusercontent\.com\/mralexsaavedra\/loop\/(v[^/]+)\/(docker\/[^\s]+)/g)];
+  assert.deepEqual(urls.map((m) => m[2]).sort(), ['docker/.env.example', 'docker/docker-compose.yml']);
+  for (const [, tag, file] of urls) {
+    assert.equal(tag, `v${VERSION}`, `${file} is downloaded from the release tag`);
+    assert.ok(exists(file), file);
+  }
+  assert.match(readme, /^\s+curl -fsSLO https:\/\/\S+\/docker\/docker-compose\.yml$/m, 'kept under its own name');
+  assert.match(readme, /^\s+curl -fsSL -o \.env https:\/\/\S+\/docker\/\.env\.example$/m, 'saved as .env');
+});
+
 test('community files: security policy and contributing guide', () => {
   for (const p of ['SECURITY.md', 'CONTRIBUTING.md', 'services/loop-ingest/.dockerignore']) assert.ok(exists(p), p);
   assert.equal(JSON.parse(read('services/loop-ingest/package.json')).license, 'MIT');

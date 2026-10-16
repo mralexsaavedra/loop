@@ -4,12 +4,12 @@
 > present): the clone is fresh and the user has not been onboarded. Do NOT attempt an analysis
 > against empty data.
 
-Installation (dependencies, Apple Health export, LAN services, Shortcut, Strava) is the `/setup` skill
-(`.claude/skills/setup/SKILL.md`), the entry point on a fresh clone; it hands over to this flow at
-Level 1. This file covers only the coaching intake.
+Installation (the server from the images, the coach clone and its connection to the server, the Apple Health
+export, Shortcut, Strava) is the `/setup` skill (`.claude/skills/setup/SKILL.md`), the entry point on a fresh clone;
+it hands over to this flow once the coach clone is set up. This file covers only the coaching intake.
 
 **Two ways to start.** With Claude Code, the intake below. Without it, the LAN page's own assistant
-(Level 2; `docs/profile.md` → In-page onboarding): a full-screen flow, one question per screen, that collects
+(the server; `docs/profile.md` → In-page onboarding): a full-screen flow, one question per screen, that collects
 sex, date of birth, height, weight, activity, the sports the person does (session length and times a week)
 and the goal, runs the same safety screen, and computes the daily targets per day type
 (`lib/nutrition/energy.mjs`); it saves them with the sports to the ingest service and the build uses them
@@ -47,13 +47,15 @@ conversationally — do not make them fill a form alone. Replicate a real coach 
    will ingest now (`knowledge/README.md`); never suggest or invent creators for them. Nothing to
    add yet → write only `## Common`: the coaches then answer from the evidence base and the user's
    data and say no source is configured.
-6. **Point them at their data.** Explain the data-drop steps (README → Setup, by level: Apple Health
-   export → `loop-data/files/import/`, then `extract.mjs`; nutrition → the Level 2 food log, or legacy
+6. **Point them at their data.** With a server, its data is already in the clone after `npm run sync` (README →
+   Setup → Coach; the Health export goes into the server's `files/import/`). Without one, explain the data-drop steps
+   (README → Setup → Coach without a server: Apple Health export → `loop-data/files/import/`, then
+   `npm run import:health`; nutrition → the server's food log, or legacy
    notes in a copy of `food-log.example.md` → `food-log.md`; **training → copy `data/training/training-data.example.json` →
    `loop-data/cache/training.json`** and transcribe their program by date from whatever their coach/app
    provides (PDF grids → render to PNG and read visually; a login-gated training app → have them
    paste/screenshot the sessions), see `docs/training.md` — then
-   `npm run generate`). The Home tab (Inicio in Spanish) then shows today's programmed session and the
+   `npm run generate`; with a server, `npm run documents -- push training` instead, and the server rebuilds the page). The Home tab (Inicio in Spanish) then shows today's programmed session and the
    Training tab (Entreno) fills itself from the Apple Health workouts already extracted in step 4. Don't block onboarding on this — profile + baseline are enough to start.
 7. **Confirm and offer the first analysis.** Summarize what you captured, ask them to
    correct anything, then offer to run an initial analysis (the `/analysis` skill,

@@ -1,6 +1,6 @@
 # Documentation
 
-Start with the project [`README.md`](../README.md): what this is and the three install levels. Then pick what
+Start with the project [`README.md`](../README.md): what this is and the two install paths (server, coach). Then pick what
 you need below. **Guides** are for using and setting up your own copy; the **reference** explains how each area is
 built, for anyone changing the code.
 
@@ -8,17 +8,17 @@ built, for anyone changing the code.
 
 | You want to… | Read |
 | --- | --- |
-| Install it, level by level (local page → LAN services → phone + Strava) | [`README.md`](../README.md#setup--pick-your-level) → Setup — pick your level |
+| Install it: the server (Docker images, no clone) and / or the coach (a clone opened in Claude Code) | [`README.md`](../README.md#setup) → Setup |
 | Understand what each tab and card tells you | [`guides/page-tour.md`](guides/page-tour.md) |
 | Make the nutrition and training plan yours | [`guides/your-plan.md`](guides/your-plan.md) |
 | Fix something that is not working | [`guides/troubleshooting.md`](guides/troubleshooting.md) |
 | Update your install to the latest version (and back up first) | [`guides/upgrading.md`](guides/upgrading.md) |
 | Try it with no data of your own | [`data/demo/README.md`](../data/demo/README.md) |
-| Run the page and the data service at home | [`services/loop-web/README.md`](../services/loop-web/README.md) → Install (host) |
+| Run the page and the data service at home | [`README.md`](../README.md#server--the-page-the-food-log-and-the-iphone-sync-docker-no-clone) → Server; the older host mode: [`services/loop-web/README.md`](../services/loop-web/README.md) → Install (host) |
 | Send your Apple Health data from the iPhone every day | [`ios-shortcut.md`](ios-shortcut.md) |
 | Connect Strava | [`services/loop-ingest/README.md`](../services/loop-ingest/README.md) → Getting the Strava credentials |
 | Set up your profile with Claude Code, or with the page's own assistant | [`onboarding.md`](onboarding.md) |
-| Run a second install for another person on the same host | [`services/loop-web/README.md`](../services/loop-web/README.md) → Running a second install |
+| Run a second install for another person on the same host | [`lan-services.md`](lan-services.md#a-second-install) → A second install |
 
 ## Reference — how each area is built
 
@@ -35,7 +35,7 @@ built, for anyone changing the code.
 | Profile sheet, goal setting, the in-page onboarding | [`profile.md`](profile.md) |
 | Design system: tokens, components, the guard test | [`design-system.md`](design-system.md) |
 | Data pipeline: Apple Health extract, Shortcut and Strava sync | [`data-pipeline.md`](data-pipeline.md) |
-| LAN services: page + data service, sync protocol, security | [`lan-services.md`](lan-services.md) |
+| LOOP server: the images, page + data service, sync protocol, security | [`lan-services.md`](lan-services.md) |
 | Coach subagents and their knowledge base | [`knowledge-base.md`](knowledge-base.md) |
 | The guard hook that keeps personal data out of git | [`guard-hook.md`](guard-hook.md) |
 | How every number is computed (analysis framework) | [`../analysis/methodology.md`](../analysis/methodology.md) |

@@ -229,12 +229,15 @@ accepted nutrition targets of a user without an AI coach).
   (coarse flag) and the sheet says how to re-authorize.
 - Re-authorize (steps in `services/loop-ingest/README.md`):
   1. back up `.env`;
-  2. re-run `services/loop-ingest/scripts/strava-auth.js`;
+  2. re-run `services/loop-ingest/scripts/strava-auth.js` (on a server from the images:
+     `docker compose exec loop-server node services/loop-ingest/scripts/strava-auth.js --print`, which prints the
+     `STRAVA_REFRESH_TOKEN=...` line for `.env` instead of writing it, then `docker compose up -d`);
   3. VERIFY the new token against Strava's token endpoint;
   4. only then back up and delete the stored `strava_token` row (it keeps the old scopes) and the
      `strava_athlete` row (to refresh now).
 - Rollback = restore `.env.bak` + the backed-up token row.
-- Rollout: `docker compose up -d --build loop-ingest` → `npm run sync` → `npm run generate`.
+- Rollout: on a server from the images, a new image (`docker compose pull && docker compose up -d`); in host mode
+  `docker compose up -d --build loop-ingest` → `npm run sync` → `npm run generate`.
 
 ## Build
 
@@ -314,8 +317,8 @@ A full-screen flow in the sheet, one question per screen: a `bare` sheet view wi
       page never names a data endpoint);
    3. where the token comes from (never shown);
    4. the Strava guide;
-   5. the history: a one-off Apple Health export sent as a .zip to whoever runs the server (README → Level 1,
-      step 3), the Shortcut keeping it current afterwards.
+   5. the history: a one-off Apple Health export sent as a .zip to whoever runs the server (README → Setup →
+      Server, step 5), the Shortcut keeping it current afterwards.
 
 ### Errors and screen readers
 
