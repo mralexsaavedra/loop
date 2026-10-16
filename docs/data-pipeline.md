@@ -531,8 +531,21 @@ server is the source, never a client of itself.
    `files/` folder is the one to add documents and manuals to**: one added only in the clone's
    `files/documents/` is removed by the next client sync. Never touched: `cache/`, `files/import/`, hidden, temp,
    lock or backup files, symlinks, and anything outside those folders. A manifest naming any path outside the
-   allowlist is refused as a whole (`ERROR:`, nothing written or removed). It ends with one line:
-   `Mirror: <n> files on the server: <d> downloaded, <u> unchanged, <r> removed[, <f> failed]`. A second
+   allowlist, or a name the server never lists (hidden, `*.tmp`, `*.lock`, `*.bak`, at any depth), is refused as a
+   whole (`ERROR:`, nothing written or removed). Each removed file is printed as `Removed <path>` (its path only,
+   never its content); `npm run sync -- --verbose` also prints `Downloaded <path>` for each download. It ends with
+   one line: `Mirror: <n> files on the server: <d> downloaded, <u> unchanged, <r> removed[, <f> failed]`.
+
+   **Safety stops** (`ERROR:`, exit 1, nothing downloaded or removed):
+
+   | Case | Override |
+   | --- | --- |
+   | The server lists no files while the clone has mirrored files (an empty or wrong volume on the server?) | `npm run sync -- --allow-empty` |
+   | The run would remove more than half of the clone's mirrored files, and more than 5 | `npm run sync -- --allow-removals` |
+   | An allowlisted folder, or the default files folder (`loop-data/files`), is a symlink in the clone | none: make it a real folder (`HC_FILES_DIR` may point anywhere) |
+
+   A subfolder inside them that is a symlink in the clone is never written through: that file fails with a
+   `WARNING:` (exit 1), the rest is mirrored. A second
    `--no-refresh` run downloads nothing; with the refresh, the server's own pass rewrites its `fetchedAt` stamps
    (`extract/journal-daily.meta.json`, sometimes `_meta.json`), so one or two small files come down each time.
 

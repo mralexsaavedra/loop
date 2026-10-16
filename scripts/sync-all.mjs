@@ -81,10 +81,10 @@ function realSpawn (cmd, spawnArgs) {
  * `npm run sync`: client mode against a container-mode LOOP server, else every script (see the header). Returns the
  * exit code. `deps` are injected by the tests (scripts/sync-client.test.mjs); SYNC_CLIENT_ROOT = the clone root the
  * data root resolves against (tests), default this clone.
- * @param {{ full?: boolean, 'no-refresh'?: boolean }} [values]
+ * @param {{ full?: boolean, 'no-refresh'?: boolean, 'allow-empty'?: boolean, 'allow-removals'?: boolean, verbose?: boolean }} [values]
  * @param {{ env?: Record<string, string | undefined>, spawn?: (cmd: string, args: string[]) => { status: number | null }, fetchImpl?: typeof fetch, sleep?: (ms: number) => Promise<void>, log?: (m: string) => void, warn?: (m: string) => void }} [deps]
  */
-export async function main ({ full = false, 'no-refresh': noRefresh = false } = {}, {
+export async function main ({ full = false, 'no-refresh': noRefresh = false, 'allow-empty': allowEmpty = false, 'allow-removals': allowRemovals = false, verbose = false } = {}, {
   env = process.env, spawn = realSpawn, fetchImpl = fetch, sleep, log = console.log, warn = console.error,
 } = {}) {
   const hostSyncs = () => runAll(SCRIPTS, scriptArgs({ full }), spawn);
@@ -100,7 +100,8 @@ export async function main ({ full = false, 'no-refresh': noRefresh = false } = 
     return 1;
   }
   if (server.mode === 'host') {
-    if (noRefresh) log('Note: --no-refresh only applies to a client of a LOOP server; running every sync');
+    const clientOnly = [noRefresh && '--no-refresh', allowEmpty && '--allow-empty', allowRemovals && '--allow-removals', verbose && '--verbose'].filter(Boolean);
+    if (clientOnly.length) log(`Note: ${clientOnly.join(', ')} only ${clientOnly.length > 1 ? 'apply' : 'applies'} to a client of a LOOP server; running every sync`);
     return hostSyncs();
   }
   const repoRoot = env.SYNC_CLIENT_ROOT || ROOT;
@@ -110,11 +111,11 @@ export async function main ({ full = false, 'no-refresh': noRefresh = false } = 
   let manifest = server.manifest;
   if (!noRefresh) ({ manifest } = await waitForSeq({ base, token, waitSeconds, fetchImpl, ...(sleep ? { sleep } : {}), log, warn }));
   const documents = runAll([DOCUMENTS], [], spawn);
-  const mirror = await mirrorFiles({ base, token, manifest, root: paths.root, filesDir: paths.filesDir, fetchImpl, log, warn });
+  const mirror = await mirrorFiles({ base, token, manifest, root: paths.root, filesDir: paths.filesDir, allowEmpty, allowRemovals, verbose, fetchImpl, log, warn });
   return Math.max(documents, mirror);
 }
 
-const USAGE = `Usage: node scripts/sync-all.mjs [--full] [--no-refresh]
+const USAGE = `Usage: node scripts/sync-all.mjs [--full] [--no-refresh] [--allow-empty] [--allow-removals] [--verbose]
 
 Runs every sync (Strava, Shortcut, profile, settings, onboarding, food log, journal) in order, even when
 one fails; exits 1 if any failed. Against a LOOP server in container mode (it answers GET /export/files)
@@ -122,9 +123,12 @@ this clone is its client instead: it asks the server to refresh (POST /sync) and
 documents, then mirrors the server's extract/, profile/, foodlog/, files/documents/ and files/manuals/.
   --full         the Shortcut sync ignores its cache and rebuilds it (not in client mode)
   --no-refresh   client mode: mirror what the server has now, without asking it to refresh first
+  --allow-empty  client mode: mirror an empty server even though this clone has mirrored files (removes them all)
+  --allow-removals  client mode: go ahead when the mirror would remove more than half of the mirrored files (and >5)
+  --verbose      client mode: print each downloaded path too (removed paths are always printed)
   -h, --help     this help
 Env: INGEST_URL, INGEST_TOKEN, HC_DATA_DIR, HC_SYNC_WAIT (client mode: seconds to wait for the server, default 120).`;
 
 if (isMain(import.meta.url)) {
-  runCli((values) => main(values), { usage: USAGE, options: { full: { type: 'boolean' }, 'no-refresh': { type: 'boolean' } } });
+  runCli((values) => main(values), { usage: USAGE, options: { full: { type: 'boolean' }, 'no-refresh': { type: 'boolean' }, 'allow-empty': { type: 'boolean' }, 'allow-removals': { type: 'boolean' }, verbose: { type: 'boolean' } } });
 }

@@ -373,3 +373,169 @@ test('npm run sync in client mode exits 1 when sync-documents failed, after stil
     c.cleanup();
   }
 });
+
+/* ---------- mirror safety: the server's listing rules, mass removals, symlinked folders, what was removed ---------- */
+
+test('mirrorFiles: a manifest naming a hidden, temp, lock or backup file (at any depth) is refused as a whole (nothing written or removed)', async () => {
+  const c = clone();
+  try {
+    c.put('extract/old.csv', 'x');
+    for (const bad of ['extract/.shortcut-cache.json', 'extract/weight.csv.4242.tmp', 'extract/_meta.json.lock', 'profile/settings.json.bak', 'files/documents/.hidden/a.pdf', 'files/documents/old.bak/a.pdf']) {
+      const out = quiet();
+      const manifest = { files: [{ path: 'extract/weight.csv', size: 1, sha256: sha(Buffer.from('x')), mtimeMs: 1 }, { path: bad, size: 1, sha256: sha(Buffer.from('x')), mtimeMs: 1 }], site: { processedSeq: 0 } };
+      assert.equal(await mirrorFiles({ base: 'http://127.0.0.1:1', token: TOKEN, manifest, root: c.root, ...out }), 1, bad);
+      assert.match(out.warns.join('\n'), /^ERROR: .*manifest was refused/, bad);
+      assert.ok(c.exists('extract/old.csv'), bad);
+      assert.ok(!c.exists('extract/weight.csv'), bad);
+    }
+  } finally {
+    c.cleanup();
+  }
+});
+
+const MANY = Object.fromEntries(Array.from({ length: 8 }, (_, i) => [`extract/f${i}.csv`, `v${i}\n`]));
+
+test('mirrorFiles: an empty manifest while the clone has mirrored files is refused (exit 1, nothing removed) unless allowEmpty', async () => {
+  const s = await fakeServer({ files: {} });
+  const c = clone();
+  try {
+    c.put('extract/weight.csv', 'mine');
+    c.put('files/manuals/edge.pdf', 'pdf');
+    const manifest = (await detectServer({ base: s.base, token: TOKEN })).manifest;
+    const out = quiet();
+    assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, ...out }), 1);
+    assert.match(out.warns.join('\n'), /^ERROR: the server lists no files.*--allow-empty/m);
+    assert.ok(c.exists('extract/weight.csv') && c.exists('files/manuals/edge.pdf'));
+    const ok = quiet();
+    assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, allowEmpty: true, ...ok }), 0);
+    assert.ok(!c.exists('extract/weight.csv') && !c.exists('files/manuals/edge.pdf'));
+    assert.match(ok.logs.at(-1), /0 downloaded, 0 unchanged, 2 removed$/);
+    // a fresh clone (nothing mirrored yet) and an empty server: nothing to protect, exit 0
+    const fresh = clone();
+    try {
+      assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: fresh.root, ...quiet() }), 0);
+    } finally {
+      fresh.cleanup();
+    }
+  } finally {
+    await s.close();
+    c.cleanup();
+  }
+});
+
+test('mirrorFiles: removing more than half of the mirrored files (and more than 5) is refused unless allowRemovals; 5 or fewer go ahead', async () => {
+  const s = await fakeServer({ files: { 'extract/f0.csv': MANY['extract/f0.csv'], 'extract/f1.csv': MANY['extract/f1.csv'] } });
+  const c = clone();
+  try {
+    for (const [p, v] of Object.entries(MANY)) c.put(p, v);
+    const manifest = (await detectServer({ base: s.base, token: TOKEN })).manifest;
+    const out = quiet();
+    assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, ...out }), 1);
+    assert.match(out.warns.join('\n'), /^ERROR: .*would remove 6 of the 8 mirrored files.*--allow-removals/m);
+    for (const p of Object.keys(MANY)) assert.ok(c.exists(p), p);
+    assert.deepEqual(s.state.downloads, []);
+    assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, allowRemovals: true, ...quiet() }), 0);
+    assert.deepEqual(fs.readdirSync(path.join(c.root, 'extract')).sort(), ['f0.csv', 'f1.csv']);
+  } finally {
+    await s.close();
+    c.cleanup();
+  }
+  // 5 of 6 removed: more than half, but not more than 5 -> a normal run
+  const s2 = await fakeServer({ files: { 'extract/f0.csv': MANY['extract/f0.csv'] } });
+  const c2 = clone();
+  try {
+    for (const p of Object.keys(MANY).slice(0, 6)) c2.put(p, MANY[p]);
+    const manifest = (await detectServer({ base: s2.base, token: TOKEN })).manifest;
+    assert.equal(await mirrorFiles({ base: s2.base, token: TOKEN, manifest, root: c2.root, ...quiet() }), 0);
+    assert.deepEqual(fs.readdirSync(path.join(c2.root, 'extract')), ['f0.csv']);
+  } finally {
+    await s2.close();
+    c2.cleanup();
+  }
+});
+
+test('mirrorFiles: an allowlisted folder (or a parent below the data root) that is a symlink in the clone is an ERROR, nothing mirrored', async () => {
+  for (const linked of ['extract', 'files', 'files/documents']) {
+    const s = await fakeServer({ files: SERVER_FILES });
+    const c = clone();
+    try {
+      const outside = path.join(c.dir, 'outside');
+      fs.mkdirSync(outside, { recursive: true });
+      fs.mkdirSync(path.dirname(path.join(c.root, linked)), { recursive: true });
+      fs.symlinkSync(outside, path.join(c.root, linked));
+      c.put('profile/settings.json', 'mine');
+      const manifest = (await detectServer({ base: s.base, token: TOKEN })).manifest;
+      const out = quiet();
+      assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, ...out }), 1, linked);
+      assert.match(out.warns.join('\n'), new RegExp(`^ERROR: .*${linked.replace('/', '\\/')}.* is a symlink`, 'm'), linked);
+      assert.deepEqual(fs.readdirSync(outside), [], linked);
+      assert.equal(c.read('profile/settings.json'), 'mine', linked);
+      assert.deepEqual(s.state.downloads, [], linked);
+    } finally {
+      await s.close();
+      c.cleanup();
+    }
+  }
+});
+
+test('mirrorFiles: a symlinked subfolder inside an allowlisted folder is never written through (that file fails, the rest mirrors)', async () => {
+  const s = await fakeServer({ files: { ...SERVER_FILES, 'files/documents/sub/deep.pdf': 'deep' } });
+  const c = clone();
+  try {
+    const outside = path.join(c.dir, 'outside');
+    fs.mkdirSync(outside, { recursive: true });
+    fs.mkdirSync(path.join(c.root, 'files', 'documents'), { recursive: true });
+    fs.symlinkSync(outside, path.join(c.root, 'files', 'documents', 'sub'));
+    const manifest = (await detectServer({ base: s.base, token: TOKEN })).manifest;
+    const out = quiet();
+    assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, ...out }), 1);
+    assert.deepEqual(fs.readdirSync(outside), []);
+    assert.match(out.warns.join('\n'), /files\/documents\/sub\/deep\.pdf.*symlink/);
+    assert.equal(c.read('extract/weight.csv'), SERVER_FILES['extract/weight.csv']);
+  } finally {
+    await s.close();
+    c.cleanup();
+  }
+});
+
+test('mirrorFiles: prints each removed path, each downloaded path only with verbose, never any content; the summary line stays last', async () => {
+  const s = await fakeServer({ files: SERVER_FILES });
+  const c = clone();
+  try {
+    c.put('extract/old.csv', 'SECRET-OLD');
+    const manifest = (await detectServer({ base: s.base, token: TOKEN })).manifest;
+    const out = quiet();
+    assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, ...out }), 0);
+    assert.ok(out.logs.includes('Removed extract/old.csv'), out.logs.join('\n'));
+    assert.ok(!out.logs.some((l) => l.startsWith('Downloaded ')), out.logs.join('\n'));
+    assert.match(out.logs.at(-1), /^Mirror: /);
+    c.put('extract/old2.csv', 'SECRET-OLD');
+    c.put('extract/weight.csv', 'stale');
+    const verbose = quiet();
+    assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, verbose: true, ...verbose }), 0);
+    assert.deepEqual(verbose.logs.slice(0, -1), ['Downloaded extract/weight.csv', 'Removed extract/old2.csv']);
+    assert.match(verbose.logs.at(-1), /^Mirror: .*1 downloaded, 5 unchanged, 1 removed$/);
+    assert.ok(!/SECRET|date,value/.test([...out.logs, ...verbose.logs].join('\n')));
+  } finally {
+    await s.close();
+    c.cleanup();
+  }
+});
+
+test('npm run sync passes --allow-empty, --allow-removals and --verbose to the mirror', async () => {
+  const s = await fakeServer({ files: {} });
+  const c = clone();
+  const sp = recordSpawn();
+  try {
+    c.put('extract/weight.csv', 'mine');
+    assert.equal(await syncAll({ 'no-refresh': true }, { env: c.env(s.base), spawn: sp.spawn, sleep: noSleep, ...quiet() }), 1);
+    assert.ok(c.exists('extract/weight.csv'));
+    const out = quiet();
+    assert.equal(await syncAll({ 'no-refresh': true, 'allow-empty': true, 'allow-removals': true, verbose: true }, { env: c.env(s.base), spawn: sp.spawn, sleep: noSleep, ...out }), 0);
+    assert.ok(!c.exists('extract/weight.csv'));
+    assert.ok(out.logs.includes('Removed extract/weight.csv'), out.logs.join('\n'));
+  } finally {
+    await s.close();
+    c.cleanup();
+  }
+});

@@ -33,6 +33,16 @@ own refresh (`HC_BUILD=container`) never mirrors itself. The Strava auth helper 
 (`docker compose exec loop-server node services/loop-ingest/scripts/strava-auth.js --print`); the host mode is
 unchanged.
 
+Hardened after an independent check: `O_NOFOLLOW` covers only the last path component, so a folder swapped for a
+symlink between the listing and the open (`extract/sub` → an outside folder) served the outside file under a race.
+The server now proves every opened file is inside its folder before sending a byte or hashing it (the listed inode,
+and the kernel's `/proc/self/fd` path with no symlink below the data root; a component `lstat` walk without `/proc`):
+a 30 s probe of 20 parallel downloads against a swapping loop served 0 outside files (56 in 15 s before). The client
+applies the server's listing rules to the manifest (a hidden, temp, lock or backup name refuses it as a whole),
+refuses an empty manifest while it has mirrored files (`--allow-empty`) and a run removing more than half of its
+files and more than 5 (`--allow-removals`), refuses a symlinked allowlisted folder in the clone, and prints each
+removed path (`--verbose`: each downloaded one too).
+
 ## 2026-10-16 — Server images, step 5: the Apple Health import folder
 
 A new export no longer needs unzipping by hand: `npm run import:health` (`scripts/import-health.mjs`) takes the
