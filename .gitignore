@@ -145,6 +145,12 @@ knowledge/*
 # login-gated service). Run them in place: `node local/<tool>/<script>.mjs`.
 /local/
 
+# The data root (lib/paths.mjs, the default when HC_DATA_DIR is unset): every personal and synced
+# file of this clone — the Apple Health extract, the food log, the profile snapshots, the copies of
+# the documents (cache/) and the owner files (files/: Health export, device manuals, coach PDFs).
+# Personal data: NEVER commit. The old paths above stay ignored (a clone not migrated yet).
+/loop-data/
+
 # Claude Code local files (per machine, never published)
 .claude/settings.local.json
 .claude/worktrees/

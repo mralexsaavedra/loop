@@ -50,6 +50,9 @@ const FIXTURE_FILES = [
   'services/plan-web/site/index.html',
   'services/health-ingest/.env',
   'web/.test-dist/es-personal/index.html',
+  'loop-data/cache/plan.json',
+  'loop-data/extract/weight.csv',
+  'loop-data/files/documents/report.pdf',
 ];
 
 let repo;
@@ -115,6 +118,10 @@ const PERSONAL_PATHS = [
   'data/nutrition/foodlog-daily.meta.json',
   'backups/profile/about-me.md.before.bak',
   'data/gear/edge-manual.pdf',
+  // the data root (lib/paths.mjs, <repo>/loop-data)
+  'loop-data/cache/plan.json',
+  'loop-data/extract/weight.csv',
+  'loop-data/files/documents/report.pdf',
 ];
 
 for (const p of PERSONAL_PATHS) {
@@ -268,6 +275,8 @@ test('falls back to the built-in personal list when git is unavailable', () => {
   assertRealNonIgnored('data/profile/sync-settings.mjs');
   assertAllowed(runHook(forceAdd('data/profile/sync-settings.mjs'), { env }), 'fallback sync-settings');
   assertAllowed(runHook(forceAdd('README.md'), { env }), 'fallback README');
+  assertBlocked(runHook(forceAdd('loop-data/cache/plan.json'), { env }), 'fallback loop-data file');
+  assertBlocked(runHook(forceAdd('loop-data'), { env }), 'fallback loop-data dir');
 });
 
 // --- .gitignore rewrites from the shell ---------------------------------------
