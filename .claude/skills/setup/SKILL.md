@@ -173,4 +173,5 @@ systemd units, a staggered cron line).
 
 ## Close
 
-Re-run Step 0, show the new checklist, name the next level (or "done").
+Re-run Step 0, show the new checklist, propose the next path (server or coach) or the next step of the current
+one (or "done").

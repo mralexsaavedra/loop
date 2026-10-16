@@ -151,14 +151,18 @@ CI ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) runs `npm run lin
 `npm run test:services` and (job `postgres`, a Postgres 17 service container) `npm run test:pg` on every push to `main` and every pull request; a fresh clone needs no personal data to pass. A `vX.Y.Z` tag runs
 [`.github/workflows/release.yml`](../.github/workflows/release.yml), which publishes the two server images to Docker
 Hub, `mralexandersaavedra/loop-server` (`docker/loop-server.Dockerfile`) and `mralexandersaavedra/loop-web`
-(`docker/loop-web.Dockerfile`), built from the repo root for `linux/amd64` and `linux/arm64` and tagged `X.Y.Z`,
-`X.Y` and `latest` (the OCI `version` label comes from the `VERSION` build argument). Its first job, `check`, stops the
-release before anything is built or pushed unless the tag equals `v` + the `package.json` version, the `HC_VERSION`
-default in [`docker/docker-compose.yml`](../docker/docker-compose.yml) and `HC_VERSION` in `docker/.env.example` are
-that version, and `CHANGELOG.md` has a dated `## [X.Y.Z] - YYYY-MM-DD` heading (a `- UNRELEASED` one is refused). The
+(`docker/loop-web.Dockerfile`), built from the repo root for `linux/amd64` and `linux/arm64` and tagged `X.Y.Z` and
+`X.Y` (the OCI `version` label comes from the `VERSION` build argument), plus `latest` only when the version is the
+highest `X.Y.Z` tag in the repo: a backport tag (`v1.0.5` after `v1.1.0`) leaves `latest` where it is. Its first job,
+`check`, stops the release before anything is built or pushed unless the version is a plain `X.Y.Z` (no pre-release),
+the tag equals `v` + the `package.json` version, the tagged commit is on `main`, every `loop-server` / `loop-web`
+`image:` line of [`docker/docker-compose.yml`](../docker/docker-compose.yml) uses `${HC_VERSION:-X.Y.Z}` with that
+version (no hard-coded tag), `HC_VERSION` in `docker/.env.example` is exactly that version, and the first version
+heading of `CHANGELOG.md` is `## [X.Y.Z] - YYYY-MM-DD` (a `- UNRELEASED` one is refused). The
 host-mode data service image (`mralexandersaavedra/loop-ingest`) is no longer published: `services/loop-ingest` still
 builds it from a clone (`docker compose up -d --build`). [`scripts/release.test.mjs`](../scripts/release.test.mjs) keeps
-the pieces below in step and runs the `check` script against good and bad copies, so a drift fails the suite.
+the pieces below in step and runs the `check` script against good and bad scratch git repos (the `latest` ordering
+included), so a drift fails the suite.
 
 One-time repository settings: the variable `DOCKERHUB_USERNAME` and the secret `DOCKERHUB_TOKEN` (a Docker Hub
 access token with read/write scope, never the account password); and, once the repository is public, **Settings →

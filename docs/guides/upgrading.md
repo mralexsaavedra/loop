@@ -17,19 +17,23 @@ docker compose exec -T loop-db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"
 ```
 
 To restore a copy into an empty database (a new install, or after `docker compose down -v`): start only the
-database, load the copy, then start the rest:
+database and wait until it accepts connections (`--wait`), load the copy, then start the rest. Paste the block
+as a whole: the `&&` at each line end stops it at the first error, so the rest never starts on an empty or
+half-loaded database (a database that is not empty refuses the copy with `relation ... already exists`, and
+nothing changes):
 
 ```sh
-docker compose up -d loop-db
-docker compose exec -T loop-db sh -c 'psql -q -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < backups/loop-db-YYYY-MM-DD.sql
+docker compose up -d --wait loop-db &&
+docker compose exec -T loop-db sh -c 'psql -q -v ON_ERROR_STOP=1 -U "$POSTGRES_USER" -d "$POSTGRES_DB"' < backups/loop-db-YYYY-MM-DD.sql > /dev/null &&
 docker compose up -d
 ```
 
 Keep the Apple Health export zip in `files/import/` too: it is the source of your Health history.
 
 On a host-mode install the same copy is `docker exec loop-db pg_dump -U health health > "backups/loop-db-$(date +%F).sql"`
-in the clone (restore: `docker exec -i loop-db psql -U health -d health < backups/loop-db-YYYY-MM-DD.sql`); on a second
-install the container carries its name (`loop-db-second` for `HC_INSTANCE=second`).
+in the clone (restore, into an empty database:
+`docker exec -i loop-db psql -q -v ON_ERROR_STOP=1 -U health -d health < backups/loop-db-YYYY-MM-DD.sql`); on a
+second install the container carries its name (`loop-db-second` for `HC_INSTANCE=second`).
 
 ## Update the server
 

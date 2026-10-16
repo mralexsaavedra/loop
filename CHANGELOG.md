@@ -31,10 +31,16 @@ entries below are the pre-release history.
 
 ## 2026-10-16 — Server images, step 7: release both images, install docs for the server and the coach
 
-The release workflow publishes `loop-server` and `loop-web` (multi-arch, `X.Y.Z`, `X.Y`, `latest`, the OCI version
-label from the `VERSION` build argument) instead of `loop-ingest`, after a `check` job that refuses a tag differing
-from `package.json`, from the `HC_VERSION` default of `docker/docker-compose.yml` or `docker/.env.example`, or a
-CHANGELOG entry still marked `UNRELEASED`; `scripts/release.test.mjs` runs that check against good and bad copies.
+The release workflow publishes `loop-server` and `loop-web` (multi-arch, `X.Y.Z`, `X.Y`, the OCI version label from
+the `VERSION` build argument; `latest` only for the highest `X.Y.Z` tag, so a backport never moves it) instead of
+`loop-ingest`, after a `check` job that refuses a version that is not a plain `X.Y.Z`, a tag differing from
+`package.json`, a tagged commit not on `main`, a `loop-server` / `loop-web` image line not using
+`${HC_VERSION:-X.Y.Z}` with that version, a different `HC_VERSION` in `docker/.env.example`, or a first CHANGELOG
+version heading that is not dated (`UNRELEASED`); `scripts/release.test.mjs` runs that check against good and bad
+scratch git repos. The database restore in `docs/guides/upgrading.md` waits for Postgres (`up -d --wait loop-db`) and
+stops at the first error (`&&`, `ON_ERROR_STOP`): run as backup, `down -v`, restore on a throwaway stack, every table
+count and a checksum of the food log came back identical (the former block loaded nothing: `psql` ran before Postgres
+accepted connections and the stack then started on an empty database).
 Dependabot now moves the digests in `docker/` too. The README's setup is two paths (server from the images, coach
 clone) and `docs/lan-services.md` leads with the stack, host mode in a short development / legacy section; the
 upgrading and troubleshooting guides, the onboarding, the profile doc and the `/setup` skill follow. Every server

@@ -113,16 +113,38 @@ const CHECK_SCRIPT = (() => {
   return m[1].split('\n').map((l) => l.slice(10)).join('\n');
 })();
 
-function runCheck({ tag = `v${VERSION}`, changelog, compose, env } = {}) {
+const git = (dir, ...args) => {
+  const r = spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', '-c', 'tag.gpgsign=false', ...args], { cwd: dir, encoding: 'utf8', env: { PATH: process.env.PATH, GIT_CONFIG_NOSYSTEM: '1', HOME: dir } });
+  assert.equal(r.status, 0, r.stderr);
+  return r.stdout.trim();
+};
+
+/* A scratch git repo with the version files, committed on `main` (mirrored as origin/main, as a fetch-depth 0
+ * checkout has it), `tags` on that commit; `offMain` tags a commit origin/main does not contain. */
+function runCheck({ tag, version = VERSION, changelog, compose, env, tags = [], offMain = false } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'release-check-'));
   try {
+    const sub = (s) => (version === VERSION ? s : s.replaceAll(VERSION, version));
     fs.mkdirSync(path.join(dir, 'docker'));
-    fs.writeFileSync(path.join(dir, 'package.json'), read('package.json'));
-    fs.writeFileSync(path.join(dir, 'docker/docker-compose.yml'), compose ?? read('docker/docker-compose.yml'));
-    fs.writeFileSync(path.join(dir, 'docker/.env.example'), env ?? read('docker/.env.example'));
-    fs.writeFileSync(path.join(dir, 'CHANGELOG.md'), changelog ?? `# Changelog\n\n## [${VERSION}] - 2026-10-20\n\nNotes.\n`);
-    const r = spawnSync('bash', ['-e', '-c', CHECK_SCRIPT], { cwd: dir, env: { PATH: process.env.PATH, GITHUB_REF_NAME: tag }, encoding: 'utf8' });
-    return { status: r.status, out: r.stdout + r.stderr };
+    fs.writeFileSync(path.join(dir, 'package.json'), sub(read('package.json')));
+    fs.writeFileSync(path.join(dir, 'docker/docker-compose.yml'), compose ?? sub(read('docker/docker-compose.yml')));
+    fs.writeFileSync(path.join(dir, 'docker/.env.example'), env ?? sub(read('docker/.env.example')));
+    fs.writeFileSync(path.join(dir, 'CHANGELOG.md'), changelog ?? `# Changelog\n\n## [${version}] - 2026-10-20\n\nNotes.\n`);
+    git(dir, 'init', '-q', '-b', 'main');
+    git(dir, 'add', '-A');
+    git(dir, 'commit', '-q', '-m', 'release');
+    git(dir, 'update-ref', 'refs/remotes/origin/main', 'HEAD');
+    if (offMain) git(dir, 'commit', '-q', '--allow-empty', '-m', 'not on main');
+    for (const t of tags) git(dir, 'tag', t);
+    const out = path.join(dir, '.github-output');
+    fs.writeFileSync(out, '');
+    // GitHub's default `run` shell: bash -e -o pipefail
+    const r = spawnSync('bash', ['-e', '-o', 'pipefail', '-c', CHECK_SCRIPT], {
+      cwd: dir,
+      env: { PATH: process.env.PATH, GIT_CONFIG_NOSYSTEM: '1', HOME: dir, GITHUB_REF_NAME: tag ?? `v${version}`, GITHUB_SHA: git(dir, 'rev-parse', 'HEAD'), GITHUB_OUTPUT: out },
+      encoding: 'utf8',
+    });
+    return { status: r.status, out: r.stdout + r.stderr, outputs: fs.readFileSync(out, 'utf8') };
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -156,6 +178,62 @@ test('the release check refuses a compose HC_VERSION default or .env.example HC_
   assert.match(b.out, /\.env\.example HC_VERSION/);
 });
 
+test('the release check refuses an .env.example HC_VERSION that only matches the version as a regex', () => {
+  const r = runCheck({ env: read('docker/.env.example').replace(/^HC_VERSION=.*$/m, `HC_VERSION=${VERSION.replaceAll('.', 'x')}`) });
+  assert.notEqual(r.status, 0, r.out);
+  assert.match(r.out, /\.env\.example HC_VERSION/);
+});
+
+test('the release check refuses an UNRELEASED first version heading even with a dated one further down', () => {
+  const r = runCheck({ changelog: `# Changelog\n\n## [${VERSION}] - UNRELEASED\n\nNotes.\n\n## [${VERSION}] - 2026-10-20\n\nOld.\n` });
+  assert.notEqual(r.status, 0, r.out);
+  assert.match(r.out, /first version heading/);
+});
+
+test('the release check refuses a loop-server or loop-web image line with a hardcoded tag', () => {
+  for (const img of IMAGES) {
+    const compose = read('docker/docker-compose.yml').replace(`image: ${img}:\${HC_VERSION:-${VERSION}}`, `image: ${img}:${VERSION}`);
+    assert.notEqual(compose, read('docker/docker-compose.yml'), img);
+    const r = runCheck({ compose });
+    assert.notEqual(r.status, 0, `${img}: ${r.out}`);
+    assert.match(r.out, /image line/);
+  }
+});
+
+test('the release check refuses anything but a plain X.Y.Z version, consistent everywhere', () => {
+  for (const version of [`${VERSION}-rc.1`, `${VERSION}+build.5`, '1.0']) {
+    const r = runCheck({ version });
+    assert.notEqual(r.status, 0, `${version}: ${r.out}`);
+    assert.match(r.out, /not a plain X\.Y\.Z/, version);
+  }
+});
+
+test('the release check refuses a tagged commit that is not on main', () => {
+  const r = runCheck({ offMain: true });
+  assert.notEqual(r.status, 0, r.out);
+  assert.match(r.out, /not on main/);
+});
+
+test('latest moves only for the highest X.Y.Z tag; a backport publishes X.Y.Z and X.Y but not latest', () => {
+  const v = `v${VERSION}`;
+  const [maj, min, pat] = VERSION.split('.').map(Number);
+  assert.match(runCheck({ tags: [v] }).outputs, /^latest=true$/m, 'the only release');
+  assert.match(runCheck({ tags: [`v${maj}.${min}.${pat + 1}`, v] }).outputs, /^latest=false$/m, 'a newer patch exists');
+  assert.match(runCheck({ tags: [`v${maj + 1}.0.0`, v] }).outputs, /^latest=false$/m, 'a newer major exists');
+  // numeric, not lexical (0.10.0 > 0.9.0, 1.10.0 > 1.9.0); pre-release and non-semver tags are ignored
+  assert.match(runCheck({ tags: [v, 'v0.9.0', 'v0.10.0', `v${maj + 1}.0.0-rc.1`, 'vnext', 'v99'] }).outputs, /^latest=true$/m, 'only older or non-release tags');
+  assert.match(runCheck({ version: '1.10.0', tags: ['v1.9.0', 'v1.10.0'] }).outputs, /^latest=true$/m, '1.10.0 > 1.9.0');
+  assert.match(runCheck({ version: '1.9.0', tags: ['v1.9.0', 'v1.10.0'] }).outputs, /^latest=false$/m, '1.9.0 < 1.10.0');
+});
+
+test('the image job tags latest only from the check job\'s ordering, never metadata-action\'s automatic latest', () => {
+  const rel = read('.github/workflows/release.yml');
+  assert.match(rel, /^\s+fetch-depth: 0$/m, 'the check sees main and every tag');
+  assert.match(rel, /^\s+latest: \$\{\{ steps\.version\.outputs\.latest \}\}$/m, 'job output');
+  assert.match(rel, /type=raw,value=latest,enable=\$\{\{ needs\.check\.outputs\.latest == 'true' \}\}/);
+  assert.match(rel, /^\s+flavor: latest=false$/m, 'no automatic latest on a semver tag');
+});
+
 test('CI runs the data service suite against a real Postgres, the same image and digest as the compose file', () => {
   const ci = read('.github/workflows/ci.yml');
   const pinned = read('services/loop-ingest/docker-compose.yml').match(/image: (postgres:17-alpine@sha256:[0-9a-f]{64})/)[1];
@@ -176,6 +254,24 @@ test('the README server quick start downloads the compose files of this release,
   }
   assert.match(readme, /^\s+curl -fsSLO https:\/\/\S+\/docker\/docker-compose\.yml$/m, 'kept under its own name');
   assert.match(readme, /^\s+curl -fsSL -o \.env https:\/\/\S+\/docker\/\.env\.example$/m, 'saved as .env');
+});
+
+test('the server restore block waits for the database, stops at the first error and only then starts the rest', () => {
+  const g = read('docs/guides/upgrading.md');
+  const block = g.match(/```sh\n(docker compose up -d --wait loop-db[^`]*)```/);
+  assert.ok(block, 'the restore block starts the database with --wait (a plain up -d returns before Postgres accepts connections)');
+  const lines = block[1].trim().split('\n');
+  assert.deepEqual(lines.slice(0, -1).filter((l) => !l.endsWith(' &&')), [], 'every line but the last ends in && (safe to paste whole)');
+  assert.match(lines[1], /psql -q -v ON_ERROR_STOP=1 /, 'psql stops at the first failing statement');
+  assert.equal(lines.at(-1), 'docker compose up -d');
+});
+
+test('the docs sections that docker/docker-compose.yml and the /setup skill point at exist', () => {
+  const header = read('docker/docker-compose.yml').match(/docs\/lan-services\.md -> ([^)]+)\)/);
+  assert.ok(header, 'the compose header names a docs/lan-services.md section');
+  assert.match(read('docs/lan-services.md'), new RegExp(`^## ${header[1].replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`, 'm'), header[1]);
+  const close = read('.claude/skills/setup/SKILL.md').split('## Close\n')[1];
+  assert.doesNotMatch(close, /level/, 'the setup skill speaks of paths (server, coach), not levels');
 });
 
 test('community files: security policy and contributing guide', () => {
