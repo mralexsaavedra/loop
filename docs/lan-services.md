@@ -188,7 +188,8 @@ release). The host path above (trigger file + `refresh.sh`) keeps working unchan
   named volume from the first container that mounts it, and `loop-server` (the `node` user) must be able to publish
   into it whichever container compose creates first.
 - **Compose** (`docker/docker-compose.yml` + `docker/.env.example`): `loop-db` + `loop-server` + `loop-web` (which
-  starts once `loop-server` is healthy), the same `HC_INSTANCE` naming (containers, volumes, `loop-net`),
+  starts once `loop-server` is healthy: while `loop-server` is unhealthy, `docker compose up` does not start the page
+  either; `docker compose logs loop-server` says why), the same `HC_INSTANCE` naming (containers, volumes, `loop-net`),
   `INGEST_PORT` / `INGEST_BIND` and hardening as today: read-only root filesystems; `loop-server` with tmpfs for `/tmp`
   and Astro's caches, no capability, `init`; `loop-web` with tmpfs for `conf.d`, nginx's cache, `/run` and `/tmp`, only
   `CHOWN`, `SETGID`, `SETUID`; no privilege gain and limits on all three. `scripts/loop-server-compose.test.mjs` pins
