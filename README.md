@@ -1,7 +1,7 @@
 # LOOP
 
 [![CI](https://github.com/mralexsaavedra/loop/actions/workflows/ci.yml/badge.svg)](https://github.com/mralexsaavedra/loop/actions/workflows/ci.yml)
-[![Docker Hub](https://img.shields.io/docker/v/mralexandersaavedra/loop-ingest?sort=semver&label=docker%20hub)](https://hub.docker.com/r/mralexandersaavedra/loop-ingest)
+[![Docker Hub](https://img.shields.io/docker/v/mralexandersaavedra/loop-server?sort=semver&label=docker%20hub)](https://hub.docker.com/r/mralexandersaavedra/loop-server)
 [![License: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A personal, data-driven health and nutrition coaching workspace operated by
@@ -178,12 +178,15 @@ same host: a second folder with its own `HC_INSTANCE` and ports in `.env`.
 3. **Connect it to your server** and pull its data. On the server itself:
 
    ```sh
-   export INGEST_URL=http://127.0.0.1:8088 INGEST_TOKEN=<INGEST_TOKEN from the server's .env>
+   npm run connect -- http://127.0.0.1:8088
    npm run sync
    ```
 
-   It prints `Client mode: ...` and a `Mirror: N files ...` line: the clone now holds a copy of the server's data
-   in `loop-data/` (gitignored). From another computer use `http://<server-ip>:8088`, which needs the data port
+   `connect` asks for the token (`INGEST_TOKEN` in the server's `.env`) without echoing it, so it never lands in
+   your shell history, and saves the address and token in `loop-data/server.json` (mode 600, gitignored): every
+   later `npm run sync`, in any terminal, uses it (`npm run connect -- --forget` removes it). Check: `npm run sync`
+   prints `Client mode: ...` and a `Mirror: N files ...` line: the clone now holds a copy of the server's data
+   in `loop-data/`. From another computer use `http://<server-ip>:8088`, which needs the data port
    reachable on the LAN: `INGEST_BIND` in the server's `.env` is `127.0.0.1` (loopback only) by default; set it to
    the server's LAN IP and run `docker compose up -d` there (keep it off the internet:
    [Network and bind address](docs/lan-services.md#network-and-bind-address)). Details:

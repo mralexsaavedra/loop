@@ -45,7 +45,8 @@ published).
   `/data/import-state.json` (`lastError`), never a `status.json` error: the page is rebuilt from the last extract.
   The refresh lock stays fresh meanwhile. A real ~44 MB iPhone zip (~920 MB export) took ~31 s to import and the
   whole pass ~45 s, the container's memory peaking at ~470 MB (limit 1536 MB). By hand:
-  `docker exec loop-server npm run import:health` (`-- --force` re-imports the same zip).
+  `docker compose exec loop-server npm run import:health` from the folder holding `docker-compose.yml` (`-- --force`
+  re-imports the same zip).
 - **No plan document yet** (a fresh install): the page is built with the example plan and the onboarding's
   targets, with a build `WARNING` ([`nutrition.md` → Build, check and generated files](nutrition.md#build-check-and-generated-files)).
 - **Storage.** `/data` (volume `loop-server-data`): the data root (`HC_DATA_DIR`: extract, food log, profile,

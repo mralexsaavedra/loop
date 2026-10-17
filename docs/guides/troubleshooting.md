@@ -66,6 +66,8 @@ ports (page 8090, data service 8088). An older host-mode install (the services r
   copy it again (it is retried on the next run).
 - `too-large`: the export is over `HC_IMPORT_MAX_BYTES` (10 GiB by default); raise it in `.env`, then
   `docker compose up -d`. A first import that times out: raise `HC_IMPORT_TIMEOUT` (seconds) the same way.
+- A zip the container cannot read (copied with mode `600` by another user; the server runs as the image's `node`
+  user, uid 1000): `chmod 644 files/import/<the zip>`, then press **Sync**.
 - To import the same zip again: `docker compose exec loop-server npm run import:health -- --force`.
 
 ## The Shortcut runs but nothing arrives

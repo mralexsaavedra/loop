@@ -12,8 +12,11 @@ write to it through the page's own address, so what you log appears on the page 
 
 ## Calling the API
 
-- Base URL: the address the user opens the page on (default `http://localhost:8090`; the `PLAN_WEB_PORT` and, when set, the `PLAN_WEB_BIND` address in
-  `services/loop-web/.env` replace the port and `localhost`), path `/api/food/…`. Writes
+- Base URL: the address the user opens the page on, path `/api/food/…`. On a LOOP server (the Docker images) it
+  is `http://<server-ip>:<PLAN_WEB_PORT>` (`PLAN_WEB_PORT` in the server's `.env`, default `8090`): ask the user
+  for it, since the server may be another machine. Host mode (development / legacy): default
+  `http://localhost:8090`; the `PLAN_WEB_PORT` and, when set, the `PLAN_WEB_BIND` address in
+  `services/loop-web/.env` replace the port and `localhost`. Writes
   also send `Content-Type: application/json`.
 - Every call sends the header `x-hc-food: 1`; without it the service answers `403`. No token is needed for
   `/food/*` (LAN-only trust model). Never print or echo `INGEST_TOKEN` or any secret.

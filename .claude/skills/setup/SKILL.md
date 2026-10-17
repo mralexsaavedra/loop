@@ -88,11 +88,13 @@ Server step by step; reference: `docs/lan-services.md` → The stack.
 ## Coach — this clone
 
 1. `npm ci`.
-2. Connect to the server: `INGEST_URL=http://<server>:<INGEST_PORT>` and the server's `INGEST_TOKEN` as
-   environment variables (the user sets the token; never shown in the chat), then `npm run sync`: it must print
-   `Client mode: ...` and a `Mirror: ...` count line (`docs/data-pipeline.md` → Coach as a client of a LOOP server).
+2. Connect to the server: the user runs `npm run connect -- http://<server>:<INGEST_PORT>` in their own terminal;
+   it asks for the server's `INGEST_TOKEN` without echoing it (never in the chat, never in shell history) and saves
+   `loop-data/server.json` (mode 600), so every later sync finds the server (`npm run connect -- --forget` removes
+   it). Then `npm run sync`: it must print `Client mode: ...` and a `Mirror: ...` count line (`docs/data-pipeline.md` → Coach as a client of a LOOP server).
    A `401` error = wrong token; a connection error from another computer = `INGEST_BIND` is loopback only on the
-   server (`README.md` → Setup → Coach, step 3). Documents and manuals go into the server's files folder.
+   server (`README.md` → Setup → Coach, step 3). Documents and manuals go into the server's files folder (a file
+   only in the clone is kept but never published).
 3. **Onboarding**: no `profile/about-me.md` → run `docs/onboarding.md` (writes `profile/about-me.md`,
    `profile/baseline.md`, `profile/coaches.md`).
 4. `npm run documents -- push all` when the clone has profile, plan or program files the server does not: imports

@@ -154,9 +154,11 @@ The routes are UNAUTHENTICATED (a static page cannot hold a secret) and LAN only
 Together they keep a website opened in a LAN browser from reading or writing the log; a device ON the LAN
 calling the service directly is trusted (the LAN-only model).
 
-- **To add a hostname** (e.g. `http://plan.lan:8090`): `PLAN_WEB_EXTRA_HOSTS=plan.lan` in
+- **To add a hostname** (e.g. `http://plan.lan:8090`), only names you control on your own network: on a LOOP
+  server (the Docker images), `PLAN_WEB_EXTRA_HOSTS=plan.lan` + `FOOD_ALLOWED_HOSTS=plan.lan` in the server's `.env`,
+  then `docker compose up -d`. Host mode (development / legacy): `PLAN_WEB_EXTRA_HOSTS=plan.lan` in
   `services/loop-web/.env` + `FOOD_ALLOWED_HOSTS=plan.lan` in `services/loop-ingest/.env`, then
-  `docker compose up -d` in both; only names you control on your own network.
+  `docker compose up -d` in both.
 - Text fields refuse U+0000 and the other control characters but tab / line feed / carriage return (`400 invalid`
   with the `field`; Postgres cannot store U+0000). Bodies ≤ 16 KB (`413`); writes ≤ 60 / min per client address (`429`) — behind loop-web every request comes
   from nginx, so it is ONE shared budget.
