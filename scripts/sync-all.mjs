@@ -115,7 +115,7 @@ export async function main ({ full = false, 'no-refresh': noRefresh = false, 'al
   }
   const paths = dataPaths({ repoRoot, env });
   log(`Client mode: ${base} is a LOOP server (container mode); mirroring its data into ${displayPath(repoRoot, paths.root)}`);
-  if (full) log('Note: --full is ignored in client mode (the server keeps the Shortcut cache)');
+  if (full) log('Note: --full is ignored in client mode (the server keeps the Shortcut cache: on the server, `docker compose exec loop-server npm run sync -- --full`)');
   let manifest = server.manifest;
   if (!noRefresh) ({ manifest } = await waitForSeq({ base, token, waitSeconds, fetchImpl, ...(sleep ? { sleep } : {}), log, warn }));
   const documents = runAll([DOCUMENTS], [], spawn);

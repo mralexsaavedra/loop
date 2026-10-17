@@ -157,6 +157,21 @@ table.
 - Sync is incremental: a local gitignored `extract/.shortcut-cache.json` of deduped samples + the last
   payload id. `npm run sync -- --full` rebuilds it (needed once after adding a key, since the
   incremental sync only parses payloads newer than the cache).
+- **On a server installed with the images** the cache lives in the loop-server `/data` volume and the server folds
+  the payloads itself (a coach clone ignores `--full`, see [Coach as a client](#coach-as-a-client-of-a-loop-server)).
+  Rebuild it inside the container, from the folder with the server's `docker-compose.yml` and `.env`:
+
+  ```bash
+  docker compose exec loop-server npm run sync -- --full
+  ```
+
+  It runs as the image's `node` user with the container's environment (`HC_BUILD=container`, so every sync script
+  runs: no client mode; `INGEST_URL` defaults to the service on `localhost:8088` inside the container; the extract
+  lock keeps it apart from a refresh running at the same time) and ends with the usual per-sync lines (`npm notice`
+  lines about a newer npm are harmless). The rebuilt extract reaches the page on the next pass: the page's Sync
+  button, the hourly refresh (`HC_REFRESH_MINUTES`) or `curl -X POST http://127.0.0.1:<INGEST_PORT>/sync` on the
+  server. Verified on a throwaway stack of images built from this release (2026-10-17): the cache is rebuilt from every payload and
+  the next pass publishes a new `status.json`.
 - Payloads (and Strava activities) are fetched in keyset pages (`fetchPages` in `sync-common.mjs`): a full
   page whose last id is missing or not greater than the previous `since_id` stops the sync with
   `unexpected paging cursor`, and 10 000 pages is a hard cap, so a misbehaving service can never loop it. A
@@ -543,7 +558,8 @@ server is the source, never a client of itself.
    server's published `processedSeq` reaches the returned seq, so the mirror holds the data of this very moment. At
    most `HC_SYNC_WAIT` seconds (default 120): after that, or when the server's page build failed for that seq, one
    `WARNING:` and the data is pulled anyway. `npm run sync -- --no-refresh` skips this step (mirror what the server
-   has now). `--full` is ignored (the server keeps the Shortcut cache).
+   has now). `--full` is ignored (the server keeps the Shortcut cache: rebuild it on the server with
+   `docker compose exec loop-server npm run sync -- --full`, [Shortcut merge into the extract](#shortcut-merge-into-the-extract)).
 2. **Documents.** `scripts/sync-documents.mjs`, exactly as above: `loop-data/cache/` keeps its local-edit protection
    (an edit not pushed yet is kept with its `WARNING:`).
 3. **Mirror.** The allowlisted folders of the server's data root: `extract/`, `profile/`, `foodlog/`,
