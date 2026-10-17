@@ -249,7 +249,7 @@ async function main ({ env = process.env, log = console.log, error = console.err
   return 0
 }
 
-if (isMain(import.meta.url)) common.runCli(() => main(), { usage: USAGE })
+if (isMain(import.meta.url)) common.runCli(() => main(), { guardDataRoot: true, usage: USAGE })
 
 export {
   PROFILE_JSON,

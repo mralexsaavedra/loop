@@ -120,6 +120,6 @@ async function main ({ env = process.env, log = console.log, error = console.err
   }
 }
 
-if (isMain(import.meta.url)) common.runCli(() => main(), { usage: USAGE })
+if (isMain(import.meta.url)) common.runCli(() => main(), { guardDataRoot: true, usage: USAGE })
 
 export { SETTINGS_JSON, GOALS, TARGET_MIN, TARGET_MAX, normalizeSettings, fetchSettings, syncSettings, warning, main }

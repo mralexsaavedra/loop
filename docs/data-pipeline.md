@@ -12,9 +12,13 @@ for the documents, `files/import/export.xml` for the Health export); `lib/paths.
 (`HC_FILES_DIR`) inside the clone is accepted only when `git check-ignore` matches it (the default `loop-data/` is in
 `.gitignore`; so is anything under `backups/`). Otherwise the commands that write there stop before writing anything,
 with `ERROR: the data root <path>/ (HC_DATA_DIR) is inside this clone and git does not ignore it: ...` and exit 1:
-`npm run sync`, `npm run import:health`, `npm run migrate:data-root`, `npm run connect`, `npm run documents`. A
-folder outside the clone, or a clone that is not a git work tree (the `loop-server` image, a zip download), passes.
-The page build and `generate` only read the data root, so they do not check it.
+`npm run sync`, `npm run import:health`, `npm run migrate:data-root`, `npm run connect`, `npm run documents`, and the
+single syncs run on their own: `npm run sync:shortcut`, `sync:strava`, `sync:profile`, `sync:settings`,
+`sync:onboarding`, `sync:documents`, `sync:foodlog`, `node scripts/sync-journal.mjs` and
+`node data/apple-health/extract.mjs` (their `runCli(..., { guardDataRoot: true })`). A folder outside the clone, or a
+clone that is not a git work tree (the `loop-server` image, a zip download), passes. The page build, `generate` and
+`npm run publish:manuals` only read the data root (the manuals are copied into the site folder), so they do not
+check it.
 
 > **Reference** — how this area is built, for anyone changing it (keep it in sync with the code in the same
 > commit). Setting up or using the page? Start at the [documentation index](README.md).
@@ -535,7 +539,9 @@ gitignored with it). The token is never printed.
 `npm run connect -- --forget` removes the saved server. Every sync script then resolves the server in this order
 (`data/apple-health/sync-common.mjs`), each of `INGEST_URL` and `INGEST_TOKEN` on its own: the environment, then
 `loop-data/server.json`, then the clone's `services/loop-ingest/.env` (`INGEST_TOKEN=`, `INGEST_PORT=` →
-`http://localhost:<port>`, the host-mode setup). A broken `server.json` is skipped. Then `npm run sync` as always,
+`http://localhost:<port>`, the host-mode setup). The saved token is used only when the resolved URL is the saved
+one (compared without a trailing slash, scheme and host case-insensitive): an env `INGEST_URL` pointing at another
+server never receives it and falls through to the `.env` token. A broken `server.json` is skipped. Then `npm run sync` as always,
 in any terminal.
 
 **Detection.** `npm run sync` first asks `GET /export/files` with the token
@@ -591,7 +597,7 @@ server is the source, never a client of itself.
 
    | Case | Override |
    | --- | --- |
-   | The server lists no files while the clone has mirrored files (in the ledger; an empty or wrong volume on the server?) | `npm run sync -- --allow-empty` |
+   | The server lists no files while the clone has mirrored files (in the ledger; an empty or wrong volume on the server?) | `npm run sync -- --allow-empty`; with more than 5 mirrored files the run also removes all of them, so it needs `--allow-empty --allow-removals` |
    | The run would remove more than half of the clone's mirrored files (in the ledger), and more than 5 | `npm run sync -- --allow-removals` |
    | An allowlisted folder, or the default files folder (`loop-data/files`), is a symlink in the clone | none: make it a real folder (`HC_FILES_DIR` may point anywhere) |
 

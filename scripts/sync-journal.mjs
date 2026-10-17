@@ -114,4 +114,4 @@ Snapshots the behaviour journal from the ingest service into the extract's journ
   -h, --help   this help
 Env: INGEST_URL, INGEST_ENV_FILE (default services/loop-ingest/.env, for its INGEST_PORT).`;
 
-if (isMain(import.meta.url)) runCli(() => main(), { usage: USAGE });
+if (isMain(import.meta.url)) runCli(() => main(), { guardDataRoot: true, usage: USAGE });

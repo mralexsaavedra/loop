@@ -67,12 +67,25 @@ function readSavedServer(env) {
   return { url, token };
 }
 
+// A base URL in one spelling for comparison: lower-case scheme and host, no trailing slash (the raw string, minus
+// its trailing slashes, when it does not parse).
+function normalizeUrl(u) {
+  const s = String(u).trim().replace(/\/+$/, '');
+  try {
+    const url = new URL(s);
+    return `${url.protocol}//${url.host}${url.pathname.replace(/\/+$/, '')}`;
+  } catch {
+    return s;
+  }
+}
+
 // resolveToken() + the disk reads, so every sync script's main() does the same one-liner: INGEST_TOKEN from env,
-// then the saved server (npm run connect), then the service's .env file.
+// then the saved server's token (npm run connect) -- only when the URL resolves to that saved server, so an env
+// INGEST_URL pointing elsewhere never receives it -- then the service's .env file.
 function readIngestToken(env, envFile = envFileOf(env)) {
   if (env.INGEST_TOKEN) return env.INGEST_TOKEN;
-  const saved = readSavedServer(env).token;
-  if (saved) return saved;
+  const saved = readSavedServer(env);
+  if (saved.token && saved.url && (!env.INGEST_URL || normalizeUrl(env.INGEST_URL) === normalizeUrl(saved.url))) return saved.token;
   const envText = fs.existsSync(envFile) ? fs.readFileSync(envFile, 'utf8') : null;
   return resolveToken(env, envText);
 }
@@ -319,12 +332,23 @@ function parseCli(argv, { usage, options = {} }) {
 /** A sync script's entry point: parseCli first (--help / a bad flag never reaches main), then
  * `await main(values)`; a number main returns is the exit code (none = 0), a rejected main prints one
  * `ERROR:` line and exits 1. The exit code is set, not forced, so the output is flushed first. */
-async function runCli(main, { usage, options = {}, argv = process.argv.slice(2) }) {
+async function runCli(main, { usage, options = {}, argv = process.argv.slice(2), guardDataRoot = false }) {
   const cli = parseCli(argv, { usage, options });
   if (cli.exit != null) {
     if (cli.exit) console.error(cli.err);
     else console.log(cli.out);
     process.exitCode = cli.exit;
+    return;
+  }
+  // a script that writes the data root refuses one git could commit before anything is read or written
+  // (scripts/lib/data-root-guard.mjs, the same check npm run sync makes; imported only here, so a read-only
+  // command such as generate.mjs does not depend on it)
+  const guard = guardDataRoot
+    ? (await import('../../scripts/lib/data-root-guard.mjs')).dataRootGuardError({ repoRoot: REPO_ROOT, env: process.env })
+    : null;
+  if (guard) {
+    console.error(`ERROR: ${guard}`);
+    process.exitCode = 1;
     return;
   }
   try {

@@ -605,7 +605,7 @@ async function main({ full = false, env = process.env, log = console.log, error 
   return 0;
 }
 
-if (isMain(import.meta.url)) common.runCli(({ full }) => main({ full }), { usage: USAGE, options: { full: { type: 'boolean' } } });
+if (isMain(import.meta.url)) common.runCli(({ full }) => main({ full }), { guardDataRoot: true, usage: USAGE, options: { full: { type: 'boolean' } } });
 
 export {
   METRICS, SHORTCUT_SOURCE, sleepStageOf,

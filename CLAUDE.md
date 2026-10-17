@@ -66,7 +66,7 @@ mirror warns about it) but never published; a mirrored file the server removed u
 
 | Command | What it does |
 | --- | --- |
-| `npm run sync` | Pull Shortcut payloads, Strava, profile, food log, settings, onboarding, journal from the data service into the extract (server: env `INGEST_URL`/`INGEST_TOKEN` → `loop-data/server.json` → the clone's `services/loop-ingest/.env`) (`-- --full` rebuilds the Shortcut cache); against a LOOP server in container mode it mirrors the server's data instead (`-- --no-refresh`: without asking it to refresh first) |
+| `npm run sync` | Pull Shortcut payloads, Strava, profile, food log, settings, onboarding, journal from the data service into the extract (server: env `INGEST_URL`/`INGEST_TOKEN` → `loop-data/server.json` (its token only for its own URL) → the clone's `services/loop-ingest/.env`) (`-- --full` rebuilds the Shortcut cache); against a LOOP server in container mode it mirrors the server's data instead (`-- --no-refresh`: without asking it to refresh first) |
 | `npm run connect -- <url>` | Save the LOOP server's address and token (asked without echo, or `INGEST_TOKEN` from the env) in `loop-data/server.json` (mode 600); `-- --forget` removes it |
 | `npm run generate` | Validate the plan, write `data/nutrition/plan-tables.md`, build `web/dist/personal/index.html` (idempotent) |
 | `npm run check` | Validators only, no build (plan, ingredients, `loop-data/cache/training.json`, `loop-data/cache/profile.json`) |

@@ -6,7 +6,8 @@
  *   dataRootGuardError({ repoRoot, env }) -> null | the one-line reason (the caller prints `ERROR: <reason>`, exit 1)
  *
  * Called by every command that writes the data root: npm run sync (scripts/sync-all.mjs), import:health,
- * migrate:data-root, connect, documents. docs/data-pipeline.md -> The data root guard. */
+ * migrate:data-root, connect, documents, and the single sync scripts and extract.mjs through
+ * runCli({ guardDataRoot: true }) (data/apple-health/sync-common.mjs). docs/data-pipeline.md -> The data root guard. */
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';

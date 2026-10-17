@@ -424,3 +424,27 @@ test('INGEST_URL / INGEST_TOKEN resolution: env, then <data root>/server.json (n
     fs.rmSync(dir, { recursive: true, force: true });
   }
 });
+
+test('the saved server token goes only to the saved server: an env INGEST_URL elsewhere falls through to the service .env token', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-server-json-'));
+  try {
+    const envFile = path.join(dir, '.env');
+    fs.writeFileSync(envFile, 'INGEST_TOKEN=dotenvtoken\n');
+    const data = path.join(dir, 'data');
+    fs.mkdirSync(data);
+    fs.writeFileSync(path.join(data, 'server.json'), JSON.stringify({ url: 'http://10.0.0.5:8088', token: 'savedtoken' }));
+    const env = { HC_DATA_DIR: data, INGEST_ENV_FILE: envFile };
+    // another URL from env: never the saved token
+    assert.equal(readIngestToken({ ...env, INGEST_URL: 'http://evil.example:8088' }), 'dotenvtoken');
+    // the same server spelled with a trailing slash or upper-case host: the saved token
+    assert.equal(readIngestToken({ ...env, INGEST_URL: 'http://10.0.0.5:8088/' }), 'savedtoken');
+    assert.equal(readIngestToken({ ...env, INGEST_URL: 'HTTP://10.0.0.5:8088' }), 'savedtoken');
+    // no .env token either: no token at all, rather than the saved one
+    fs.rmSync(envFile);
+    assert.equal(readIngestToken({ ...env, INGEST_URL: 'http://evil.example:8088' }), null);
+    // an explicit env token still wins everywhere
+    assert.equal(readIngestToken({ ...env, INGEST_URL: 'http://evil.example:8088', INGEST_TOKEN: 'envtoken' }), 'envtoken');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

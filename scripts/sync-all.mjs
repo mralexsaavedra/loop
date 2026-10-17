@@ -131,7 +131,7 @@ this clone is its client instead: it asks the server to refresh (POST /sync) and
 documents, then mirrors the server's extract/, profile/, foodlog/, files/documents/ and files/manuals/.
   --full         the Shortcut sync ignores its cache and rebuilds it (not in client mode)
   --no-refresh   client mode: mirror what the server has now, without asking it to refresh first
-  --allow-empty  client mode: mirror an empty server even though this clone has mirrored files (removes them all)
+  --allow-empty  client mode: mirror an empty server even though this clone has mirrored files (removes them all; more than 5 also need --allow-removals)
   --allow-removals  client mode: go ahead when the mirror would remove more than half of the mirrored files (and >5)
   --verbose      client mode: print each downloaded path too (removed paths are always printed)
 Client mode removes only files this clone mirrored (the ledger <data root>/.mirror-state.json), never a file of

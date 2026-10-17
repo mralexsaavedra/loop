@@ -62,3 +62,23 @@ test('npm run import:health refuses an unignored data root inside the clone (exi
   assert.match(res.stderr, /ERROR: the data root scripts\/hc-guard-probe\/ \(HC_DATA_DIR\) is inside this clone and git does not ignore it/);
   assert.equal(fs.existsSync(path.join(REPO, 'scripts', 'hc-guard-probe')), false);
 });
+
+test('the single sync scripts that write the data root (npm run sync:strava, node data/apple-health/extract.mjs) refuse an unignored one inside the clone (exit 1, nothing created)', () => {
+  const REPO = path.dirname(path.dirname(new URL(import.meta.url).pathname));
+  for (const script of [['data', 'apple-health', 'sync-strava.mjs'], ['data', 'apple-health', 'extract.mjs']]) {
+    const res = spawnSync(process.execPath, [path.join(REPO, ...script)], {
+      encoding: 'utf8',
+      env: { ...process.env, HC_DATA_DIR: 'scripts/hc-guard-probe', INGEST_URL: 'http://127.0.0.1:9', INGEST_TOKEN: 'x'.repeat(32), INGEST_ENV_FILE: path.join(REPO, 'scripts', 'hc-guard-none.env') },
+    });
+    assert.equal(res.status, 1, `${script.join('/')}: ${res.stdout}${res.stderr}`);
+    assert.match(res.stderr, /^ERROR: the data root scripts\/hc-guard-probe\/ \(HC_DATA_DIR\) is inside this clone and git does not ignore it/m, script.join('/'));
+    assert.equal(fs.existsSync(path.join(REPO, 'scripts', 'hc-guard-probe')), false, script.join('/'));
+  }
+});
+
+test('--help of a guarded sync script still prints its usage (the guard runs only before the work)', () => {
+  const REPO = path.dirname(path.dirname(new URL(import.meta.url).pathname));
+  const res = spawnSync(process.execPath, [path.join(REPO, 'data', 'apple-health', 'sync-strava.mjs'), '--help'], { encoding: 'utf8', env: { ...process.env, HC_DATA_DIR: 'scripts/hc-guard-probe' } });
+  assert.equal(res.status, 0, res.stderr);
+  assert.match(res.stdout, /Usage:/);
+});

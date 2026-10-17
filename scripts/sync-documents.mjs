@@ -125,4 +125,4 @@ changes that are not in the database is kept (see npm run documents).
 Env: INGEST_URL, INGEST_TOKEN, INGEST_ENV_FILE (default services/loop-ingest/.env, for INGEST_PORT and INGEST_TOKEN),
 HC_DATA_DIR (the data root).`;
 
-if (isMain(import.meta.url)) runCli(() => main(), { usage: USAGE });
+if (isMain(import.meta.url)) runCli(() => main(), { guardDataRoot: true, usage: USAGE });
