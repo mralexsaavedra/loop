@@ -48,13 +48,30 @@ export async function readPublishedSeq (siteDir) {
   }
 }
 
+// The refresh child's environment is an ALLOWLIST of what scripts/refresh.mjs, the syncs it runs and the page build
+// read (lib/paths.mjs, data/apple-health/sync-common.mjs, scripts/build-web.mjs): the data service's own secrets
+// (POSTGRES_PASSWORD, STRAVA_CLIENT_SECRET / STRAVA_REFRESH_TOKEN, DB_*) never reach it; the syncs talk to this
+// service over INGEST_URL with INGEST_TOKEN only.
+export const CHILD_ENV_NAMES = Object.freeze(['PATH', 'HOME', 'USER', 'TZ', 'LANG', 'LANGUAGE', 'TMPDIR', 'INGEST_URL', 'INGEST_TOKEN', 'ASTRO_TELEMETRY_DISABLED', 'LOCALE', 'DATA_MODE', 'SHORTCUT_AUTOMATION'])
+export const CHILD_ENV_PREFIXES = Object.freeze(['HC_', 'NODE_', 'LC_'])
+
+/** The allowlisted part of `env` (CHILD_ENV_NAMES, CHILD_ENV_PREFIXES). */
+export function childEnvOf (env) {
+  const out = {}
+  for (const [k, v] of Object.entries(env)) {
+    if (v !== undefined && (CHILD_ENV_NAMES.includes(k) || CHILD_ENV_PREFIXES.some((p) => k.startsWith(p)))) out[k] = v
+  }
+  return out
+}
+
 /**
- * The real child: `node <script> --seq N --wait-lock` from the repo root, its output in this service's log.
- * INGEST_URL defaults to this service on loopback (the syncs inside the child call back into it). Returns
- * { child, exited } where `exited` resolves to { code, signal } (code null when it could not start).
+ * The real child: `node <script> --seq N --wait-lock` from the repo root, its output in this service's log, with the
+ * allowlisted environment (childEnvOf). INGEST_URL defaults to this service on loopback (the syncs inside the child
+ * call back into it). Returns { child, exited } where `exited` resolves to { code, signal } (code null when it could
+ * not start).
  */
 export function createRefreshSpawner ({ script = DEFAULT_REFRESH_SCRIPT, env = process.env, port = 8088, nodePath = process.execPath, log = console.log }) {
-  const childEnv = { ...env, INGEST_URL: env.INGEST_URL || `http://127.0.0.1:${port}` }
+  const childEnv = { ...childEnvOf(env), INGEST_URL: env.INGEST_URL || `http://127.0.0.1:${port}` }
   return function spawnRefresh (seq) {
     const child = spawn(nodePath, [script, '--seq', String(seq), '--wait-lock'], {
       cwd: path.resolve(path.dirname(script), '..'),

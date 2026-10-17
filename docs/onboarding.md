@@ -34,15 +34,18 @@ conversationally — do not make them fill a form alone. Replicate a real coach 
    NOT invent values; if something is unknown, write "unknown" or leave it for later rather
    than guessing.
 4. **Capture the baseline.** Walk `profile/baseline.example.md` into `profile/baseline.md`.
-   If an Apple Health `export.xml` is already present, offer to run
-   `node data/apple-health/extract.mjs` and pull weight / RHR / VO2max / body-fat from the
-   cached CSVs instead of asking. Mark every self-reported or estimated number as such, and
+   With a server, the extract is already in the clone after `npm run sync`: pull weight / RHR / VO2max /
+   body-fat from its CSVs instead of asking (no export yet → it goes into the SERVER's `files/import/`, then
+   Sync). Without a server, if an Apple Health `export.xml` is already present, offer to run
+   `node data/apple-health/extract.mjs` and pull the same numbers from the cached CSVs instead of asking. Mark every self-reported or estimated number as such, and
    record device/app provenance (bioimpedance body-fat is trend-only, ±3–5%).
 5. **Configure the coaches.** Walk `profile/coaches.example.md` into `profile/coaches.md`
    (gitignored): reply language, country / jurisdiction (supplement limits, food database), then
    per coach (cycling, HYROX / hybrid, nutrition, and `training-coach` for any other sport they do — its
    **Sports** key) the knowledge sources they want (name, folder under `knowledge/`, how to cite,
-   commercial ties), their gear (with a local manual under `loop-data/files/manuals/` if they have one) and where
+   commercial ties), their gear (with a manual PDF if they have one: with a server, in the SERVER's `files/manuals/`, which the
+   next sync mirrors into the clone — a file put only in the clone is kept but never published; without a
+   server, in `loop-data/files/manuals/`) and where
    their current program lives. List only sources that already exist under `knowledge/` or that they
    will ingest now (`knowledge/README.md`); never suggest or invent creators for them. Nothing to
    add yet → write only `## Common`: the coaches then answer from the evidence base and the user's

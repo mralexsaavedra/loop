@@ -29,6 +29,20 @@ request, Dependabot proposes dependency updates, and the repository has a securi
 contributing guide (`CONTRIBUTING.md`). Install: README → Setup; update: `docs/guides/upgrading.md`. The dated
 entries below are the pre-release history.
 
+**Final audit fixes** (2026-10-17, before the tag). A coach clone connects once: `npm run connect -- <url>` checks
+the server's `GET /export/files` with the token (asked in the terminal without echo, or `INGEST_TOKEN`) and saves
+`{url, token}` in `loop-data/server.json` (mode 600), read after the environment and before
+`services/loop-ingest/.env`; `--forget` removes it, and `npm run sync` now says why it fell back to the local syncs.
+The client mirror keeps a ledger (`loop-data/.mirror-state.json`) and removes only files it mirrored: a file added
+only in the clone is never removed (one warning), and a removal under `files/` moves the file to
+`backups/<path>.mirror.bak`. A data root or files folder inside the clone that git does not ignore is refused by
+every command that writes there. A structurally broken plan is one `plan-data.json validation failed:` message in
+`generate` and `documents push` (never a TypeError), and the data service refuses one whose data categories are not
+lists of items. CI builds both images and smoke-tests a minimal stack, the release waits for the whole CI, checkouts
+drop their credentials, the in-container page build no longer sees the database password or the Strava secrets,
+the files export logs skipped files by reason, and `docker compose exec loop-server npm run sync -- --full` is the
+documented way to rebuild the Shortcut cache on a server.
+
 ## 2026-10-16 — Server images, step 7: release both images, install docs for the server and the coach
 
 The release workflow publishes `loop-server` and `loop-web` (multi-arch, `X.Y.Z`, `X.Y`, the OCI version label from

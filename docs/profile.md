@@ -263,8 +263,13 @@ there.
 - Copies are atomic and skipped when identical.
 - A missing / refused file = a warning (exit 0); a broken / invalid profile document leaves the folder untouched; a
   symlinked output folder = exit 1.
-- `refresh.sh` runs it after writing `status.json` (a waiting Sync is already done), under its own 30 s timeout
-  (`PLAN_WEB_MANUALS_TIMEOUT`), best effort (logged, never an error code).
+- On a LOOP server (the Docker images), the `loop-server` container's refresh (`scripts/refresh.mjs`) runs it after
+  writing `status.json`, publishing the PDFs in `<HC_FILES_LOCATION>/manuals/` (the server's files folder, mounted
+  read-only at `/data/files`) into the site's `manuales/`, under its own 30 s timeout (`HC_REFRESH_MANUALS_TIMEOUT`),
+  best effort (logged, never an error code). Manuals go into the SERVER's folder: a coach clone's mirror copies them
+  into its `loop-data/files/manuals/`, and a PDF put only in the clone is kept but never published.
+- Host mode (development / legacy): `refresh.sh` runs it after writing `status.json` (a waiting Sync is already
+  done), under its own 30 s timeout (`PLAN_WEB_MANUALS_TIMEOUT`), best effort (logged, never an error code).
 
 ### The "Manual" link
 

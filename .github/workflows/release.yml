@@ -31,6 +31,7 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           fetch-depth: 0
+          persist-credentials: false
       - name: One plain X.Y.Z everywhere, a dated CHANGELOG heading, a commit on main; is it the newest release?
         id: version
         run: |
@@ -51,8 +52,13 @@ jobs:
           echo "latest=${latest}" >> "${GITHUB_OUTPUT}"
           echo "v${v}: newest X.Y.Z release ${newest}, latest=${latest}"
 
+  # The whole CI (lint, typecheck, both suites, the data service on Postgres, both images built + smoke-tested) on the
+  # tagged commit: nothing is pushed unless it passes.
+  test:
+    uses: ./.github/workflows/ci.yml
+
   image:
-    needs: check
+    needs: [check, test]
     runs-on: ubuntu-latest
     timeout-minutes: 45
     strategy:
@@ -60,6 +66,8 @@ jobs:
         image: [loop-server, loop-web]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4.4.0
       - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4.4.1
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0

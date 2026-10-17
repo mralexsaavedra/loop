@@ -72,6 +72,12 @@ With the LAN data service, this file mirrors a document in its database: after e
 `npm run check` (`validateNutrition`) reports a malformed plan as validation messages, never a crash: `data`
 and `extras` must be objects (`{}` when the plan has none), and every breakfast in `data.desayuno` but the
 `none` row needs a `recipe` (the breakfast tables list its ingredients, so a `manual` block is refused there).
+Every plan item (a `data` item or an `extras` entry) needs a `recipe` (a list of `{ing, amt}` objects), a `manual`
+object or `"none": true`, with `n` / `l` strings; every `dayPlan` part is an `{ing, amt}` object or a
+`{use, tier?, match}` object whose `data` bucket exists and holds a matching item; `quesoKeys` / `vegKeys` /
+`legumeKeys` are lists of strings; `data.postre` is a list. A property test (`lib/nutrition/macros.test.mjs`)
+replaces every value of the example plan with null / a string / a number / an array / an object and pins that only
+`plan-data.json validation failed:` ever comes out.
 
 ### `targets.byGoal`
 

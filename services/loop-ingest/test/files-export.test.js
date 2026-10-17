@@ -422,3 +422,21 @@ test('a folder that became a symlink loop (a swap mid-walk) is skipped like a va
     await s.close()
   }
 })
+
+test('a listed file the manifest cannot open (unreadable, swapped) is left out with one export_file_skipped line per code: the code and a count, never a path', async () => {
+  const s = await setup({
+    beforeOpen: (abs) => {
+      // a file replaced by a symlink between the walk and the open: O_NOFOLLOW refuses it (ELOOP)
+      if (abs.endsWith('weight.csv') && !fs.lstatSync(abs).isSymbolicLink()) { fs.rmSync(abs); fs.symlinkSync('/etc/hostname', abs) }
+    }
+  })
+  try {
+    const files = (await s.get('/export/files')).json().files
+    assert.ok(!files.some((f) => f.path === 'extract/weight.csv'))
+    const skipped = s.logs.map((l) => JSON.parse(l)).filter((l) => l.event === 'export_file_skipped')
+    assert.deepEqual(skipped, [{ event: 'export_file_skipped', code: 'ELOOP', count: 1 }])
+    assert.ok(!/weight/.test(s.logs.join('\n')))
+  } finally {
+    await s.close()
+  }
+})

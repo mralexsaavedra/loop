@@ -358,4 +358,4 @@ Streams loop-data/files/import/export.xml into the per-metric CSVs + _meta.json 
 Env: HC_DATA_DIR (the data root: <root>/files/import/export.xml in, <root>/extract out; HC_FILES_DIR moves files/);
 EXTRACT_DIR (tests only) replaces data/apple-health: <dir>/export.xml in, <dir>/extract out.`;
 
-if (isMain(import.meta.url)) runCli((values) => main(values), { usage: USAGE, options: { source: { type: 'string' } } });
+if (isMain(import.meta.url)) runCli((values) => main(values), { guardDataRoot: true, usage: USAGE, options: { source: { type: 'string' } } });

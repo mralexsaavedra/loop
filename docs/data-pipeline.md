@@ -8,6 +8,18 @@ for the documents, `files/import/export.xml` for the Health export); `lib/paths.
 [`development.md`](development.md#where-the-data-files-live) have the table and the one-time
 `npm run migrate:data-root` for a clone from before it.
 
+**The data root guard** (`scripts/lib/data-root-guard.mjs`). A data root (`HC_DATA_DIR`) or files folder
+(`HC_FILES_DIR`) inside the clone is accepted only when `git check-ignore` matches it (the default `loop-data/` is in
+`.gitignore`; so is anything under `backups/`). Otherwise the commands that write there stop before writing anything,
+with `ERROR: the data root <path>/ (HC_DATA_DIR) is inside this clone and git does not ignore it: ...` and exit 1:
+`npm run sync`, `npm run import:health`, `npm run migrate:data-root`, `npm run connect`, `npm run documents`, and the
+single syncs run on their own: `npm run sync:shortcut`, `sync:strava`, `sync:profile`, `sync:settings`,
+`sync:onboarding`, `sync:documents`, `sync:foodlog`, `node scripts/sync-journal.mjs` and
+`node data/apple-health/extract.mjs` (their `runCli(..., { guardDataRoot: true })`). A folder outside the clone, or a
+clone that is not a git work tree (the `loop-server` image, a zip download), passes. The page build, `generate` and
+`npm run publish:manuals` only read the data root (the manuals are copied into the site folder), so they do not
+check it.
+
 > **Reference** — how this area is built, for anyone changing it (keep it in sync with the code in the same
 > commit). Setting up or using the page? Start at the [documentation index](README.md).
 
@@ -149,6 +161,21 @@ table.
 - Sync is incremental: a local gitignored `extract/.shortcut-cache.json` of deduped samples + the last
   payload id. `npm run sync -- --full` rebuilds it (needed once after adding a key, since the
   incremental sync only parses payloads newer than the cache).
+- **On a server installed with the images** the cache lives in the loop-server `/data` volume and the server folds
+  the payloads itself (a coach clone ignores `--full`, see [Coach as a client](#coach-as-a-client-of-a-loop-server)).
+  Rebuild it inside the container, from the folder with the server's `docker-compose.yml` and `.env`:
+
+  ```bash
+  docker compose exec loop-server npm run sync -- --full
+  ```
+
+  It runs as the image's `node` user with the container's environment (`HC_BUILD=container`, so every sync script
+  runs: no client mode; `INGEST_URL` defaults to the service on `localhost:8088` inside the container; the extract
+  lock keeps it apart from a refresh running at the same time) and ends with the usual per-sync lines (`npm notice`
+  lines about a newer npm are harmless). The rebuilt extract reaches the page on the next pass: the page's Sync
+  button, the hourly refresh (`HC_REFRESH_MINUTES`) or `curl -X POST http://127.0.0.1:<INGEST_PORT>/sync` on the
+  server. Verified on a throwaway stack of images built from this release (2026-10-17): the cache is rebuilt from every payload and
+  the next pass publishes a new `status.json`.
 - Payloads (and Strava activities) are fetched in keyset pages (`fetchPages` in `sync-common.mjs`): a full
   page whose last id is missing or not greater than the previous `since_id` stops the sync with
   `unexpected paging cursor`, and 10 000 pages is a hard cap, so a misbehaving service can never loop it. A
@@ -496,10 +523,26 @@ processed data: its own refresh folds the Shortcut payloads and Strava activitie
 volume. A coach clone (the repo opened in Claude Code, on a laptop or on the server) does not fold anything itself:
 `npm run sync` MIRRORS the server's data root (`scripts/sync-client.mjs`, wired in `scripts/sync-all.mjs`).
 
-**Setup.** In the clone, point `INGEST_URL` at the server's data port (`INGEST_PORT` of its `docker/.env`, e.g.
-`http://192.168.1.10:8088`) and set `INGEST_TOKEN` to the server's `INGEST_TOKEN` (as environment variables, or
-`INGEST_TOKEN=` / `INGEST_PORT=` in the clone's `services/loop-ingest/.env` for a server on the same machine). Then
-`npm run sync` as always.
+**Setup: `npm run connect -- <url>`** (`scripts/connect.mjs`), once per clone, with the server's data port
+(`INGEST_PORT` of its `docker/.env`, e.g. `npm run connect -- http://192.168.1.10:8088`). It asks for the token in
+the terminal without echoing it (the server's `INGEST_TOKEN`; or `INGEST_TOKEN` set for that one command), checks
+`GET <url>/export/files` with it and saves `{url, token}` in **`loop-data/server.json`** (the data root's, mode 600,
+gitignored with it). The token is never printed.
+
+| `GET /export/files` answers | `npm run connect` |
+| --- | --- |
+| `200` | saves it: `Connected: <url> is a LOOP server; saved to loop-data/server.json (mode 600)...`; exit 0 |
+| `401` | `ERROR: <url> refused the token (HTTP 401)...; nothing saved`; exit 1 |
+| `404` | `ERROR: <url> has no /export/files (HTTP 404): a host-mode LOOP server ...; nothing saved`; exit 1 (a clone of a host-mode server syncs on its own: `INGEST_URL` / `INGEST_TOKEN` or `services/loop-ingest/.env`) |
+| no answer, anything else | `ERROR: could not reach <url> ...` / `... answered HTTP <n> ...; nothing saved`; exit 1 |
+
+`npm run connect -- --forget` removes the saved server. Every sync script then resolves the server in this order
+(`data/apple-health/sync-common.mjs`), each of `INGEST_URL` and `INGEST_TOKEN` on its own: the environment, then
+`loop-data/server.json`, then the clone's `services/loop-ingest/.env` (`INGEST_TOKEN=`, `INGEST_PORT=` →
+`http://localhost:<port>`, the host-mode setup). The saved token is used only when the resolved URL is the saved
+one (compared without a trailing slash, scheme and host case-insensitive): an env `INGEST_URL` pointing at another
+server never receives it and falls through to the `.env` token. A broken `server.json` is skipped. Then `npm run sync` as always,
+in any terminal.
 
 **Detection.** `npm run sync` first asks `GET /export/files` with the token
 ([`services/loop-ingest/README.md` → Files export](../services/loop-ingest/README.md#files-export-exportfiles-and-exportfile-container-mode)):
@@ -507,9 +550,10 @@ volume. A coach clone (the repo opened in Claude Code, on a laptop or on the ser
 | Answer | What `npm run sync` does |
 | --- | --- |
 | `200` (a container-mode server) | client mode, below |
-| `404` (a host-mode server, or an image from before this route) | every sync script, as before |
-| `401` | stops with `ERROR: ... refused the ingest token (HTTP 401)`, naming `INGEST_TOKEN`; exit 1 |
-| no answer, no token | every sync script, which warn as before |
+| `404` (a host-mode server, or an image from before this route) | every sync script, as before, after `Note: <url>/export/files answered HTTP 404 (no /export/files: a host-mode server); running the local syncs` |
+| `401` | stops with `ERROR: ... refused the ingest token (HTTP 401)`, naming `npm run connect` and `INGEST_TOKEN`; exit 1 |
+| no answer, another status | every sync script, which warn as before, after `Note: <url>/export/files did not answer (<code>)` / `answered HTTP <n>; running the local syncs` |
+| no token | every sync script, which warn as before |
 
 Inside the server itself (`HC_BUILD=container`, its refresh runs `scripts/sync-all.mjs`) the scripts always run: the
 server is the source, never a client of itself.
@@ -520,28 +564,41 @@ server is the source, never a client of itself.
    server's published `processedSeq` reaches the returned seq, so the mirror holds the data of this very moment. At
    most `HC_SYNC_WAIT` seconds (default 120): after that, or when the server's page build failed for that seq, one
    `WARNING:` and the data is pulled anyway. `npm run sync -- --no-refresh` skips this step (mirror what the server
-   has now). `--full` is ignored (the server keeps the Shortcut cache).
+   has now). `--full` is ignored (the server keeps the Shortcut cache: rebuild it on the server with
+   `docker compose exec loop-server npm run sync -- --full`, [Shortcut merge into the extract](#shortcut-merge-into-the-extract)).
 2. **Documents.** `scripts/sync-documents.mjs`, exactly as above: `loop-data/cache/` keeps its local-edit protection
    (an edit not pushed yet is kept with its `WARNING:`).
 3. **Mirror.** The allowlisted folders of the server's data root: `extract/`, `profile/`, `foodlog/`,
    `files/documents/` and `files/manuals/` (in the clone `files/` is `HC_FILES_DIR` when set). A file is downloaded
    only when its sha256 differs from the local copy, into a hidden temp file next to it, checked against the
    manifest's size and sha256 and only then renamed into place (a mismatch keeps the local file: `WARNING:`, exit 1;
-   run the sync again). A file in those folders that the server no longer lists is removed, so **the server's
-   `files/` folder is the one to add documents and manuals to**: one added only in the clone's
-   `files/documents/` is removed by the next client sync. Never touched: `cache/`, `files/import/`, hidden, temp,
-   lock or backup files, symlinks, and anything outside those folders. A manifest naming any path outside the
-   allowlist, or a name the server never lists (hidden, `*.tmp`, `*.lock`, `*.bak`, at any depth), is refused as a
-   whole (`ERROR:`, nothing written or removed). Each removed file is printed as `Removed <path>` (its path only,
-   never its content); `npm run sync -- --verbose` also prints `Downloaded <path>` for each download. It ends with
-   one line: `Mirror: <n> files on the server: <d> downloaded, <u> unchanged, <r> removed[, <f> failed]`.
+   run the sync again).
+
+   **The mirror ledger.** `loop-data/.mirror-state.json` (the data root's, mode 600) lists every path this clone
+   wrote from the server, with its sha256. Only a file **in the ledger** that the server no longer lists is removed;
+   under `files/` it is **moved** to `backups/<path>.mirror.bak` in the clone (e.g.
+   `backups/files/manuals/edge.pdf.mirror.bak`; the newest one only), never unlinked. A file the clone has and the
+   server never sent (a PDF added only in the clone's `files/documents/`, a local import) is the clone's own: it is
+   never removed, and one `WARNING: <path> is not on the server and was never mirrored from it: kept` names it the
+   first time. A clone file under `files/` that the server's copy would replace while the ledger does not hold it as
+   is (never mirrored, or edited since) is copied to `backups/<path>.mirror.bak` first (`Backed up <path> ...`). The
+   first client sync (no ledger yet) removes nothing: it seeds the ledger with the files that match the manifest by
+   sha256 plus what it downloads. **The server's `files/` folder is still the one to add documents and manuals
+   to**: the page, the coach on other clones and the backups only see the server's.
+
+   Never touched: `cache/`, `files/import/`, hidden, temp, lock or backup files, symlinks, and anything outside
+   those folders. A manifest naming any path outside the allowlist, or a name the server never lists (hidden,
+   `*.tmp`, `*.lock`, `*.bak`, at any depth), is refused as a whole (`ERROR:`, nothing written or removed). Each
+   removal is printed as `Removed <path>` (outside `files/`) or `Moved <path> to <backup>` (its path only, never its
+   content); `npm run sync -- --verbose` also prints `Downloaded <path>` for each download. It ends with one line:
+   `Mirror: <n> files on the server: <d> downloaded, <u> unchanged, <r> removed[, <f> failed]`.
 
    **Safety stops** (`ERROR:`, exit 1, nothing downloaded or removed):
 
    | Case | Override |
    | --- | --- |
-   | The server lists no files while the clone has mirrored files (an empty or wrong volume on the server?) | `npm run sync -- --allow-empty` |
-   | The run would remove more than half of the clone's mirrored files, and more than 5 | `npm run sync -- --allow-removals` |
+   | The server lists no files while the clone has mirrored files (in the ledger; an empty or wrong volume on the server?) | `npm run sync -- --allow-empty`; with more than 5 mirrored files the run also removes all of them, so it needs `--allow-empty --allow-removals` |
+   | The run would remove more than half of the clone's mirrored files (in the ledger), and more than 5 | `npm run sync -- --allow-removals` |
    | An allowlisted folder, or the default files folder (`loop-data/files`), is a symlink in the clone | none: make it a real folder (`HC_FILES_DIR` may point anywhere) |
 
    A subfolder inside them that is a symlink in the clone is never written through: that file fails with a

@@ -240,3 +240,28 @@ test('HC_DATA_DIR: push reads <data root>/cache and records cache/.sync-state.js
   assert.equal(missing.code, 1);
   assert.match(missing.warns[0], new RegExp(`training not pushed: ${path.join(data, 'cache', 'training.json').replace(/[.*+?^${}()|[\]\\]/g, '\\$&')} does not exist`));
 });
+
+test('push plan: a structurally broken plan (the audit\'s two documents) is refused with the validation message, never a TypeError; nothing sent', async (t) => {
+  const svc = await service();
+  t.after(svc.close);
+  const { dayPlan: _drop, ...noDayPlan } = PLAN;
+  for (const doc of [{ data: { x: { y: 1 } }, targets: {}, dayPlan: {} }, noDayPlan, { ...PLAN, data: { ...PLAN.data, x: { y: 1 } } }]) {
+    const root = clone({ plan: doc });
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }));
+    const r = await cli(svc, root, ['push', 'plan']);
+    assert.equal(r.code, 1);
+    assert.match(r.warns.join('\n'), /plan-data\.json validation failed:/);
+    assert.doesNotMatch(r.warns.join('\n'), /TypeError|is not a function|Cannot read prop/);
+    assert.equal(svc.rows.get('plan'), undefined);
+  }
+});
+
+test('the service\'s plan.data shape rule (validateDocument) agrees with the lib rule (dataShapeErrors) on every shape', async () => {
+  const { validateDocument } = await import('../services/loop-ingest/src/documents.js');
+  const { dataShapeErrors } = await import('../lib/nutrition/macros.mjs');
+  const shapes = [{}, { a: [] }, { a: [{}] }, { a: [null] }, { a: [1] }, { a: [[]] }, { a: {} }, { a: { t: [] } }, { a: { t: [{}] } }, { a: { t: [null] } },
+    { a: { t: {} } }, { a: { t: 1 } }, { a: 1 }, { a: 'x' }, { a: null }, { x: { y: 1 } }, PLAN.data, { ...PLAN.data, z: { y: [{}], w: [2] } }];
+  for (const data of shapes) {
+    assert.equal(validateDocument('plan', { ...PLAN, data }) === 'data', dataShapeErrors(data).length > 0, JSON.stringify(data));
+  }
+});

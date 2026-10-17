@@ -60,6 +60,8 @@ const put = (file, text) => {
 function clone() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-migrate-'));
   git(dir, 'init', '-q');
+  // every clone ships the .gitignore that keeps the data root out of git (scripts/lib/data-root-guard.mjs)
+  put(path.join(dir, '.gitignore'), 'loop-data/\nbackups/\n');
   for (const rel of TRACKED) put(path.join(dir, rel), content(rel));
   git(dir, 'add', '.');
   git(dir, '-c', 'user.name=t', '-c', 'user.email=t@t', 'commit', '-qm', 'seed');

@@ -333,7 +333,11 @@ On the server, `lastShortcutAt` moves after each run, and the page's freshness d
 curl -s localhost:8088/sync/status
 ```
 
-In a coach clone (or host mode):
+In a coach clone of a LOOP server (the Docker images), `npm run sync` prints `Client mode: ...` and the `Mirror: ...`
+line: the server's own refresh parsed the payloads, so the new rows show on the server's page and in
+`/sync/status` above, and the mirror copies the updated extract into the clone.
+
+In host mode (development / legacy) or a clone without a server:
 
 ```bash
 npm run sync        # prints rows added per key; exits non-zero if the service is unreachable

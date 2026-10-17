@@ -20,6 +20,7 @@ import { isMain } from './lib/is-main.mjs';
 import { runCli, readIngestToken, readBaseUrl } from '../data/apple-health/sync-common.mjs';
 import { dataPaths, displayPath } from '../lib/paths.mjs';
 import { detectServer, waitForSeq, mirrorFiles, syncWaitSeconds } from './sync-client.mjs';
+import { dataRootGuardError } from './lib/data-root-guard.mjs';
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.dirname(DIR);
@@ -88,6 +89,13 @@ export async function main ({ full = false, 'no-refresh': noRefresh = false, 'al
   env = process.env, spawn = realSpawn, fetchImpl = fetch, sleep, log = console.log, warn = console.error,
 } = {}) {
   const hostSyncs = () => runAll(SCRIPTS, scriptArgs({ full }), spawn);
+  const repoRoot = env.SYNC_CLIENT_ROOT || ROOT;
+  // personal data never lands where git could commit it (scripts/lib/data-root-guard.mjs)
+  const guard = dataRootGuardError({ repoRoot, env });
+  if (guard) {
+    warn(`ERROR: ${guard}`);
+    return 1;
+  }
   // the server's own refresh: it IS the source, never a client of itself
   if (String(env.HC_BUILD ?? '').trim() === 'container') return hostSyncs();
   const token = readIngestToken(env);
@@ -96,22 +104,22 @@ export async function main ({ full = false, 'no-refresh': noRefresh = false, 'al
   const base = readBaseUrl(env);
   const server = await detectServer({ base, token, fetchImpl });
   if (server.mode === 'unauthorized') {
-    warn(`ERROR: ${base} refused the ingest token (HTTP 401): set INGEST_TOKEN (or INGEST_TOKEN in services/loop-ingest/.env) to the server's INGEST_TOKEN (docker/.env on a LOOP server)`);
+    warn(`ERROR: ${base} refused the ingest token (HTTP 401): save the right one with \`npm run connect -- ${base}\` (or set INGEST_TOKEN, or INGEST_TOKEN in services/loop-ingest/.env) to the server's INGEST_TOKEN (docker/.env on a LOOP server)`);
     return 1;
   }
   if (server.mode === 'host') {
+    log(`Note: ${base}/export/files ${server.reason}; running the local syncs`);
     const clientOnly = [noRefresh && '--no-refresh', allowEmpty && '--allow-empty', allowRemovals && '--allow-removals', verbose && '--verbose'].filter(Boolean);
     if (clientOnly.length) log(`Note: ${clientOnly.join(', ')} only ${clientOnly.length > 1 ? 'apply' : 'applies'} to a client of a LOOP server; running every sync`);
     return hostSyncs();
   }
-  const repoRoot = env.SYNC_CLIENT_ROOT || ROOT;
   const paths = dataPaths({ repoRoot, env });
   log(`Client mode: ${base} is a LOOP server (container mode); mirroring its data into ${displayPath(repoRoot, paths.root)}`);
-  if (full) log('Note: --full is ignored in client mode (the server keeps the Shortcut cache)');
+  if (full) log('Note: --full is ignored in client mode (the server keeps the Shortcut cache: on the server, `docker compose exec loop-server npm run sync -- --full`)');
   let manifest = server.manifest;
   if (!noRefresh) ({ manifest } = await waitForSeq({ base, token, waitSeconds, fetchImpl, ...(sleep ? { sleep } : {}), log, warn }));
   const documents = runAll([DOCUMENTS], [], spawn);
-  const mirror = await mirrorFiles({ base, token, manifest, root: paths.root, filesDir: paths.filesDir, allowEmpty, allowRemovals, verbose, fetchImpl, log, warn });
+  const mirror = await mirrorFiles({ base, token, manifest, root: paths.root, filesDir: paths.filesDir, backupsDir: path.join(repoRoot, 'backups'), allowEmpty, allowRemovals, verbose, fetchImpl, log, warn });
   return Math.max(documents, mirror);
 }
 
@@ -123,11 +131,14 @@ this clone is its client instead: it asks the server to refresh (POST /sync) and
 documents, then mirrors the server's extract/, profile/, foodlog/, files/documents/ and files/manuals/.
   --full         the Shortcut sync ignores its cache and rebuilds it (not in client mode)
   --no-refresh   client mode: mirror what the server has now, without asking it to refresh first
-  --allow-empty  client mode: mirror an empty server even though this clone has mirrored files (removes them all)
+  --allow-empty  client mode: mirror an empty server even though this clone has mirrored files (removes them all; more than 5 also need --allow-removals)
   --allow-removals  client mode: go ahead when the mirror would remove more than half of the mirrored files (and >5)
   --verbose      client mode: print each downloaded path too (removed paths are always printed)
+Client mode removes only files this clone mirrored (the ledger <data root>/.mirror-state.json), never a file of
+its own; under files/ a removed file is moved to backups/<path>.mirror.bak.
   -h, --help     this help
-Env: INGEST_URL, INGEST_TOKEN, HC_DATA_DIR, HC_SYNC_WAIT (client mode: seconds to wait for the server, default 120).`;
+Env: INGEST_URL, INGEST_TOKEN (else the server saved by \`npm run connect -- <url>\`, else services/loop-ingest/.env),
+HC_DATA_DIR, HC_FILES_DIR, HC_SYNC_WAIT (client mode: seconds to wait for the server, default 120).`;
 
 if (isMain(import.meta.url)) {
   runCli((values) => main(values), { usage: USAGE, options: { full: { type: 'boolean' }, 'no-refresh': { type: 'boolean' }, 'allow-empty': { type: 'boolean' }, 'allow-removals': { type: 'boolean' }, verbose: { type: 'boolean' } } });

@@ -29,7 +29,8 @@
  *
  * sha256 is cached per path, keyed by (size, mtimeMs): a manifest polled every 2 s by a waiting client stats the
  * files but hashes only what changed. Logs carry counts and byte sizes, never a path (document names are
- * personal) nor any content.
+ * personal) nor any content; a listed file the manifest could not open is one `export_file_skipped` line per reason
+ * ({code, count}: EACCES, ELOOP, ENOENT, not_file, changed, outside).
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -135,26 +136,29 @@ const PROC_FD = '/proc/self/fd'
  * (each a real folder, no symlink) and requires the final one to be the opened inode (dev, ino). `want` (dev, ino),
  * when given, must match too. Returns {handle, st} or null (closed) for anything else.
  */
-export async function openInside ({ abs, expected, base, rel, want = null, fdDir = PROC_FD, beforeOpen = null }) {
+export async function openInside ({ abs, expected, base, rel, want = null, fdDir = PROC_FD, beforeOpen = null, onSkip = (_code) => {} }) {
   if (beforeOpen) await beforeOpen(abs)
   let handle
   try {
     handle = await fs.promises.open(abs, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0))
   } catch (err) {
-    if (['ENOENT', 'ELOOP', 'ENOTDIR', 'EACCES', 'EISDIR'].includes(err.code)) return null
+    if (['ENOENT', 'ELOOP', 'ENOTDIR', 'EACCES', 'EISDIR'].includes(err.code)) {
+      onSkip(err.code)
+      return null
+    }
     throw err
   }
   let ok = false
   try {
     const st = await handle.stat()
-    if (!st.isFile()) return null
-    if (want && (st.dev !== want.dev || st.ino !== want.ino)) return null
+    if (!st.isFile()) { onSkip('not_file'); return null }
+    if (want && (st.dev !== want.dev || st.ino !== want.ino)) { onSkip('changed'); return null }
     let real = null
     try {
       real = await fs.promises.readlink(`${fdDir}/${handle.fd}`)
     } catch {}
     if (real !== null) {
-      if (real !== expected) return null
+      if (real !== expected) { onSkip('outside'); return null }
     } else {
       // portable fallback: every folder below the base is a real folder, and the path leads to the opened inode
       let cur = base
@@ -165,10 +169,13 @@ export async function openInside ({ abs, expected, base, rel, want = null, fdDir
         try {
           ls = await fs.promises.lstat(cur)
         } catch {
+          onSkip('outside')
           return null
         }
-        if (ls.isSymbolicLink()) return null
-        if (i < segs.length - 1 ? !ls.isDirectory() : ls.dev !== st.dev || ls.ino !== st.ino) return null
+        if (ls.isSymbolicLink() || (i < segs.length - 1 ? !ls.isDirectory() : ls.dev !== st.dev || ls.ino !== st.ino)) {
+          onSkip('outside')
+          return null
+        }
       }
     }
     ok = true
@@ -184,7 +191,7 @@ export async function openInside ({ abs, expected, base, rel, want = null, fdDir
  * sha256; without it only the listing (GET /export/file's membership check, which opens and verifies itself). An
  * allowlisted folder that is itself a symlink, or missing, contributes nothing.
  */
-export async function listExportFiles ({ dataDir, filesDir = null, cache = null, fdDir = PROC_FD, beforeOpen = null }) {
+export async function listExportFiles ({ dataDir, filesDir = null, cache = null, fdDir = PROC_FD, beforeOpen = null, onSkip = (_code) => {} }) {
   const found = []
   for (const dir of EXPORT_DIRS) {
     const abs = absDir(dir, { dataDir, filesDir })
@@ -226,7 +233,7 @@ export async function listExportFiles ({ dataDir, filesDir = null, cache = null,
       out.push({ ...f, dev: st.dev, ino: st.ino, size: st.size, mtimeMs: Math.trunc(st.mtimeMs) })
       continue
     }
-    const opened = await openInside({ ...f, fdDir, beforeOpen })
+    const opened = await openInside({ ...f, fdDir, beforeOpen, onSkip })
     if (!opened) continue
     try {
       const { st, handle } = opened
@@ -260,7 +267,12 @@ export function createFilesExportRoutes ({ available, dataDir, filesDir = null, 
 
   async function manifest (req, res) {
     req.resume()
-    const files = await listExportFiles({ dataDir, filesDir, cache: hashCache, fdDir, beforeOpen })
+    // a listed file the manifest could not open (unreadable, swapped for a symlink, outside its folder) is left
+    // out: one line per reason, the code and a count only (a path names a personal document)
+    const skipped = new Map()
+    const onSkip = (code) => skipped.set(code, (skipped.get(code) ?? 0) + 1)
+    const files = await listExportFiles({ dataDir, filesDir, cache: hashCache, fdDir, beforeOpen, onSkip })
+    for (const [code, count] of skipped) log(JSON.stringify({ event: 'export_file_skipped', code, count }))
     const body = { files: files.map(({ path: p, size, sha256, mtimeMs }) => ({ path: p, size, sha256, mtimeMs })), site: readSiteStatus(siteDir) }
     log(JSON.stringify({ event: 'export_files', count: files.length, bytes: files.reduce((n, f) => n + f.size, 0) }))
     writeJson(res, 200, body, NO_STORE)

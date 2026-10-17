@@ -6,7 +6,7 @@ import path from 'node:path';
 import { main, DOCUMENT_FILES } from './sync-documents.mjs';
 import { dataPaths } from '../lib/paths.mjs';
 
-const PLAN = { data: { postre: [1], desayuno: [2] }, targets: {}, dayPlan: {} };
+const PLAN = { data: { postre: [{ n: 'p' }], desayuno: [{ n: 'd' }] }, targets: {}, dayPlan: {} };
 const TRAINING = { days: { '2030-01-01': { focus: 'x', blocks: [{ title: 't', lines: ['l'] }] } } };
 const PROFILE = { birthdate: '1990-01-01', devices: [] };
 
@@ -51,7 +51,7 @@ test('each document is fetched with the bearer token and written to its file (2-
 test('a file with the same content is never rewritten, even with other formatting', async () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-documents-'));
   fs.mkdirSync(path.join(dir, 'loop-data', 'cache'), { recursive: true });
-  const hand = '{"data":{"postre":[1],"desayuno":[2]},\n  "targets":{},"dayPlan":{}}\n';
+  const hand = '{"data":{"postre":[{"n":"p"}],"desayuno":[{"n":"d"}]},\n  "targets":{},"dayPlan":{}}\n';
   const file = path.join(dir, DOCUMENT_FILES.plan);
   fs.writeFileSync(file, hand);
   const before = fs.statSync(file).mtimeMs;
