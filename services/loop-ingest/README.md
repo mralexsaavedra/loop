@@ -158,6 +158,10 @@ folder's image and compose file) keeps the trigger file above, unchanged.
   (`INGEST_URL`, default `http://127.0.0.1:<PORT>`, and `INGEST_TOKEN` from the environment), validates the plan,
   builds the page, checks it and publishes it atomically into `HC_SITE_DIR` (default `/site`) with `status.json`
   (`commit` = the image version, error codes `build` / `sanity` / `lock`), then the device manuals.
+- The child gets an **allowlisted environment** (`src/builder.js` `childEnvOf`): `PATH`, `HOME`, `USER`, `TZ`,
+  `LANG`, `LANGUAGE`, `TMPDIR`, `INGEST_URL`, `INGEST_TOKEN`, `ASTRO_TELEMETRY_DISABLED`, `LOCALE`, `DATA_MODE`,
+  `SHORTCUT_AUTOMATION` and every `HC_*`, `NODE_*` and `LC_*` variable: what `refresh.mjs`, the syncs and the page
+  build read. This service's own secrets (`POSTGRES_PASSWORD`, the `STRAVA_*` credentials, `DB_*`) never reach it.
 - One child at a time: a request during a build is queued, and every request meanwhile coalesces onto ONE follow-up
   run for the highest seq. The writer counts as "written" once the run is started or queued, so the
   coalescing, deferral and 60 s window above apply unchanged, and `POST /sync` / `GET /sync/status` answer
@@ -345,7 +349,10 @@ In container mode (`HC_BUILD=container`, the `loop-server` image) the server own
   container mode the routes are not mounted, so a host-mode server answers the plain `404` of an unknown path, which
   is how a clone tells the two apart. loop-web's nginx never proxies them (`scripts/loop-web-config.test.mjs`).
 - **Logs.** `{"event":"export_files","count","bytes"}` and `{"event":"export_file","bytes"}`: never a path (document
-  names are personal) nor any content; a failure logs only its error code.
+  names are personal) nor any content; a failure logs only its error code. A listed file the manifest could not open
+  (unreadable, swapped for a symlink, outside its folder) is left out of the manifest with one
+  `{"event":"export_file_skipped","code","count"}` line per reason (`EACCES`, `ELOOP`, `ENOENT`, `not_file`,
+  `outside`): the code and a count, no path.
 
 ## iOS Shortcut ingestion
 
