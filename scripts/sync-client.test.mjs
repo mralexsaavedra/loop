@@ -647,3 +647,32 @@ test('mirror ledger: a local file under files/ the client never mirrored is back
     c.cleanup();
   }
 });
+
+test('npm run sync says why it fell back to the local syncs: the answer of <url>/export/files (a 404, a 5xx, no answer)', async () => {
+  for (const [status, re] of [[404, /answered HTTP 404 \(no \/export\/files: a host-mode server\)/], [500, /answered HTTP 500/]]) {
+    const s = await fakeServer({ status });
+    const c = clone();
+    const out = quiet();
+    try {
+      assert.equal(await syncAll({}, { env: c.env(s.base), spawn: recordSpawn().spawn, sleep: noSleep, ...out }), 0);
+      const note = out.logs.find((l) => l.startsWith('Note: '));
+      assert.ok(note, out.logs.join('\n'));
+      assert.ok(note.startsWith(`Note: ${s.base}/export/files `), note);
+      assert.match(note, re);
+      assert.match(note, /; running the local syncs$/);
+    } finally {
+      await s.close();
+      c.cleanup();
+    }
+  }
+  const c = clone();
+  const out = quiet();
+  const gone = await fakeServer();
+  await gone.close();
+  try {
+    assert.equal(await syncAll({}, { env: c.env(gone.base), spawn: recordSpawn().spawn, sleep: noSleep, ...out }), 0);
+    assert.ok(out.logs.includes(`Note: ${gone.base}/export/files did not answer (ECONNREFUSED); running the local syncs`), out.logs.join('\n'));
+  } finally {
+    c.cleanup();
+  }
+});

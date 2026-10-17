@@ -396,3 +396,31 @@ test('writeAtomic(): a failed rename removes its temp file (personal data) and r
   assert.deepEqual(fs.readdirSync(dir), ['a.csv'], 'no .tmp left behind');
   fs.rmSync(dir, { recursive: true });
 });
+
+test('INGEST_URL / INGEST_TOKEN resolution: env, then <data root>/server.json (npm run connect), then the clone\'s services/loop-ingest/.env', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-server-json-'));
+  try {
+    const envFile = path.join(dir, '.env');
+    fs.writeFileSync(envFile, 'INGEST_TOKEN=dotenvtoken\nINGEST_PORT=8091\n');
+    const data = path.join(dir, 'data');
+    fs.mkdirSync(data);
+    const env = { HC_DATA_DIR: data, INGEST_ENV_FILE: envFile };
+    // no server.json: the .env, as before
+    assert.equal(readIngestToken(env), 'dotenvtoken');
+    assert.equal(readBaseUrl(env), 'http://localhost:8091');
+    fs.writeFileSync(path.join(data, 'server.json'), JSON.stringify({ url: 'http://10.0.0.5:8088/', token: 'savedtoken' }));
+    assert.equal(common.serverFileOf(env), path.join(data, 'server.json'));
+    assert.equal(readIngestToken(env), 'savedtoken');
+    assert.equal(readBaseUrl(env), 'http://10.0.0.5:8088');
+    assert.equal(readIngestToken({ ...env, INGEST_TOKEN: 'envtoken' }), 'envtoken');
+    assert.equal(readBaseUrl({ ...env, INGEST_URL: 'http://h:1' }), 'http://h:1');
+    // a broken or partial server.json is skipped field by field
+    fs.writeFileSync(path.join(data, 'server.json'), '{not json');
+    assert.equal(readIngestToken(env), 'dotenvtoken');
+    fs.writeFileSync(path.join(data, 'server.json'), JSON.stringify({ url: 'ftp://x', token: 7 }));
+    assert.equal(readIngestToken(env), 'dotenvtoken');
+    assert.equal(readBaseUrl(env), 'http://localhost:8091');
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});

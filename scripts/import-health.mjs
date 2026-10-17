@@ -38,6 +38,7 @@ import { isMain } from './lib/is-main.mjs';
 import { listZip, extractEntry } from './lib/zip.mjs';
 import { runCli, writeAtomic } from '../data/apple-health/sync-common.mjs';
 import { dataPaths, displayPath } from '../lib/paths.mjs';
+import { dataRootGuardError } from './lib/data-root-guard.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const EXTRACT_SCRIPT = path.join(ROOT, 'data', 'apple-health', 'extract.mjs');
@@ -185,6 +186,11 @@ const mb = (n) => (n / 1024 / 1024).toFixed(1);
 export async function main({ force = false } = {}, { env = process.env, log = console.log, error = console.error, now = () => new Date() } = {}) {
   const paths = dataPaths({ repoRoot: ROOT, env });
   const shown = (p) => displayPath(ROOT, p);
+  const guard = dataRootGuardError({ repoRoot: ROOT, env });
+  if (guard) {
+    error(`ERROR: ${guard}`);
+    return 1;
+  }
   let maxBytes = DEFAULT_MAX_BYTES;
   if (env.HC_IMPORT_MAX_BYTES !== undefined && env.HC_IMPORT_MAX_BYTES !== '') {
     maxBytes = /^[1-9]\d*$/.test(env.HC_IMPORT_MAX_BYTES) ? Number(env.HC_IMPORT_MAX_BYTES) : NaN;

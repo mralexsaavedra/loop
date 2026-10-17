@@ -8,6 +8,14 @@ for the documents, `files/import/export.xml` for the Health export); `lib/paths.
 [`development.md`](development.md#where-the-data-files-live) have the table and the one-time
 `npm run migrate:data-root` for a clone from before it.
 
+**The data root guard** (`scripts/lib/data-root-guard.mjs`). A data root (`HC_DATA_DIR`) or files folder
+(`HC_FILES_DIR`) inside the clone is accepted only when `git check-ignore` matches it (the default `loop-data/` is in
+`.gitignore`; so is anything under `backups/`). Otherwise the commands that write there stop before writing anything,
+with `ERROR: the data root <path>/ (HC_DATA_DIR) is inside this clone and git does not ignore it: ...` and exit 1:
+`npm run sync`, `npm run import:health`, `npm run migrate:data-root`, `npm run connect`, `npm run documents`. A
+folder outside the clone, or a clone that is not a git work tree (the `loop-server` image, a zip download), passes.
+The page build and `generate` only read the data root, so they do not check it.
+
 > **Reference** — how this area is built, for anyone changing it (keep it in sync with the code in the same
 > commit). Setting up or using the page? Start at the [documentation index](README.md).
 
@@ -496,10 +504,24 @@ processed data: its own refresh folds the Shortcut payloads and Strava activitie
 volume. A coach clone (the repo opened in Claude Code, on a laptop or on the server) does not fold anything itself:
 `npm run sync` MIRRORS the server's data root (`scripts/sync-client.mjs`, wired in `scripts/sync-all.mjs`).
 
-**Setup.** In the clone, point `INGEST_URL` at the server's data port (`INGEST_PORT` of its `docker/.env`, e.g.
-`http://192.168.1.10:8088`) and set `INGEST_TOKEN` to the server's `INGEST_TOKEN` (as environment variables, or
-`INGEST_TOKEN=` / `INGEST_PORT=` in the clone's `services/loop-ingest/.env` for a server on the same machine). Then
-`npm run sync` as always.
+**Setup: `npm run connect -- <url>`** (`scripts/connect.mjs`), once per clone, with the server's data port
+(`INGEST_PORT` of its `docker/.env`, e.g. `npm run connect -- http://192.168.1.10:8088`). It asks for the token in
+the terminal without echoing it (the server's `INGEST_TOKEN`; or `INGEST_TOKEN` set for that one command), checks
+`GET <url>/export/files` with it and saves `{url, token}` in **`loop-data/server.json`** (the data root's, mode 600,
+gitignored with it). The token is never printed.
+
+| `GET /export/files` answers | `npm run connect` |
+| --- | --- |
+| `200` | saves it: `Connected: <url> is a LOOP server; saved to loop-data/server.json (mode 600)...`; exit 0 |
+| `401` | `ERROR: <url> refused the token (HTTP 401)...; nothing saved`; exit 1 |
+| `404` | `ERROR: <url> has no /export/files (HTTP 404): a host-mode LOOP server ...; nothing saved`; exit 1 (a clone of a host-mode server syncs on its own: `INGEST_URL` / `INGEST_TOKEN` or `services/loop-ingest/.env`) |
+| no answer, anything else | `ERROR: could not reach <url> ...` / `... answered HTTP <n> ...; nothing saved`; exit 1 |
+
+`npm run connect -- --forget` removes the saved server. Every sync script then resolves the server in this order
+(`data/apple-health/sync-common.mjs`), each of `INGEST_URL` and `INGEST_TOKEN` on its own: the environment, then
+`loop-data/server.json`, then the clone's `services/loop-ingest/.env` (`INGEST_TOKEN=`, `INGEST_PORT=` →
+`http://localhost:<port>`, the host-mode setup). A broken `server.json` is skipped. Then `npm run sync` as always,
+in any terminal.
 
 **Detection.** `npm run sync` first asks `GET /export/files` with the token
 ([`services/loop-ingest/README.md` → Files export](../services/loop-ingest/README.md#files-export-exportfiles-and-exportfile-container-mode)):
@@ -507,9 +529,10 @@ volume. A coach clone (the repo opened in Claude Code, on a laptop or on the ser
 | Answer | What `npm run sync` does |
 | --- | --- |
 | `200` (a container-mode server) | client mode, below |
-| `404` (a host-mode server, or an image from before this route) | every sync script, as before |
-| `401` | stops with `ERROR: ... refused the ingest token (HTTP 401)`, naming `INGEST_TOKEN`; exit 1 |
-| no answer, no token | every sync script, which warn as before |
+| `404` (a host-mode server, or an image from before this route) | every sync script, as before, after `Note: <url>/export/files answered HTTP 404 (no /export/files: a host-mode server); running the local syncs` |
+| `401` | stops with `ERROR: ... refused the ingest token (HTTP 401)`, naming `npm run connect` and `INGEST_TOKEN`; exit 1 |
+| no answer, another status | every sync script, which warn as before, after `Note: <url>/export/files did not answer (<code>)` / `answered HTTP <n>; running the local syncs` |
+| no token | every sync script, which warn as before |
 
 Inside the server itself (`HC_BUILD=container`, its refresh runs `scripts/sync-all.mjs`) the scripts always run: the
 server is the source, never a client of itself.

@@ -29,6 +29,7 @@ import { readBaseUrl, readIngestToken } from '../data/apple-health/sync-common.m
 import { KINDS, documentLayout, contentHash, readState, recordState, readDocumentFile, documentProblems } from './lib/documents.mjs';
 import { main as pull, fetchDocument, ROOT } from './sync-documents.mjs';
 import { isMain } from './lib/is-main.mjs';
+import { dataRootGuardError } from './lib/data-root-guard.mjs';
 
 export const USAGE = `Usage: npm run documents -- <push|pull> <profile|plan|training|all> [--force]
 
@@ -154,6 +155,11 @@ export async function main({ argv = process.argv.slice(2), env = process.env, lo
   if (cmd.exit != null) {
     if (cmd.exit) warn(cmd.err); else log(cmd.out);
     return cmd.exit;
+  }
+  const guard = dataRootGuardError({ repoRoot: env.SYNC_DOCUMENTS_ROOT || ROOT, env });
+  if (guard) {
+    warn(`ERROR: ${guard}`);
+    return 1;
   }
   if (cmd.command === 'pull') return pull({ env, log, warn, fetchImpl, kinds: cmd.kinds, force: cmd.force, strict: true });
   const root = env.SYNC_DOCUMENTS_ROOT || ROOT;

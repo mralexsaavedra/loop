@@ -38,6 +38,7 @@ import { fileURLToPath } from 'node:url';
 import { dataPaths, displayPath, legacyPaths } from '../lib/paths.mjs';
 import { runCli } from '../data/apple-health/sync-common.mjs';
 import { isMain } from './lib/is-main.mjs';
+import { dataRootGuardError } from './lib/data-root-guard.mjs';
 
 export const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 export const GROUPS = ['extract', 'import', 'foodlog', 'profile', 'cache', 'manuals', 'documents'];
@@ -219,6 +220,11 @@ function moveAll({ repoRoot, target, moves, now, log, warn, shown, lockFile }) {
 export function main({ repoRoot = ROOT, env = process.env, dryRun = false, log = console.log, warn = console.warn, now = new Date() } = {}) {
   const shown = (f) => displayPath(repoRoot, f);
   const target = dataPaths({ repoRoot, env });
+  const guard = dataRootGuardError({ repoRoot, env });
+  if (guard) {
+    warn(`ERROR: ${guard}`);
+    return 1;
+  }
   const moves = planMoves({ repoRoot, env, tracked: trackedFiles(repoRoot) });
   if (!moves.length) {
     log(`migrate:data-root: nothing to move (no personal file at the old paths); the data root is ${shown(target.root)}`);

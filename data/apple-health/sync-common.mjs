@@ -1,6 +1,7 @@
 /* Helpers shared by every sync script (data/apple-health/sync-*.mjs, data/nutrition/sync-foodlog.mjs,
  * data/profile/sync-*.mjs, scripts/sync-*.mjs): atomic writes, the ingest .env (INGEST_ENV_FILE), token
- * and base-URL resolution, a timed JSON fetch, generic keyset-paged fetching, the export-wins /
+ * and base-URL resolution (env, then the saved server <data root>/server.json of `npm run connect`, then the
+ * clone's services/loop-ingest/.env), a timed JSON fetch, generic keyset-paged fetching, the export-wins /
  * ownership-ledger CSV merge rule, a lockfile, and the one command line (parseCli / runCli).
  */
 import fs from 'node:fs';
@@ -8,11 +9,15 @@ import path from 'node:path';
 import { parseArgs } from 'node:util';
 import { fileURLToPath } from 'node:url';
 import { addDays } from '../../lib/date.mjs';
+import { dataPaths } from '../../lib/paths.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const DEFAULT_URL = 'http://localhost:8088';
 const ENV_FILE = path.join(__dirname, '..', '..', 'services', 'loop-ingest', '.env');
+const REPO_ROOT = path.join(__dirname, '..', '..');
+/** The saved server of `npm run connect` (scripts/connect.mjs), in the data root. */
+const SERVER_FILE = 'server.json';
 
 // write to a temp file in the same directory, then rename: a crash never leaves a half file; a failed
 // write or rename removes the temp file (it holds personal data) before the error goes up
@@ -42,9 +47,32 @@ function envFileOf(env) {
   return env.INGEST_ENV_FILE || ENV_FILE;
 }
 
-// resolveToken() + the disk read of the service's .env file, so every sync script's main()
-// does the same one-liner instead of repeating the fs.existsSync/readFileSync pair.
+// <data root>/server.json for `env` (HC_DATA_DIR, else this clone's loop-data/): where `npm run connect` saves
+// the LOOP server this clone is a client of
+function serverFileOf(env) {
+  return path.join(dataPaths({ repoRoot: REPO_ROOT, env }).root, SERVER_FILE);
+}
+
+// {url, token} of the saved server, each null when missing or malformed (a broken file is skipped, never fatal):
+// url an http(s) URL without its trailing slash, token a non-empty string
+function readSavedServer(env) {
+  let raw;
+  try {
+    raw = JSON.parse(fs.readFileSync(serverFileOf(env), 'utf8'));
+  } catch {
+    return { url: null, token: null };
+  }
+  const url = typeof raw?.url === 'string' && /^https?:\/\/[^\s]+$/.test(raw.url) ? raw.url.replace(/\/+$/, '') : null;
+  const token = typeof raw?.token === 'string' && raw.token.trim() ? raw.token.trim() : null;
+  return { url, token };
+}
+
+// resolveToken() + the disk reads, so every sync script's main() does the same one-liner: INGEST_TOKEN from env,
+// then the saved server (npm run connect), then the service's .env file.
 function readIngestToken(env, envFile = envFileOf(env)) {
+  if (env.INGEST_TOKEN) return env.INGEST_TOKEN;
+  const saved = readSavedServer(env).token;
+  if (saved) return saved;
   const envText = fs.existsSync(envFile) ? fs.readFileSync(envFile, 'utf8') : null;
   return resolveToken(env, envText);
 }
@@ -58,8 +86,12 @@ function resolveBaseUrl(env, envFileText) {
   return m ? `http://localhost:${m[2]}` : DEFAULT_URL;
 }
 
-// resolveBaseUrl() + the disk read of the service's .env file (the readIngestToken() pair).
+// resolveBaseUrl() + the disk reads (the readIngestToken() order: env, the saved server, the .env file).
 function readBaseUrl(env, envFile = envFileOf(env)) {
+  if (!env.INGEST_URL) {
+    const saved = readSavedServer(env).url;
+    if (saved) return saved;
+  }
   const envText = fs.existsSync(envFile) ? fs.readFileSync(envFile, 'utf8') : null;
   return resolveBaseUrl(env, envText);
 }
@@ -308,6 +340,8 @@ export {
   DEFAULT_URL,
   ENV_FILE,
   envFileOf,
+  serverFileOf,
+  readSavedServer,
   writeAtomic,
   localIso,
   windowEndingOn,

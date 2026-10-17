@@ -87,8 +87,10 @@ export async function detectServer({ base, token, fetchImpl = fetch }) {
     return { mode: 'client', manifest: await fetchManifest(base, token, fetchImpl) };
   } catch (err) {
     if (err.status === 401) return { mode: 'unauthorized' };
-    if (err.status === 404) return { mode: 'host', reason: 'no /export/files (a host-mode server)' };
-    return { mode: 'host', reason: err.cause?.code || err.message };
+    if (err.status === 404) return { mode: 'host', reason: 'answered HTTP 404 (no /export/files: a host-mode server)' };
+    if (err.status) return { mode: 'host', reason: `answered HTTP ${err.status}` };
+    if (err.message === 'unexpected manifest shape') return { mode: 'host', reason: 'answered something that is not a files manifest' };
+    return { mode: 'host', reason: `did not answer (${err.cause?.code || err.cause?.message || err.message})` };
   }
 }
 
