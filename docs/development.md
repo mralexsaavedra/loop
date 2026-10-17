@@ -148,13 +148,22 @@ has the full table; `lib/paths.test.mjs` pins both layouts path by path.
 ## Releasing
 
 CI ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) runs `npm run lint`, `npm run typecheck`, `npm test`,
-`npm run test:services` and (job `postgres`, a Postgres 17 service container) `npm run test:pg` on every push to `main` and every pull request; a fresh clone needs no personal data to pass. A `vX.Y.Z` tag runs
-[`.github/workflows/release.yml`](../.github/workflows/release.yml), which publishes the two server images to Docker
+`npm run test:services`, (job `postgres`, a Postgres 17 service container) `npm run test:pg` and (job `images`)
+[`scripts/image-smoke.sh`](../scripts/image-smoke.sh) on every push to `main` and every pull request; a fresh clone
+needs no personal data to pass. The image smoke test builds both server images for `linux/amd64` (tag `smoke`, never
+pushed), starts a minimal stack of `docker/docker-compose.yml` (empty database and files folder, random secrets, both
+ports on `127.0.0.1`) and checks loop-server `GET /healthz`, a first `status.json` with `publishedAt` through
+loop-web, and `GET /` 200 over 100 KB, then always runs `down -v`. Locally:
+`SMOKE_INSTANCE=mine SMOKE_VERSION=mine SMOKE_INGEST_PORT=18188 SMOKE_WEB_PORT=18190 scripts/image-smoke.sh` (the
+`:mine` images stay; `docker image rm` them after). Every checkout sets `persist-credentials: false` and both
+workflows keep `permissions: contents: read`. A `vX.Y.Z` tag runs
+[`.github/workflows/release.yml`](../.github/workflows/release.yml), which first runs that whole CI on the tagged
+commit (job `test`: `ci.yml` is a reusable workflow, `workflow_call`) and publishes the two server images to Docker
 Hub, `mralexandersaavedra/loop-server` (`docker/loop-server.Dockerfile`) and `mralexandersaavedra/loop-web`
 (`docker/loop-web.Dockerfile`), built from the repo root for `linux/amd64` and `linux/arm64` and tagged `X.Y.Z` and
 `X.Y` (the OCI `version` label comes from the `VERSION` build argument), plus `latest` only when the version is the
 highest `X.Y.Z` tag in the repo: a backport tag (`v1.0.5` after `v1.1.0`) leaves `latest` where it is. Its first job,
-`check`, stops the release before anything is built or pushed unless the version is a plain `X.Y.Z` (no pre-release),
+`check`, stops the release before anything is built or pushed (the `image` job `needs: [check, test]`) unless the version is a plain `X.Y.Z` (no pre-release),
 the tag equals `v` + the `package.json` version, the tagged commit is on `main`, every `loop-server` / `loop-web`
 `image:` line of [`docker/docker-compose.yml`](../docker/docker-compose.yml) uses `${HC_VERSION:-X.Y.Z}` with that
 version (no hard-coded tag), `HC_VERSION` in `docker/.env.example` is exactly that version, and the first version

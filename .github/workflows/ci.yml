@@ -1,11 +1,14 @@
 # Lint, the lib/ typecheck and both test suites on every push and pull request, plus the data service against a real
-# Postgres (job `postgres`). The suites need no personal data: a fresh clone passes (the personal-only checks skip themselves).
+# Postgres (job `postgres`) and the two server images built and smoke-tested on a minimal compose stack (job `images`).
+# The suites need no personal data: a fresh clone passes (the personal-only checks skip themselves). release.yml calls
+# this whole workflow (workflow_call) and pushes nothing unless every job here passes.
 name: CI
 
 on:
   push:
     branches: [main]
   pull_request:
+  workflow_call:
 
 permissions:
   contents: read
@@ -20,6 +23,8 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
@@ -55,9 +60,23 @@ jobs:
       TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version-file: .nvmrc
           cache: npm
           cache-dependency-path: services/loop-ingest/package-lock.json
       - run: npm run test:pg
+
+  # Both server images (docker/loop-server.Dockerfile, docker/loop-web.Dockerfile) built for linux/amd64, never pushed,
+  # and a minimal compose stack of docker/docker-compose.yml: loop-server /healthz, the first published status.json,
+  # GET / 200 over 100 KB, then down -v (scripts/image-smoke.sh).
+  images:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: scripts/image-smoke.sh

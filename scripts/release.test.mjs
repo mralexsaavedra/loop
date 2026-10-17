@@ -89,14 +89,48 @@ test('the release publishes exactly loop-server and loop-web from the repo-root 
   assert.match(rel, /^\s+file: docker\/\$\{\{ matrix\.image \}\}\.Dockerfile$/m);
   assert.match(rel, /^\s+build-args: VERSION=\$\{\{ steps\.meta\.outputs\.version \}\}$/m, 'OCI version label from the tag');
   for (const t of ['type=semver,pattern={{version}}', 'type=semver,pattern={{major}}.{{minor}}', 'type=raw,value=latest']) assert.ok(rel.includes(t), t);
-  assert.match(rel, /^\s+needs: check$/m, 'nothing is pushed before the version check');
+  assert.match(rel, /^\s+needs: \[check, test\]$/m, 'nothing is pushed before the version check and the CI suites + image smoke');
   // least privilege: read-only contents at the top, no job widens it; every action pinned to a commit SHA
   assert.match(rel, /^permissions:\n {2}contents: read\n/m);
   assert.equal((rel.match(/permissions:/g) || []).length, 1, 'no job-level permissions');
   assert.doesNotMatch(rel, /: write/);
   const uses = [...rel.matchAll(/uses: (\S+)/g)].map((m) => m[1]);
   assert.ok(uses.length >= 6);
-  for (const u of uses) assert.match(u, /@[0-9a-f]{40}$/, `${u} pinned by commit SHA`);
+  for (const u of uses) if (!u.startsWith('./')) assert.match(u, /@[0-9a-f]{40}$/, `${u} pinned by commit SHA`);
+});
+
+test('the release waits for the whole CI (suites, Postgres, image build + smoke): ci.yml is a reusable workflow it calls', () => {
+  const rel = read('.github/workflows/release.yml');
+  const ci = read('.github/workflows/ci.yml');
+  assert.match(ci, /^on:\n(?:.*\n)*? {2}workflow_call:$/m, 'ci.yml can be called');
+  assert.match(rel, /^ {2}test:\n {4}uses: \.\/\.github\/workflows\/ci\.yml$/m, 'release.yml calls it as job test');
+  assert.match(rel, /^ {2}image:\n {4}needs: \[check, test\]$/m);
+  assert.match(ci, /^permissions:\n {2}contents: read\n/m);
+  assert.doesNotMatch(ci, /: write/);
+});
+
+test('CI builds both images for amd64 (no push) and smoke-tests a minimal compose stack (scripts/image-smoke.sh)', () => {
+  const ci = read('.github/workflows/ci.yml');
+  assert.match(ci, /^ {2}images:\n(?:.*\n)*? {6}- run: scripts\/image-smoke\.sh$/m, 'the images job runs the smoke script');
+  assert.doesNotMatch(ci, /docker\/login-action|push: true/, 'CI never pushes');
+  const sh = read('scripts/image-smoke.sh');
+  assert.ok((fs.statSync(path.join(ROOT, 'scripts/image-smoke.sh')).mode & 0o111) !== 0, 'executable');
+  for (const s of ['set -euo pipefail', 'docker/docker-compose.yml', 'build', 'up -d --wait', '/healthz', '/status.json', 'publishedAt', '102400', 'down -v', 'linux/amd64', 'INGEST_BIND=127.0.0.1', 'PLAN_WEB_BIND=127.0.0.1', 'trap ']) assert.ok(sh.includes(s), s);
+  assert.doesNotMatch(sh, /docker (image )?push|docker builder prune|docker (image )?rm .*:1\.0\.0/);
+});
+
+test('every checkout in the workflows drops the job token from .git/config (persist-credentials: false)', () => {
+  for (const f of ['.github/workflows/ci.yml', '.github/workflows/release.yml']) {
+    const text = read(f);
+    const checkouts = text.split('\n').map((l, i) => [l, i]).filter(([l]) => /uses: actions\/checkout@/.test(l));
+    assert.ok(checkouts.length > 0, f);
+    const lines = text.split('\n');
+    for (const [, i] of checkouts) {
+      const block = [];
+      for (let j = i + 1; j < lines.length && /^\s{8,}\S/.test(lines[j]); j += 1) block.push(lines[j]);
+      assert.ok(block.some((l) => /^\s+persist-credentials: false$/.test(l)), `${f}:${i + 1} persist-credentials: false`);
+    }
+  }
 });
 
 test('Dependabot moves the base image digests of the docker/ Dockerfiles and compose file too', () => {
