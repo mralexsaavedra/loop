@@ -13,7 +13,8 @@
  * clients are the coach (`npm run sync` and its push command) and the server's own page build, never the
  * browser, so loop-web's nginx does not proxy /documents/*. Content-Type must be application/json.
  *
- * Validation is STRUCTURAL here (validateDocument: the top-level shape each kind needs, no U+0000): the full
+ * Validation is STRUCTURAL here (validateDocument: the top-level shape each kind needs, a plan's data categories as
+ * lists of objects, no U+0000): the full
  * rules live in lib/ (validateNutrition needs ingredients.json, validateProgram, validateManual), which this
  * image cannot import. The coach runs them before a PUT and the page build runs them again, so a document
  * that passes here but breaks a rule is caught before it reaches the page.
@@ -36,10 +37,17 @@ const REQUIRED_OBJECTS = { plan: ['data', 'targets', 'dayPlan'], training: ['day
 
 const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
+// plan.data: every category a list of item objects, or an object whose every value is such a list -- the cheap
+// shape rule of lib/nutrition/macros.mjs dataShapeErrors (this image cannot import lib/; scripts/documents.test.mjs
+// pins the two to agree), so a stored plan can never crash the page build's walk over it
+const itemList = (v) => Array.isArray(v) && v.every(isObject)
+const planDataOk = (data) => Object.values(data).every((v) => itemList(v) || (isObject(v) && Object.values(v).every(itemList)))
+
 /** The field that breaks the kind's top-level shape ('document' when it is not an object), or null. */
 export function validateDocument (kind, doc) {
   if (!isObject(doc)) return 'document'
   for (const key of REQUIRED_OBJECTS[kind]) if (!isObject(doc[key])) return key
+  if (kind === 'plan' && !planDataOk(doc.data)) return 'data'
   return null
 }
 

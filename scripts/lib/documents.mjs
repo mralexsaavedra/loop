@@ -107,12 +107,21 @@ export function backupDocumentFile(docs, kind) {
  * validateManual).
  */
 export function documentProblems(root, kind, doc) {
+  // a plan gets the build's own message first (it names every problem, the structural ones included); the
+  // service's shape check below then still holds for what the build does not need (e.g. targets)
+  if (kind === 'plan') {
+    try {
+      const file = JSON.parse(fs.readFileSync(path.join(root, 'data', 'nutrition', 'ingredients.json'), 'utf8'));
+      validateNutrition(file.ingredients, doc);
+    } catch (err) {
+      return [err.message];
+    }
+  }
   const field = validateDocument(kind, doc);
   if (field) return [field === 'document' ? 'the document must be a JSON object' : `"${field}" must be an object`];
   try {
     if (kind === 'plan') {
-      const file = JSON.parse(fs.readFileSync(path.join(root, 'data', 'nutrition', 'ingredients.json'), 'utf8'));
-      validateNutrition(file.ingredients, doc);
+      // validated above
     } else if (kind === 'training') {
       validateProgram(doc);
     } else {

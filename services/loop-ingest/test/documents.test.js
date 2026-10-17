@@ -226,3 +226,10 @@ test('migration 012_documents.sql is its own optional group, idempotent, JSON (k
   assert.match(sql, /kind\s+TEXT\s+PRIMARY KEY CHECK \(kind IN \('plan', 'training', 'profile'\)\)/)
   assert.match(sql, /data\s+JSON\s+NOT NULL/)
 })
+
+test('validateDocument: plan.data is a list or an object of lists per category (the cheap shape rule of lib/nutrition/macros.mjs dataShapeErrors)', () => {
+  assert.equal(validateDocument('plan', { data: { x: { y: 1 } }, targets: {}, dayPlan: {} }), 'data')
+  assert.equal(validateDocument('plan', { ...PLAN, data: { ...PLAN.data, x: 1 } }), 'data')
+  assert.equal(validateDocument('plan', { ...PLAN, data: { ...PLAN.data, x: [null] } }), 'data')
+  assert.equal(validateDocument('plan', { ...PLAN, data: { a: [{}], b: { train: [{}], rest: [] } } }), null)
+})

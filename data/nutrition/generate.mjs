@@ -20,7 +20,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from '../../scripts/lib/is-main.mjs';
-import { buildNutrition, validateNutrition } from '../../lib/nutrition/macros.mjs';
+import { assertPlanStructure, buildNutrition, validateNutrition } from '../../lib/nutrition/macros.mjs';
 import { buildDayPlans, fmtFactor } from '../../lib/nutrition/scale.mjs';
 import { buildReference } from '../../lib/nutrition/reference.mjs';
 import { ingName } from '../../lib/nutrition/names.mjs';
@@ -69,7 +69,9 @@ export function load({ dir = DIR, env = process.env, warn = console.warn, person
   // Food names (the plan's own option names and the ingredients' {es, en} names) follow the build locale
   // like the page (LOCALE env -> plan.locale -> en); the document's headings and words stay English.
   const LOCALE = ['es', 'en'].includes(env.LOCALE) ? env.LOCALE : (plan && plan.locale === 'es' ? 'es' : 'en');
-  // Pure macro computation lives in lib/nutrition/macros.mjs; `ingredients` comes only from ingredients.json.
+  // Pure macro computation lives in lib/nutrition/macros.mjs; `ingredients` comes only from ingredients.json. The
+  // structural checks run first: a broken plan is one validation message, never a TypeError from the build.
+  assertPlanStructure(ingFile.ingredients, plan);
   return { ...buildNutrition(ingFile.ingredients, plan), ingredients: ingFile.ingredients, plan, PLAN_PATH, LOCALE };
 }
 

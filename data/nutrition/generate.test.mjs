@@ -310,3 +310,22 @@ test('load(): HC_DATA_DIR reads the personal plan from <data root>/cache/plan.js
     fs.rmSync(data, { recursive: true, force: true });
   }
 });
+
+test('generate --check: a structurally broken plan (the audit\'s two documents) exits 1 with the validation message, never a TypeError', () => {
+  const example = JSON.parse(fs.readFileSync(path.join(__dirname, 'plan-data.example.json'), 'utf8'));
+  const { dayPlan: _drop, ...noDayPlan } = example;
+  const docs = [{ data: { x: { y: 1 } }, targets: {}, dayPlan: {} }, noDayPlan, { ...example, data: { ...example.data, x: { y: 1 } } }];
+  for (const doc of docs) {
+    const data = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-broken-'));
+    try {
+      fs.mkdirSync(path.join(data, 'cache'));
+      fs.writeFileSync(path.join(data, 'cache', 'plan.json'), JSON.stringify(doc));
+      const r = spawnSync(process.execPath, [path.join(__dirname, 'generate.mjs'), '--check'], { encoding: 'utf8', env: { ...process.env, HC_DATA_DIR: data } });
+      assert.equal(r.status, 1, r.stdout + r.stderr);
+      assert.match(r.stderr, /plan-data\.json validation failed:/);
+      assert.doesNotMatch(r.stderr, /TypeError|is not a function|Cannot read prop/);
+    } finally {
+      fs.rmSync(data, { recursive: true, force: true });
+    }
+  }
+});
