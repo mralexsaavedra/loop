@@ -1,10 +1,13 @@
 # loop-web
 
+> **Host mode (development / legacy).** Installing LOOP? [README → Setup → Server](../../README.md#server--the-page-the-food-log-and-the-iphone-sync-docker-no-clone): the
+> `loop-server` / `loop-web` images carry this nginx config.
+
 Serves the personal plan page (`web/dist/personal/index.html`) on the LAN with
 nginx, and refreshes it hourly (cron) or on demand (the page's **Sync** button,
 or the iOS Shortcut).
 
-**Installing it?** [Install (host)](#install-host) comes first, right below; the sections after it explain how
+**Installing it in host mode?** [Install (host)](#install-host) comes first, right below; the sections after it explain how
 it works.
 
 | File | Role |

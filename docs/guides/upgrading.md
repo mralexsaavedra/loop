@@ -12,9 +12,15 @@ Your food log, recipes, journal, settings, documents and Strava history live in 
 seconds; on a server, from the folder holding `docker-compose.yml`:
 
 ```sh
+umask 077
 mkdir -p backups
+cp .env "backups/env-$(date +%F)"
 docker compose exec -T loop-db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > "backups/loop-db-$(date +%F).sql"
 ```
+
+`umask 077` keeps the copies readable by you only (they hold your health data and your secrets). Keep the copy
+of `.env` with the dump: the iOS Shortcut keeps sending the same `INGEST_TOKEN`, and an existing database volume
+only accepts the `POSTGRES_PASSWORD` it was created with, so a restore puts that `.env` back first.
 
 To restore a copy into an empty database (a new install, or after `docker compose down -v`): start only the
 database and wait until it accepts connections (`--wait`), load the copy, then start the rest. Paste the block

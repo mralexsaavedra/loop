@@ -1,5 +1,8 @@
 # loop-ingest
 
+> **Host mode (development / legacy).** Installing LOOP? [README → Setup → Server](../../README.md#server--the-page-the-food-log-and-the-iphone-sync-docker-no-clone): the
+> `loop-server` / `loop-web` images carry this service.
+
 The data service of the self-hosted stack: it receives your health data, keeps your
 food log, journal and settings, and pulls Strava, so the page stays fresh with no manual work.
 

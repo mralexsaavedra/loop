@@ -1,12 +1,13 @@
 # Security policy
 
 LOOP is self-hosted: you run it on your own machine, with your own data, on your own network. There is no
-LOOP server and no hosted service, so a vulnerability means one in this code or in its default configuration.
+hosted service, so a vulnerability means one in this code, in the published images or in their default
+configuration.
 
 ## Supported versions
 
 Only the latest release (the newest `## [X.Y.Z]` in [`CHANGELOG.md`](CHANGELOG.md), and the matching
-`mralexandersaavedra/loop-ingest` image) gets fixes. Update with [`docs/guides/upgrading.md`](docs/guides/upgrading.md).
+`mralexandersaavedra/loop-server` and `mralexandersaavedra/loop-web` images) gets fixes. Update with [`docs/guides/upgrading.md`](docs/guides/upgrading.md).
 
 ## Reporting a vulnerability
 
@@ -20,9 +21,17 @@ unless you prefer to stay anonymous.
 
 ## In scope
 
-- The data service (`services/loop-ingest`): authentication of the ingest token, the food, journal, profile and
-  sync endpoints, the Host and Origin checks, input limits.
-- The page server (`services/loop-web`): the nginx configuration, the proxied paths, the security headers.
+- The data service (`services/loop-ingest`, run by the `loop-server` image): authentication of the ingest token,
+  the food, journal, profile, sync and `/documents/:kind` endpoints, the `/export/files` and `/export/file`
+  endpoints a coach clone mirrors from, the Host and Origin checks, input limits.
+- The `loop-server` container mode: the page build and refresh inside the container, and the Apple Health zip
+  reader that imports an export dropped into the files folder.
+- The page server (the `loop-web` image, `services/loop-web` in host mode): the nginx configuration, the proxied
+  paths, the security headers.
+- The compose file's hardening defaults (`docker/docker-compose.yml`): read-only root filesystems, dropped
+  capabilities, `no-new-privileges`, memory and process limits, the data port bound to `127.0.0.1` in the `.env` template.
+- The coach client mirror (`npm run sync` against a LOOP server): a way to make it write outside the clone's data
+  root, or delete or overwrite a file the server did not send.
 - The page itself: anything that lets data or script from outside reach it (it is built as one self-contained file).
 - The guard hook (`.claude/hooks/guard-health-data.js`): a way to commit personal data past it.
 

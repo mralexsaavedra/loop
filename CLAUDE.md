@@ -24,12 +24,17 @@ you MUST follow for any number you produce).
 
 ## Data sources (read before quoting any number)
 
-Every personal file lives under the data root `loop-data/` (gitignored; `HC_DATA_DIR` moves it,
+Every personal file lives under the data root `loop-data/` (gitignored; `HC_DATA_DIR` moves it, and a data root
+or files folder inside the repo that git does not ignore is refused,
 [`docs/development.md`](docs/development.md) → Where the data files live). A clone from before it: `npm run migrate:data-root`.
-**A coach clone of a LOOP server** (the `loop-server` image, `INGEST_URL` pointing at it): `npm run sync` mirrors the
-server's `extract/`, `profile/`, `foodlog/` and `files/` (documents, manuals) into `loop-data/` and pulls the documents
-into `cache/`; the server is the source, so its freshness is the server's
-([`docs/data-pipeline.md`](docs/data-pipeline.md) → Coach as a client of a LOOP server).
+**A coach clone of a LOOP server** (the `loop-server` image, connected once with `npm run connect -- <url>`):
+`npm run sync` mirrors the server's `extract/`, `profile/`, `foodlog/` and `files/` (documents, manuals) into
+`loop-data/` and pulls the documents into `cache/`; the server is the source, so its freshness is the server's
+([`docs/data-pipeline.md`](docs/data-pipeline.md) → Coach as a client of a LOOP server). In such a clone, a new
+Health export goes into the SERVER's `files/import/` (then Sync on the page or `npm run sync`), not into the
+clone's; manuals and coach PDFs go into the SERVER's files folder too: a file only in the clone is kept (the
+mirror warns about it) but never published; a mirrored file the server removed under `files/` is moved to
+`backups/<path>.mirror.bak` (the mirror's ledger: `loop-data/.mirror-state.json`).
 
 - **Live facts** (same sources the coach subagents use): `loop-data/cache/profile.json` (height, birthdate →
   age from today, devices, supplements, upcoming `events`), `loop-data/profile/settings.json` (`goal`,
@@ -61,7 +66,8 @@ into `cache/`; the server is the source, so its freshness is the server's
 
 | Command | What it does |
 | --- | --- |
-| `npm run sync` | Pull Shortcut payloads, Strava, profile, food log, settings, onboarding, journal from `services/loop-ingest` into the extract (`-- --full` rebuilds the Shortcut cache); against a LOOP server in container mode it mirrors the server's data instead (`-- --no-refresh`: without asking it to refresh first) |
+| `npm run sync` | Pull Shortcut payloads, Strava, profile, food log, settings, onboarding, journal from the data service into the extract (server: env `INGEST_URL`/`INGEST_TOKEN` → `loop-data/server.json` → the clone's `services/loop-ingest/.env`) (`-- --full` rebuilds the Shortcut cache); against a LOOP server in container mode it mirrors the server's data instead (`-- --no-refresh`: without asking it to refresh first) |
+| `npm run connect -- <url>` | Save the LOOP server's address and token (asked without echo, or `INGEST_TOKEN` from the env) in `loop-data/server.json` (mode 600); `-- --forget` removes it |
 | `npm run generate` | Validate the plan, write `data/nutrition/plan-tables.md`, build `web/dist/personal/index.html` (idempotent) |
 | `npm run check` | Validators only, no build (plan, ingredients, `loop-data/cache/training.json`, `loop-data/cache/profile.json`) |
 | `npm run migrate:data-root` | One time on a clone from before the data root: move the personal files from the old paths into `loop-data/` (backup first; `-- --dry-run` to preview) |
@@ -83,9 +89,10 @@ are copies of documents in its database (`npm run sync` refreshes them): after e
 ## Viewing the page
 
 `npm run generate` builds `web/dist/personal/index.html`: one self-contained, CSP-safe file (no external
-refs, every script `is:inline`) that opens locally with no server. If you run the LAN services
-(`services/loop-web` + `services/loop-ingest`), they serve and rebuild it on your network — see
-[docs/lan-services.md](docs/lan-services.md). Setup-specific notes (your own publishing routine, branch
+refs, every script `is:inline`) that opens locally with no server. On a LOOP server (the `loop-server` and
+`loop-web` Docker images, README → Setup → Server) the `loop-server` container builds it from the server's own data
+and `loop-web` serves it on your network; host mode (`services/loop-web` + `services/loop-ingest` run from a
+clone) is the development / legacy setup — see [docs/lan-services.md](docs/lan-services.md). Setup-specific notes (your own publishing routine, branch
 policy) go in a gitignored `CLAUDE.local.md`, which Claude Code loads next to this file.
 
 ## Repo rules
