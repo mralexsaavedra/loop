@@ -73,6 +73,14 @@ const SERVER_FILES = {
   'files/manuals/edge.pdf': '%PDF manual',
 };
 
+/** Records `rels` (already in the clone) in its mirror ledger, as a previous mirror run would have. */
+function mirrored(c, rels) {
+  const file = path.join(c.root, '.mirror-state.json');
+  const prev = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : { version: 1, files: {}, warned: [] };
+  for (const rel of rels) prev.files[rel] = sha(fs.readFileSync(path.join(c.root, rel)));
+  fs.writeFileSync(file, JSON.stringify(prev));
+}
+
 const quiet = () => { const out = { logs: [], warns: [] }; out.log = (m) => out.logs.push(m); out.warn = (m) => out.warns.push(m); return out; };
 const noSleep = async () => {};
 
@@ -196,11 +204,13 @@ test('mirrorFiles: replaces a changed file, removes what the server no longer li
     const outside = path.join(c.dir, 'outside.csv');
     fs.writeFileSync(outside, 'keep');
     fs.symlinkSync(outside, path.join(c.root, 'extract', 'link.csv'));
+    mirrored(c, ['extract/weight.csv', 'extract/old.csv', 'files/manuals/old-manual.pdf']);
     const manifest = (await detectServer({ base: s.base, token: TOKEN })).manifest;
     assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, ...out }), 0);
     assert.equal(c.read('extract/weight.csv'), SERVER_FILES['extract/weight.csv']);
     assert.ok(!c.exists('extract/old.csv'));
     assert.ok(!c.exists('files/manuals/old-manual.pdf'));
+    assert.equal(fs.readFileSync(path.join(c.dir, 'backups', 'files', 'manuals', 'old-manual.pdf.mirror.bak'), 'utf8'), 'removed manual');
     for (const p of ['cache/plan.json', 'cache/.sync-state.json', 'extract/.shortcut-cache.json', 'files/import/export.zip', 'analysis.txt']) assert.ok(c.exists(p), p);
     assert.ok(fs.lstatSync(path.join(c.root, 'extract', 'link.csv')).isSymbolicLink());
     assert.equal(fs.readFileSync(outside, 'utf8'), 'keep');
@@ -401,6 +411,7 @@ test('mirrorFiles: an empty manifest while the clone has mirrored files is refus
   try {
     c.put('extract/weight.csv', 'mine');
     c.put('files/manuals/edge.pdf', 'pdf');
+    mirrored(c, ['extract/weight.csv', 'files/manuals/edge.pdf']);
     const manifest = (await detectServer({ base: s.base, token: TOKEN })).manifest;
     const out = quiet();
     assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, ...out }), 1);
@@ -428,6 +439,7 @@ test('mirrorFiles: removing more than half of the mirrored files (and more than 
   const c = clone();
   try {
     for (const [p, v] of Object.entries(MANY)) c.put(p, v);
+    mirrored(c, Object.keys(MANY));
     const manifest = (await detectServer({ base: s.base, token: TOKEN })).manifest;
     const out = quiet();
     assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, ...out }), 1);
@@ -445,6 +457,7 @@ test('mirrorFiles: removing more than half of the mirrored files (and more than 
   const c2 = clone();
   try {
     for (const p of Object.keys(MANY).slice(0, 6)) c2.put(p, MANY[p]);
+    mirrored(c2, Object.keys(MANY).slice(0, 6));
     const manifest = (await detectServer({ base: s2.base, token: TOKEN })).manifest;
     assert.equal(await mirrorFiles({ base: s2.base, token: TOKEN, manifest, root: c2.root, ...quiet() }), 0);
     assert.deepEqual(fs.readdirSync(path.join(c2.root, 'extract')), ['f0.csv']);
@@ -503,6 +516,7 @@ test('mirrorFiles: prints each removed path, each downloaded path only with verb
   const c = clone();
   try {
     c.put('extract/old.csv', 'SECRET-OLD');
+    mirrored(c, ['extract/old.csv']);
     const manifest = (await detectServer({ base: s.base, token: TOKEN })).manifest;
     const out = quiet();
     assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, ...out }), 0);
@@ -510,6 +524,7 @@ test('mirrorFiles: prints each removed path, each downloaded path only with verb
     assert.ok(!out.logs.some((l) => l.startsWith('Downloaded ')), out.logs.join('\n'));
     assert.match(out.logs.at(-1), /^Mirror: /);
     c.put('extract/old2.csv', 'SECRET-OLD');
+    mirrored(c, ['extract/old2.csv']);
     c.put('extract/weight.csv', 'stale');
     const verbose = quiet();
     assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, verbose: true, ...verbose }), 0);
@@ -528,12 +543,105 @@ test('npm run sync passes --allow-empty, --allow-removals and --verbose to the m
   const sp = recordSpawn();
   try {
     c.put('extract/weight.csv', 'mine');
+    mirrored(c, ['extract/weight.csv']);
     assert.equal(await syncAll({ 'no-refresh': true }, { env: c.env(s.base), spawn: sp.spawn, sleep: noSleep, ...quiet() }), 1);
     assert.ok(c.exists('extract/weight.csv'));
     const out = quiet();
     assert.equal(await syncAll({ 'no-refresh': true, 'allow-empty': true, 'allow-removals': true, verbose: true }, { env: c.env(s.base), spawn: sp.spawn, sleep: noSleep, ...out }), 0);
     assert.ok(!c.exists('extract/weight.csv'));
     assert.ok(out.logs.includes('Removed extract/weight.csv'), out.logs.join('\n'));
+  } finally {
+    await s.close();
+    c.cleanup();
+  }
+});
+
+/* ---------- the mirror ledger (<data root>/.mirror-state.json) ---------- */
+
+const EXTRACT6 = Object.fromEntries(Array.from({ length: 6 }, (_, i) => [`extract/s${i}.csv`, `date,v\n2026-10-0${i + 1},${i}\n`]));
+
+test('mirror ledger: a clone-only PDF next to 6 mirrored extract files survives (one WARNING naming it, once); the ledger holds what was mirrored', async () => {
+  const s = await fakeServer({ files: EXTRACT6 });
+  const c = clone();
+  try {
+    for (const [p, v] of Object.entries(EXTRACT6)) c.put(p, v);
+    c.put('files/documents/mine.pdf', '%PDF clone only');
+    const manifest = (await detectServer({ base: s.base, token: TOKEN })).manifest;
+    for (let run = 0; run < 2; run += 1) {
+      const out = quiet();
+      assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, ...out }), 0);
+      assert.equal(c.read('files/documents/mine.pdf'), '%PDF clone only', `run ${run}`);
+      const named = out.warns.filter((w) => w.includes('files/documents/mine.pdf'));
+      assert.equal(named.length, run === 0 ? 1 : 0, out.warns.join('\n'));
+      if (run === 0) assert.match(named[0], /^WARNING: files\/documents\/mine\.pdf is not on the server and was never mirrored from it: kept/);
+      assert.match(out.logs.at(-1), /0 downloaded, 6 unchanged, 0 removed$/);
+    }
+    const ledger = JSON.parse(c.read('.mirror-state.json'));
+    assert.deepEqual(Object.keys(ledger.files).sort(), Object.keys(EXTRACT6).sort());
+    assert.equal(ledger.files['extract/s0.csv'], sha(Buffer.from(EXTRACT6['extract/s0.csv'])));
+    assert.equal(fs.statSync(path.join(c.root, '.mirror-state.json')).mode & 0o777, 0o600);
+  } finally {
+    await s.close();
+    c.cleanup();
+  }
+});
+
+test('mirror ledger: only a file this client mirrored is removed once the server drops it; under files/ it is MOVED to backups/<path>.mirror.bak (newest only)', async () => {
+  const s = await fakeServer({ files: SERVER_FILES });
+  const c = clone();
+  const backups = path.join(c.dir, 'backups');
+  try {
+    let manifest = (await detectServer({ base: s.base, token: TOKEN })).manifest;
+    assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, backupsDir: backups, ...quiet() }), 0);
+    c.put('extract/mine.csv', 'clone only');
+    s.state.files.delete('extract/weight.csv');
+    s.state.files.delete('files/manuals/edge.pdf');
+    manifest = (await detectServer({ base: s.base, token: TOKEN })).manifest;
+    const out = quiet();
+    assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, backupsDir: backups, ...out }), 0);
+    assert.ok(!c.exists('extract/weight.csv'));
+    assert.ok(!c.exists('files/manuals/edge.pdf'));
+    assert.equal(fs.readFileSync(path.join(backups, 'files', 'manuals', 'edge.pdf.mirror.bak'), 'utf8'), '%PDF manual');
+    assert.ok(!fs.existsSync(path.join(backups, 'extract')), 'outside files/ a removal is an unlink');
+    assert.equal(c.read('extract/mine.csv'), 'clone only');
+    assert.ok(out.logs.includes('Removed extract/weight.csv'), out.logs.join('\n'));
+    assert.ok(out.logs.includes(`Moved files/manuals/edge.pdf to ${path.join(backups, 'files', 'manuals', 'edge.pdf.mirror.bak')}`), out.logs.join('\n'));
+    assert.match(out.logs.at(-1), /0 downloaded, 4 unchanged, 2 removed$/);
+    assert.deepEqual(Object.keys(JSON.parse(c.read('.mirror-state.json')).files).sort(), Object.keys(SERVER_FILES).filter((p) => p !== 'extract/weight.csv' && p !== 'files/manuals/edge.pdf').sort());
+  } finally {
+    await s.close();
+    c.cleanup();
+  }
+});
+
+test('mirror ledger: the first run (no ledger) removes nothing and seeds the ledger from the files matching the manifest by sha256', async () => {
+  const s = await fakeServer({ files: SERVER_FILES });
+  const c = clone();
+  try {
+    c.put('extract/weight.csv', SERVER_FILES['extract/weight.csv']);
+    c.put('extract/old.csv', 'mirrored before the ledger existed');
+    const manifest = (await detectServer({ base: s.base, token: TOKEN })).manifest;
+    const out = quiet();
+    assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, ...out }), 0);
+    assert.ok(c.exists('extract/old.csv'));
+    assert.match(out.logs.at(-1), /5 downloaded, 1 unchanged, 0 removed$/);
+    assert.deepEqual(Object.keys(JSON.parse(c.read('.mirror-state.json')).files).sort(), Object.keys(SERVER_FILES).sort());
+  } finally {
+    await s.close();
+    c.cleanup();
+  }
+});
+
+test('mirror ledger: a local file under files/ the client never mirrored is backed up before the server\'s copy replaces it', async () => {
+  const s = await fakeServer({ files: SERVER_FILES });
+  const c = clone();
+  const backups = path.join(c.dir, 'backups');
+  try {
+    c.put('files/manuals/edge.pdf', '%PDF my own edition');
+    const manifest = (await detectServer({ base: s.base, token: TOKEN })).manifest;
+    assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, backupsDir: backups, ...quiet() }), 0);
+    assert.equal(c.read('files/manuals/edge.pdf'), '%PDF manual');
+    assert.equal(fs.readFileSync(path.join(backups, 'files', 'manuals', 'edge.pdf.mirror.bak'), 'utf8'), '%PDF my own edition');
   } finally {
     await s.close();
     c.cleanup();

@@ -111,7 +111,7 @@ export async function main ({ full = false, 'no-refresh': noRefresh = false, 'al
   let manifest = server.manifest;
   if (!noRefresh) ({ manifest } = await waitForSeq({ base, token, waitSeconds, fetchImpl, ...(sleep ? { sleep } : {}), log, warn }));
   const documents = runAll([DOCUMENTS], [], spawn);
-  const mirror = await mirrorFiles({ base, token, manifest, root: paths.root, filesDir: paths.filesDir, allowEmpty, allowRemovals, verbose, fetchImpl, log, warn });
+  const mirror = await mirrorFiles({ base, token, manifest, root: paths.root, filesDir: paths.filesDir, backupsDir: path.join(repoRoot, 'backups'), allowEmpty, allowRemovals, verbose, fetchImpl, log, warn });
   return Math.max(documents, mirror);
 }
 
@@ -126,6 +126,8 @@ documents, then mirrors the server's extract/, profile/, foodlog/, files/documen
   --allow-empty  client mode: mirror an empty server even though this clone has mirrored files (removes them all)
   --allow-removals  client mode: go ahead when the mirror would remove more than half of the mirrored files (and >5)
   --verbose      client mode: print each downloaded path too (removed paths are always printed)
+Client mode removes only files this clone mirrored (the ledger <data root>/.mirror-state.json), never a file of
+its own; under files/ a removed file is moved to backups/<path>.mirror.bak.
   -h, --help     this help
 Env: INGEST_URL, INGEST_TOKEN, HC_DATA_DIR, HC_SYNC_WAIT (client mode: seconds to wait for the server, default 120).`;
 

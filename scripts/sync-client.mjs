@@ -11,7 +11,9 @@
  *   mirrorFiles   the allowlisted folders (services/loop-ingest/src/files-export.js EXPORT_DIRS: extract/, profile/,
  *                 foodlog/, files/documents/, files/manuals/) into this clone's data root (lib/paths.mjs): a file is
  *                 downloaded only when its sha256 differs, written to a hidden temp file next to it, checked (size and
- *                 sha256) and renamed into place; a local file in those folders the server no longer lists is removed.
+ *                 sha256) and renamed into place. Only a file THIS client mirrored (the ledger <data root>/
+ *                 .mirror-state.json) and the server no longer lists is removed; under files/ it is moved to
+ *                 backups/<path>.mirror.bak instead; a clone-only file is never removed (one WARNING, once).
  *                 Never cache/ (scripts/sync-documents.mjs owns it, with its local-edit protection), files/import/,
  *                 hidden, temp, lock or backup files, symlinks, or anything outside the allowlist. A manifest with
  *                 one path outside the allowlist, or a name the server never lists (hidden, *.tmp, *.lock, *.bak),
@@ -204,17 +206,67 @@ async function download(base, token, entry, dest, fetchImpl) {
 }
 
 export const MASS_REMOVAL_MIN = 5;
+/** The mirror ledger, in the data root (hidden: never listed or served): the paths this client wrote from the server. */
+export const LEDGER_FILE = '.mirror-state.json';
+
+/** {files: {path: sha256}, warned: [path]} from the ledger; null when there is none yet (or it is unreadable). */
+export function readLedger(root) {
+  try {
+    const raw = JSON.parse(fs.readFileSync(path.join(root, LEDGER_FILE), 'utf8'));
+    if (!raw || typeof raw !== 'object' || !raw.files || typeof raw.files !== 'object' || Array.isArray(raw.files)) return null;
+    const files = {};
+    for (const [p, h] of Object.entries(raw.files)) if (!exportPathError(p) && typeof h === 'string' && SHA_RE.test(h)) files[p] = h;
+    const warned = Array.isArray(raw.warned) ? raw.warned.filter((p) => typeof p === 'string') : [];
+    return { files, warned };
+  } catch {
+    return null;
+  }
+}
+
+function writeLedger(root, ledger) {
+  fs.mkdirSync(root, { recursive: true });
+  const file = path.join(root, LEDGER_FILE);
+  const tmp = `${file}.${process.pid}.tmp`;
+  const sorted = (o) => Object.fromEntries(Object.keys(o).sort().map((k) => [k, o[k]]));
+  try {
+    fs.writeFileSync(tmp, JSON.stringify({ version: 1, files: sorted(ledger.files), warned: [...ledger.warned].sort() }, null, 2) + '\n', { mode: 0o600 });
+    fs.renameSync(tmp, file);
+  } finally {
+    fs.rmSync(tmp, { force: true });
+  }
+}
+
+/** Moves `abs` to `target` (the newest backup only: an older one is replaced), across file systems too. */
+function moveToBackup(abs, target) {
+  fs.mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
+  try {
+    fs.renameSync(abs, target);
+  } catch (err) {
+    if (err.code !== 'EXDEV') throw err;
+    fs.copyFileSync(abs, target);
+    fs.unlinkSync(abs);
+  }
+}
 
 /**
  * Mirrors the manifest into the clone's data root `root` (files/* into `filesDir`, default <root>/files). Refused as a
  * whole (ERROR, exit 1, nothing written or removed): a bad manifest entry; an allowlisted folder, or a folder between
  * it and the data root (the files folder), that is a symlink in the clone; an empty manifest while the clone has
  * mirrored files (unless `allowEmpty`); a run that would remove more than half of the mirrored files and more than 5
- * (unless `allowRemovals`). Logs `Removed <path>` per removed file, `Downloaded <path>` per download with `verbose`
+ * (unless `allowRemovals`).
+ *
+ * THE LEDGER (<root>/.mirror-state.json, mode 600: {files: {path: sha256}, warned: [path]}) is what makes a file
+ * "mirrored": only a path in it that the server no longer lists is removed. A file the clone has and the server never
+ * sent (a clone-only file: a PDF dropped in files/documents/, a local import) is never removed: one WARNING names it,
+ * the first time only (`warned`). A removal under files/ MOVES the file to `backupsDir`/<path>.mirror.bak (the newest
+ * one only) instead of unlinking it; a local file under files/ that the server's copy would replace while the ledger
+ * does not hold it as is (never mirrored, or edited since) is backed up the same way first. The first run (no
+ * ledger) removes nothing and seeds the ledger with the files that match the manifest by sha256 and the downloads.
+ * Logs `Removed <path>` / `Moved <path> to <backup>` per removal, `Downloaded <path>` per download with `verbose`
  * (paths only, never content), then one `Mirror: ...` count line; returns 0, or 1 when refused or a file failed.
- * @param {{ base: string, token: string, manifest: any, root: string, filesDir?: string, allowEmpty?: boolean, allowRemovals?: boolean, verbose?: boolean, fetchImpl?: typeof fetch, log?: (m: string) => void, warn?: (m: string) => void }} opts
+ * @param {{ base: string, token: string, manifest: any, root: string, filesDir?: string, backupsDir?: string, allowEmpty?: boolean, allowRemovals?: boolean, verbose?: boolean, fetchImpl?: typeof fetch, log?: (m: string) => void, warn?: (m: string) => void }} opts
  */
-export async function mirrorFiles({ base, token, manifest, root, filesDir = path.join(root, 'files'), allowEmpty = false, allowRemovals = false, verbose = false, fetchImpl = fetch, log = console.log, warn = console.warn }) {
+export async function mirrorFiles({ base, token, manifest, root, filesDir = path.join(root, 'files'), backupsDir = path.join(path.dirname(root), 'backups'), allowEmpty = false, allowRemovals = false, verbose = false, fetchImpl = fetch, log = console.log, warn = console.warn }) {
   const seen = new Set();
   for (const f of manifest.files) {
     const why = entryError(f) ?? (seen.has(f.path) ? `duplicate path ${f.path}` : null);
@@ -229,6 +281,7 @@ export async function mirrorFiles({ base, token, manifest, root, filesDir = path
   const filesUnderRoot = path.resolve(filesDir) === path.resolve(root, 'files');
   const place = (p) => (p.startsWith('files/') && !filesUnderRoot ? { base: filesDir, rel: p.slice('files/'.length) } : { base: root, rel: p });
   const show = (abs) => path.relative(root, abs).split(path.sep).join('/');
+  const backupOf = (p) => path.join(backupsDir, ...`${p}.mirror.bak`.split('/'));
   for (const dir of EXPORT_DIRS) {
     const { base: b, rel } = place(dir);
     const link = symlinkBelow(b, rel);
@@ -237,14 +290,19 @@ export async function mirrorFiles({ base, token, manifest, root, filesDir = path
       return 1;
     }
   }
+  const previous = readLedger(root);
+  const ledger = { files: { ...(previous?.files ?? {}) }, warned: new Set(previous?.warned ?? []) };
   const localFiles = await listExportFiles({ dataDir: root, filesDir });
-  const toRemove = localFiles.filter((f) => !seen.has(f.path));
-  if (manifest.files.length === 0 && localFiles.length > 0 && !allowEmpty) {
-    warn(`ERROR: the server lists no files while this clone has ${localFiles.length} mirrored files; nothing removed (an empty or wrong data volume on the server?). Run \`npm run sync -- --allow-empty\` to mirror the empty server`);
+  // mirrored = written here from the server (in the ledger); everything else the clone has is its own
+  const mirrored = localFiles.filter((f) => f.path in ledger.files);
+  const toRemove = mirrored.filter((f) => !seen.has(f.path));
+  const cloneOnly = localFiles.filter((f) => !seen.has(f.path) && !(f.path in ledger.files));
+  if (manifest.files.length === 0 && mirrored.length > 0 && !allowEmpty) {
+    warn(`ERROR: the server lists no files while this clone has ${mirrored.length} mirrored files; nothing removed (an empty or wrong data volume on the server?). Run \`npm run sync -- --allow-empty\` to mirror the empty server`);
     return 1;
   }
-  if (toRemove.length > MASS_REMOVAL_MIN && toRemove.length * 2 > localFiles.length && !allowRemovals) {
-    warn(`ERROR: the server's manifest would remove ${toRemove.length} of the ${localFiles.length} mirrored files; nothing mirrored (check the server's data). Run \`npm run sync -- --allow-removals\` to mirror it anyway`);
+  if (toRemove.length > MASS_REMOVAL_MIN && toRemove.length * 2 > mirrored.length && !allowRemovals) {
+    warn(`ERROR: the server's manifest would remove ${toRemove.length} of the ${mirrored.length} mirrored files; nothing mirrored (check the server's data). Run \`npm run sync -- --allow-removals\` to mirror it anyway`);
     return 1;
   }
   let downloaded = 0;
@@ -256,6 +314,7 @@ export async function mirrorFiles({ base, token, manifest, root, filesDir = path
     const dest = path.join(b, rel);
     if (await sameFile(dest, entry)) {
       unchanged += 1;
+      ledger.files[entry.path] = entry.sha256;
       continue;
     }
     // a subfolder that is a symlink in the clone is never written through
@@ -266,25 +325,54 @@ export async function mirrorFiles({ base, token, manifest, root, filesDir = path
       continue;
     }
     try {
+      // a file of the clone's own under files/ (never mirrored, or edited since) is kept as a backup first
+      if (entry.path.startsWith('files/') && fs.lstatSync(dest, { throwIfNoEntry: false })?.isFile() && ledger.files[entry.path] !== (await fileSha(dest))) {
+        fs.mkdirSync(path.dirname(backupOf(entry.path)), { recursive: true, mode: 0o700 });
+        fs.copyFileSync(dest, backupOf(entry.path));
+        log(`Backed up ${entry.path} to ${backupOf(entry.path)} (the server's copy replaces it)`);
+      }
       await download(base, token, entry, dest, fetchImpl);
       downloaded += 1;
+      ledger.files[entry.path] = entry.sha256;
       if (verbose) log(`Downloaded ${entry.path}`);
     } catch (err) {
       failed += 1;
       warn(`WARNING: could not mirror ${entry.path} (${err.cause?.code || err.message}); the local copy is kept`);
     }
   }
-  // the same listing rules as the server (no hidden / temp / lock / backup file, no symlink), so only a file the
-  // server would list, and does not, is removed
+  // the same listing rules as the server (no hidden / temp / lock / backup file, no symlink), and only a file this
+  // client mirrored (the ledger): a file under files/ is moved to the backups, never unlinked
   for (const f of toRemove) {
     try {
-      fs.unlinkSync(f.abs);
+      if (f.path.startsWith('files/')) {
+        moveToBackup(f.abs, backupOf(f.path));
+        log(`Moved ${f.path} to ${backupOf(f.path)}`);
+      } else {
+        fs.unlinkSync(f.abs);
+        log(`Removed ${f.path}`);
+      }
       removed += 1;
-      log(`Removed ${f.path}`);
+      delete ledger.files[f.path];
     } catch (err) {
       failed += 1;
       warn(`WARNING: could not remove ${f.path} (${err.code || err.message})`);
     }
+  }
+  // a ledger path that is neither on the server nor in the clone any more is forgotten
+  const local = new Set(localFiles.map((f) => f.path));
+  for (const p of Object.keys(ledger.files)) if (!seen.has(p) && !local.has(p)) delete ledger.files[p];
+  for (const f of cloneOnly) {
+    if (ledger.warned.has(f.path)) continue;
+    ledger.warned.add(f.path);
+    warn(`WARNING: ${f.path} is not on the server and was never mirrored from it: kept (this clone's own file; the mirror never removes it)`);
+  }
+  const stillCloneOnly = new Set(cloneOnly.map((f) => f.path));
+  for (const p of ledger.warned) if (!stillCloneOnly.has(p)) ledger.warned.delete(p);
+  try {
+    writeLedger(root, ledger);
+  } catch (err) {
+    failed += 1;
+    warn(`WARNING: could not save the mirror ledger ${LEDGER_FILE} (${err.code || err.message}); the next run removes nothing it does not list`);
   }
   log(`Mirror: ${manifest.files.length} files on the server: ${downloaded} downloaded, ${unchanged} unchanged, ${removed} removed${failed ? `, ${failed} failed` : ''}`);
   return failed ? 1 : 0;

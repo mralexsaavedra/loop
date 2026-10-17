@@ -527,21 +527,33 @@ server is the source, never a client of itself.
    `files/documents/` and `files/manuals/` (in the clone `files/` is `HC_FILES_DIR` when set). A file is downloaded
    only when its sha256 differs from the local copy, into a hidden temp file next to it, checked against the
    manifest's size and sha256 and only then renamed into place (a mismatch keeps the local file: `WARNING:`, exit 1;
-   run the sync again). A file in those folders that the server no longer lists is removed, so **the server's
-   `files/` folder is the one to add documents and manuals to**: one added only in the clone's
-   `files/documents/` is removed by the next client sync. Never touched: `cache/`, `files/import/`, hidden, temp,
-   lock or backup files, symlinks, and anything outside those folders. A manifest naming any path outside the
-   allowlist, or a name the server never lists (hidden, `*.tmp`, `*.lock`, `*.bak`, at any depth), is refused as a
-   whole (`ERROR:`, nothing written or removed). Each removed file is printed as `Removed <path>` (its path only,
-   never its content); `npm run sync -- --verbose` also prints `Downloaded <path>` for each download. It ends with
-   one line: `Mirror: <n> files on the server: <d> downloaded, <u> unchanged, <r> removed[, <f> failed]`.
+   run the sync again).
+
+   **The mirror ledger.** `loop-data/.mirror-state.json` (the data root's, mode 600) lists every path this clone
+   wrote from the server, with its sha256. Only a file **in the ledger** that the server no longer lists is removed;
+   under `files/` it is **moved** to `backups/<path>.mirror.bak` in the clone (e.g.
+   `backups/files/manuals/edge.pdf.mirror.bak`; the newest one only), never unlinked. A file the clone has and the
+   server never sent (a PDF added only in the clone's `files/documents/`, a local import) is the clone's own: it is
+   never removed, and one `WARNING: <path> is not on the server and was never mirrored from it: kept` names it the
+   first time. A clone file under `files/` that the server's copy would replace while the ledger does not hold it as
+   is (never mirrored, or edited since) is copied to `backups/<path>.mirror.bak` first (`Backed up <path> ...`). The
+   first client sync (no ledger yet) removes nothing: it seeds the ledger with the files that match the manifest by
+   sha256 plus what it downloads. **The server's `files/` folder is still the one to add documents and manuals
+   to**: the page, the coach on other clones and the backups only see the server's.
+
+   Never touched: `cache/`, `files/import/`, hidden, temp, lock or backup files, symlinks, and anything outside
+   those folders. A manifest naming any path outside the allowlist, or a name the server never lists (hidden,
+   `*.tmp`, `*.lock`, `*.bak`, at any depth), is refused as a whole (`ERROR:`, nothing written or removed). Each
+   removal is printed as `Removed <path>` (outside `files/`) or `Moved <path> to <backup>` (its path only, never its
+   content); `npm run sync -- --verbose` also prints `Downloaded <path>` for each download. It ends with one line:
+   `Mirror: <n> files on the server: <d> downloaded, <u> unchanged, <r> removed[, <f> failed]`.
 
    **Safety stops** (`ERROR:`, exit 1, nothing downloaded or removed):
 
    | Case | Override |
    | --- | --- |
-   | The server lists no files while the clone has mirrored files (an empty or wrong volume on the server?) | `npm run sync -- --allow-empty` |
-   | The run would remove more than half of the clone's mirrored files, and more than 5 | `npm run sync -- --allow-removals` |
+   | The server lists no files while the clone has mirrored files (in the ledger; an empty or wrong volume on the server?) | `npm run sync -- --allow-empty` |
+   | The run would remove more than half of the clone's mirrored files (in the ledger), and more than 5 | `npm run sync -- --allow-removals` |
    | An allowlisted folder, or the default files folder (`loop-data/files`), is a symlink in the clone | none: make it a real folder (`HC_FILES_DIR` may point anywhere) |
 
    A subfolder inside them that is a symlink in the clone is never written through: that file fails with a
