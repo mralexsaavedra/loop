@@ -76,12 +76,17 @@ test('food store: products (barcode unique among active ones), recipes, entries 
   assert.equal(await store.deleteLog(e1.id), false)
   await assert.rejects(store.insertLog({ ...entry, requestId: null, meal: 'brunch' }), /food_log_meal_check/, 'the CHECK constraints hold')
 
-  assert.deepEqual(await store.getSettings(), { goal: null, targetWeightKg: null, updatedAt: null }, 'no row yet = nothing set')
+  assert.deepEqual(await store.getSettings(), { goal: null, targetWeightKg: null, locale: null, updatedAt: null }, 'no row yet = nothing set')
   const first = await store.updateSettings({ goal: 'cut' })
   assert.deepEqual([first.goal, first.targetWeightKg, typeof first.updatedAt], ['cut', null, 'string'])
   const s = await store.updateSettings({ targetWeightKg: 70.5 })
   assert.deepEqual([s.goal, s.targetWeightKg], ['cut', 70.5], 'a partial update keeps the other key')
   assert.equal((await store.updateSettings({ targetWeightKg: null })).targetWeightKg, null)
+  const l = await store.updateSettings({ locale: 'es' })
+  assert.deepEqual([l.goal, l.locale], ['cut', 'es'], 'the locale column (013) round-trips, the goal kept')
+  assert.equal((await store.getSettings()).locale, 'es')
+  await assert.rejects(store.updateSettings({ locale: 'fr' }), /app_settings_locale_check|check constraint/, 'the CHECK holds')
+  assert.equal((await store.updateSettings({ locale: null })).locale, null, 'null clears it')
 
   assert.equal(await store.getProfile(), null)
   const { updatedAt, ...doc } = await store.putProfile({ sex: 'f', heightCm: 165, weightKg: 60, activity: 'light' })

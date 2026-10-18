@@ -38,7 +38,7 @@ parses it into the extract CSVs. A parsing fix later is a re-sync, not a re-impo
 | POST / DELETE | `/food/log[/:id]`      | header | add `201` `{entry, totals}` (macros snapshotted; a retry with the same `requestId` answers `200` with the stored row) / delete `200` |
 | GET    | `/food/off?barcode=` / `?q=`  | header | `200` `{product}` / `{results}` from Open Food Facts, normalized; nothing saved |
 | GET    | `/food/log/summary?from=&to=` | header | `200` `{from, to, days: [{date, k, p, c, f, n, missing, groups}]}`: per-day sums of the stored snapshots (≤ 120 days; a macro no entry states is `null`) |
-| GET / PUT | `/food/settings`           | header | `200` `{settings: {goal, targetWeightKg, updatedAt}}`; PUT = partial update `{goal?, targetWeightKg?}` (`null` clears the target); `503 settings_unavailable` when its migration failed |
+| GET / PUT | `/food/settings`           | header | `200` `{settings: {goal, targetWeightKg, locale, updatedAt}}`; PUT = partial update `{goal?, targetWeightKg?, locale?}` (`null` clears the target or the language; `locale` = the page language, `es` or `en`); `503 settings_unavailable` when its migration failed |
 | GET / PUT | `/food/profile`            | header | the in-page onboarding document: `200` `{profile: {name?, sex, birthdate, heightCm, weightKg, activity, goals, targets, updatedAt} \| null}`; PUT saves it: its own fields replace the stored ones, the identity fields are merged (a save without `name` keeps the stored name) (adult birthdate, height 120–230, weight 30–250, `activity` sedentary / light / active, `goals` = the goals the safety screen allowed, all twelve `targets` cells `{kcal, p, f}` as integers); name / sex / birthdate / height are stored in the profile document (`/documents/profile`, merged at its next revision) and the rest in `app_profile` (`src/profile-db.js`); GET composes them; needs both `sql/011_profile.sql` and `sql/012_documents.sql`: either failing, or the start-time move of an older onboarding's identity failing, only answers `503 profile_unavailable` here |
 | GET    | `/export/athlete`             | bearer | `200` with the latest athlete snapshot: `{fetchedAt, firstname, lastname, city, state, country, profile, profileMedium, measurementPreference, athleteType, bikes, shoes, gearScopeMissing, devices}` (nulls / empty lists when nothing is stored) |
 | GET / PUT | `/documents/:kind`         | bearer | the owner's documents, `kind` = `plan` / `training` / `profile` (see "Documents" below): GET `200` `{kind, document, revision, updatedAt}` (`document: null, revision: 0` before the first save); PUT `{revision, document}` `200` `{kind, revision, updatedAt}`, `409 revision_conflict` with the current `revision`, `400 invalid` + `field`, `413` over 256 KB; `503 documents_unavailable` when its migration failed |
@@ -187,7 +187,9 @@ own recipes (Mis recetas), through loop-web's `/api/food/` proxy. Tables in
 
 - **Settings** (`sql/007_settings.sql`, table `app_settings`, ONE row): the
   user's goal (`maintain` / `cut` / `bulk`) and target weight (35–250 kg,
-  1 decimal), so every device that opens the page agrees. Its own optional
+  1 decimal), so every device that opens the page agrees, plus the page
+  language (`locale`, `es` / `en`, `sql/013_settings_locale.sql`; the page
+  build uses it, before `HC_LOCALE` and the plan's locale). Its own optional
   migration group: a failure only answers `503 settings_unavailable` on
   `/food/settings` (the food log keeps working, and the other way round). Same
   layers as every `/food/*` route (Host, Origin, `X-HC-Food`, JSON, body cap,

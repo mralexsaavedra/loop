@@ -66,9 +66,9 @@ function memoryStore () {
       return clone(row)
     },
     async listLogRange (from, to) { return clone(db.log.filter((e) => e.date >= from && e.date <= to).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id))) },
-    async getSettings () { return clone(db.settings ?? { goal: null, targetWeightKg: null, updatedAt: null }) },
+    async getSettings () { return clone(db.settings ?? { goal: null, targetWeightKg: null, locale: null, updatedAt: null }) },
     async updateSettings (patch) {
-      db.settings = { ...(db.settings ?? { goal: null, targetWeightKg: null }), ...clone(patch), updatedAt: stamp() }
+      db.settings = { ...(db.settings ?? { goal: null, targetWeightKg: null, locale: null }), ...clone(patch), updatedAt: stamp() }
       return clone(db.settings)
     },
     async getProfile () { return db.profile ? clone(db.profile) : null },
@@ -717,7 +717,7 @@ test('a reasonable recipe of 20 ingredients (products + basics with long names) 
 test('settings: GET before any write = nulls; PUT is a partial update; null clears the target', async () => {
   const t = await setup()
   try {
-    assert.deepEqual((await t.call('GET', '/food/settings')).body, { settings: { goal: null, targetWeightKg: null, updatedAt: null } })
+    assert.deepEqual((await t.call('GET', '/food/settings')).body, { settings: { goal: null, targetWeightKg: null, locale: null, updatedAt: null } })
     let r = await t.call('PUT', '/food/settings', { body: { goal: 'cut' } })
     assert.equal(r.status, 200)
     assert.equal(r.body.settings.goal, 'cut')
@@ -744,6 +744,27 @@ test('settings: strict validation with coarse codes (unknown keys, bad goal, out
     assert.deepEqual(await put([]), { error: 'invalid', field: 'body' })
     assert.equal(t.store.db.settings, null, 'nothing stored')
     assert.equal((await t.call('POST', '/food/settings', { body: { goal: 'cut' } })).status, 405)
+  } finally { await t.close() }
+})
+
+test('settings: the page language (locale es | en) is stored, partial like the rest, and null clears it', async () => {
+  const t = await setup()
+  try {
+    let r = await t.call('PUT', '/food/settings', { body: { goal: 'cut' } })
+    assert.equal(r.body.settings.locale, null, 'unset until chosen')
+    r = await t.call('PUT', '/food/settings', { body: { locale: 'es' } })
+    assert.equal(r.status, 200)
+    assert.deepEqual([r.body.settings.goal, r.body.settings.locale], ['cut', 'es'], 'the goal is kept')
+    assert.equal((await t.call('GET', '/food/settings')).body.settings.locale, 'es')
+    r = await t.call('PUT', '/food/settings', { body: { locale: 'en', targetWeightKg: 70 } })
+    assert.deepEqual([r.body.settings.locale, r.body.settings.targetWeightKg], ['en', 70])
+    r = await t.call('PUT', '/food/settings', { body: { locale: null } })
+    assert.deepEqual([r.body.settings.goal, r.body.settings.locale], ['cut', null], 'null clears it')
+    const put = async (body) => (await t.call('PUT', '/food/settings', { body })).body
+    for (const bad of ['fr', 'ES', 'es-ES', '', 1, true, ['es'], {}]) {
+      assert.deepEqual(await put({ locale: bad }), { error: 'invalid', field: 'locale' }, JSON.stringify(bad))
+    }
+    assert.equal(t.store.db.settings.locale, null, 'a refused PUT stores nothing')
   } finally { await t.close() }
 })
 

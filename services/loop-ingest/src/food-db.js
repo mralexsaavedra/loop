@@ -103,13 +103,13 @@ async function guardUnique (fn) {
   }
 }
 
-const SETTINGS_COLS = 'goal, target_weight_kg, updated_at'
+const SETTINGS_COLS = 'goal, target_weight_kg, locale, updated_at'
 // a summary window's row cap (120 days x a generous ~165 entries a day): a read never grows unbounded
 export const LOG_RANGE_MAX_ROWS = 20000
 
-/** The settings row (sql/007_settings.sql); no row yet = every field null. */
+/** The settings row (sql/007_settings.sql + the locale column, sql/013_settings_locale.sql); no row yet = every field null. */
 export function settingsFromRow (r) {
-  return { goal: r?.goal ?? null, targetWeightKg: num(r?.target_weight_kg), updatedAt: iso(r?.updated_at) }
+  return { goal: r?.goal ?? null, targetWeightKg: num(r?.target_weight_kg), locale: r?.locale ?? null, updatedAt: iso(r?.updated_at) }
 }
 
 export function createFoodStore (pool) {
@@ -124,18 +124,21 @@ export function createFoodStore (pool) {
       return settingsFromRow(rows[0])
     },
 
-    /** Partial upsert of the one row: only the keys present in `patch` change (targetWeightKg null clears it). */
+    /** Partial upsert of the one row: only the keys present in `patch` change (targetWeightKg / locale null clears it). */
     async updateSettings (patch) {
-      const hasGoal = Object.prototype.hasOwnProperty.call(patch, 'goal')
-      const hasTarget = Object.prototype.hasOwnProperty.call(patch, 'targetWeightKg')
+      const has = (k) => Object.prototype.hasOwnProperty.call(patch, k)
+      const hasGoal = has('goal')
+      const hasTarget = has('targetWeightKg')
+      const hasLocale = has('locale')
       const { rows } = await pool.query(
-        `INSERT INTO app_settings (id, goal, target_weight_kg) VALUES (1, $1, $2)
+        `INSERT INTO app_settings (id, goal, target_weight_kg, locale) VALUES (1, $1, $2, $5)
          ON CONFLICT (id) DO UPDATE
             SET goal = CASE WHEN $3 THEN EXCLUDED.goal ELSE app_settings.goal END,
                 target_weight_kg = CASE WHEN $4 THEN EXCLUDED.target_weight_kg ELSE app_settings.target_weight_kg END,
+                locale = CASE WHEN $6 THEN EXCLUDED.locale ELSE app_settings.locale END,
                 updated_at = now()
          RETURNING ${SETTINGS_COLS}`,
-        [hasGoal ? patch.goal : null, hasTarget ? patch.targetWeightKg : null, hasGoal, hasTarget]
+        [hasGoal ? patch.goal : null, hasTarget ? patch.targetWeightKg : null, hasGoal, hasTarget, hasLocale ? patch.locale : null, hasLocale]
       )
       return settingsFromRow(rows[0])
     },
