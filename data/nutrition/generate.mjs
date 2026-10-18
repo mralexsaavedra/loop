@@ -26,6 +26,7 @@ import { buildReference } from '../../lib/nutrition/reference.mjs';
 import { ingName } from '../../lib/nutrition/names.mjs';
 import { writeAtomic, runCli } from '../apple-health/sync-common.mjs';
 import { dataPaths, displayPath } from '../../lib/paths.mjs';
+import { resolveLocale } from '../../lib/locale.mjs';
 
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.dirname(path.dirname(DIR));
@@ -39,12 +40,31 @@ const readJson = (file, name) => {
   }
 };
 
+/** The `locale` of the page's settings.json, or null (no file, unreadable or not JSON: the page ignores it too). */
+function readSettingsLocale(file) {
+  if (!file) return null;
+  try {
+    const s = JSON.parse(fs.readFileSync(file, 'utf8'));
+    return s && typeof s === 'object' ? s.locale : null;
+  } catch {
+    return null;
+  }
+}
+
 /** Reads ingredients.json + the plan from `dir` and builds the nutrition model; throws one-line errors on a
  * missing or malformed file. The personal plan is gitignored, so a fresh clone falls back to the
  * tracked plan-data.example.json, with a warning (it validates / regenerates the PUBLIC example plan).
  * `personalPlan`: the personal plan's file, by default where lib/paths.mjs puts it for this clone and `env`
- * (cache/plan.json of the data root: loop-data/ or HC_DATA_DIR); `dir`/plan-data.json for another dir. */
-export function load({ dir = DIR, env = process.env, warn = console.warn, personalPlan = dir === DIR ? dataPaths({ repoRoot: ROOT, env }).documents.plan : path.join(dir, 'plan-data.json') } = {}) {
+ * (cache/plan.json of the data root: loop-data/ or HC_DATA_DIR); `dir`/plan-data.json for another dir.
+ * `settingsFile`: the page's settings.json (its `locale` is the Language chosen on the page), by default the
+ * data root's profile/settings.json; none for another dir. */
+export function load({
+  dir = DIR,
+  env = process.env,
+  warn = console.warn,
+  personalPlan = dir === DIR ? dataPaths({ repoRoot: ROOT, env }).documents.plan : path.join(dir, 'plan-data.json'),
+  settingsFile = dir === DIR ? dataPaths({ repoRoot: ROOT, env }).settings : null,
+} = {}) {
   const ingPath = path.join(dir, 'ingredients.json');
   if (!fs.existsSync(ingPath)) {
     throw new Error('ingredients.json not found at ' + ingPath + ' — it is the public food DB the plan depends on. A fresh clone ships it; do not delete it.');
@@ -66,9 +86,10 @@ export function load({ dir = DIR, env = process.env, warn = console.warn, person
     );
   }
   const plan = readJson(PLAN_PATH, PLAN_PATH === personal ? displayPath(ROOT, PLAN_PATH) : path.basename(PLAN_PATH));
-  // Food names (the plan's own option names and the ingredients' {es, en} names) follow the build locale
-  // like the page (LOCALE env -> plan.locale -> en); the document's headings and words stay English.
-  const LOCALE = ['es', 'en'].includes(env.LOCALE) ? env.LOCALE : (plan && plan.locale === 'es' ? 'es' : 'en');
+  // Food names (the plan's own option names and the ingredients' {es, en} names) follow the page's language,
+  // same precedence (lib/locale.mjs: LOCALE env > the page's Language setting > HC_LOCALE > plan.locale > en);
+  // the document's headings and words stay English.
+  const LOCALE = resolveLocale({ env, settingsLocale: readSettingsLocale(settingsFile), planLocale: plan && plan.locale });
   // Pure macro computation lives in lib/nutrition/macros.mjs; `ingredients` comes only from ingredients.json. The
   // structural checks run first: a broken plan is one validation message, never a TypeError from the build.
   assertPlanStructure(ingFile.ingredients, plan);
@@ -194,7 +215,8 @@ else plan-data.example.json) and writes
 data/nutrition/plan-tables.md.
   --check      validate only, write nothing
   -h, --help   this help
-Env: LOCALE (es|en) for the food names (default: the plan's locale, else en).`;
+Env: the food names follow the page's language: LOCALE (es|en), else the Language chosen on the page
+(the data root's profile/settings.json, after npm run sync), else HC_LOCALE, else the plan's locale, else en.`;
 
 /** The CLI entry (runCli parses the flags first: an unknown one exits 2 before any read or write). */
 function main({ check = false } = {}) {

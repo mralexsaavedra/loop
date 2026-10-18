@@ -24,8 +24,9 @@ your own foods and labels; the plan and the food log read whatever it holds.
   (`lib/nutrition/categories.mjs`); `verified: true` = a real product label, `false` = a DB estimate.
 - It may hold MORE foods than any plan uses; the food log searches EVERY food of the file.
 - `name` is localized, `{es, en}` (a plain string stays valid for backward compat), resolved by the BUILD
-  locale wherever a food is named — Today's plan, Tables, plan-tables.md (generate.mjs: `LOCALE` env →
-  `plan.locale` → en), the guide's example foods — by `lib/nutrition/names.mjs` `ingName` / `lineName`. No
+  locale wherever a food is named — Today's plan, Tables, plan-tables.md (generate.mjs, the page's precedence
+  from `lib/locale.mjs`: `LOCALE` env → the page's Language setting → `HC_LOCALE` → `plan.locale` → en), the
+  guide's example foods — by `lib/nutrition/names.mjs` `ingName` / `lineName`. No
   name = a `npm run check` WARNING (the page shows its key), a malformed one an error; a test asserts every
   tracked ingredient has es + en names.
 

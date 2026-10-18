@@ -17,7 +17,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, '..', '..');
 
 // Mirrors the repo structure generate.mjs statically imports (data/nutrition/generate.mjs +
-// ../../lib/nutrition/*.mjs + ../../lib/date.mjs + ../../lib/paths.mjs + ../../scripts/lib/is-main.mjs) into a temp root, WITHOUT ever copying
+// ../../lib/nutrition/*.mjs + ../../lib/date.mjs + ../../lib/paths.mjs + ../../lib/locale.mjs + ../../scripts/lib/is-main.mjs) into a temp root, WITHOUT ever copying
 // the real (possibly personal) plan. `files` are the data/nutrition seeds to copy next to it; 'plan-data.json'
 // stands for the personal plan and lands where lib/paths.mjs puts it (loop-data/cache/plan.json).
 // Returns the temp data/nutrition dir.
@@ -42,6 +42,7 @@ function mirrorTree(root, files) {
   }
   fs.copyFileSync(path.join(REPO, 'lib', 'date.mjs'), path.join(root, 'lib', 'date.mjs'));
   fs.copyFileSync(path.join(REPO, 'lib', 'paths.mjs'), path.join(root, 'lib', 'paths.mjs'));
+  fs.copyFileSync(path.join(REPO, 'lib', 'locale.mjs'), path.join(root, 'lib', 'locale.mjs'));
   fs.copyFileSync(path.join(REPO, 'scripts', 'lib', 'is-main.mjs'), path.join(root, 'scripts', 'lib', 'is-main.mjs'));
   fs.mkdirSync(path.join(root, 'data', 'apple-health'), { recursive: true });
   fs.copyFileSync(path.join(REPO, 'data', 'apple-health', 'sync-common.mjs'), path.join(root, 'data', 'apple-health', 'sync-common.mjs'));
@@ -306,6 +307,37 @@ test('load(): HC_DATA_DIR reads the personal plan from <data root>/cache/plan.js
     const empty = gen.load({ env: { HC_DATA_DIR: path.join(data, 'none') }, warn: (w) => warns.push(w) });
     assert.equal(empty.PLAN_PATH, path.join(__dirname, 'plan-data.example.json'));
     assert.match(warns[0], /personal plan .*none.*cache.*plan\.json not found/);
+  } finally {
+    fs.rmSync(data, { recursive: true, force: true });
+  }
+});
+
+test('load(): the food names follow the page\'s language precedence (LOCALE > settings.json locale > HC_LOCALE > plan.locale > en)', () => {
+  const data = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-locale-'));
+  try {
+    fs.mkdirSync(path.join(data, 'cache'));
+    fs.mkdirSync(path.join(data, 'profile'));
+    const plan = JSON.parse(fs.readFileSync(path.join(__dirname, 'plan-data.example.json'), 'utf8'));
+    const writePlan = (locale) => fs.writeFileSync(path.join(data, 'cache', 'plan.json'), JSON.stringify({ ...plan, locale }));
+    const writeSettings = (s) => fs.writeFileSync(path.join(data, 'profile', 'settings.json'), JSON.stringify(s));
+    const localeOf = (env = {}) => gen.load({ env: { HC_DATA_DIR: data, ...env }, warn: () => {} }).LOCALE;
+
+    writePlan('es');
+    assert.equal(localeOf(), 'es', 'nothing chosen: the plan\'s locale');
+    writePlan(undefined);
+    assert.equal(localeOf(), 'en', 'nothing anywhere: English');
+    assert.equal(localeOf({ HC_LOCALE: 'es' }), 'es', 'HC_LOCALE beats the plan');
+    writePlan('en');
+    assert.equal(localeOf({ HC_LOCALE: 'es' }), 'es', 'HC_LOCALE beats an English plan');
+    writeSettings({ goal: 'cut', locale: 'en' });
+    assert.equal(localeOf({ HC_LOCALE: 'es' }), 'en', 'the page\'s Language setting beats HC_LOCALE');
+    writePlan('es');
+    assert.equal(localeOf(), 'en', 'the page\'s Language setting beats the plan');
+    assert.equal(localeOf({ LOCALE: 'es' }), 'es', 'an explicit LOCALE beats everything');
+    writeSettings({ goal: 'cut', locale: 'fr' });
+    assert.equal(localeOf({ HC_LOCALE: 'xx' }), 'es', 'unknown values are ignored: the plan\'s locale');
+    fs.writeFileSync(path.join(data, 'profile', 'settings.json'), '{ not json');
+    assert.equal(localeOf(), 'es', 'a broken settings.json is ignored');
   } finally {
     fs.rmSync(data, { recursive: true, force: true });
   }
