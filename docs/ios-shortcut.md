@@ -1,3 +1,5 @@
+> **English** · [Español](ios-shortcut.es.md)
+
 # iOS Shortcut: send Apple Health data to the dashboard
 
 A personal iOS Shortcut reads recent samples from Apple Health and POSTs them, as one JSON
