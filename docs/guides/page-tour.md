@@ -1,3 +1,5 @@
+> **English** · [Español](page-tour.es.md)
+
 # A tour of the page
 
 What each tab shows, what each card tells you and where its numbers come from. For people who just

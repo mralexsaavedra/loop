@@ -1,3 +1,5 @@
+> **English** · [Español](troubleshooting.es.md)
+
 # Troubleshooting
 
 Fixes for the common problems when you run the LOOP server at home. Each section names a symptom, what to
