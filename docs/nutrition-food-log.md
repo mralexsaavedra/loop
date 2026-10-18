@@ -374,11 +374,13 @@ Settings, Progress and Consistency are render-isolated (own try/catch, one-line 
 placeholder filled from them, never typed.
 
 - **Storage** — `services/loop-ingest/sql/007_settings.sql` (`app_settings`, one row: goal + target weight
-  within `FOOD_LIMITS.targetWeight*`), its own optional migration group `settings` (a failure → only
+  within `FOOD_LIMITS.targetWeight*`) plus `sql/013_settings_locale.sql` (the `locale` column: the page
+  language, `es` | `en`, NULL = not chosen), its own optional migration group `settings` (a failure → only
   `/food/settings` answers `503 settings_unavailable`).
-- **API** — `GET /food/settings` and `PUT /food/settings` (partial `{goal?, targetWeightKg?}`, `null` clears
-  the target) sit under the food prefix, so loop-web's `/api/food/` proxy and every food layer apply (no
-  nginx change).
+- **API** — `GET /food/settings` (`{goal, targetWeightKg, locale, updatedAt}`) and `PUT /food/settings`
+  (partial `{goal?, targetWeightKg?, locale?}`, `null` clears the target or the language; `locale` must be
+  `es` or `en`, else `400 {error: 'invalid', field: 'locale'}`) sit under the food prefix, so loop-web's
+  `/api/food/` proxy and every food layer apply (no nginx change).
 - **Page** — `client/settings.js` (`HCSettings`, reuses `HCFood.api`).
   - Without an answer: goal in `hc.nutri.goal`, no target field.
   - With one, the server goal wins (`HCNutri.applyGoal`, cached locally, never sent back) EXCEPT a PENDING
@@ -388,6 +390,13 @@ placeholder filled from them, never typed.
   - The GET retries with backoff on offline / timeout / 5xx (3 tries), never on 404 / 503.
   - Profile goal setting: + `Peso objetivo` (`HCSettings.parseTarget` = `HCFood.parseNum(v, ['kg'])` + the
     range, inline error, saved on `change`), one status line, the Progress line.
+- **Language** (the page language, LAN page only) — the profile sheet's `Idioma` / `Language` section:
+  `Español` / `English` radios, the stored `locale` checked (none stored = the language the page was built
+  in). A change calls `HCSettings.saveLocale` (a partial PUT `{locale}`), then presses the page's Sync button:
+  `npm run sync` writes it to `settings.json` (`data/profile/sync-settings.mjs`) and the build uses it
+  ([`plan-page.md` → Build](plan-page.md), precedence `settings.locale` > `HC_LOCALE` > `plan.locale` > `en`).
+  Its own status line: `Guardado. La página se está regenerando en el nuevo idioma: recárgala en un par de
+  minutos.` / `Saved. The page is rebuilding in the new language: reload it in a minute or two.`
 
 ## Progress
 

@@ -35,7 +35,12 @@ It writes `web/dist/<mode>/index.html`.
   example / en: the tracked `.example` seeds plus the tracked, clearly SYNTHETIC demo extract in
   `data/demo/extract/` (no personal files needed; shows every dial and section).
 - `DATA_MODE=personal|example` selects the mode (env var or `--mode`).
-- `LOCALE`: env var → `plan.locale` → `en` (the user's `loop-data/cache/plan.json` sets `locale:"es"`).
+- The page language (`web/src/env.mjs`, `PAGE_LOCALES` = `es` | `en`): an explicit `LOCALE` env var /
+  `--locale` (developer and test override) → the language chosen on the page (`settings.json` `locale`, set in
+  the profile sheet's Language section and synced by `npm run sync`; personal mode only) → `HC_LOCALE` (the
+  server's env: `docker/.env`, or the host's environment) → `plan.locale` (the user's
+  `loop-data/cache/plan.json` sets `locale:"es"`) → `en`. Nothing chosen and no `HC_LOCALE` = exactly the old
+  rule. A malformed `settings.json` or an unknown value is ignored, never a failed build.
 - Optional data (Apple Health extract CSVs) renders a defined empty state when absent, in either mode —
   the build never fails on missing optional data.
 

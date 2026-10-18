@@ -55,6 +55,9 @@ The FIRST section under the header (also on the onboarding sheet), heading `Obje
 - No `HCNutri` or no options → the section is omitted.
 - **LAN page**: the goal is also stored on the SERVER, and the section adds `Peso objetivo` (target weight), a
   status line and the Progress line (see [`nutrition-food-log.md` → Progress](nutrition-food-log.md#progress)).
+- **Language** (LAN page only, right after the goal): `Idioma` / `Language` with `Español` / `English`; a change
+  is stored on the server and rebuilds the page in that language (see
+  [`nutrition-food-log.md` → Settings](nutrition-food-log.md#settings-goal-target-weight)).
 
 ### Upcoming events
 
@@ -167,7 +170,9 @@ the document when the service starts (a value the document already has wins; the
 
 ### `settings.json`
 
-`loop-data/profile/settings.json` (gitignored with the data root) = `{goal, targetWeightKg, updatedAt, fetchedAt}`.
+`loop-data/profile/settings.json` (gitignored with the data root) = `{goal, targetWeightKg, locale, updatedAt, fetchedAt}`
+(`locale` = the page language chosen on the page, `null` when not chosen or the service predates it; the page build
+reads it).
 
 - Written by `data/profile/sync-settings.mjs` (`npm run sync:settings`, step of `npm run sync` before
   `sync:foodlog`) from the ingest service's `GET /food/settings` (the server-side goal,

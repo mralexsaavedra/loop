@@ -16,7 +16,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const { normalizeSettings, fetchSettings, syncSettings, SETTINGS_JSON } = ss;
 const SCRIPT = path.join(__dirname, 'sync-settings.mjs');
 
-const BODY = { settings: { goal: 'cut', targetWeightKg: 72.5, updatedAt: '2030-01-05T08:00:00.000Z' } };
+const BODY = { settings: { goal: 'cut', targetWeightKg: 72.5, locale: 'es', updatedAt: '2030-01-05T08:00:00.000Z' } };
 const NOW = new Date('2030-01-06T09:00:00.000Z');
 const tmpDir = (tag) => fs.mkdtempSync(path.join(os.tmpdir(), `sync-settings-${tag}-`));
 const readJson = (dir) => JSON.parse(fs.readFileSync(path.join(dir, SETTINGS_JSON), 'utf8'));
@@ -24,9 +24,16 @@ const json = (status, body) => new Response(JSON.stringify(body), { status, head
 
 // ---- shape -----------------------------------------------------------------------------
 
-test('normalizeSettings keeps goal / target / updatedAt and drops unknown keys', () => {
+test('normalizeSettings keeps goal / target / locale / updatedAt and drops unknown keys', () => {
   assert.deepEqual(normalizeSettings({ settings: { ...BODY.settings, extra: 1 } }), BODY.settings);
-  assert.deepEqual(normalizeSettings({ settings: { goal: null, targetWeightKg: null, updatedAt: null } }), { goal: null, targetWeightKg: null, updatedAt: null });
+  assert.deepEqual(normalizeSettings({ settings: { goal: null, targetWeightKg: null, locale: null, updatedAt: null } }), { goal: null, targetWeightKg: null, locale: null, updatedAt: null });
+  assert.equal(normalizeSettings({ settings: { ...BODY.settings, locale: 'en' } }).locale, 'en');
+});
+
+test('normalizeSettings: a service from before the locale column (no locale key) = locale null', () => {
+  const { locale, ...old } = BODY.settings;
+  assert.equal(locale, 'es');
+  assert.deepEqual(normalizeSettings({ settings: old }), { ...old, locale: null });
 });
 
 test('normalizeSettings refuses a malformed body (unknown goal, out-of-range target, not an object)', () => {
@@ -36,6 +43,8 @@ test('normalizeSettings refuses a malformed body (unknown goal, out-of-range tar
   assert.throws(() => normalizeSettings({ settings: { goal: 'cut', targetWeightKg: 5 } }), /targetWeightKg/);
   assert.throws(() => normalizeSettings({ settings: { goal: 'cut', targetWeightKg: '72' } }), /targetWeightKg/);
   assert.throws(() => normalizeSettings({ settings: { goal: 'cut', updatedAt: 'yesterday' } }), /updatedAt/);
+  assert.throws(() => normalizeSettings({ settings: { goal: 'cut', locale: 'fr' } }), /locale/);
+  assert.throws(() => normalizeSettings({ settings: { goal: 'cut', locale: 1 } }), /locale/);
 });
 
 // ---- request ---------------------------------------------------------------------------
@@ -57,7 +66,7 @@ test('fetchSettings keeps the HTTP status on the error (404 old image, 503 setti
 
 // ---- disk ------------------------------------------------------------------------------
 
-test('syncSettings writes {goal, targetWeightKg, updatedAt, fetchedAt}; a same-day rerun with the same content touches nothing', () => {
+test('syncSettings writes {goal, targetWeightKg, locale, updatedAt, fetchedAt}; a same-day rerun with the same content touches nothing', () => {
   const dir = tmpDir('write');
   const r1 = syncSettings(dir, BODY, { now: NOW });
   assert.equal(r1.written, true);
@@ -80,6 +89,21 @@ test('syncSettings rewrites on a content change, and refreshes fetchedAt once pe
   const nextDay = new Date('2030-01-07T06:00:00.000Z');
   assert.equal(syncSettings(dir, changed, { now: nextDay }).written, true, 'a new day refreshes fetchedAt');
   assert.equal(readJson(dir).fetchedAt, nextDay.toISOString());
+  const lang = { settings: { ...changed.settings, locale: 'en' } };
+  assert.equal(syncSettings(dir, lang, { now: nextDay }).written, true, 'a language change is a content change');
+  assert.equal(readJson(dir).locale, 'en');
+  fs.rmSync(dir, { recursive: true });
+});
+
+test('syncSettings: a same-day file from before the locale key is rewritten once, with locale null', () => {
+  const dir = tmpDir('nolocale');
+  const { locale, ...old } = BODY.settings;
+  fs.writeFileSync(path.join(dir, SETTINGS_JSON), JSON.stringify({ ...old, fetchedAt: NOW.toISOString() }));
+  const body = { settings: { ...old, locale: null } };
+  assert.equal(syncSettings(dir, body, { now: NOW }).written, true);
+  assert.equal(readJson(dir).locale, null);
+  assert.ok('locale' in readJson(dir), 'the key is always written');
+  assert.equal(syncSettings(dir, body, { now: NOW }).written, false, 'then unchanged');
   fs.rmSync(dir, { recursive: true });
 });
 
@@ -116,7 +140,7 @@ test('main(): 200 -> writes the snapshot, exit 0', async () => {
   assert.equal(r.code, 0, r.stderr);
   assert.equal(headers['x-hc-food'], '1');
   assert.equal(readJson(dir).goal, 'cut');
-  assert.match(r.stdout, /Settings: goal cut, target 72\.5 kg; written/);
+  assert.match(r.stdout, /Settings: goal cut, target 72\.5 kg, language es; written/);
   fs.rmSync(dir, { recursive: true });
 });
 
@@ -143,6 +167,13 @@ test('the goal list and target range are the shared ones (lib/nutrition/foodlog.
   assert.deepEqual(ss.GOALS, [...SETTINGS_GOALS]);
   assert.equal(ss.TARGET_MIN, FOOD_LIMITS.targetWeightMin);
   assert.equal(ss.TARGET_MAX, FOOD_LIMITS.targetWeightMax);
+});
+
+test('the language list is the one the service validates and the build reads', async () => {
+  const { SETTINGS_LOCALES } = await import('../../services/loop-ingest/src/food.js');
+  const { PAGE_LOCALES } = await import('../../web/src/env.mjs');
+  assert.deepEqual(ss.LOCALES, [...SETTINGS_LOCALES]);
+  assert.deepEqual(ss.LOCALES, [...PAGE_LOCALES]);
 });
 
 // ---- main() returns its exit code (runCli sets it): called in-process, the runner is never killed ----

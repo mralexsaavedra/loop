@@ -43,6 +43,14 @@ drop their credentials, the in-container page build no longer sees the database 
 the files export logs skipped files by reason, and `docker compose exec loop-server npm run sync -- --full` is the
 documented way to rebuild the Shortcut cache on a server.
 
+**Page language** (2026-10-18, before the tag). The page language (Spanish or English) is chosen on the page itself:
+the profile sheet's new Language section (`Idioma` / `Language`, `Español` / `English`, LAN page only) stores it on
+the server (`PUT /food/settings {locale}`, `es` | `en`, `null` clears it; the new `sql/013_settings_locale.sql` adds
+the column to the settings group) and presses Sync, with a short note that the page is rebuilding in the new
+language. `npm run sync` writes it to `loop-data/profile/settings.json` (`locale`), and the build uses it before
+`HC_LOCALE` (new in `docker/.env.example`, the server's default) and the plan's `locale`, else English; an explicit
+`--locale` / `LOCALE` still wins. Nothing chosen and no `HC_LOCALE` builds exactly as before.
+
 ## 2026-10-16 — Server images, step 7: release both images, install docs for the server and the coach
 
 The release workflow publishes `loop-server` and `loop-web` (multi-arch, `X.Y.Z`, `X.Y`, the OCI version label from

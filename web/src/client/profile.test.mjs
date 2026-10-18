@@ -353,8 +353,11 @@ test('goal setting is omitted without Nutrición (no HCNutri) or without options
 });
 
 // a stand-in for client/settings.js (the LAN settings API answered)
-function settingsStub({ ready = true, target = null } = {}) {
-  const st = { saved: [], fns: [], target };
+function settingsStub({ ready = true, target = null, locale = null, saveLocale } = {}) {
+  const st = { saved: [], fns: [], target, locale, langs: [] };
+  st.locale = () => st.lang;
+  st.lang = locale;
+  st.saveLocale = saveLocale || ((l) => { st.langs.push(l); st.lang = l; return Promise.resolve(); });
   st.ready = () => ready;
   st.targetWeight = () => st.target;
   st.limits = () => ({ min: 35, max: 250 });
@@ -453,4 +456,71 @@ test('the onboarding opens from a short "Edit" chip in the header row, not a loo
   assert.match(html(setup({ onb: true, locale: 'es', location: { protocol: 'http:' } })), /data-onb-open="">Editar</);
   assert.doesNotMatch(html(setup({ onb: true, location: { protocol: 'file:' } })), /data-onb-open/, 'a file:// copy cannot save it');
   assert.doesNotMatch(html(setup({ location: { protocol: 'http:' } })), /data-onb-open/, 'no onboarding view, no chip');
+});
+
+/* ---------- the page language (LAN page: settings.locale, the next build uses it) ---------- */
+test('language (LAN page): Español / English radios, the stored one checked (else the page\'s own), a hint and a status line', () => {
+  const b = setup({ profile: { ...FULL, goals: GOALS }, nutri: nutriStub(), settings: settingsStub({ locale: 'es' }) }).view.render().body;
+  assert.match(b, /<section class="pf-sec pf-lang-sec"><fieldset class="pf-goal" id="pf-lang"><legend class="pf-h">Language<\/legend>/);
+  assert.match(b, /<label class="pf-goal-opt"><input type="radio" name="pf-lang" value="es" checked><span class="pf-goal-txt"><b class="pf-goal-name" lang="es">Español<\/b><\/span><\/label>/);
+  assert.match(b, /<input type="radio" name="pf-lang" value="en"><span class="pf-goal-txt"><b class="pf-goal-name" lang="en">English<\/b>/);
+  assert.ok(b.includes('The language of this page. Changing it rebuilds the page.'));
+  assert.match(b, /<p class="pf-note pf-status" id="pf-lang-msg" role="status" aria-live="polite"><\/p><\/section>/);
+  assert.ok(b.indexOf('id="pf-lang"') > b.indexOf('id="pf-goal"'), 'after the goal');
+  clean(b);
+  const unset = setup({ settings: settingsStub(), locale: 'es' }).view.render().body;
+  assert.match(unset, /<legend class="pf-h">Idioma<\/legend>/);
+  assert.match(unset, /value="es" checked>/, 'not chosen yet: the language the page was built in');
+  assert.ok(unset.includes('El idioma de esta página. Al cambiarlo, la página se regenera.'));
+  for (const st of [null, settingsStub({ ready: false })]) {
+    const off = setup({ profile: { ...FULL, goals: GOALS }, nutri: nutriStub(), settings: st }).view.render().body;
+    assert.doesNotMatch(off, /pf-lang/, 'artifact / example build: exactly as before');
+  }
+});
+
+test('language: a change saves it, then presses the Sync button (the page rebuilds); the same language or a bad value does nothing', async () => {
+  const st = settingsStub({ locale: null });
+  const clicks = [];
+  const els = { 'pf-lang-msg': fakeEl(), 'sync-btn': { hidden: false, click: () => clicks.push(1) } };
+  const s = setup({ settings: st, els, locale: 'en' });
+  s.fire('change', { name: 'pf-lang', value: 'en' });
+  s.fire('change', { name: 'pf-lang', value: 'fr' });
+  assert.deepEqual(st.langs, [], 'already built in en, nothing stored: no save, no rebuild');
+  s.fire('change', { name: 'pf-lang', value: 'es' });
+  assert.deepEqual(st.langs, ['es']);
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(clicks, [1], 'the normal refresh');
+  s.fire('change', { name: 'pf-lang', value: 'es' });
+  assert.deepEqual(st.langs, ['es'], 'unchanged: not saved again');
+  s.fire('change', { name: 'pf-lang', value: 'en' });
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual([st.langs, clicks.length], [['es', 'en'], 2], 'back to the page\'s own language: stored, rebuilt');
+  const failing = settingsStub({ saveLocale: () => Promise.reject({ code: 'offline' }) });
+  const c2 = [];
+  const s2 = setup({ settings: failing, els: { 'sync-btn': { hidden: false, click: () => c2.push(1) } }, locale: 'en' });
+  s2.fire('change', { name: 'pf-lang', value: 'es' });
+  await new Promise((r) => setImmediate(r));
+  assert.deepEqual(c2, [], 'a failed save never rebuilds');
+});
+
+test('language: its own status line (saving, the rebuild note, a coarse reason); the goal line ignores language saves', () => {
+  const st = settingsStub();
+  const els = { 'pf-lang-msg': fakeEl(), 'pf-goal-msg': fakeEl() };
+  setup({ profile: { ...FULL, goals: GOALS }, nutri: nutriStub(), settings: st, els });
+  const emit = (last) => st.fns.forEach((fn) => fn({ last }));
+  emit({ what: 'locale', status: 'saving' });
+  assert.equal(els['pf-lang-msg'].textContent, 'Saving…');
+  emit({ what: 'locale', status: 'saved' });
+  assert.equal(els['pf-lang-msg'].textContent, 'Saved. The page is rebuilding in the new language: reload it in a minute or two.');
+  assert.equal(els['pf-goal-msg'].textContent, '', 'not the goal\'s save');
+  emit({ what: 'locale', status: 'error', code: 'offline' });
+  assert.equal(els['pf-lang-msg'].textContent, 'Not saved: the server did not answer');
+  emit({ what: 'goal', status: 'saved' });
+  assert.equal(els['pf-goal-msg'].textContent, 'Goal saved on this server');
+  assert.equal(els['pf-lang-msg'].textContent, 'Not saved: the server did not answer', 'a goal save leaves the language line');
+  const es = settingsStub();
+  const ee = { 'pf-lang-msg': fakeEl() };
+  setup({ settings: es, els: ee, locale: 'es' });
+  es.fns.forEach((fn) => fn({ last: { what: 'locale', status: 'saved' } }));
+  assert.equal(ee['pf-lang-msg'].textContent, 'Guardado. La página se está regenerando en el nuevo idioma: recárgala en un par de minutos.');
 });

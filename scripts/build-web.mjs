@@ -79,7 +79,7 @@ export function reportProfileCheck(res, mode, { log = console.log, error = conso
 }
 
 /** Pure: resolves the build locale using the SAME precedence contract as
- * web/src/env.mjs's resolveEnv (env/CLI > plan.locale > 'en') — delegates to
+ * web/src/env.mjs's resolveEnv (env/CLI > the page's language setting > HC_LOCALE > plan.locale > 'en') — delegates to
  * it directly instead of re-implementing the fallback, so the CLI path can
  * never drift from the Astro build's own resolution again. `explicitLocale`
  * is the CLI `--locale` flag or a pre-existing `LOCALE` env var; pass
@@ -166,7 +166,7 @@ const USAGE = `Usage: node scripts/build-web.mjs [--mode personal|example] [--lo
 
 Builds the single-file plan page into web/dist/<mode>/index.html (staged, then renamed into place).
   --mode       personal (default) or example; env DATA_MODE is equivalent
-  --locale     es or en (default: the plan's locale, else en); env LOCALE is equivalent
+  --locale     es or en (default: the language set on the page, else HC_LOCALE, else the plan's locale, else en); env LOCALE is equivalent
   --outdir     build into <dir> instead of web/dist/<mode> (the test fixtures)
   --check      validate the training program and the profile (cache/ of the data root) only, no build
   -h, --help   this help`;
@@ -200,7 +200,7 @@ function main(args) {
   }
 
   // Resolved with the SAME precedence env.mjs's resolveEnv uses (explicit >
-  // plan.locale > 'en') — see resolveLocale() above.
+  // settings.json locale > HC_LOCALE > plan.locale > 'en') — see resolveLocale() above.
   let locale;
   try {
     locale = resolveLocale({ repoRoot: ROOT, mode, explicitLocale });
