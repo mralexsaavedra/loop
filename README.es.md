@@ -149,9 +149,9 @@ página) y la imagen `loop-web` (sirve la página).
    calcula tus calorías y macros de partida para cada tipo de día. Todo lo que hay en la página funciona sin
    Claude Code.
 
-   **Idioma:** la página tiene un ajuste de Idioma (es / en) en sus ajustes; o bien pon `HC_LOCALE=es` en `.env`
-   (`docker/.env` en un clon) y ejecuta `docker compose up -d`. El ajuste de la página tiene prioridad sobre
-   `HC_LOCALE`.
+   **Idioma:** en la página, toca tu foto (el avatar redondo de la barra superior) para abrir la hoja de perfil
+   y elige **Idioma** (es / en). O bien pon `HC_LOCALE=es` en `.env` (`docker/.env` en un clon) y ejecuta
+   `docker compose up -d`. El ajuste de la página tiene prioridad sobre `HC_LOCALE`.
 5. **Tu historial de Apple Health:** iPhone → Salud → tu foto → *Exportar todos los datos de salud*. Copia el zip,
    tal cual, en `files/import/` en el servidor y pulsa **Sincronizar** en la página: el servidor lo importa (una
    primera importación de una exportación grande tarda uno o dos minutos; el mismo zip dos veces se omite). Repítelo
@@ -238,8 +238,10 @@ viene de los ajustes del servidor. Sin servidor, díselo a Claude durante la ent
 
 La página guarda en el navegador el objetivo que elijas en ella.
 
-**Idioma:** la página está en inglés salvo que `loop-data/cache/plan.json` diga `"locale": "es"` (español); en ese
-caso vuelve a ejecutar `npm run generate`.
+**Idioma:** la página (y los nombres de los alimentos en `plan-tables.md`) sigue, por este orden: el Idioma que
+elegiste en la hoja de perfil de la página de la LAN (una vez que `npm run sync` lo ha traído), si no `HC_LOCALE`
+en tu entorno, si no el `"locale"` de `loop-data/cache/plan.json`, y si no, inglés. Tras un cambio, vuelve a
+ejecutar `npm run generate`.
 
 Extras opcionales para el coach:
 

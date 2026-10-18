@@ -4,6 +4,8 @@
  *     Spanish `> [English](<name>.md) · **Español**`);
  *   - the same headings, same count, order and level (the text is translated);
  *   - the same fenced code blocks, byte-equal and in the same order (commands are never translated);
+ *   - the same inline code spans (`…`), as a multiset: a translation may reorder them, never change, add or
+ *     drop one (`x.es.md` counts as `x.md`; the Spanish side may add `.gitignore`, its word for "gitignored");
  *   - the same set of link targets once `.es.md` is read as `.md` (anchors into a translated page differ, so
  *     they are compared without the `#fragment`; every anchor is checked against its target page instead).
  * Every relative link of every file in the list must resolve: the file exists and its `#anchor` is a GitHub
@@ -27,6 +29,9 @@ export function userGuides(root = ROOT) {
 }
 
 const esSibling = (file) => file.replace(/\.md$/, '.es.md');
+
+/** Inline code the Spanish side may add: English "gitignored" has no Spanish adjective and reads "en `.gitignore`". */
+const ES_ONLY_CODE = new Set(['`.gitignore`']);
 
 /** Splits a Markdown text into its fenced code blocks (whole text, fences included) and the prose lines
  * outside them. A fence is ``` or ~~~ (3 or more), possibly indented inside a list item. */
@@ -59,7 +64,12 @@ export function parse(text) {
     for (const m of noCode.matchAll(/\]\(\s*<?([^)\s>]+)>?(?:\s+"[^"]*")?\s*\)/g)) links.push(m[1]);
     for (const m of noCode.matchAll(/\b(?:src|href)="([^"]+)"/g)) links.push(m[1]);
   }
-  return { blocks, headings, links };
+  // inline code spans (`x`, ``x``), whitespace inside collapsed so a span wrapped over two lines still matches
+  const code = [];
+  for (const m of prose.join('\n').matchAll(/(`+)([^`][\s\S]*?)\1(?!`)/g)) {
+    code.push(m[2].replace(/\s+/g, ' ').trim());
+  }
+  return { blocks, headings, links, code };
 }
 
 /** GitHub's heading anchor: the text without Markdown, lower case, punctuation dropped, spaces → `-`. */
@@ -110,6 +120,20 @@ export function comparePair(enText, esText, enFile, translated = new Set()) {
   for (let i = 0; i < Math.min(en.blocks.length, es.blocks.length); i++) {
     if (en.blocks[i] !== es.blocks[i]) problems.push(`code block ${i + 1} differs:\n${en.blocks[i]}\n---\n${es.blocks[i]}`);
   }
+
+  // the same inline code spans, as a multiset (a translation may reorder a sentence, never change a command);
+  // a guide named as `x.es.md` counts as `x.md` (the Spanish page names the Spanish sibling, like its links)
+  const counts = (list) => list.reduce((m, c) => {
+    const k = c.replace(/\.es\.md\b/g, '.md');
+    return m.set(k, (m.get(k) ?? 0) + 1);
+  }, new Map());
+  const enCode = counts(en.code);
+  const esCode = counts(es.code);
+  const extra = (a, b) => [...a].flatMap(([c, n]) => Array(Math.max(0, n - (b.get(c) ?? 0))).fill(`\`${c}\``));
+  const codeOnlyEn = extra(enCode, esCode);
+  const codeOnlyEs = extra(esCode, enCode).filter((c) => !ES_ONLY_CODE.has(c));
+  if (codeOnlyEn.length) problems.push(`inline code only in English: ${codeOnlyEn.join(', ')}`);
+  if (codeOnlyEs.length) problems.push(`inline code only in Spanish: ${codeOnlyEs.join(', ')}`);
 
   const dir = path.posix.dirname(enFile);
   const norm = (target) => {
@@ -214,6 +238,24 @@ test('comparePair: a link on one side only, or an anchor changed into an English
   assert.ok(anchor.some((p) => p.includes('../ref.md#setup')), anchor.join('\n'));
   const english = comparePair(EN, ES.replace('y.es.md#a-c', 'y.md#a-b'), 'docs/x.md', TRANSLATED);
   assert.ok(english.some((p) => p.startsWith('Spanish links to the English page')), english.join('\n'));
+});
+
+test('comparePair: an inline code span changed (translated) or on one side only is reported; another order is not', () => {
+  const en = EN.replace('## Next', 'Run `npm run sync` then `npm run generate`.\n\n## Next');
+  const es = ES.replace('## Siguiente', 'Ejecuta `npm run generate` después de `npm run sync`.\n\n## Siguiente');
+  assert.deepEqual(comparePair(en, es, 'docs/x.md', TRANSLATED), []);
+  const translated = comparePair(en, es.replace('`npm run sync`', '`npm run sincronizar`'), 'docs/x.md', TRANSLATED);
+  assert.ok(translated.some((p) => p.startsWith('inline code only in English: `npm run sync`')), translated.join('\n'));
+  assert.ok(translated.some((p) => p.startsWith('inline code only in Spanish: `npm run sincronizar`')), translated.join('\n'));
+  const once = comparePair(en, es.replace(' después de `npm run sync`', ''), 'docs/x.md', TRANSLATED);
+  assert.ok(once.some((p) => p.startsWith('inline code only in English: `npm run sync`')), once.join('\n'));
+  const twice = comparePair(en, `${es}\nOtra vez \`npm run sync\`.\n`, 'docs/x.md', TRANSLATED);
+  assert.ok(twice.some((p) => p.startsWith('inline code only in Spanish: `npm run sync`')), twice.join('\n'));
+  // the Spanish sibling's name counts as the English one; `.gitignore` may stand for "gitignored" in Spanish only
+  const sib = comparePair(`${en}\nSee \`y.md\`.\n`, `${es}\nVer \`y.es.md\` (en \`.gitignore\`).\n`, 'docs/x.md', TRANSLATED);
+  assert.deepEqual(sib, []);
+  const enIgnore = comparePair(`${en}\nEdit \`.gitignore\`.\n`, es, 'docs/x.md', TRANSLATED);
+  assert.ok(enIgnore.some((p) => p.startsWith('inline code only in English: `.gitignore`')), enIgnore.join('\n'));
 });
 
 test('comparePair: a missing or wrong switch line is reported', () => {

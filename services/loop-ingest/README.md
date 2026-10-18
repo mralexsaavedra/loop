@@ -645,7 +645,9 @@ On every start the service applies the `sql/` files listed in `src/migrations.js
   to the pool.
 - **Optional groups.** A failing core file fails the start; a failing optional group (`food`, `settings`,
   `profile`, `journal`, `documents`) is rolled back, logged (`<group>_migration_failed`), left unrecorded and retried on
-  the next start, and only its routes answer `503` meanwhile.
+  the next start, and only its routes answer `503` meanwhile. `013_settings_locale.sql` sits in the `settings`
+  group, so if it ever failed, all of `/food/settings` (goal, target weight and language) would answer
+  `503 settings_unavailable` until it applies.
 - **Installs from before the ledger** (before the release that added it) have every file applied and none
   recorded: on their first start with the ledger every file runs once more (each is idempotent: `IF NOT
   EXISTS`, `ON CONFLICT DO NOTHING`, 009's `CHECK` dropped and re-created; no row is touched) and is

@@ -144,8 +144,9 @@ and the endpoint the iOS Shortcut sends your Apple Health data to. Three contain
    a time (you, the sports you do, your goal and a short safety check) and works out your starting calories and
    macros for each kind of day. Everything on the page works without Claude Code.
 
-   **Language:** the page has a Language setting (es / en) in its settings; or set `HC_LOCALE=es` in `.env`
-   (`docker/.env` in a clone) and run `docker compose up -d`. The page's setting wins over `HC_LOCALE`.
+   **Language:** on the page, tap your photo (the round avatar in the top bar) to open the profile sheet, then
+   pick **Language** (es / en). Or set `HC_LOCALE=es` in `.env` (`docker/.env` in a clone) and run
+   `docker compose up -d`. The page's setting wins over `HC_LOCALE`.
 5. **Your Apple Health history:** iPhone → Health → your photo → *Export All Health Data*. Copy the zip, as it is,
    into `files/import/` on the server and press **Sync** on the page: the server imports it (a first import of a
    large export takes a minute or two; the same zip twice is skipped). Repeat with a new export whenever you like.
@@ -226,8 +227,9 @@ server's settings. Without the server, tell Claude during onboarding, or create
 
 The page itself keeps the goal you pick in it, in the browser.
 
-**Language:** the page is in English unless `loop-data/cache/plan.json` says `"locale": "es"` (Spanish); then run
-`npm run generate` again.
+**Language:** the page (and the food names in `plan-tables.md`) follows, in this order: the Language you chose on
+the LAN page's profile sheet (once `npm run sync` has fetched it), else `HC_LOCALE` in your environment, else
+`loop-data/cache/plan.json`'s `"locale"`, else English. After a change, run `npm run generate` again.
 
 Optional extras for the coach:
 
