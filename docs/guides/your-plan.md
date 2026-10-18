@@ -1,3 +1,5 @@
+> **English** · [Español](your-plan.es.md)
+
 # Make the plan yours
 
 How to put your own nutrition targets, meals, foods, goal and training program into the page.

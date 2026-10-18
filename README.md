@@ -1,3 +1,5 @@
+> **English** · [Español](README.es.md)
+
 # LOOP
 
 [![CI](https://github.com/mralexsaavedra/loop/actions/workflows/ci.yml/badge.svg)](https://github.com/mralexsaavedra/loop/actions/workflows/ci.yml)
@@ -141,6 +143,9 @@ and the endpoint the iOS Shortcut sends your Apple Health data to. Three contain
 4. **Open the page** at `http://<server-ip>:8090`. On a fresh server it opens an assistant that asks one question at
    a time (you, the sports you do, your goal and a short safety check) and works out your starting calories and
    macros for each kind of day. Everything on the page works without Claude Code.
+
+   **Language:** the page has a Language setting (es / en) in its settings; or set `HC_LOCALE=es` in `.env`
+   (`docker/.env` in a clone) and run `docker compose up -d`. The page's setting wins over `HC_LOCALE`.
 5. **Your Apple Health history:** iPhone → Health → your photo → *Export All Health Data*. Copy the zip, as it is,
    into `files/import/` on the server and press **Sync** on the page: the server imports it (a first import of a
    large export takes a minute or two; the same zip twice is skipped). Repeat with a new export whenever you like.
