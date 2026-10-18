@@ -58,7 +58,7 @@ data of that kind yet, `npm run sync` not run, or a clone not migrated yet: `npm
 | --- | --- |
 | Weight | the newest rows of `loop-data/extract/weight.csv` (`date,value,source`): the latest reading with its date, plus the mean of the readings of the last 7 days as context. The series mixes scales / apps — compare within one `source`. |
 | Height, birthdate (→ age from TODAY), devices, supplements, upcoming events | `loop-data/cache/profile.json` (the copy of the profile document `npm run sync` keeps) |
-| Goal (maintain / cut / bulk) + target weight | `loop-data/profile/settings.json` (`goal`, `targetWeightKg`, `updatedAt`, `fetchedAt`), the snapshot `npm run sync` takes of the page's server-side setting. Missing file → say the goal is unknown (never assume one); `fetchedAt` more than 3 days before TODAY → say it may be stale. |
+| Goal (maintain / cut / bulk) + target weight + page language | `loop-data/profile/settings.json` (`goal`, `targetWeightKg`, `locale` = the language chosen on the page, `updatedAt`, `fetchedAt`), the snapshot `npm run sync` takes of the page's server-side setting. Missing file → say the goal is unknown (never assume one); `fetchedAt` more than 3 days before TODAY → say it may be stale. |
 | Sports (sessions per week) + accepted daily targets, when the user set up through the page | `loop-data/profile/onboarding.json` (`sports`, `targets` per goal and day type); absent → the plan's own targets |
 | Nutrition plan (meals, servings, `targets.byGoal`, `page` notes) | `loop-data/cache/plan.json` |
 | Programmed sessions by date (optional) | `loop-data/cache/training.json` |

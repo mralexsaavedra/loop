@@ -95,6 +95,8 @@ services:
       # own timeout in seconds (a first import of a large export takes minutes); a failure never blocks the page
       HC_IMPORT_TIMEOUT: ${HC_IMPORT_TIMEOUT:-1800}
       HC_IMPORT_MAX_BYTES: ${HC_IMPORT_MAX_BYTES:-10737418240}
+      # the page language (es / en) when none is chosen on the page (profile sheet -> Language); empty = the plan's, else en
+      HC_LOCALE: ${HC_LOCALE:-}
     volumes:
       # internal state: the processed extract, the document copies, the sync state
       - loop-server-data:/data

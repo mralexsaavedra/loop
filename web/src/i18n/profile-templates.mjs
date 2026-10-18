@@ -23,6 +23,14 @@ export const en = {
     reasons: { offline: 'the server did not answer', rate_limited: 'too many changes, try again in a minute', invalid: 'the value was refused', generic: 'unknown error' },
     progress: 'Progress',
   },
+  // the page language (LAN page only: settings.locale on the server, client/settings.js; the next build uses it).
+  // The option names stay in their own language, as language pickers do; saving / failed / reasons: goal's.
+  language: {
+    heading: 'Language',
+    options: { es: 'Español', en: 'English' },
+    hint: 'The language of this page. Changing it rebuilds the page.',
+    rebuilding: 'Saved. The page is rebuilding in the new language: reload it in a minute or two.',
+  },
   open: 'Open profile',
   age: '{n} years',
   onboarding: 'Nothing here yet. Copy profile/profile.example.json to loop-data/cache/profile.json (birthdate, height, devices) and run npm run sync to add your Strava name, photo and gear.',
@@ -100,6 +108,13 @@ export const es = {
     failed: 'No se guardó: {reason}',
     reasons: { offline: 'el servidor no respondió', rate_limited: 'demasiados cambios, prueba en un minuto', invalid: 'el valor no es válido', generic: 'error desconocido' },
     progress: 'Progreso',
+  },
+  // the page language (LAN page only, see the en block)
+  language: {
+    heading: 'Idioma',
+    options: { es: 'Español', en: 'English' },
+    hint: 'El idioma de esta página. Al cambiarlo, la página se regenera.',
+    rebuilding: 'Guardado. La página se está regenerando en el nuevo idioma: recárgala en un par de minutos.',
   },
   open: 'Abrir perfil',
   age: '{n} años',

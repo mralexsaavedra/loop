@@ -192,3 +192,31 @@ test('parseTarget: the food forms\' parser (decimal comma, a trailing kg), empty
   assert.deepEqual(P('251'), { error: 'range' });
   assert.deepEqual(JSON.parse(JSON.stringify(t.S.limits())), { min: 35, max: 250 });
 });
+
+test('locale: the page language from GET /settings (es | en, anything else = not set); saveLocale is a partial PUT', async () => {
+  let stored = 'en';
+  const body = () => json({ settings: { goal: 'cut', targetWeightKg: null, locale: stored, updatedAt: '2030-01-10T10:00:00.000Z' } });
+  const t = setup({ routes: { 'GET /api/food/settings': body, 'PUT /api/food/settings': (init) => { stored = JSON.parse(init.body).locale; return body(); } } });
+  await flush();
+  assert.equal(t.S.locale(), 'en');
+  const seen = [];
+  t.S.onChange((s) => seen.push([s.locale, s.last && s.last.what, s.last && s.last.status]));
+  await t.S.saveLocale('es');
+  assert.equal(t.S.locale(), 'es');
+  await t.S.saveLocale(null);
+  assert.equal(t.S.locale(), null, 'null clears it');
+  const bodies = t.calls.filter((c) => c.key === 'PUT /api/food/settings').map((c) => c.body);
+  assert.deepEqual(bodies, [{ locale: 'es' }, { locale: null }], 'only the locale is sent');
+  assert.deepEqual(seen, [['en', 'locale', 'saving'], ['es', 'locale', 'saved'], ['es', 'locale', 'saving'], [null, 'locale', 'saved']]);
+  await assert.rejects(t.S.saveLocale('fr'), (e) => e.code === 'invalid');
+  assert.equal(t.calls.filter((c) => c.key === 'PUT /api/food/settings').length, 2, 'refused before any request');
+});
+
+test('locale: a server from before the locale column (no key) or an unknown value = not set', async () => {
+  const t = setup({ routes: { 'GET /api/food/settings': SET('cut') } });
+  await flush();
+  assert.equal(t.S.locale(), null);
+  const u = setup({ routes: { 'GET /api/food/settings': json({ settings: { goal: 'cut', locale: 'fr' } }) } });
+  await flush();
+  assert.equal(u.S.locale(), null);
+});

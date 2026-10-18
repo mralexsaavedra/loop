@@ -20,7 +20,7 @@ test('migration 006_food.sql is registered (as the optional food group) and is i
   // the lists live in migrations.js, which (unlike db.js) does not load pg
   const { CORE_MIGRATIONS, OPTIONAL_MIGRATIONS } = (await import('../src/migrations.js'))
   assert.ok(!CORE_MIGRATIONS.includes('006_food.sql') && !CORE_MIGRATIONS.includes('007_settings.sql'), 'core list: food stays out of it')
-  assert.deepEqual(OPTIONAL_MIGRATIONS, { food: ['006_food.sql'], settings: ['007_settings.sql'], profile: ['011_profile.sql'], journal: ['010_journal.sql'], documents: ['012_documents.sql'] }, 'the food tables and the settings are isolated, optional groups')
+  assert.deepEqual(OPTIONAL_MIGRATIONS, { food: ['006_food.sql'], settings: ['007_settings.sql', '013_settings_locale.sql'], profile: ['011_profile.sql'], journal: ['010_journal.sql'], documents: ['012_documents.sql'] }, 'the food tables and the settings are isolated, optional groups')
   const sql = await readFile(fileURLToPath(new URL('../sql/006_food.sql', import.meta.url)), 'utf8')
   for (const table of ['food_product', 'food_recipe', 'food_log']) {
     assert.match(sql, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}\\b`))
@@ -112,25 +112,38 @@ test('migration 007_settings.sql: one idempotent settings row, goal + target wei
   assert.match(sql, /target_weight_kg BETWEEN 35 AND 250/)
 })
 
+test('migration 013_settings_locale.sql: a NEW file in the settings group adds the locale column, idempotent, es | en', async () => {
+  const sql = await readFile(fileURLToPath(new URL('../sql/013_settings_locale.sql', import.meta.url)), 'utf8')
+  assert.match(sql, /ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS locale TEXT/)
+  assert.match(sql, /locale IS NULL OR locale IN \('es', 'en'\)/)
+  assert.doesNotMatch(sql, /ADD COLUMN (?!IF NOT EXISTS)/)
+})
+
 test('settings: no row yet = every field null; a row maps NUMERIC to a number', async () => {
   const empty = fakePool(() => ({ rows: [] }))
-  assert.deepEqual(await createFoodStore(empty).getSettings(), { goal: null, targetWeightKg: null, updatedAt: null })
+  assert.deepEqual(await createFoodStore(empty).getSettings(), { goal: null, targetWeightKg: null, locale: null, updatedAt: null })
   assert.match(empty.calls[0].sql, /FROM app_settings WHERE id = 1/)
-  const pool = fakePool(() => ({ rows: [{ goal: 'cut', target_weight_kg: '72.5', updated_at: new Date('2030-01-10T10:00:00Z') }] }))
-  assert.deepEqual(await createFoodStore(pool).getSettings(), { goal: 'cut', targetWeightKg: 72.5, updatedAt: '2030-01-10T10:00:00.000Z' })
+  const pool = fakePool(() => ({ rows: [{ goal: 'cut', target_weight_kg: '72.5', locale: 'es', updated_at: new Date('2030-01-10T10:00:00Z') }] }))
+  assert.deepEqual(await createFoodStore(pool).getSettings(), { goal: 'cut', targetWeightKg: 72.5, locale: 'es', updatedAt: '2030-01-10T10:00:00.000Z' })
+  assert.match(pool.calls[0].sql, /SELECT goal, target_weight_kg, locale, updated_at FROM app_settings/)
 })
 
 test('updateSettings: a parameterized partial upsert, only the keys sent change', async () => {
   const pool = fakePool(() => ({ rows: [{ goal: 'cut', target_weight_kg: null, updated_at: new Date('2030-01-10T10:00:00Z') }] }))
   const store = createFoodStore(pool)
   await store.updateSettings({ goal: 'cut' })
-  assert.match(pool.calls[0].sql, /INSERT INTO app_settings \(id, goal, target_weight_kg\) VALUES \(1, \$1, \$2\)/)
+  assert.match(pool.calls[0].sql, /INSERT INTO app_settings \(id, goal, target_weight_kg, locale\) VALUES \(1, \$1, \$2, \$5\)/)
   assert.match(pool.calls[0].sql, /ON CONFLICT \(id\) DO UPDATE/)
-  assert.deepEqual(pool.calls[0].values, ['cut', null, true, false])
+  assert.match(pool.calls[0].sql, /locale = CASE WHEN \$6 THEN EXCLUDED\.locale ELSE app_settings\.locale END/)
+  assert.deepEqual(pool.calls[0].values, ['cut', null, true, false, null, false])
   await store.updateSettings({ targetWeightKg: null })
-  assert.deepEqual(pool.calls[1].values, [null, null, false, true], 'clearing the target sends it')
+  assert.deepEqual(pool.calls[1].values, [null, null, false, true, null, false], 'clearing the target sends it')
   await store.updateSettings({ goal: 'bulk', targetWeightKg: 80 })
-  assert.deepEqual(pool.calls[2].values, ['bulk', 80, true, true])
+  assert.deepEqual(pool.calls[2].values, ['bulk', 80, true, true, null, false])
+  await store.updateSettings({ locale: 'es' })
+  assert.deepEqual(pool.calls[3].values, [null, null, false, false, 'es', true], 'only the locale changes')
+  await store.updateSettings({ locale: null })
+  assert.deepEqual(pool.calls[4].values, [null, null, false, false, null, true], 'clearing the locale sends it')
 })
 
 test('listLogRange: entries between two dates, oldest first, dates as text', async () => {

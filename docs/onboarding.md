@@ -1,3 +1,5 @@
+> **English** · [Español](onboarding.es.md)
+
 # Onboarding a new user (first run)
 
 > `CLAUDE.md` keeps only the first-run check that points here. Run this flow when `profile/about-me.md` does NOT exist (only the `.example` template is

@@ -11,6 +11,10 @@
  *             the server and the section adds a "Target weight" field (kg, HCSettings.parseTarget = the
  *             food forms' parser; an inline error; saved on change, which fires on blur), one status
  *             line for both saves, and the Progreso line (window.HCProgress.line, client/progress.js);
+ *   Language — LAN page only (HCSettings ready): Español / English radios, the stored settings.locale checked
+ *             (none stored = the language this page was built in, LOCALE); a change saves it
+ *             (HCSettings.saveLocale) and then presses the page's Sync button, so the next build is in that
+ *             language (web/src/env.mjs); its own status line says the page is rebuilding;
  *   Events  — profile.json events: upcoming soonest first with the days left (viewer's clock), past
  *             ones folded; omitted when there are none;
  *   Body    — height (manual) + the latest weigh-in with its date (never Strava's weight);
@@ -300,6 +304,7 @@
         st.saveTarget(r.value).catch(function () { /* the status line says why */ });
         return;
       }
+      if (t.name === 'pf-lang') { saveLang(t.value); return; }
       if (t.name !== 'pf-goal') return;
       var n = nutri(), ok = list(P.goals).some(function (o) { return o && o.goal === t.value; });
       if (n && ok) n.setGoal(t.value);
@@ -308,10 +313,48 @@
   var ST = window.HCSettings;
   if (ST && typeof ST.onChange === 'function') {
     ST.onChange(function (s) {
+      if (s && s.last && s.last.what === 'locale') { setText('pf-lang-msg', langStatusText(s.last)); return; }
       setText('pf-goal-msg', statusText(s));
       var prog = progressText();
       if (prog) setText('pf-progress-txt', prog);
     });
+  }
+
+  // the page language (LAN page only): stored on the server, used by the next build
+  var LANGS = ['es', 'en'];
+  function pageLang() {
+    return typeof LOCALE !== 'undefined' && LANGS.indexOf(LOCALE) >= 0 ? LOCALE : 'en';
+  }
+  function currentLang(st) {
+    var l = st && typeof st.locale === 'function' ? st.locale() : null;
+    return LANGS.indexOf(l) >= 0 ? l : pageLang();
+  }
+  function langHtml() {
+    var st = settings(), L = T.language;
+    if (!st || !L || typeof st.saveLocale !== 'function') return '';
+    var cur = currentLang(st);
+    return '<section class="pf-sec pf-lang-sec"><fieldset class="pf-goal" id="pf-lang"><legend class="pf-h">' + esc(L.heading) + '</legend>' +
+      LANGS.map(function (l) {
+        return '<label class="pf-goal-opt"><input type="radio" name="pf-lang" value="' + l + '"' + (l === cur ? ' checked' : '') + '>' +
+          '<span class="pf-goal-txt"><b class="pf-goal-name" lang="' + l + '">' + esc(L.options[l]) + '</b></span></label>';
+      }).join('') + '</fieldset>' +
+      '<small class="pf-goal-desc">' + esc(L.hint) + '</small>' +
+      '<p class="pf-note pf-status" id="pf-lang-msg" role="status" aria-live="polite"></p></section>';
+  }
+  function langStatusText(last) {
+    var G = T.goal, L = T.language;
+    if (last.status === 'saving') return G.saving;
+    if (last.status === 'saved') return L.rebuilding;
+    return format(G.failed, { reason: G.reasons[last.code] || G.reasons.generic });
+  }
+  function saveLang(v) {
+    var st = settings();
+    if (!st || typeof st.saveLocale !== 'function' || LANGS.indexOf(v) < 0 || v === currentLang(st)) return;
+    Promise.resolve(st.saveLocale(v)).then(function () {
+      // the normal refresh: the next build reads the new language (a hidden button = the hourly build picks it up)
+      var b = el('sync-btn');
+      if (b && !b.hidden && typeof b.click === 'function') b.click();
+    }).catch(function () { /* the status line says why */ });
   }
 
   // the in-page onboarding's entry (client/onboarding.js registers the view; LAN page only)
@@ -323,8 +366,8 @@
     return '<button type="button" class="chip pf-edit" data-onb-open="">' + esc(O.edit) + '</button>';
   }
   function render() {
-    if (!P.hasData) return { head: headHtml(), body: goalHtml() + note(T.onboarding, 'pf-onboard') };
-    return { head: headHtml(), body: goalHtml() + eventsHtml() + bodyHtml() + gearHtml() + devicesHtml() + supplementsHtml() + stravaHtml() + note(T.note, 'pf-foot') };
+    if (!P.hasData) return { head: headHtml(), body: goalHtml() + langHtml() + note(T.onboarding, 'pf-onboard') };
+    return { head: headHtml(), body: goalHtml() + langHtml() + eventsHtml() + bodyHtml() + gearHtml() + devicesHtml() + supplementsHtml() + stravaHtml() + note(T.note, 'pf-foot') };
   }
 
   HC.registerView('profile', { title: function () { return T.title; }, render: render });

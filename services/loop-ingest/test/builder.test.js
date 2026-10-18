@@ -191,12 +191,12 @@ test('the refresh child gets an allowlisted environment: what refresh.mjs, the s
     writeFileSync(script, `import fs from 'node:fs'; fs.writeFileSync(${JSON.stringify(out)}, JSON.stringify(process.env))\n`)
     const env = {
       PATH: process.env.PATH, HOME: '/home/node', TZ: 'Europe/Madrid', LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', NODE_ENV: 'production', NODE_OPTIONS: '--max-old-space-size=512',
-      HC_BUILD: 'container', HC_DATA_DIR: '/data', HC_SITE_DIR: '/site', HC_VERSION: '1.0.0', HC_IMPORT_TIMEOUT: '1800', INGEST_TOKEN: 'tok', ASTRO_TELEMETRY_DISABLED: '1', LOCALE: 'es',
+      HC_BUILD: 'container', HC_DATA_DIR: '/data', HC_SITE_DIR: '/site', HC_VERSION: '1.0.0', HC_IMPORT_TIMEOUT: '1800', HC_LOCALE: 'en', INGEST_TOKEN: 'tok', ASTRO_TELEMETRY_DISABLED: '1', LOCALE: 'es',
       POSTGRES_PASSWORD: 'secret-db', POSTGRES_USER: 'loop', DB_HOST: 'loop-db', STRAVA_CLIENT_SECRET: 'secret-strava', STRAVA_REFRESH_TOKEN: 'secret-refresh', STRAVA_CLIENT_ID: '1', FOOD_ALLOWED_HOSTS: 'x', DATABASE_URL: 'postgres://u:p@h/d'
     }
     assert.equal((await createRefreshSpawner({ script, env, port: 9124, log: () => {} })(1).exited).code, 0)
     const got = JSON.parse(readFileSync(out, 'utf8'))
-    for (const k of ['PATH', 'HOME', 'TZ', 'LANG', 'LC_ALL', 'NODE_ENV', 'NODE_OPTIONS', 'HC_BUILD', 'HC_DATA_DIR', 'HC_SITE_DIR', 'HC_VERSION', 'HC_IMPORT_TIMEOUT', 'INGEST_TOKEN', 'ASTRO_TELEMETRY_DISABLED', 'LOCALE']) assert.equal(got[k], env[k], k)
+    for (const k of ['PATH', 'HOME', 'TZ', 'LANG', 'LC_ALL', 'NODE_ENV', 'NODE_OPTIONS', 'HC_BUILD', 'HC_DATA_DIR', 'HC_SITE_DIR', 'HC_VERSION', 'HC_IMPORT_TIMEOUT', 'HC_LOCALE', 'INGEST_TOKEN', 'ASTRO_TELEMETRY_DISABLED', 'LOCALE']) assert.equal(got[k], env[k], k)
     assert.equal(got.INGEST_URL, 'http://127.0.0.1:9124')
     for (const k of ['POSTGRES_PASSWORD', 'POSTGRES_USER', 'DB_HOST', 'STRAVA_CLIENT_SECRET', 'STRAVA_REFRESH_TOKEN', 'STRAVA_CLIENT_ID', 'FOOD_ALLOWED_HOSTS', 'DATABASE_URL']) assert.equal(got[k], undefined, k)
     assert.ok(!JSON.stringify(got).includes('secret'))

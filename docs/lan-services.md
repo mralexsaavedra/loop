@@ -36,6 +36,9 @@ published).
   publish of `index.html` and then `status.json` (`publishedAt`, `commit` = the image version, `processedSeq`;
   `error` `build` / `sanity` / `lock` with `errorSeq` keeps the last good page), then the device manuals from
   `files/manuals/` into `manuales/`, best effort.
+- **Page language.** `HC_LOCALE` (`es` / `en`, in `docker/.env`; empty = the plan's language, else English) is the
+  default; a language chosen in the page's profile sheet (Language) wins over it and rebuilds the page
+  ([`plan-page.md` → Build](plan-page.md)).
 - **Apple Health import.** Drop the iPhone's export zip, as it is, into the files folder's `import/` on the host
   (`${HC_FILES_LOCATION}/import/`); the next pass (the Sync button, or the hourly timer) imports it with
   `scripts/import-health.mjs` ([`data-pipeline.md` → Apple Health export and extract](data-pipeline.md#apple-health-export-and-extract)):

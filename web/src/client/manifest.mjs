@@ -86,7 +86,7 @@ export const CLIENT_SCRIPTS = [
     provides: [],
     requires: ['DETAIL', 'HC', 'HCDay', 'HCProgram', 'HC_FMT', 'I18N_DATE', 'I18N_SCORE', 'LOCALE', 'SCORES'],
   },
-  { file: 'profile.js', provides: ['HCProfile'], requires: ['HC', 'HCSettings', 'HCViews', 'I18N_PROFILE', 'PROFILE'] },
+  { file: 'profile.js', provides: ['HCProfile'], requires: ['HC', 'HCSettings', 'HCViews', 'I18N_PROFILE', 'LOCALE', 'PROFILE'] },
   { file: 'onboarding.js', provides: ['HCOnboarding'], requires: ['HC', 'HCViews', 'HC_ENERGY', 'I18N_ONB', 'PROFILE'] },
   { file: 'nav-actions.js', provides: ['HCActions'], requires: [] },
   {

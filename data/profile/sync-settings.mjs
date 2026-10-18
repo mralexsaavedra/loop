@@ -1,16 +1,17 @@
 #!/usr/bin/env node
-/* Settings sync — snapshots the user's goal + target weight that the LAN page stores on the ingest
- * service (services/loop-ingest, GET /food/settings, sql/007_settings.sql) into
+/* Settings sync — snapshots the user's goal + target weight + page language that the LAN page stores on the
+ * ingest service (services/loop-ingest, GET /food/settings, sql/007_settings.sql + 013) into
  * loop-data/profile/settings.json, so read-only consumers (the coach subagents, which only read files)
- * see the same goal the page uses.
+ * see the same goal the page uses, and the page build (web/src/env.mjs) reads the language from it.
  *
  *   node data/profile/sync-settings.mjs     (part of `npm run sync`, after the profile sync)
  *
  * Env    : INGEST_URL (default http://localhost:<INGEST_PORT of this clone's services/loop-ingest/.env>, else :8088). No token: /food/* is the unauthenticated,
  *          LAN-only food layer; the request carries `X-HC-Food: 1` and the URL's Host must be one the
  *          service accepts (an IP literal, localhost, or a name in its FOOD_ALLOWED_HOSTS).
- * Writes : loop-data/profile/settings.json = {goal, targetWeightKg, updatedAt, fetchedAt} (temp file +
- *          rename), only when goal / target / updatedAt changed or the stored fetchedAt is from an
+ * Writes : loop-data/profile/settings.json = {goal, targetWeightKg, locale, updatedAt, fetchedAt} (temp file +
+ *          rename; locale null = not chosen, also from a service older than the column), only when goal / target /
+ *          locale / updatedAt changed or the stored fetchedAt is from an
  *          earlier UTC day (so fetchedAt stays an honest "last seen" at day precision without a
  *          rewrite on every run). Gitignored (loop-data/profile/*).
  * Errors : unreachable service, 404 (an image without the endpoint), 503 (settings migration
@@ -35,10 +36,12 @@ const SETTINGS_JSON = 'settings.json'
 const GOALS = ['maintain', 'cut', 'bulk']
 const TARGET_MIN = 35
 const TARGET_MAX = 250
+// copy of web/src/env.mjs PAGE_LOCALES / the service's SETTINGS_LOCALES (a test pins them equal)
+const LOCALES = ['es', 'en']
 
 const isIsoInstant = (v) => typeof v === 'string' && !Number.isNaN(Date.parse(v)) && /^\d{4}-\d{2}-\d{2}T/.test(v)
 
-/** The GET /food/settings body ({settings: {...}}) reduced to the three stored fields; throws when malformed. */
+/** The GET /food/settings body ({settings: {...}}) reduced to the four stored fields; throws when malformed. */
 function normalizeSettings (body) {
   const s = body && body.settings
   if (!s || typeof s !== 'object' || Array.isArray(s)) throw new Error('unexpected response shape (expected {settings: {...}})')
@@ -46,9 +49,11 @@ function normalizeSettings (body) {
   if (goal !== null && !GOALS.includes(goal)) throw new Error(`unexpected goal ${JSON.stringify(goal)}`)
   const t = s.targetWeightKg == null ? null : s.targetWeightKg
   if (t !== null && !(typeof t === 'number' && Number.isFinite(t) && t >= TARGET_MIN && t <= TARGET_MAX)) throw new Error('unexpected targetWeightKg')
+  const locale = s.locale == null ? null : s.locale
+  if (locale !== null && !LOCALES.includes(locale)) throw new Error(`unexpected locale ${JSON.stringify(locale)}`)
   const u = s.updatedAt == null ? null : s.updatedAt
   if (u !== null && !isIsoInstant(u)) throw new Error('unexpected updatedAt')
-  return { goal, targetWeightKg: t, updatedAt: u }
+  return { goal, targetWeightKg: t, locale, updatedAt: u }
 }
 
 /** GET <base>/food/settings with the food layer's header; the HTTP status (if any) is kept on err.status. */
@@ -66,7 +71,8 @@ function readJsonOrNull (file) {
   }
 }
 
-const sameContent = (a, b) => a.goal === b.goal && a.targetWeightKg === b.targetWeightKg && a.updatedAt === b.updatedAt
+// strict: a file from before the locale key (undefined) is rewritten once with locale null
+const sameContent = (a, b) => a.goal === b.goal && a.targetWeightKg === b.targetWeightKg && a.locale === b.locale && a.updatedAt === b.updatedAt
 
 /** Writes settings.json when the content changed or the stored fetchedAt is from an earlier UTC day. */
 function syncSettings (dir, body, { now = new Date(), writeAtomic = common.writeAtomic } = {}) {
@@ -93,7 +99,7 @@ function warning (err, baseUrl) {
 
 const USAGE = `Usage: node data/profile/sync-settings.mjs
 
-Snapshots the page's settings (goal, target weight) from the ingest service into loop-data/profile/settings.json.
+Snapshots the page's settings (goal, target weight, language) from the ingest service into loop-data/profile/settings.json.
   -h, --help   this help
 Env: INGEST_URL, INGEST_ENV_FILE (default services/loop-ingest/.env, for its INGEST_PORT).`
 
@@ -112,7 +118,7 @@ async function main ({ env = process.env, log = console.log, error = console.err
   try {
     const r = syncSettings(outDir, body)
     const s = r.settings
-    log(`Settings: goal ${s.goal || 'not set'}, target ${s.targetWeightKg != null ? `${s.targetWeightKg} kg` : 'not set'}; ${r.written ? 'written' : 'unchanged'}`)
+    log(`Settings: goal ${s.goal || 'not set'}, target ${s.targetWeightKg != null ? `${s.targetWeightKg} kg` : 'not set'}, language ${s.locale || 'not set'}; ${r.written ? 'written' : 'unchanged'}`)
     return 0
   } catch (err) {
     error(`ERROR: settings sync failed (${(err && err.message) || err}). The file is only ever replaced atomically.`)
@@ -122,4 +128,4 @@ async function main ({ env = process.env, log = console.log, error = console.err
 
 if (isMain(import.meta.url)) common.runCli(() => main(), { guardDataRoot: true, usage: USAGE })
 
-export { SETTINGS_JSON, GOALS, TARGET_MIN, TARGET_MAX, normalizeSettings, fetchSettings, syncSettings, warning, main }
+export { SETTINGS_JSON, GOALS, TARGET_MIN, TARGET_MAX, LOCALES, normalizeSettings, fetchSettings, syncSettings, warning, main }

@@ -109,6 +109,19 @@ test('resolveLocale: an explicit locale (CLI --locale or LOCALE env) wins over p
   }
 });
 
+test('resolveLocale (host mode): the language set on the page > HC_LOCALE > plan.locale; an explicit locale still wins', () => {
+  const root = fixtureRepo({ personalLocale: 'es' });
+  try {
+    assert.equal(resolveLocale({ repoRoot: root, mode: 'personal', explicitLocale: null, env: { HC_LOCALE: 'en' } }), 'en', 'HC_LOCALE over plan.locale');
+    fs.mkdirSync(path.join(root, 'loop-data', 'profile'), { recursive: true });
+    fs.writeFileSync(path.join(root, 'loop-data', 'profile', 'settings.json'), JSON.stringify({ locale: 'es' }));
+    assert.equal(resolveLocale({ repoRoot: root, mode: 'personal', explicitLocale: null, env: { HC_LOCALE: 'en' } }), 'es', 'the page setting over HC_LOCALE');
+    assert.equal(resolveLocale({ repoRoot: root, mode: 'personal', explicitLocale: 'en', env: { HC_LOCALE: 'es' } }), 'en', 'explicit wins');
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('a missing input file (no plan document AND no example seed) becomes ONE readable line, not a stack trace', () => {
   const root = fixtureRepo();
   fs.rmSync(path.join(root, 'loop-data', 'cache', 'plan.json'));

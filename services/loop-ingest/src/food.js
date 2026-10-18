@@ -11,11 +11,11 @@
  *   GET    /food/off?barcode=|q=     Open Food Facts lookup, server side (src/off.js); saves nothing
  *   GET    /food/log/summary?from=&to=  per-day sums of the log (<= FOOD_LIMITS.summaryDaysMax days): the
  *                                   page's adherence view (food-calc.js daySummaries)
- *   GET    /food/settings            the user's goal + target weight (one row, sql/007_settings.sql)
+ *   GET    /food/settings            the user's goal + target weight + page language (one row, sql/007_settings.sql + 013)
  *   GET    /food/profile             the in-page onboarding document (profile + accepted targets), null before the first save
  *   PUT    /food/profile             saves it (validateProfile; its own fields replace the app_profile row, sql/011; name / sex /
  *                                     birthdate / height merge into the profile document, sql/012: profile-db.js; needs both groups)
- *   PUT    /food/settings            partial update {goal?, targetWeightKg?} (targetWeightKg null clears it)
+ *   PUT    /food/settings            partial update {goal?, targetWeightKg?, locale?} (targetWeightKg / locale null clears it)
  *
  * The settings live in their OWN optional migration group (`settings`): when 007 fails only
  * /food/settings answers 503 settings_unavailable, and when the food tables fail it keeps working.
@@ -60,6 +60,8 @@ export const FOOD_BODY_LIMIT = JSON_BODY_LIMIT // readJson's cap (http.js), name
 export const FOOD_WRITE_LIMIT = 60 // per client address per minute
 export const FOOD_SUMMARY_LIMIT = 30 // GET /food/log/summary per client address per minute (a read of up to 120 days)
 // limits: FOOD_LIMITS (food-calc.js, generated from lib/nutrition/foodlog.mjs, which is authoritative)
+// the page languages (GET / PUT /food/settings `locale`, sql/013_settings_locale.sql CHECK, web/src/env.mjs)
+export const SETTINGS_LOCALES = Object.freeze(['es', 'en'])
 const ID_RE = /^[1-9][0-9]{0,15}$/
 const BARCODE_RE = new RegExp(L.barcodePattern)
 const BASIC_KEY_RE = new RegExp(L.basicKeyPattern)
@@ -239,10 +241,11 @@ export function validateLog (body) {
   return e
 }
 
-/** {goal?, targetWeightKg?}: at least one key; the goal is one of the plan goals, the target weight a
- * number of kg (1 decimal) within FOOD_LIMITS, or null to clear it. Only the keys sent are changed. */
+/** {goal?, targetWeightKg?, locale?}: at least one key; the goal is one of the plan goals, the target weight a
+ * number of kg (1 decimal) within FOOD_LIMITS, or null to clear it; the locale (the page language the build uses)
+ * es or en, or null to clear it. Only the keys sent are changed. */
 export function validateSettings (body) {
-  strictKeys(body, ['goal', 'targetWeightKg'])
+  strictKeys(body, ['goal', 'targetWeightKg', 'locale'])
   const out = {}
   if ('goal' in body) out.goal = oneOf(body.goal, 'goal', SETTINGS_GOALS)
   if ('targetWeightKg' in body) {
@@ -250,6 +253,7 @@ export function validateSettings (body) {
       ? null
       : number(body.targetWeightKg, 'targetWeightKg', { min: L.targetWeightMin, max: L.targetWeightMax })
   }
+  if ('locale' in body) out.locale = body.locale === null ? null : oneOf(body.locale, 'locale', SETTINGS_LOCALES)
   if (!Object.keys(out).length) bad('body')
   return out
 }

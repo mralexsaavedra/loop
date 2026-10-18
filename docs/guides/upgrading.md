@@ -1,3 +1,5 @@
+> **English** · [Español](upgrading.es.md)
+
 # Updating your install
 
 How to bring an install up to date, and how to back up your data first. A **server** installed from the images

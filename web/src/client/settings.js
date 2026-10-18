@@ -1,6 +1,6 @@
-/* Server-side nutrition settings (LAN page only): the goal (maintain / cut / bulk) and the target
- * weight, stored by the ingest service (GET / PUT /api/food/settings, sql/007_settings.sql) so the phone
- * and the Mac agree. Classic script (is:inline), inlined after food-*.js (it reuses window.HCFood.api: the
+/* Server-side settings (LAN page only): the goal (maintain / cut / bulk), the target weight and the page
+ * language (locale es / en, sql/013_settings_locale.sql: the next page build uses it, web/src/env.mjs), stored
+ * by the ingest service (GET / PUT /api/food/settings, sql/007_settings.sql) so the phone and the Mac agree. Classic script (is:inline), inlined after food-*.js (it reuses window.HCFood.api: the
  * same X-HC-Food header, JSON body, timeout and coarse error codes as the food log) and before
  * progress.js / profile.js, which read it.
  *
@@ -19,7 +19,8 @@
 (function () {
   var K = typeof FOOD_CONST === 'undefined' || !FOOD_CONST ? null : FOOD_CONST;
   var LIM = K && K.limits ? K.limits : {};
-  var S = { ok: false, goal: null, target: null, last: null };
+  var S = { ok: false, goal: null, target: null, locale: null, last: null };
+  var LOCALES = ['es', 'en']; // web/src/env.mjs PAGE_LOCALES
   var listeners = [];
   var seq = 0;
   var RETRY_DELAYS_MS = [1000, 3000]; // GET /settings: 3 tries in all
@@ -47,12 +48,13 @@
     try { return n && typeof n.pendingGoal === 'function' ? n.pendingGoal() : null; } catch (e) { return null; }
   }
   function state() {
-    return { ok: S.ok, goal: S.goal, target: S.target, pending: pending(), last: S.last ? { what: S.last.what, status: S.last.status, code: S.last.code } : null };
+    return { ok: S.ok, goal: S.goal, target: S.target, locale: S.locale, pending: pending(), last: S.last ? { what: S.last.what, status: S.last.status, code: S.last.code } : null };
   }
   function take(settings) {
     var x = settings || {};
     S.goal = goals().indexOf(x.goal) >= 0 ? x.goal : null;
     S.target = fin(x.targetWeightKg) ? x.targetWeightKg : null;
+    S.locale = LOCALES.indexOf(x.locale) >= 0 ? x.locale : null;
   }
 
   /** Partial PUT; resolves the stored settings, rejects {code}. An older answer never overwrites a newer one. */
@@ -88,6 +90,11 @@
   function saveTarget(kg) {
     if (kg !== null && !(fin(kg) && kg >= LIM.targetWeightMin && kg <= LIM.targetWeightMax)) return Promise.reject({ code: 'invalid' });
     return put({ targetWeightKg: kg === null ? null : Math.round(kg * 10) / 10 }, 'target');
+  }
+  /** 'es' | 'en' or null (clears it: the build falls back to HC_LOCALE / the plan's locale). */
+  function saveLocale(l) {
+    if (l !== null && LOCALES.indexOf(l) < 0) return Promise.reject({ code: 'invalid' });
+    return put({ locale: l }, 'locale');
   }
   /** The field's text -> {value: kg | null (empty = no target)} or {error: 'number' | 'range'}. A decimal
    * comma and a trailing "kg" are fine (HCFood.parseNum, the food forms' one parser). */
@@ -151,9 +158,11 @@
     ready: function () { return S.ok; },
     goal: function () { return S.goal; },
     targetWeight: function () { return S.target; },
+    locale: function () { return S.locale; },
     limits: function () { return { min: LIM.targetWeightMin, max: LIM.targetWeightMax }; },
     saveGoal: saveGoal,
     saveTarget: saveTarget,
+    saveLocale: saveLocale,
     parseTarget: parseTarget,
     onChange: function (fn) { if (typeof fn === 'function') listeners.push(fn); },
     state: state,
