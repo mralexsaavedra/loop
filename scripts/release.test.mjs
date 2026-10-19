@@ -97,10 +97,14 @@ test('the release publishes exactly loop-server and loop-web from the repo-root 
   assert.match(rel, /^\s+build-args: VERSION=\$\{\{ needs\.check\.outputs\.version \}\}$/m, 'OCI version label from the checked tag');
   for (const t of ['type=semver,pattern={{version}}', 'type=semver,pattern={{major}}.{{minor}}', 'type=raw,value=latest']) assert.ok(rel.includes(t), t);
   assert.match(rel, /^\s+needs: \[check, test\]$/m, 'nothing is pushed before the version check and the CI suites + image smoke');
-  // least privilege: read-only contents at the top, no job widens it; every action pinned to a commit SHA
+  // least privilege: read-only contents at the top; the ONLY job that widens it is github-release (contents: write,
+  // to publish the GitHub Release once both images are out); every action pinned to a commit SHA
   assert.match(rel, /^permissions:\n {2}contents: read\n/m);
-  assert.equal((rel.match(/permissions:/g) || []).length, 1, 'no job-level permissions');
-  assert.doesNotMatch(rel, /: write/);
+  assert.equal((rel.match(/permissions:/g) || []).length, 2, 'the top-level block + the github-release job');
+  assert.deepEqual([...rel.matchAll(/^ +(\S+): write$/gm)].map((m) => m[1]), ['contents']);
+  const ghRelease = rel.slice(rel.indexOf('\n  github-release:'));
+  assert.ok(rel.indexOf('\n  github-release:') > 0 && /permissions:\n {6}contents: write/.test(ghRelease), 'write is scoped to github-release');
+  assert.equal(rel.slice(0, rel.indexOf('\n  github-release:')).match(/: write/g), null, 'no other job writes');
   const uses = [...rel.matchAll(/uses: (\S+)/g)].map((m) => m[1]);
   assert.ok(uses.length >= 6);
   for (const u of uses) if (!u.startsWith('./')) assert.match(u, /@[0-9a-f]{40}$/, `${u} pinned by commit SHA`);

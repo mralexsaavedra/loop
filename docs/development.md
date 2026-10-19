@@ -158,7 +158,8 @@ ports on `127.0.0.1`) and checks loop-server `GET /healthz`, a first `status.jso
 loop-web, and `GET /` 200 over 100 KB, then always runs `down -v`. Locally:
 `SMOKE_INSTANCE=mine SMOKE_VERSION=mine SMOKE_INGEST_PORT=18188 SMOKE_WEB_PORT=18190 scripts/image-smoke.sh` (the
 `:mine` images stay; `docker image rm` them after). Every checkout sets `persist-credentials: false` and both
-workflows keep `permissions: contents: read`. A `vX.Y.Z` tag runs
+workflows keep `permissions: contents: read`; the one exception is the release's last job, `github-release`
+(`contents: write`, see below). A `vX.Y.Z` tag runs
 [`.github/workflows/release.yml`](../.github/workflows/release.yml), which first runs that whole CI on the tagged
 commit (job `test`: `ci.yml` is a reusable workflow, `workflow_call`) and publishes the two server images to Docker
 Hub, `mralexandersaavedra/loop-server` (`docker/loop-server.Dockerfile`) and `mralexandersaavedra/loop-web`
@@ -171,7 +172,11 @@ highest `X.Y.Z` tag in the repo: a backport tag (`v1.0.5` after `v1.1.0`) leaves
 the tag equals `v` + the `package.json` version, the tagged commit is on `main`, every `loop-server` / `loop-web`
 `image:` line of [`docker/docker-compose.yml`](../docker/docker-compose.yml) uses `${HC_VERSION:-X.Y.Z}` with that
 version (no hard-coded tag), `HC_VERSION` in `docker/.env.example` is exactly that version, and the first version
-heading of `CHANGELOG.md` is `## [X.Y.Z] - YYYY-MM-DD` (a `- UNRELEASED` one is refused). The
+heading of `CHANGELOG.md` is `## [X.Y.Z] - YYYY-MM-DD` (a `- UNRELEASED` one is refused). Its last job, `github-release` (`needs: [check, image]`), publishes the GitHub
+Release of the tag once both images are out: the body is that version's CHANGELOG section
+([`scripts/release-notes.mjs`](../scripts/release-notes.mjs): repo-relative links pointed at the tagged tree, plus
+one line naming both images), `latest` only for the highest `X.Y.Z` like the image tag, and a re-run edits the
+existing release. The
 host-mode data service image (`mralexandersaavedra/loop-ingest`) is no longer published: `services/loop-ingest` still
 builds it from a clone (`docker compose up -d --build`). [`scripts/release.test.mjs`](../scripts/release.test.mjs) keeps
 the pieces below in step and runs the `check` script against good and bad scratch git repos (the `latest` ordering
@@ -182,11 +187,13 @@ access token with read/write scope, never the account password); and, once the r
 Code security → Private vulnerability reporting** on, the channel [`SECURITY.md`](../SECURITY.md) points to (GitHub
 offers it only on public repositories).
 
-Checklist for a release:
+Checklist for a release (the project skill `.claude/skills/release` walks Claude Code through the same steps, plus
+updating the installs):
 
 1. Bump `version` in `package.json` and `services/loop-ingest/package.json` (`npm install --package-lock-only` in
    both, so the lock files carry it too), every `HC_VERSION:-` default in `docker/docker-compose.yml` (the two
-   images and their two `VERSION` build arguments) and `HC_VERSION` in `docker/.env.example`.
+   images and their two `VERSION` build arguments), `HC_VERSION` in `docker/.env.example` and the two `curl` URLs of
+   the server quick start in `README.md` and `README.es.md` (`/vX.Y.Z/docker/…`; `scripts/release.test.mjs` checks them).
 2. Write the `## [X.Y.Z] - UNRELEASED` section at the top of [`CHANGELOG.md`](../CHANGELOG.md) with what changed for
    someone running an install. While it says `UNRELEASED` the suite passes but the release workflow refuses the tag.
 3. **Set the date**: replace `UNRELEASED` with the release day (`## [X.Y.Z] - YYYY-MM-DD`) in the last pull request
@@ -194,7 +201,8 @@ Checklist for a release:
 4. Merge to `main` with CI green.
 5. Tag and push: `git tag vX.Y.Z && git push origin vX.Y.Z`. A failed `check` job publishes nothing: fix the file it
    names on `main`, delete the tag (`git push origin :refs/tags/vX.Y.Z && git tag -d vX.Y.Z`) and tag again.
-6. Check both images on Docker Hub (each tag lists `linux/amd64` and `linux/arm64`), then on an install:
+6. Check both images on Docker Hub (each tag lists `linux/amd64` and `linux/arm64`) and the GitHub Release the
+   workflow published, then on an install:
    `docker compose pull && docker compose up -d` next to its `docker-compose.yml`
    ([`docs/guides/upgrading.md`](guides/upgrading.md)).
 

@@ -153,3 +153,29 @@ jobs:
           for t in $TAGS; do args+=(-t "$t"); done
           docker buildx imagetools create "${args[@]}" $(printf "$IMAGE@sha256:%s " *)
           docker buildx imagetools inspect "$IMAGE:${{ needs.check.outputs.version }}"
+
+  # The GitHub Release of the tag, once both images are out: its body is the version's CHANGELOG section
+  # (scripts/release-notes.mjs); only the newest X.Y.Z is marked latest (the check job's output, like the image tag).
+  # A re-run of a failed workflow updates the existing release instead of failing on it.
+  github-release:
+    needs: [check, image]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: Publish the GitHub Release from the CHANGELOG
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ needs.check.outputs.version }}
+          LATEST: ${{ needs.check.outputs.latest }}
+        run: |
+          node scripts/release-notes.mjs "${VERSION}" > notes.md
+          if gh release view "v${VERSION}" > /dev/null 2>&1; then
+            gh release edit "v${VERSION}" --title "v${VERSION}" --notes-file notes.md --latest="${LATEST}"
+          else
+            gh release create "v${VERSION}" --title "v${VERSION}" --notes-file notes.md --verify-tag --latest="${LATEST}"
+          fi
