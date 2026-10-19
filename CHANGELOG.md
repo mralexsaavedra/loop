@@ -4,7 +4,7 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
-## [1.0.0] - UNRELEASED
+## [1.0.0] - 2026-10-19
 
 First versioned release. LOOP installs in two pieces:
 
