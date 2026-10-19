@@ -24,7 +24,6 @@
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import fs from 'node:fs';
-import { execFileSync } from 'node:child_process';
 import { loadInputs } from '../lib/load/inputs.mjs';
 import { validateProgram } from '../lib/training/program.mjs';
 import { checkManualProfile } from '../lib/profile/read.mjs';
@@ -32,16 +31,12 @@ import { dataPaths } from '../lib/paths.mjs';
 import { resolveEnv } from '../web/src/env.mjs';
 import { isMain } from './lib/is-main.mjs';
 import { oldDocumentsWarning } from './lib/old-paths.mjs';
-import { parseCli, withLock } from '../data/apple-health/sync-common.mjs';
+import { parseCli } from '../data/apple-health/sync-common.mjs';
+import { astroBuild } from './lib/astro-build.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const WEB_ROOT = path.join(ROOT, 'web');
-const ASTRO_BIN = path.join(ROOT, 'node_modules', '.bin', 'astro');
-// Astro writes its prerender chunks into one shared <repo>/.astro/.prerender whatever --outDir says, so two builds at once
-// (the parallel test suite, two refreshes) delete each other's chunks (ERR_MODULE_NOT_FOUND): the Astro step runs under
-// this lock. A build takes seconds to a few minutes; a holder silent for 10 minutes is a crashed run and is taken over.
-const BUILD_LOCK = path.join(ROOT, '.astro', 'build.lock');
-const BUILD_LOCK_OPTS = { staleMs: 10 * 60 * 1000, retryDelayMs: 200, retries: 3000 };
+// the Astro step runs through scripts/lib/astro-build.mjs (one lock for every build: the shared .astro/.prerender)
 
 /** Pure: loads training-data(.example).json for `mode` and validates it.
  * Throws with validateProgram's error message on a malformed program.
@@ -236,11 +231,8 @@ function main(args) {
   fs.rmSync(stagingDir, { recursive: true, force: true });
 
   try {
-    fs.mkdirSync(path.dirname(BUILD_LOCK), { recursive: true });
-    withLock(BUILD_LOCK, () => execFileSync(ASTRO_BIN, ['build', '--root', WEB_ROOT, '--outDir', stagingDir], {
-      stdio: 'inherit',
-      env: process.env,
-    }), BUILD_LOCK_OPTS);
+    const r = astroBuild({ root: WEB_ROOT, outDir: stagingDir, stdio: 'inherit' });
+    if (r.status !== 0) throw r.error ?? new Error(`the Astro step exited ${r.status ?? r.signal}`);
   } catch (err) {
     fs.rmSync(stagingDir, { recursive: true, force: true });
     console.error(`build-web: build failed (mode=${mode}) — keeping previous ${path.relative(ROOT, outDir)}/ untouched`);
