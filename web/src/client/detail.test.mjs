@@ -2147,6 +2147,26 @@ test('a gated recovery sheet explains the gate (the card\'s own text), never the
   }
 });
 
+test('a load sheet whose workouts carry no effort explains why (the cards\' own sentence), never the generic "no data yet"', () => {
+  for (const [T, locale] of [[enT, 'en'], [esT, 'es']]) {
+    const d = copy();
+    for (const k of ['load-gym', 'load-run', 'load-bike']) delete d.metrics[k];
+    const scores = { load: { reEpoch: null, modalities: ['gym', 'run', 'bike'].map((key) => ({ key, trend: { gated: true, reason: 'noEffortSource' } })) } };
+    const s = setup({ locale, detail: d, scores });
+    for (const k of ['load-gym', 'load-run', 'load-bike']) {
+      s.api.open(k);
+      assert.ok(s.host.innerHTML.includes(T.load.gated.noEffortSource), locale + ' ' + k);
+      assert.ok(!s.host.innerHTML.includes(T.empty), locale + ' ' + k);
+    }
+  }
+  // effort data still building (owner case): no sentence about missing heart rate
+  const d = copy();
+  delete d.metrics['load-run'];
+  const s = setup({ detail: d, scores: { load: { reEpoch: '2026-09-01', modalities: [{ key: 'run', trend: { gated: true, reason: 'baselineBuilding' } }] } } });
+  s.api.open('load-run');
+  assert.ok(!s.host.innerHTML.includes(enT.load.gated.noEffortSource));
+});
+
 test('a night signal the device never wrote (absent while other data exists) says so in its sheet; a fresh empty build keeps "no data yet"', () => {
   for (const [T, locale] of [[enT, 'en'], [esT, 'es']]) {
     const d = copy();

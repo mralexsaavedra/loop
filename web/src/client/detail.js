@@ -568,6 +568,13 @@
     var R = typeof SCORES !== 'undefined' && SCORES ? SCORES.recovery : null;
     if (key === 'recovery' && R && R.gated && T.rec && T.rec.insufficient) return T.rec.insufficient;
     if (NIGHT_KEYS.indexOf(key) !== -1 && key !== 'recovery' && isoDate(D.asOf) && T.unrecordedSheet) return T.unrecordedSheet;
+    // a load sheet whose workouts never carry heart rate / effort: the cards' own sentence (lib/score/load.mjs)
+    var L = typeof SCORES !== 'undefined' && SCORES ? SCORES.load : null;
+    if (/^load-/.test(key) && L && Array.isArray(L.modalities) && T.load && T.load.gated && T.load.gated.noEffortSource) {
+      var mod = null;
+      L.modalities.forEach(function (m) { if (m && 'load-' + m.key === key) mod = m; });
+      if (mod && mod.trend && mod.trend.reason === 'noEffortSource') return T.load.gated.noEffortSource;
+    }
     return T.empty;
   }
   // a deep-dive page folds its month calendar + day panel behind one "History" row, so the page reads

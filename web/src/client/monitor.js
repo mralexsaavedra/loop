@@ -146,7 +146,7 @@
     var sq = tone ? '<span class="hmt-sq hmt-' + tone + '" aria-hidden="true">' + (tone === 'in' ? CHECK : '!') + '</span>' : '';
     var c = carry(asOf, null);
     return '<button type="button" class="hmt hmt-sum' + c.cls + '" data-jump="monitor">' + lbl(T.heading) +
-      '<span class="hmt-srow">' + sq + '<span class="hmt-body">' + chip(n, true) + '<span class="hmt-sub">' + esc(format(T.tile.metrics, { n: n.inR, total: total })) + '</span>' +
+      '<span class="hmt-srow">' + sq + '<span class="hmt-body">' + chip(n, true) + '<span class="hmt-sub">' + esc(format(T.tile.metrics, { n: n.inR + n.out > 0 ? n.inR : n.bld || 0, total: total })) + '</span>' +
       (c.html ? '<span class="hmt-sub">' + c.html + '</span>' : '') + '</span></span></button>';
   }
   // the newest night among the fresh cards (what the summary counts), null without one

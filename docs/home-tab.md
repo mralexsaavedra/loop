@@ -666,7 +666,7 @@ What it shows: the per-day scores behind [day stepping](#day-stepping). `lib/sco
   | --- | --- |
   | `rec` | the night scored that morning only when it IS that day (`{value, band, sleep, pct?, pctBand?}`); `'gated'` while recovery was gated; null = no complete night that day — never an older night under its date |
   | `sleep` | that day's asleep hours (the recovery sleep-duration input, the number the sleep dial uses; without that component, recovery gated or under 14 nights, that day's own sleep row; null when the day has no night) |
-  | `monitor` | the summary tile on that day: `inR` / `out` among the cards fresh on that day (own date ≤ `STALE_DAYS` before it), `total`, and the HRV card `{value, dec, status, tone, date}` when fresh |
+  | `monitor` | the summary tile on that day: `inR` / `out` among the cards fresh on that day (own date ≤ `STALE_DAYS` before it), `bld` = the fresh cards still building their baseline (the chip reads "Building baseline", not "No data"), `total`, and the HRV card `{value, dec, status, tone, date}` when fresh |
 
 - `buildDials` turns each entry into `DIALS.days[i]` = `{date, sleep, recovery}` in today's dial shapes
   (always mode `today`; no trend fallback).

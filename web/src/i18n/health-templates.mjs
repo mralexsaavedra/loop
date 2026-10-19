@@ -18,7 +18,7 @@
  * plan-data.json `page` block, never in this tracked file.
  */
 export const es = {
-  emptyMsg: 'Aún no hay datos de salud. Suelta tu export de Apple Health en <code>data/apple-health/</code>, corre <code>extract.mjs</code> y regenera.',
+  emptyMsg: 'Aún no hay datos de salud. Llegan con el atajo Salud del iPhone o al importar la exportación de Apple Health (su zip en la carpeta de importación del servidor).',
   title: 'Salud',
   // ⓘ of the Salud header and of each section: aria-label of the toggle button
   infoTpl: 'Sobre {section}',
@@ -154,7 +154,7 @@ export const es = {
 };
 
 export const en = {
-  emptyMsg: 'No health data yet. Drop your Apple Health export into <code>data/apple-health/</code>, run <code>extract.mjs</code>, then regenerate.',
+  emptyMsg: 'No health data yet. It arrives with the iPhone Health Shortcut or by importing the Apple Health export (its zip in the server\'s import folder).',
   title: 'Health',
   // ⓘ of the Salud header and of each section: aria-label of the toggle button
   infoTpl: 'About {section}',

@@ -401,6 +401,8 @@ test('chip: fresh cards still building their baseline read "Building baseline", 
     const tiles = tilesOf(buildingOnly(), { locale });
     assert.ok(tiles.includes(`<span class="hmt-chip hmt-none hmt-building">${T.monitor.status.building}</span>`), locale);
     assert.ok(!tiles.includes(`>${T.monitor.tile.none}<`), locale);
+    // the count under the chip names the signals with data (building), never 0/5
+    assert.ok(Number(/hmt-sub">(\d+)\//.exec(tiles)[1]) > 0, locale + ': ' + /hmt-sub">[^<]*/.exec(tiles)[0]);
   }
   // a fresh in-range card still wins over a building one (the owner's case)
   const mixed = monitorFromInputs({ rhr: series({ base: 50, amp: 1, last: 50 }), hrv: series({ n: 10, base: 60, amp: 2 }) });
