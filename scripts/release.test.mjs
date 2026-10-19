@@ -73,6 +73,8 @@ test('CI runs the lint, the typecheck and both suites on every push and pull req
   assert.match(rel, /- platform: linux\/arm64\n\s+runner: ubuntu-24\.04-arm\n/);
   assert.doesNotMatch(rel, /setup-qemu-action/, 'no emulation');
   assert.match(rel, /push-by-digest=true/);
+  // the per-arch build's labels carry the plain X.Y.Z version (org.opencontainers.image.version), not the tag name
+  assert.match(rel, /images: mralexandersaavedra\/\$\{\{ matrix\.image \}\}\n {10}# only for the OCI labels[^\n]*\n {10}tags: type=semver,pattern=\{\{version\}\}\n {6}- id: build/);
   assert.match(rel, /docker buildx imagetools create/);
   assert.match(rel, /secrets\.DOCKERHUB_TOKEN/);
   assert.match(rel, /vars\.DOCKERHUB_USERNAME/);
