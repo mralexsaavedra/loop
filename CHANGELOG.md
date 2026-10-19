@@ -4,6 +4,18 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [1.0.3] - 2026-10-19
+
+- **Ten new journal questions** ("Completar el diario"), so a trip or a late film shows up next to the recovery it
+  affects: away from home (trip or holiday), ate out or a big meal, meditation or breathing, sauna or hot bath,
+  reading before bed, screens in the last hour before bed (series, film or phone, anywhere: the existing "screen in
+  bed" stays for the bed itself), hot bedroom, sex, sore muscles, and the period. The period question is asked only
+  of a female profile. Each one gets its insight once it has 5 days on each side, like the others; the existing
+  questions and their history are unchanged, and `journal-daily.csv` gains ten columns at the end
+  ([`docs/journal.md`](docs/journal.md#behaviours)).
+- **Releases publish their GitHub Release** with the version's CHANGELOG section (the release workflow's last job),
+  and the project skill `release` walks through a release end to end ([`docs/development.md`](docs/development.md#releasing)).
+
 ## [1.0.2] - 2026-10-19
 
 A full review of a second user's page (Mi Fitness band, iPhone, RENPHO scale, no Strava): every tab, card and sheet
