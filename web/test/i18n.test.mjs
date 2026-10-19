@@ -254,6 +254,7 @@ test('activity-templates.mjs (Entreno header + Activity card) has identical key 
     assert.equal(dict.levels.length, 5, `${locale} levels`);
     assert.equal(dict.weekdays.length, 7, `${locale} weekdays`);
     assert.match(dict.calHint, /\{days\}/);
+    assert.match(dict.calHintOne, /^1 /);
     assert.match(dict.staleNote, /\{days\}/);
     for (const k of ['w', 'm', 'm6']) for (const g of ['ranges', 'rangesLong', 'vs', 'prevNone']) assert.ok(dict[g][k], `${locale} ${g}.${k}`);
   }
@@ -362,4 +363,14 @@ test('onboarding-templates.mjs (the in-page onboarding) has identical key trees 
       assert.notEqual(v.trim(), '', `${locale} onboarding-templates.${p} must not be empty`);
     }
   }
+});
+
+test('no page text tells the viewer to run a developer command (a server user has no clone)', async () => {
+  const { readdirSync, readFileSync } = await import('node:fs');
+  const dir = new URL('../src/i18n/', import.meta.url);
+  const files = readdirSync(dir).filter((f) => f.endsWith('.mjs') && !f.includes('.test.'));
+  const hits = files.flatMap((f) => (readFileSync(new URL(f, dir), 'utf8').match(/.{0,40}npm run.{0,20}/g) || []).map((m) => `${f}: ${m}`));
+  const plan = JSON.parse(readFileSync(new URL('../../data/nutrition/plan-data.example.json', import.meta.url), 'utf8'));
+  for (const [k, v] of Object.entries(plan.page.notes)) if (/npm run/.test(v)) hits.push(`plan-data.example.json notes.${k}`);
+  assert.deepEqual(hits, []);
 });

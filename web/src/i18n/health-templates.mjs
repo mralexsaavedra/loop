@@ -62,7 +62,7 @@ export const es = {
     load: 'Carga vs recuperación',
   },
   // Entreno's share of this renderer (#health-train: running, cycling, load vs recovery)
-  trainEmptyMsg: 'Aún no hay carreras, salidas en bici ni carga. Aparecen con los entrenos del reloj o desde Strava (<code>npm run sync:strava</code>).',
+  trainEmptyMsg: 'Aún no hay carreras, salidas en bici ni carga. Aparecen con los entrenos del reloj o desde Strava.',
   bodyCompPointsTpl: '{n} lecturas en los últimos {days} días',
   trend: {
     weight: { title: 'Peso', unit: 'kg', deltaUnit: ' kg' },
@@ -133,10 +133,10 @@ export const es = {
   },
   runningTable: { dateH: 'Fecha', distH: 'Dist', timeH: 'Tiempo', paceH: 'Ritmo', hrH: 'FC media', reH: 'Esf.', elevH: 'Desn.', powerH: 'Pot.', gctH: 'TCS', oscH: 'Osc.', strideH: 'Zancada' },
   runningNote: 'Tus <b>{count}</b> carreras (más recientes arriba), del reloj y de Strava; los fragmentos del mismo día cuentan como una. Ritmo = tiempo ÷ distancia. Esfuerzo relativo (Esf.) y desnivel solo llegan de Strava; potencia, tiempo de contacto con el suelo (TCS), oscilación vertical y zancada solo de las métricas de carrera del reloj (export de Apple Health) — un guion es un dato que la fuente no registró, nunca un cero. <b>No es una tendencia</b>; mejorar el ritmo al mismo esfuerzo es la señal a vigilar.',
-  runningEmptyHtml: '<b>Aún no hay carreras.</b> Aparecen desde los entrenos de carrera del reloj o desde Strava (<code>npm run sync:strava</code>).',
+  runningEmptyHtml: '<b>Aún no hay carreras.</b> Aparecen desde los entrenos de carrera del reloj o desde Strava.',
   cyclingTable: { dateH: 'Fecha', distH: 'Dist', timeH: 'Tiempo', elevH: 'Desn.', hrH: 'FC media', reH: 'Esf.', kjH: 'Trabajo' },
   cyclingNote: 'Tus <b>{count}</b> salidas en bici (más recientes arriba). Tiempo = en movimiento (Strava) o duración del entreno (reloj); desnivel positivo, esfuerzo relativo (Esf.) y trabajo en kJ solo llegan de Strava — un guion es un dato que la fuente no registró, nunca un cero. Igual que en carrera: no es una tendencia; compara esfuerzo y FC en rutas parecidas.',
-  cyclingEmptyHtml: '<b>Aún no hay salidas en bici.</b> Aparecen desde los entrenos de ciclismo del reloj o desde Strava (<code>npm run sync:strava</code>).',
+  cyclingEmptyHtml: '<b>Aún no hay salidas en bici.</b> Aparecen desde los entrenos de ciclismo del reloj o desde Strava.',
   sleepCards: {
     nightsTargetLbl: 'noches ≥ {target}',
     sdLbl: 'variación noche a noche',
@@ -198,7 +198,7 @@ export const en = {
     load: 'Load vs recovery',
   },
   // Entreno's share of this renderer (#health-train: running, cycling, load vs recovery)
-  trainEmptyMsg: 'No runs, rides or load data yet. They appear with Watch workouts or from Strava (<code>npm run sync:strava</code>).',
+  trainEmptyMsg: 'No runs, rides or load data yet. They appear with Watch workouts or from Strava.',
   bodyCompPointsTpl: '{n} readings in the last {days} days',
   trend: {
     weight: { title: 'Weight', unit: 'kg', deltaUnit: ' kg' },
@@ -269,10 +269,10 @@ export const en = {
   },
   runningTable: { dateH: 'Date', distH: 'Dist', timeH: 'Time', paceH: 'Pace', hrH: 'Avg HR', reH: 'Effort', elevH: 'Elev.', powerH: 'Power', gctH: 'GCT', oscH: 'Osc.', strideH: 'Stride' },
   runningNote: 'Your <b>{count}</b> runs (most recent first), from the watch and from Strava; same-day fragments count as one. Pace = time ÷ distance. Relative effort and elevation come from Strava only; power, ground-contact time (GCT), vertical oscillation and stride only from the watch’s running metrics (Apple Health export) — a dash is a value the source did not record, never a zero. <b>Not a trend</b>; improving pace at the same effort is the signal to watch.',
-  runningEmptyHtml: '<b>No runs yet.</b> They appear from the watch’s running workouts or from Strava (<code>npm run sync:strava</code>).',
+  runningEmptyHtml: '<b>No runs yet.</b> They appear from the watch’s running workouts or from Strava.',
   cyclingTable: { dateH: 'Date', distH: 'Dist', timeH: 'Time', elevH: 'Elev.', hrH: 'Avg HR', reH: 'Effort', kjH: 'Work' },
   cyclingNote: 'Your <b>{count}</b> rides (most recent first). Time = moving time (Strava) or workout duration (watch); elevation gain, relative effort and work in kJ come from Strava only — a dash is a value the source did not record, never a zero. As with running, this is not a trend; compare effort and HR on similar routes.',
-  cyclingEmptyHtml: '<b>No rides yet.</b> They appear from the watch’s cycling workouts or from Strava (<code>npm run sync:strava</code>).',
+  cyclingEmptyHtml: '<b>No rides yet.</b> They appear from the watch’s cycling workouts or from Strava.',
   sleepCards: {
     nightsTargetLbl: 'nights ≥ {target}',
     sdLbl: 'night-to-night spread',

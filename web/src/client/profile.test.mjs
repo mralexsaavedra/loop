@@ -242,7 +242,8 @@ test('Strava focus + snapshot date', () => {
 test('nothing known: a generic icon and the onboarding hint only', () => {
   const h = html(setup({ profile: buildProfile({}) }));
   assert.match(h, /<svg class="pf-icon"/);
-  assert.ok(h.includes('profile/profile.example.json'));
+  assert.ok(h.includes('Your coach adds your profile'), 'the hint names who fills it, never a file path or command');
+  assert.doesNotMatch(h, /npm run|profile\.example\.json/);
   assert.doesNotMatch(h, />Body<|>Gear<|>Devices</);
   clean(h);
 });

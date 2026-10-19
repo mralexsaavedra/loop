@@ -33,7 +33,7 @@ export const en = {
   },
   open: 'Open profile',
   age: '{n} years',
-  onboarding: 'Nothing here yet. Copy profile/profile.example.json to loop-data/cache/profile.json (birthdate, height, devices) and run npm run sync to add your Strava name, photo and gear.',
+  onboarding: 'Nothing here yet. Your coach adds your profile (birthdate, height, devices); your name, photo and gear arrive when Strava is connected.',
   body: {
     heading: 'Body',
     height: 'Height',
@@ -118,7 +118,7 @@ export const es = {
   },
   open: 'Abrir perfil',
   age: '{n} años',
-  onboarding: 'Todavía no hay nada. Copia profile/profile.example.json a loop-data/cache/profile.json (fecha de nacimiento, altura, dispositivos) y ejecuta npm run sync para añadir tu nombre, foto y material de Strava.',
+  onboarding: 'Todavía no hay nada. Tu coach añade tu perfil (fecha de nacimiento, altura, dispositivos); tu nombre, foto y material llegan al conectar Strava.',
   body: {
     heading: 'Cuerpo',
     height: 'Altura',
