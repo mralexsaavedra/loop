@@ -39,7 +39,7 @@ suite and dependencies (`npm run test:services`).
 | `npm run import:health` | Import the newest Apple Health export zip (or `export.xml`) in `<files>/import/` into the extract via `extract.mjs --source` (skipped when already imported, `-- --force` re-imports; state in `<data root>/import-state.json`) — [`data-pipeline.md` → Apple Health export and extract](data-pipeline.md#apple-health-export-and-extract) |
 | `HC_SITE_DIR=<dir> node scripts/refresh.mjs [--seq N] [--wait-lock]` | The loop-server image's page refresh (the container port of `services/loop-web/refresh.sh`): the Apple Health import (`scripts/import-health.mjs`, non-fatal, under `HC_IMPORT_TIMEOUT`, default 1800 s), sync (non-fatal), validate + build the personal page (under a timeout), sanity check, atomic publish into `HC_SITE_DIR` with `status.json` (`commit` = the image version: `HC_VERSION`, else `package.json`; error codes `build` / `sanity` / `lock`), then the device manuals. The ingest service runs it in container mode ([`services/loop-ingest/README.md`](../services/loop-ingest/README.md#container-mode)); `--help` for the env variables |
 | `npm run connect -- <url>` | Save the LOOP server a coach clone mirrors (`scripts/connect.mjs`): checks `GET <url>/export/files` with the token (`INGEST_TOKEN`, else a hidden terminal prompt), writes `loop-data/server.json` `{url, token}` mode 600; `-- --forget` removes it — [`data-pipeline.md` → Coach as a client](data-pipeline.md#coach-as-a-client-of-a-loop-server) |
-| `scripts/image-smoke.sh` | Build both server images (`linux/amd64`, tag `smoke`, never pushed) and smoke-test a minimal compose stack, then `down -v`; CI job `images` — [Releasing](#releasing) |
+| `scripts/image-smoke.sh` | Build both server images (`SMOKE_PLATFORM`, default `linux/amd64`; CI runs `linux/amd64` and `linux/arm64` on native runners; tag `smoke`, never pushed) and smoke-test a minimal compose stack, then `down -v`; CI job `images` — [Releasing](#releasing) |
 | `npm run demo:data` | Regenerate the synthetic demo extract `data/demo/extract/` (`scripts/make-demo-data.mjs`; `-- --end YYYY-MM-DD --days N --seed N`, `--days` a whole number 2-3650) |
 | `npm run gen:food-calc` | Regenerate `services/loop-ingest/src/food-calc.js` from `lib/nutrition/foodlog.mjs` (a test fails while it is stale) |
 | `npm run gen:journal-calc` | Regenerate `services/loop-ingest/src/journal-calc.js` from `lib/journal/journal.mjs` (a test fails while it is stale) |
@@ -162,10 +162,12 @@ workflows keep `permissions: contents: read`. A `vX.Y.Z` tag runs
 [`.github/workflows/release.yml`](../.github/workflows/release.yml), which first runs that whole CI on the tagged
 commit (job `test`: `ci.yml` is a reusable workflow, `workflow_call`) and publishes the two server images to Docker
 Hub, `mralexandersaavedra/loop-server` (`docker/loop-server.Dockerfile`) and `mralexandersaavedra/loop-web`
-(`docker/loop-web.Dockerfile`), built from the repo root for `linux/amd64` and `linux/arm64` and tagged `X.Y.Z` and
+(`docker/loop-web.Dockerfile`), built from the repo root for `linux/amd64` and `linux/arm64`, each architecture on a native GitHub runner
+(`ubuntu-24.04` / `ubuntu-24.04-arm`, never QEMU: emulated arm64 crashed Node during `npm ci`) and pushed by digest, then
+joined into one multi-arch manifest per image (job `image`, `docker buildx imagetools create`) tagged `X.Y.Z` and
 `X.Y` (the OCI `version` label comes from the `VERSION` build argument), plus `latest` only when the version is the
 highest `X.Y.Z` tag in the repo: a backport tag (`v1.0.5` after `v1.1.0`) leaves `latest` where it is. Its first job,
-`check`, stops the release before anything is built or pushed (the `image` job `needs: [check, test]`) unless the version is a plain `X.Y.Z` (no pre-release),
+`check`, stops the release before anything is built or pushed (the `build` job `needs: [check, test]`, the `image` job `needs: [check, build]`) unless the version is a plain `X.Y.Z` (no pre-release),
 the tag equals `v` + the `package.json` version, the tagged commit is on `main`, every `loop-server` / `loop-web`
 `image:` line of [`docker/docker-compose.yml`](../docker/docker-compose.yml) uses `${HC_VERSION:-X.Y.Z}` with that
 version (no hard-coded tag), `HC_VERSION` in `docker/.env.example` is exactly that version, and the first version
