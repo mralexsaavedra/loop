@@ -7,7 +7,7 @@
 # so the host-mode stack and this image run the same config (scripts/loop-web-config.test.mjs pins it, and
 # scripts/loop-server-compose.test.mjs pins that this file copies exactly those two). The base is the same
 # digest-pinned nginx as services/loop-web/docker-compose.yml (Dependabot proposes updates); the tag stays for humans.
-FROM nginx:alpine@sha256:72aeb3308ef6cb3118242fb16389518923916dfa206e32d1a8377acc328b9870
+FROM nginx:alpine@sha256:892bb2152464f0c5d8972593a5f5afaf8054552580b699d95f8ff4af08c2d33d
 
 ARG VERSION=dev
 LABEL org.opencontainers.image.title="LOOP page (loop-web)" \
