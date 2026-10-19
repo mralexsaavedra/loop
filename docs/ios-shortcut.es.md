@@ -9,7 +9,8 @@ exportaciones completas de Apple Health.
 
 Los nombres de la interfaz de iOS aparecen en español tal como los muestra iOS (el Atajo ya hecho usa la interfaz
 en español); los que esta guía no tiene confirmados en español se dejan en cursiva con su nombre de la interfaz en
-inglés.
+inglés. Los tipos de métrica de *Buscar muestras médicas* (*Heart Rate Variability*, *Weight*…) aparecen en inglés
+aunque el iPhone esté en español, así que la guía los nombra en inglés.
 
 ## Camino rápido
 
@@ -76,7 +77,7 @@ allí:
 2. En el Atajo, apunta cada búsqueda filtrada por el reloj (*Origen es*, las 8 de arriba) a esa app en lugar de a
    *Apple Watch de …* (p. ej. *Mi Fitness*). Las claves sin filtro (`sleep`, `rhr`, `hrv`, `respiratory`,
    `walking_hr`, …) no necesitan nada: leen lo que escriba cualquiera.
-3. **Quita las búsquedas de las métricas que tu dispositivo nunca escribe.** Una *Buscar muestras de Salud* que no
+3. **Quita las búsquedas de las métricas que tu dispositivo nunca escribe.** Una *Buscar muestras médicas* que no
    encuentra nada detiene todo el Atajo con "No se ha encontrado ninguna muestra", así que no se envía nada.
    Comprueba lo que escribe la app en Salud → tu foto → *Apps* → la app → *Datos*, y borra cada bloque de búsqueda
    (y su campo JSON) de un tipo que no escriba. Mi Fitness, por ejemplo, no escribe ni VFC ni frecuencia cardiaca
@@ -131,18 +132,18 @@ escribir en tu servicio de ingesta.
 Repite los pasos 1 a 3 para cada clave que quieras (consulta la tabla de claves). Los pasos 4 y 5 se ejecutan una
 sola vez, al final.
 
-1. **Buscar muestras de Salud** donde *Tipo* es la métrica (p. ej. *Heart Rate Variability*).
-   - *Start Date is in the last* N días (consulta "Ventana" en la tabla).
-   - Claves marcadas con **Agrupar por día**: pon *Group By* en *Day*.
+1. **Buscar muestras médicas** donde *Tipo* es la métrica (p. ej. *Heart Rate Variability*).
+   - *Fecha de inicio está entre los/as últimos/as* N días (consulta "Ventana" en la tabla).
+   - Claves marcadas con **Agrupar por día**: pon *Agrupar por* en *Día*.
    - Claves marcadas con **filtrar por origen**: añade *Origen es* el dispositivo (consulta los problemas
      frecuentes).
-2. **Repetir con cada** elemento de *Muestras de Salud* y, dentro, una acción **Texto** con una línea en el
+2. **Repetir con cada ítem en** *Muestras médicas* y, dentro, una acción **Texto** con una línea en el
    formato de la clave, construida con las propiedades de la muestra:
    - *Fecha de inicio*, con formato **ISO 8601** con hora (p. ej. `2030-01-02T08:00:00+01:00`).
    - *Valor* (el número, no *Nombre*).
    - *Origen* solo en las claves que llevan un tercer campo.
    - Solo el sueño: *End Date* (ISO 8601) y el *Valor* de la muestra (la fase, p. ej. `Core`).
-3. Después de **End Repeat**, **Combinar texto** (*Repeat Results*) con **Saltos de línea**. Esa cadena es el
+3. Después de **Terminar repetición**, **Combinar texto** (*Repeat Results*) con **Saltos de línea**. Esa cadena es el
    valor de la clave.
 4. **Obtener contenido de URL**:
    - URL: `<your address>/ingest/health-auto-export` (`http://<server-ip>:8090` o `https://<your-host>`, consulta *Adónde envía el móvil los datos*)
@@ -233,7 +234,7 @@ Se aceptan comas decimales (`42,1`).
 | `diet_carbs` | Carbohydrates | total diario | **sí** | no | 8 días | `dietary-daily.csv` (carbs_g) |
 | `diet_fat` | Total Fat | total diario | **sí** | no | 8 días | `dietary-daily.csv` (fat_g) |
 | `sleep` | Sleep (Sleep Analysis); conserva TODAS las fases en la búsqueda, incluidas Awake e In Bed (In Bed sale del iPhone) | sueño | no | no | 3 días | `sleep-daily.csv` |
-| `hr_t` | Heart Rate, *Origen es* tu reloj (una pulsera: su app, p. ej. Mi Fitness) | muestras: las Start Dates (ISO 8601), una por línea | no: **sin agrupar** | **filtrar** por origen | 1 día | `hr-hourly.csv` |
+| `hr_t` | Heart Rate, *Origen es* tu reloj (una pulsera: su app, p. ej. Mi Fitness) | muestras: las fechas de inicio (ISO 8601), una por línea | no: **sin agrupar** | **filtrar** por origen | 1 día | `hr-hourly.csv` |
 | `hr_v` | la misma búsqueda | muestras: los valores (lpm), en el mismo orden de líneas que `hr_t` | no: **sin agrupar** | **filtrar** por origen | 1 día | `hr-hourly.csv` |
 | `hr_samples` | la misma búsqueda (alternativa antigua, con bucle, a `hr_t` + `hr_v`) | muestras (`ISO;bpm`) | no: **sin agrupar** | **filtrar** por origen | 1 día | `hr-hourly.csv` |
 
@@ -248,8 +249,8 @@ llegan al CSV como agregados por hora. Todas las reglas, por forma de clave:
 
 Duplica tu búsqueda de `active_energy` y cambia solo la agrupación:
 
-1. **Buscar muestras de Salud**: *Tipo* Active Energy (iOS 26: *Active Calories*), *Origen es* tu reloj (el mismo
-   filtro que `active_energy`), *Start Date is in the last* **3 días**, *Group By* **Hour** (no Day).
+1. **Buscar muestras médicas**: *Tipo* Active Energy (iOS 26: *Active Calories*), *Origen es* tu reloj (el mismo
+   filtro que `active_energy`), *Fecha de inicio está entre los/as últimos/as* **3 días**, *Agrupar por* **Hora** (no Día).
 2. **Repetir con cada** → **Texto** `<Start Date ISO 8601>;<Value>` y después **Combinar texto** con saltos de
    línea, como cualquier otra clave.
 3. Añade al cuerpo del POST un campo JSON `active_energy_hourly` con ese texto.
@@ -264,12 +265,12 @@ Un día son unos cientos de muestras, y miles en un día de entrenamiento (el re
 segundos mientras registra uno), así que crea esta clave **sin bucle**: dos listas sacadas directamente del
 resultado de la búsqueda, que la sincronización empareja por número de línea.
 
-1. **Buscar muestras de Salud**: *Tipo* **Frecuencia cardiaca**, *Origen es* tu reloj (una pulsera: su app, p. ej.
-   **Mi Fitness**), *Start Date is in the last* **1 día**, **sin** *Group By* (muestras en bruto).
-2. **Texto** con la variable mágica **Muestras de Salud**; tócala y elige la propiedad **Fecha de inicio**,
+1. **Buscar muestras médicas**: *Tipo* **Heart Rate**, *Origen es* tu reloj (una pulsera: su app, p. ej.
+   **Mi Fitness**), *Fecha de inicio está entre los/as últimos/as* **1 día**, **sin** *Agrupar por* (muestras en bruto).
+2. **Texto** con la variable mágica **Muestras médicas**; tócala y elige la propiedad **Fecha de inicio**,
    *Formato de fecha* **ISO 8601**. Después **Combinar texto** con **Saltos de línea**. Añade ese texto al cuerpo
    del POST como el campo JSON `hr_t`.
-3. **Texto** con la variable mágica **Muestras de Salud** › **Valor**, y después **Combinar texto** con **Saltos
+3. **Texto** con la variable mágica **Muestras médicas** › **Valor**, y después **Combinar texto** con **Saltos
    de línea**. Añádelo como el campo JSON `hr_v`. Una unidad tras el número (`72 count/min`, `72 lpm`) no es
    problema.
 
@@ -287,8 +288,8 @@ día. Después de añadirla, ejecuta una vez `npm run sync -- --full`.
 
 Tres búsquedas, cada una una copia de tu búsqueda de `steps_watch` con otro tipo:
 
-1. **Buscar muestras de Salud**: *Tipo* **Minutos de ejercicio**, **Distancia andando + corriendo** o **Pisos
-   subidos**; *Origen es* tu reloj; *Start Date is in the last* **8 días**; *Group By* **Day**.
+1. **Buscar muestras médicas**: *Tipo* **Exercise Minutes**, **Walking + Running Distance** o **Flights
+   Climbed**; *Origen es* tu reloj; *Fecha de inicio está entre los/as últimos/as* **8 días**; *Agrupar por* **Día**.
 2. **Repetir con cada** → **Texto** `<Start Date ISO 8601>;<Value>` y después **Combinar texto** con saltos de
    línea.
 3. Añade al cuerpo del POST los campos JSON `exercise_watch`, `distance_watch` y `flights_watch`. Deja la unidad de
@@ -306,7 +307,7 @@ Después ejecuta una vez `npm run sync -- --full`.
 | La columna del valor contiene texto como `18,4 %` o `70 kg` | Usaste el *Nombre* de la muestra, que es el valor con formato. Usa *Valor* para el número; *Origen* es el dispositivo o la app. |
 | No aparece el tipo `vo2max` en la lista | Salud lo llama *Capacidad aeróbica* (*Cardio Fitness* en inglés). |
 | Falta una clave en los datos enviados | Normal: una consulta sin resultados produce un texto vacío, y las claves vacías se omiten. |
-| El Atajo se detiene con "No se ha encontrado ninguna muestra" | Una *Buscar muestras de Salud* de un tipo que tu dispositivo nunca escribe no encontró nada, y la acción siguiente detiene la ejecución, así que no se envía nada. Borra ese bloque de búsqueda y su campo JSON (con un reloj o pulsera que no sea un Apple Watch: normalmente la VFC y la frecuencia cardiaca en reposo; consulta [Otro reloj o pulsera](#instalar-el-atajo-ya-hecho) y [Solución de problemas](#solución-de-problemas)). |
+| El Atajo se detiene con "No se ha encontrado ninguna muestra" | Una *Buscar muestras médicas* de un tipo que tu dispositivo nunca escribe no encontró nada, y la acción siguiente detiene la ejecución, así que no se envía nada. Borra ese bloque de búsqueda y su campo JSON (con un reloj o pulsera que no sea un Apple Watch: normalmente la VFC y la frecuencia cardiaca en reposo; consulta [Otro reloj o pulsera](#instalar-el-atajo-ya-hecho) y [Solución de problemas](#solución-de-problemas)). |
 | La automatización se ejecuta pero no envía nada | Los datos de Salud están bloqueados mientras el móvil está bloqueado, así que un disparador por hora del día por la noche no encuentra muestras. Actívala al **abrir una app** que uses a diario (con *Ejecutar inmediatamente*), que solo se dispara con el móvil desbloqueado. |
 | Días antiguos cambian después de una sincronización | Es lo esperado: el envío más reciente corrige los totales diarios, y las filas de la exportación sustituyen a las del Atajo cuando un `export.xml` nuevo cubre esas fechas. |
 
