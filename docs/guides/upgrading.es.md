@@ -14,10 +14,12 @@ Tu registro de comidas, tus recetas, el diario, los ajustes, los documentos y el
 base de datos. Una copia tarda unos segundos; en un servidor, desde la carpeta que contiene `docker-compose.yml`:
 
 ```sh
+(
 umask 077
 mkdir -p backups
 cp .env "backups/env-$(date +%F)"
 docker compose exec -T loop-db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > "backups/loop-db-$(date +%F).sql"
+)
 ```
 
 `umask 077` hace que solo tú puedas leer las copias (contienen tus datos de salud y tus secretos). Guarda la copia
@@ -175,6 +177,7 @@ abajo lleva su sufijo (`loop-db-second`, `loop-server-data-second`, `loop-web-re
 3. **Haz copia de seguridad** de todo lo que guarda el modo host, con el stack antiguo todavía en marcha:
 
    ```sh
+   (
    umask 077
    mkdir -p backups
    stamp=$(date +%Y%m%dT%H%M)
@@ -186,6 +189,7 @@ abajo lleva su sufijo (`loop-db-second`, `loop-server-data-second`, `loop-web-re
    cp services/loop-ingest/.env "backups/loop-ingest.env-before-images-$stamp"
    cp services/loop-web/.env "backups/loop-web.env-before-images-$stamp"
    cp docker/.env "backups/docker.env-before-images-$stamp"
+   )
    ```
 
    `pg_restore -l` lista el contenido de la copia (un error ahí significa que la copia está dañada: detente). Apunta

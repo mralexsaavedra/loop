@@ -14,10 +14,12 @@ Your food log, recipes, journal, settings, documents and Strava history live in 
 seconds; on a server, from the folder holding `docker-compose.yml`:
 
 ```sh
+(
 umask 077
 mkdir -p backups
 cp .env "backups/env-$(date +%F)"
 docker compose exec -T loop-db sh -c 'pg_dump -U "$POSTGRES_USER" "$POSTGRES_DB"' > "backups/loop-db-$(date +%F).sql"
+)
 ```
 
 `umask 077` keeps the copies readable by you only (they hold your health data and your secrets). Keep the copy
@@ -169,6 +171,7 @@ same way from its own clone: every name below gains its suffix (`loop-db-second`
 3. **Back up** everything host mode holds, with the old stack still running:
 
    ```sh
+   (
    umask 077
    mkdir -p backups
    stamp=$(date +%Y%m%dT%H%M)
@@ -180,6 +183,7 @@ same way from its own clone: every name below gains its suffix (`loop-db-second`
    cp services/loop-ingest/.env "backups/loop-ingest.env-before-images-$stamp"
    cp services/loop-web/.env "backups/loop-web.env-before-images-$stamp"
    cp docker/.env "backups/docker.env-before-images-$stamp"
+   )
    ```
 
    `pg_restore -l` lists the dump's contents (an error there means a broken dump: stop). Note the food log count
