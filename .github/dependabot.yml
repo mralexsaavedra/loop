@@ -7,6 +7,13 @@ updates:
     schedule: { interval: weekly }
     groups:
       dev-dependencies: { dependency-type: development }
+    ignore:
+      # @types/node follows the Node runtime (the 22 LTS line of .nvmrc and the images), never a newer Node's typings;
+      # a TypeScript major (7 is a native rewrite) is a planned upgrade checked on its own, not a weekly group bump.
+      - dependency-name: "@types/node"
+        update-types: [version-update:semver-major]
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
   - package-ecosystem: npm
     directory: /services/loop-ingest
     schedule: { interval: weekly }
