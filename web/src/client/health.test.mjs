@@ -591,7 +591,7 @@ test('fitness age: no number without sex, birthdate or VO₂max — the reason i
 });
 
 test('the empty-state copy inserted raw with innerHTML is trusted markup: plain text + <code> only (health.js, training-activity.js)', async () => {
-  // these strings deliberately carry <code>…</code> (a path, a command), so the scripts insert them unescaped;
+  // these strings may carry <code>…</code>, so the scripts insert them unescaped;
   // anything else (another tag, an attribute, a stray < or &) must not sneak into them
   const { es: esHealth } = await import('../i18n/health-templates.mjs');
   const { en: enAct, es: esAct } = await import('../i18n/activity-templates.mjs');
@@ -599,5 +599,13 @@ test('the empty-state copy inserted raw with innerHTML is trusted markup: plain 
   for (const s of raw) {
     assert.equal(typeof s, 'string');
     assert.doesNotMatch(s.replace(/<code>[^<>&"]*<\/code>/g, ''), /[<>&"]/, s);
+  }
+});
+
+test('page copy for missing data names no developer step: no export jargon in the VO2max line, no path or command in the empty state', async () => {
+  const { es: esHealth } = await import('../i18n/health-templates.mjs');
+  for (const T of [enHealth, esHealth]) {
+    assert.doesNotMatch(T.fitnessAge.noVo2, /\bexport\b/i, T.fitnessAge.noVo2);
+    assert.doesNotMatch(T.emptyMsg, /<code>|data\/|\.mjs|npm run/, T.emptyMsg);
   }
 });

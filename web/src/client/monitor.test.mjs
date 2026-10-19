@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { monitorFromInputs } from '../../../lib/score/monitor.mjs';
 import { es as esT, en as enT } from '../i18n/score-templates.mjs';
+import { es as esD, en as enD } from '../i18n/detail-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { addDays } from '../../../lib/date.mjs';
 
@@ -31,7 +32,7 @@ function monitor() {
   });
 }
 
-function render(mon, { locale = 'en', now = ASOF, healthNav = false, detail = false, tiles = null, day = null, days = null, stress = null } = {}) {
+function render(mon, { locale = 'en', now = ASOF, healthNav = false, detail = false, tiles = null, day = null, days = null, stress = null, detailT = null } = {}) {
   const host = { innerHTML: '' };
   const RealDate = Date;
   class FakeDate extends RealDate {
@@ -43,6 +44,7 @@ function render(mon, { locale = 'en', now = ASOF, healthNav = false, detail = fa
     Date: FakeDate, Math, String, Number, Array, Object, JSON,
   };
   if (detail) ctx.DETAIL = { metrics: {} };
+  if (detailT) ctx.I18N_DETAIL = detailT;
   if (day) ctx.HCDay = day;
   vm.createContext(ctx);
   loadUtil(ctx);
@@ -382,4 +384,44 @@ test('carried values (HC.carried): a tile whose value is from before the shown d
 test('monitor.js fills its templates with HC.format only (no ad-hoc .replace of {placeholders})', () => {
   assert.doesNotMatch(source, /\.replace\(\s*['"]\{/);
   assert.match(source, /format\(T\.rangeLbl, \{ lo: lo, hi: hi \}\)/);
+});
+
+// the second user's case (a band that writes resting HR + an estimated night, nothing else): fresh
+// cards still building their baseline are data, never "No data"; signals never recorded say so
+function buildingOnly() {
+  return monitorFromInputs({ rhr: series({ n: 10, base: 60, amp: 1 }), sleep: series({ n: 10, base: 8, amp: 0.2 }) });
+}
+
+test('chip: fresh cards still building their baseline read "Building baseline", never "No data" (list header and tile 1)', () => {
+  for (const [T, locale] of [[enT, 'en'], [esT, 'es']]) {
+    const html = render(buildingOnly(), { locale });
+    const head = html.match(/<div class="hs-head">[\s\S]*?<\/div>/)[0];
+    assert.ok(head.includes(`<span class="hmt-chip hmt-none hmt-building">${T.monitor.status.building}</span>`), head);
+    assert.ok(!head.includes(`>${T.monitor.tile.none}<`), locale);
+    const tiles = tilesOf(buildingOnly(), { locale });
+    assert.ok(tiles.includes(`<span class="hmt-chip hmt-none hmt-building">${T.monitor.status.building}</span>`), locale);
+    assert.ok(!tiles.includes(`>${T.monitor.tile.none}<`), locale);
+    // the count under the chip names the signals with data (building), never 0/5
+    assert.ok(Number(/hmt-sub">(\d+)\//.exec(tiles)[1]) > 0, locale + ': ' + /hmt-sub">[^<]*/.exec(tiles)[0]);
+  }
+  // a fresh in-range card still wins over a building one (the owner's case)
+  const mixed = monitorFromInputs({ rhr: series({ base: 50, amp: 1, last: 50 }), hrv: series({ n: 10, base: 60, amp: 2 }) });
+  assert.match(render(mixed), /<span class="hmt-chip hmt-in">/);
+  // a building card older than the stale cut is not fresh: still "No data"
+  assert.ok(render(buildingOnly(), { now: addDays(ASOF, 5) }).includes(`<span class="hmt-chip hmt-none">${enT.monitor.tile.none}</span>`));
+});
+
+test('a signal with no data at all says the device does not record it (and its sheet says so); a card that failed to render still says "No data"', () => {
+  for (const [T, D, locale] of [[enT, enD, 'en'], [esT, esD, 'es']]) {
+    const html = render(buildingOnly(), { locale, detailT: D });
+    for (const k of ['respiratory', 'hrv', 'wristTemp']) {
+      const row = cardOf(html, k);
+      assert.ok(row.includes(`<span class="db-base">${D.unrecorded}</span>`), `${locale} ${k}`);
+      assert.ok(!row.includes(T.monitor.status.none), `${locale} ${k}`);
+    }
+    assert.match(cardOf(html, 'rhr'), /hm-num/, 'a row with data is unchanged');
+  }
+  const mon = monitor();
+  Object.defineProperty(mon.cards[1], 'value', { get() { throw new Error('boom'); } });
+  assert.ok(cardOf(render(mon, { detailT: enD }), 'rhr').includes(enT.monitor.status.none));
 });

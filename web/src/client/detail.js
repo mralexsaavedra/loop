@@ -196,12 +196,22 @@
     // never sits next to two equal numbers
     if (st.delta != null && !st.flat && fmtM(m, st.avg, dec) === fmtM(m, st.prev, dec)) dec = Math.min(dec + 1, 3);
     var show = function (v) { return m.kind === 'recovery' ? signed(v, 1) + ' ' + u : m.kind === 'sleep' ? HC.hours(v) : valUnit(v, dec, u); };
-    var vars = { metric: titleOf(key), span: T.trend.span[k], prevSpan: T.trend.prevSpan[k], avg: st.avg == null ? '' : show(st.avg), prev: st.prev == null ? '' : show(st.prev) };
+    // a window clipped to the data's first day names that day ("since 19 Oct"), never "these 30 days"
+    var span = st.clamped && T.trend.spanSince ? format(T.trend.spanSince, { date: HC.fmtDate(st.from, { weekday: false }) }) : T.trend.span[k];
+    var vars = { metric: titleOf(key), span: span, prevSpan: T.trend.prevSpan[k], avg: st.avg == null ? '' : show(st.avg), prev: st.prev == null ? '' : show(st.prev) };
+    // the nutrition score with only today logged: today never counts until it ends, so say that
+    if (st.avg == null && S.todayPending && partialIn(m, st.from, st.to)) return format(S.todayPending, vars);
     if (st.avg == null) return format(S.none, vars);
     if (st.delta == null) return format(S.only, vars);
     // h:mm has no decimal to add: two windows that print the same clock read "about the same"
     var same = st.flat || (st.prev != null && vars.avg === vars.prev);
     return format(same ? S.flat : st.delta > 0 ? S.up : S.down, vars);
+  }
+  // a nutrition-score day still being logged (today) inside [from, to]
+  function partialIn(m, from, to) {
+    if (m.kind !== 'nscore' || !m.days) return false;
+    for (var d = from; d <= to; d = shiftIso(d, 1)) if (own(m.days, d) && m.days[d] && m.days[d].partial) return true;
+    return false;
   }
   function trendHtml(key, m, st, range) {
     var R = T.trend, dec = m.kind === 'sleep' ? 1 : m.dec;
@@ -281,7 +291,9 @@
       out += row(T.day.stagesLbl, format(T.day.stages, { rem: HC.hours(rem), deep: HC.hours(deep), core: HC.hours(core), awake: HC.hours(awake) }));
     }
     if (eff != null) out += row(T.day.eff, HC.pct(eff));
-    return out || '<p class="dt-note">' + esc(T.day.stagesNote) + '</p>';
+    // an in-bed-only night (DETAIL sleep.est): its device writes no stages at all
+    var est = sl && Array.isArray(sl.est) && at(sl.est, sl, iso) === 1 && T.day.stagesEstimated;
+    return out || '<p class="dt-note">' + esc(est ? T.day.stagesEstimated : T.day.stagesNote) + '</p>';
   }
   function nightHtml(key, m, iso) {
     var out = [];
@@ -527,7 +539,7 @@
       return (r.bare ? '' : head(key, r.head || '', r.info)) + '<div class="dt-body">' + (r.body || '') + '</div>';
     }
     var m = metric(key);
-    if (!m) return head(key) + '<div class="dt-body"><p class="dt-empty">' + esc(T.empty) + '</p></div>';
+    if (!m) return head(key) + '<div class="dt-body"><p class="dt-empty">' + esc(emptyText(key)) + '</p></div>';
     var ve = viewEnd(), end = ve.end;
     var sel = state.date && state.date >= m.start && state.date <= end ? state.date : lastDataDate(m, end);
     if (!state.month) state.month = monthOf(sel || end);
@@ -548,6 +560,22 @@
       periodHtml(key, m, end, state.range, state.shift) + DC.chartHtml(key, m, from, to, sel, state) + DC.breakdownHtml(m, from, to) +
       foldHtml(!!dd, '<div data-dt-part="cal">' + calendarHtml(key, m, state.month, sel, end) + '</div>' +
       '<div data-dt-part="day">' + dayPart(key, m, sel) + '</div>') + '</div>';
+  }
+  // a sheet without a series: gated recovery explains its gate (the Salud card's own text); a night
+  // signal absent while the build holds other data was never written by the user's device; else the
+  // generic "no data yet" (a fresh build before any sync)
+  function emptyText(key) {
+    var R = typeof SCORES !== 'undefined' && SCORES ? SCORES.recovery : null;
+    if (key === 'recovery' && R && R.gated && T.rec && T.rec.insufficient) return T.rec.insufficient;
+    if (NIGHT_KEYS.indexOf(key) !== -1 && key !== 'recovery' && isoDate(D.asOf) && T.unrecordedSheet) return T.unrecordedSheet;
+    // a load sheet whose workouts never carry heart rate / effort: the cards' own sentence (lib/score/load.mjs)
+    var L = typeof SCORES !== 'undefined' && SCORES ? SCORES.load : null;
+    if (/^load-/.test(key) && L && Array.isArray(L.modalities) && T.load && T.load.gated && T.load.gated.noEffortSource) {
+      var mod = null;
+      L.modalities.forEach(function (m) { if (m && 'load-' + m.key === key) mod = m; });
+      if (mod && mod.trend && mod.trend.reason === 'noEffortSource') return T.load.gated.noEffortSource;
+    }
+    return T.empty;
   }
   // a deep-dive page folds its month calendar + day panel behind one "History" row, so the page reads
   // like the reference (dial, contributors, insight, weekly bars, trend); collapsed by default, open

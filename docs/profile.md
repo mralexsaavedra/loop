@@ -72,15 +72,18 @@ Heading `Próximas pruebas`; sits right after the goal. Omitted without events.
 
 | Section | Content |
 | --- | --- |
-| Body (`Cuerpo`) | Height, latest weight + weigh-in date |
-| Gear (`Material`) | Bikes, shoes; km to 1 decimal in `--num`; primary badge; retired ones folded in a `<details>`; a `--mid` hint on active shoes ≥ `SHOE_REPLACE_KM` (700): "consider replacing, ~700–800 km typical life"; the scope note instead when gear is missing ([gear scope](#gear-scope)) |
-| Devices (`Dispositivos`) | Manual first; Strava-derived ones deduped by name (case-insensitive), usage merged into a manual entry of the same name (which keeps its `manual`); `hiddenDevices` dropped; a "Manual" link per device with a manual ([device manuals](#device-manuals-lan-page-only)) |
+| Body (`Cuerpo`) | Height, latest weight + weigh-in date; without either, a note that the coach adds the height |
+| Gear (`Material`) | Bikes, shoes; km to 1 decimal in `--num`; primary badge; retired ones folded in a `<details>`; a `--mid` hint on active shoes ≥ `SHOE_REPLACE_KM` (700): "consider replacing, ~700–800 km typical life"; the scope note instead when gear is missing ([gear scope](#gear-scope)); shown only when Strava is connected (a snapshot with a `fetchedAt`, or one carrying gear): a LOOP server writes an empty placeholder snapshot (`fetchedAt: null`) before Strava is set up, and then the block is omitted |
+| Devices (`Dispositivos`) | Manual first; Strava-derived ones deduped by name (case-insensitive), usage merged into a manual entry of the same name (which keeps its `manual`); `hiddenDevices` dropped; a "Manual" link per device with a manual ([device manuals](#device-manuals-lan-page-only)); none → "your coach adds them to your profile" |
 | Supplements (`Suplementos`) | Name, dose, meal; omitted when there are none |
 | Strava | Focus + snapshot date |
 
 ### Empty state and styles
 
-- Nothing known at all → only the onboarding hint (copy `profile.example.json`, run `npm run sync`).
+- Nothing known at all → only the onboarding hint (the coach adds the profile; name, photo and gear arrive with Strava).
+- Footnote: age from the birthdate on the viewer's device, weight = latest weigh-in; the "not the Strava value" clause
+  only when Strava is connected (as for Gear). No sheet copy names a file path, a repo folder or a command (a server
+  user has no clone; guarded in `web/src/client/profile.test.mjs`).
 - Styles: `web/src/styles/profile.css` (tokens only).
 
 ## Profile sources
@@ -231,7 +234,7 @@ accepted nutrition targets of a user without an AI coach).
 ### Gear scope
 
 - Strava returns bikes / shoes only for a token with `profile:read_all`; without it `gearScopeMissing: true`
-  (coarse flag) and the sheet says how to re-authorize.
+  (coarse flag) and the sheet asks to reconnect Strava with that permission.
 - Re-authorize (steps in `services/loop-ingest/README.md`):
   1. back up `.env`;
   2. re-run `services/loop-ingest/scripts/strava-auth.js` (on a server from the images:

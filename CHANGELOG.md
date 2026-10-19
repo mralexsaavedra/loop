@@ -4,6 +4,27 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [1.0.2] - 2026-10-19
+
+A full review of a second user's page (Mi Fitness band, iPhone, RENPHO scale, no Strava): every tab, card and sheet
+was opened and compared with her data. No sheet was broken; these read as bugs and are fixed:
+
+- **Health monitor**: signals still building their baseline count as data ("Creando base · 2/5", not "Sin datos ·
+  0/5"), today and on past days; a signal her device never records says so ("Tu dispositivo no lo registra") and
+  its sheet explains it instead of "no data yet".
+- **Recovery sheet while gated** explains the gate (the card's own text) instead of an empty sheet.
+- **Load without any effort source**: when workouts arrive without heart rate or Relative Effort (and no Strava),
+  the Home dial, the Entreno cards and their sheets say load cannot be calculated and what would enable it, instead
+  of "En formación" forever (`lib/score/load.mjs` reason `noEffortSource`).
+- **Sleep hours agree everywhere**: the monitor card and the Salud sleep rows kept 0.1 h (8:06 next to 8:04 on Home);
+  they keep 2 decimals now, for every user.
+- **Sheet wording**: the training-time sentence names the real window ("desde el 19 oct") when the data is shorter
+  than 30 days; the nutrition score says today counts once the day ends; an estimated in-bed night says the device
+  records only time in bed.
+- **Profile and Salud texts**: no file paths (devices, height, Strava permission), no Strava lines when Strava was
+  never connected (an empty Strava placeholder no longer counts as connected), no "export" jargon in the VO₂max
+  line, and the empty Salud state describes the Shortcut / zip import instead of repo folders.
+
 ## [1.0.1] - 2026-10-19
 
 Fixes found on a second user's page (a Mi Fitness band, no Watch).

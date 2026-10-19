@@ -219,6 +219,7 @@ export const en = {
     gated: {
       baselineBuilding: 'Trend still building: needs 4+ weeks of Relative Effort, 8+ active days and a non-trivial baseline.',
       fewDays: 'Too few training days of this modality in the last 6 weeks to say what a typical day is.',
+      noEffortSource: 'Your workouts arrive without heart rate or Relative Effort, so load cannot be calculated. A device that records heart rate during workouts, or connecting Strava, would make it possible.',
     },
     modalities: { gym: 'Gym', run: 'Run', bike: 'Bike' },
     otherLine: 'Other activities (last {days} days): {minutes} min, RE {re}, {sessions} sessions. Shown raw, not scored.',
@@ -263,6 +264,7 @@ export const en = {
       ariaNoEffort: '{modality} today: session without Relative Effort data, typical training day {typical}',
       ariaRest: '{modality}: no session yet today, typical training day {typical}',
       ariaGated: '{modality} load: not enough history yet',
+      ariaNoEffortSource: '{modality} load: your workouts arrive without heart rate or effort data, so load cannot be calculated',
       // shown under the dials only when Entreno's load detail (with the full caveats) is hidden
       caveatLine: 'Load = Relative Effort, which is HR-derived (it credits the metcon more than heavy sets); modalities are not comparable; there is no comparable load before Relative Effort tracking started; same-day rows are summed.',
     },
@@ -533,6 +535,7 @@ export const es = {
     gated: {
       baselineBuilding: 'Tendencia en formación: necesita 4+ semanas de Esfuerzo Relativo, 8+ días activos y una base no trivial.',
       fewDays: 'Hay muy pocos días de entreno de esta modalidad en las últimas 6 semanas para saber cómo es un día típico.',
+      noEffortSource: 'Tus entrenos llegan sin frecuencia cardiaca ni Esfuerzo Relativo, así que no se puede calcular la carga. Lo haría posible un dispositivo que registre el pulso durante el entreno, o conectar Strava.',
     },
     modalities: { gym: 'Gimnasio', run: 'Carrera', bike: 'Bici' },
     otherLine: 'Otras actividades (últimos {days} días): {minutes} min, RE {re}, {sessions} sesiones. Se muestran tal cual, sin puntuar.',
@@ -577,6 +580,7 @@ export const es = {
       ariaNoEffort: '{modality} hoy: sesión sin dato de Esfuerzo Relativo, día típico de entreno {typical}',
       ariaRest: '{modality}: sin sesión hoy (aún), día típico de entreno {typical}',
       ariaGated: 'Carga de {modality}: aún sin historial suficiente',
+      ariaNoEffortSource: 'Carga de {modality}: tus entrenos llegan sin pulso ni dato de esfuerzo, así que no se puede calcular la carga',
       // solo bajo los diales cuando el detalle de carga de Entreno (con todas las advertencias) está oculto
       caveatLine: 'Carga = Esfuerzo Relativo, que se deriva de la FC (reconoce más el metcon que las series pesadas); las modalidades no son comparables; no hay carga comparable antes de que empezara el seguimiento del Esfuerzo Relativo; las filas del mismo día se suman.',
     },

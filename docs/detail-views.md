@@ -60,7 +60,11 @@ Classic scripts inlined in this order right after `deepdive.js` (`web/src/client
   (never 0); rounded to the card's precision.
 - Keys (`DETAIL_KEYS`): sleep, recovery, hrv, rhr, respiratory, wristTemp, walkingHr, vo2max, fitnessAge,
   steps, exercise, distance, flights, energy, weight, bodyfat, lean, waist, workouts, load-gym, load-run,
-  load-bike. A key without data is absent (the view shows its empty state).
+  load-bike. A key without data is absent (the view shows its empty state: recovery gated by too little
+  history (`SCORES.recovery.gated`) shows the Salud card's own gate text (`rec.insufficient`); a night signal
+  (sleep, HRV, resting HR, respiratory, wrist temp) absent while the build holds other data says the
+  device does not record it (`unrecordedSheet`); otherwise, e.g. a build before any sync, "No data for this
+  metric yet").
 - Size: ~26 KB on the demo, ~62 KB on a real year; the whole feature adds ~71 KB to the demo page.
 
 ### Per-metric rules
@@ -384,11 +388,14 @@ All three follow the day they were opened on (strain: `X.sel`, else the view end
   same".
 - Short data (`periodStats`, exposed as `HCDetail.periodStats(key, end, days)`):
   - a window longer than the data is clamped to the metric's first day (the toggle stays; chart and average
-    start there, the pill says "Data since <date>");
+    start there, the pill says "Data since <date>", and the sentence names that day instead of the range's
+    span: "Your average Training time since 19 Oct was 34 min", never "these 30 days" (`trend.spanSince`);
   - a previous window wholly before the data, or starting before it with data on fewer than half its days →
     "No earlier period to compare";
   - one that starts before the data but holds data on at least half its days still compares (a 6-month view
-    on 7+ months of data).
+    on 7+ months of data);
+  - the nutrition score with only today in the window (today never counts until it ends): "Today does not
+    count until the day ends" (`trend.sent.todayPending`), not "No data in this period".
 
 ### Chart
 
@@ -445,7 +452,7 @@ All three follow the day they were opened on (strain: `X.sel`, else the view end
 
 | Metric type | Day panel |
 | --- | --- |
-| overnight views | the whole night (asleep h vs target, bed – wake, recovery, HRV, RHR, respiratory, wrist temp; sleep adds that night's stages "REM · deep · core · awake" hours and efficiency %, or a no-stages note when the night has none) |
+| overnight views | the whole night (asleep h vs target, bed – wake, recovery, HRV, RHR, respiratory, wrist temp; sleep adds that night's stages "REM · deep · core · awake" hours and efficiency %, or a no-stages note when the night has none: an estimated (in-bed-only) night says the device records only the time in bed, `day.stagesEstimated`) |
 | totals | value vs the median (energy + active / basal) |
 | sparse | vs the previous reading |
 | workouts / load | that day's sessions |

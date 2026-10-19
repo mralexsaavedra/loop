@@ -71,7 +71,7 @@ export const CLIENT_SCRIPTS = [
     provides: ['HCScore', 'HCAdvice'],
     requires: ['DETAIL', 'DIALS', 'HC', 'HCDay', 'HC_FMT', 'I18N_DATE', 'I18N_SCORE', 'LOCALE', 'SCORES'],
   },
-  { file: 'monitor.js', provides: [], requires: ['DETAIL', 'HC', 'HCDay', 'HC_FMT', 'I18N_DATE', 'I18N_SCORE', 'LOCALE', 'SCORES'] },
+  { file: 'monitor.js', provides: [], requires: ['DETAIL', 'HC', 'HCDay', 'HC_FMT', 'I18N_DATE', 'I18N_DETAIL', 'I18N_SCORE', 'LOCALE', 'SCORES'] },
   { file: 'energy.js', provides: [], requires: ['HC', 'HCDay', 'I18N_SCORE', 'SCORES'] },
   {
     file: 'nutri-score.js',

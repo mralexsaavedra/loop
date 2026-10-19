@@ -31,6 +31,8 @@
   var M = S && S.monitor;
   var T = typeof I18N_SCORE === 'undefined' || !I18N_SCORE ? null : I18N_SCORE.monitor;
   if (!M || !M.cards || !T) return;
+  // the detail sheet's copy (baked before this script): a signal the device never wrote says so
+  var TD = typeof I18N_DETAIL === 'undefined' || !I18N_DETAIL ? null : I18N_DETAIL;
   var STALE_DAYS = HC.STALE_DAYS; // a reading older than this is shown greyed, with no status (baked)
 
   // shared helpers (web/src/client/util.js)
@@ -49,11 +51,14 @@
     return HC.metricRow({ key: key, cls: 'hm-row ' + o.cls, attrs: ' data-hm="' + esc(key) + '"' + linkAttrs(key), aria: [lbl, o.aria].filter(Boolean).join(' · '),
       name: lbl, value: o.value, unit: o.unit, numCls: o.numCls, arrow: o.arrow, tone: o.tone, base: o.base });
   }
-  function emptyCard(key) {
-    return row(key, { cls: 'hm-none', value: '—', base: T.status.none, aria: T.status.none });
+  // `unrec`: the series has no reading at all (state 'none'): its device does not record it; a card
+  // that failed to render stays a plain "No data"
+  function emptyCard(key, unrec) {
+    var word = unrec && TD && TD.unrecorded ? TD.unrecorded : T.status.none;
+    return row(key, { cls: 'hm-none', value: '—', base: word, aria: word });
   }
   function card(c) {
-    if (c.state !== 'ok') return emptyCard(c.key);
+    if (c.state !== 'ok') return emptyCard(c.key, c.state === 'none');
     var age = daysOld(c.date);
     var old = age != null && age > STALE_DAYS;
     var unit = T.units[c.key] || '';
@@ -110,21 +115,25 @@
   // tile 1: out-of-range count (teal check "within range" when none), "n/total metrics" in range; a
   // tap jumps to the full monitor grid (core.js jump: opens its fold / switches to its tab)
   // the status chip (Inicio's summary tile and the Salud list header): out-of-range count, teal check
-  // "within range" when none, "no data" when nothing is fresh; + the in-range count
+  // "within range" when none, "building baseline" when the only fresh cards have no band yet, "no
+  // data" when nothing is fresh; + the in-range count
+  // `bld`: fresh cards still building their baseline (no band yet) are data too, never "no data"
   function counts() {
-    var inR = 0, out = 0;
+    var inR = 0, out = 0, bld = 0;
     M.cards.forEach(function (c) {
       if (!fresh(c)) return;
       if (c.status === 'normal') inR++;
       else if (c.status === 'high' || c.status === 'low') out++;
+      else if (c.status === 'building') bld++;
     });
-    return { inR: inR, out: out };
+    return { inR: inR, out: out, bld: bld };
   }
   // bare: no check inside (the Inicio tile draws its status as a square icon beside the chip)
   function chip(n, bare) {
     var TT = T.tile;
     return n.out > 0 ? '<span class="hmt-chip hmt-out">' + esc(format(TT.out, { n: n.out })) + '</span>'
       : n.inR > 0 ? '<span class="hmt-chip hmt-in">' + (bare ? '' : CHECK) + esc(TT.inRange) + '</span>'
+      : n.bld > 0 ? '<span class="hmt-chip hmt-none hmt-building">' + esc(T.status.building) + '</span>'
       : '<span class="hmt-chip hmt-none">' + esc(TT.none) + '</span>';
   }
   // tile 1: a square status icon (✓ teal: every fresh signal in range; ! orange: one or more out; none
@@ -137,7 +146,7 @@
     var sq = tone ? '<span class="hmt-sq hmt-' + tone + '" aria-hidden="true">' + (tone === 'in' ? CHECK : '!') + '</span>' : '';
     var c = carry(asOf, null);
     return '<button type="button" class="hmt hmt-sum' + c.cls + '" data-jump="monitor">' + lbl(T.heading) +
-      '<span class="hmt-srow">' + sq + '<span class="hmt-body">' + chip(n, true) + '<span class="hmt-sub">' + esc(format(T.tile.metrics, { n: n.inR, total: total })) + '</span>' +
+      '<span class="hmt-srow">' + sq + '<span class="hmt-body">' + chip(n, true) + '<span class="hmt-sub">' + esc(format(T.tile.metrics, { n: n.inR + n.out > 0 ? n.inR : n.bld || 0, total: total })) + '</span>' +
       (c.html ? '<span class="hmt-sub">' + c.html + '</span>' : '') + '</span></span></button>';
   }
   // the newest night among the fresh cards (what the summary counts), null without one

@@ -282,3 +282,9 @@ test('strainDial: calibrated strain -> each recent day with its ring = strain / 
   assert.equal(buildDials({ hasData: true, strain: { ok: true, asOf: '2030-01-02', days: [{ date: '2030-01-02', s: 3 }] } }, null).strain.days.length, 1);
   assert.equal(buildDials({ hasData: true }, null).strain, null);
 });
+
+test('loadDial: a modality gated as noEffortSource keeps that reason (the client words it apart from "Building")', () => {
+  const load = { asOf: '2026-10-19', reEpoch: null, modalities: ['gym', 'run', 'bike'].map((key) => ({ key, recent: [], last: null, typical: { value: null, n: 0 }, trend: { ok: false, reason: 'noEffortSource', trendPct: null } })) };
+  const d = buildDials({ hasData: true, recovery: null, load }, {}).load;
+  assert.equal(d.modalities.every((m) => m.state === 'gated' && m.reason === 'noEffortSource'), true);
+});
