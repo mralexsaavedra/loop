@@ -374,3 +374,14 @@ test('no page text tells the viewer to run a developer command (a server user ha
   for (const [k, v] of Object.entries(plan.page.notes)) if (/npm run/.test(v)) hits.push(`plan-data.example.json notes.${k}`);
   assert.deepEqual(hits, []);
 });
+
+test('every journal behaviour has its question and short name in both languages', async () => {
+  const { JOURNAL_BEHAVIORS } = await import('../../lib/journal/journal.mjs');
+  const S = await import('../src/i18n/score-templates.mjs');
+  for (const T of [S.en, S.es]) {
+    for (const b of JOURNAL_BEHAVIORS) {
+      assert.equal(typeof T.home.journal.q[b.key], 'string', `q.${b.key}`);
+      assert.equal(typeof T.home.journal.names[b.key], 'string', `names.${b.key}`);
+    }
+  }
+});

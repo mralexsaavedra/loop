@@ -37,6 +37,15 @@ Behaviour list, stored answer key → kind:
 | night | `alcohol` (drinks) | count 0–20 (0 = no) |
 | night | `late_meal` (dinner < 2 h before sleep), `screen_in_bed`, `evening_supplements` | yes / no |
 | status | `stressful_day` (hard / stressful day), `ill` (feeling ill) | yes / no |
+| day | `travel` (away from home: trip or holiday), `big_meal` (ate out or a big meal), `meditation` (meditation or breathing), `sauna` (sauna or hot bath) | yes / no |
+| night | `reading_before_bed`, `screens_before_bed` (series, film or phone in the last hour before bed, anywhere; `screen_in_bed` stays for the bed itself), `hot_bedroom`, `sex` | yes / no |
+| status | `muscle_soreness`, `period` (asked only of a female profile, below) | yes / no |
+
+The last ten were added in 1.0.3, after the original nine, so the stored keys and the CSV column order of the first
+nine are unchanged (`journal-daily.csv` gains ten columns at the end; an older export still parses by header).
+A behaviour with `sexes` is asked only of a profile of that sex: `behaviorsFor(sex)` (the profile's sex, the same
+one the fitness age reads) drops `period` from the bake's behaviour list and its insight rows for a male or unknown
+profile; the service still accepts the key from anyone (an answer from before a profile change keeps its history).
 
 `JOURNAL_LIMITS`:
 

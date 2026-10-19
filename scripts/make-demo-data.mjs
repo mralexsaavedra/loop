@@ -223,16 +223,22 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
   // mobility on rest days, rare illness; ~1 day in 8 not journaled. Its own PRNG, so the other files
   // never change. Any association with the demo recovery is chance, like the rest of the demo.
   const jrnd = prng(seed + 4);
+  // the 1.0.3 behaviours draw from their own stream, so the original nine keep their demo answers
+  const jrnd2 = prng(seed + 41);
   const journal = [];
   for (const date of dates.slice(-JOURNAL_DAYS)) {
     if (jrnd() < 0.12) continue;
     const wd = weekday(date), weekend = wd === 5 || wd === 6;
     const yes = (p) => jrnd() < p;
+    const yes2 = (p) => jrnd2() < p;
     journal.push({ date, notes: null, answers: {
       caffeine_late: yes(0.3), nap: yes(weekend ? 0.4 : 0.15), mobility: yes(PLAN[wd] ? 0.25 : 0.8),
       alcohol: weekend ? (yes(0.7) ? 1 + Math.floor(jrnd() * 4) : 0) : (yes(0.12) ? 1 : 0),
       late_meal: yes(weekend ? 0.5 : 0.2), screen_in_bed: yes(0.45), evening_supplements: yes(0.85),
       stressful_day: yes(wd >= 1 && wd <= 4 ? 0.35 : 0.1), ill: yes(0.03),
+      travel: yes2(weekend ? 0.15 : 0.03), big_meal: yes2(weekend ? 0.45 : 0.1), meditation: yes2(0.3), sauna: yes2(0.1),
+      reading_before_bed: yes2(0.5), screens_before_bed: yes2(0.6), hot_bedroom: yes2(0.2), sex: yes2(0.25),
+      muscle_soreness: yes2(PLAN[wd] ? 0.3 : 0.15),
     } });
   }
   out[JOURNAL_FILE] = journalCsv(journal);

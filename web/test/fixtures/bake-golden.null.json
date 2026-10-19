@@ -5494,6 +5494,51 @@
      "group": "status",
      "key": "ill",
      "kind": "yesno"
+    },
+    {
+     "group": "day",
+     "key": "travel",
+     "kind": "yesno"
+    },
+    {
+     "group": "day",
+     "key": "big_meal",
+     "kind": "yesno"
+    },
+    {
+     "group": "day",
+     "key": "meditation",
+     "kind": "yesno"
+    },
+    {
+     "group": "day",
+     "key": "sauna",
+     "kind": "yesno"
+    },
+    {
+     "group": "night",
+     "key": "reading_before_bed",
+     "kind": "yesno"
+    },
+    {
+     "group": "night",
+     "key": "screens_before_bed",
+     "kind": "yesno"
+    },
+    {
+     "group": "night",
+     "key": "hot_bedroom",
+     "kind": "yesno"
+    },
+    {
+     "group": "night",
+     "key": "sex",
+     "kind": "yesno"
+    },
+    {
+     "group": "status",
+     "key": "muscle_soreness",
+     "kind": "yesno"
     }
    ],
    "groups": [
