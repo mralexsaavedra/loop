@@ -18,7 +18,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import os from 'node:os';
-import { spawnSync } from 'node:child_process';
+import { astroBuild } from '../../scripts/lib/astro-build.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
@@ -135,9 +135,8 @@ function buildWithHideTabs(hideTabs) {
     plan.page = { ...(plan.page || {}), hideTabs };
     fs.writeFileSync(path.join(tmp, 'data', 'nutrition', 'plan-data.example.json'), JSON.stringify(plan));
     const outDir = path.join(tmp, 'out');
-    const r = spawnSync(path.join(REPO_ROOT, 'node_modules', '.bin', 'astro'), ['build', '--root', WEB_ROOT, '--outDir', outDir], {
+    const r = astroBuild({ root: WEB_ROOT, outDir,
       env: { ...process.env, HC_REPO_ROOT: tmp, DATA_MODE: 'example', LOCALE: 'en' },
-      encoding: 'utf8',
     });
     const htmlPath = path.join(outDir, 'index.html');
     return { r, html: fs.existsSync(htmlPath) ? fs.readFileSync(htmlPath, 'utf8') : null };
