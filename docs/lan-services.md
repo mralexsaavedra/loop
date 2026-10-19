@@ -229,6 +229,8 @@ runs `services/loop-ingest` (the data service + `loop-db`, built from the clone 
 its image is no longer published) and `services/loop-web` (nginx with the template bind-mounted, serving
 `services/loop-web/site/`) as two compose stacks, and builds the page on the HOST. The ordered install, the units and
 the second-install steps: [`services/loop-web/README.md` → Install (host)](../services/loop-web/README.md#install-host).
+Moving a host-mode install to the stack (same database volume, ports and token; backups, seeding the data volume,
+verification, rollback): [`guides/upgrading.md` → Moving a host-mode install to the images](guides/upgrading.md#moving-a-host-mode-install-to-the-images).
 
 - **Trigger.** `POST /sync` writes the seq atomically to `services/loop-ingest/trigger/refresh`; a systemd path unit
   (plus an hourly cron line) runs `refresh.sh` on the host, at most one rebuild per minute. Host side (`refresh.sh`

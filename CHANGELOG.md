@@ -43,6 +43,13 @@ drop their credentials, the in-container page build no longer sees the database 
 the files export logs skipped files by reason, and `docker compose exec loop-server npm run sync -- --full` is the
 documented way to rebuild the Shortcut cache on a server.
 
+**Moving a host-mode install to the images** (2026-10-19, before the tag). `docs/guides/upgrading.md` (and its
+Spanish twin) gains the step-by-step move of a host-mode install to the stack in `docker/`, written from the move of
+two real installs: `docker/.env` from the two host-mode files (same database volume, ports and token), backups,
+stopping host mode, seeding the server's data volume from `loop-data/` (and recording a plain `export.xml` as already
+imported), file modes the container can read, verification, retiring the units and the cron line, and rollback.
+Linked from the README's host-mode section and `docs/lan-services.md`.
+
 **Page language** (2026-10-18, before the tag). The page language (Spanish or English) is chosen on the page itself:
 the profile sheet's new Language section (`Idioma` / `Language`, `Español` / `English`, LAN page only) stores it on
 the server (`PUT /food/settings {locale}`, `es` | `en`, `null` clears it; the new `sql/013_settings_locale.sql` adds

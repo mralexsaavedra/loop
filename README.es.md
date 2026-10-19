@@ -264,7 +264,9 @@ stacks de Docker Compose, con la página generada en el propio equipo por `servi
 disparador, una unidad path de systemd y una línea de cron cada hora). Se mantiene para desarrollo y para las
 instalaciones que aún no han pasado a las imágenes
 ([`services/loop-web/README.md` → Install (host)](services/loop-web/README.md#install-host), en inglés; necesita un
-equipo Linux con systemd y Node.js).
+equipo Linux con systemd y Node.js). Para pasar una de esas instalaciones a las imágenes, en el sitio y
+conservando sus datos:
+[`docs/guides/upgrading.es.md` → Pasar una instalación en modo host a las imágenes](docs/guides/upgrading.es.md#pasar-una-instalación-en-modo-host-a-las-imágenes).
 
 ## Privacidad
 
