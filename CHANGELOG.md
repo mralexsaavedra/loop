@@ -4,6 +4,20 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [1.0.1] - 2026-10-19
+
+Fixes found on a second user's page (a Mi Fitness band, no Watch).
+
+- **Sleep dial reads the night it has.** The Home sleep dial took its night only from the recovery score's
+  sleep-duration component, which does not exist while recovery is gated or with under 14 nights of baseline, so a
+  new user or a band worn a few nights saw "No data" next to a real night. It now falls back to the sleep score's
+  newest night (an estimated in-bed night included); the past days the top bar steps to do the same with each day's
+  own night (`web/src/view/dial.mjs`, `lib/score/days.mjs`, [`docs/home-tab.md`](docs/home-tab.md#sleep-dial)).
+- **No developer commands on the page.** The empty training / running / cycling cards, the empty profile and the
+  example plan's footnote no longer tell the viewer to run `npm run sync:strava`, copy a JSON file or run
+  `npm run generate` (a server user has no clone); a test keeps page text free of `npm run`.
+- **"1 día con entreno de 30"**: the Activity calendar's hint is singular for one day (it read "1 días").
+
 ## [1.0.0] - 2026-10-19
 
 First versioned release. LOOP installs in two pieces:
