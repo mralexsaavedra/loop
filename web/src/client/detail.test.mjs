@@ -1662,10 +1662,11 @@ test('trend chart: no card, the band named "Typical range" top-right (no legend 
   const detail = { asOf: NOW, days: 365, metrics: { rhr: { kind: 'signal', dir: -1, dec: 0, start, v: Array(10).fill(50) } }, sessions: [] };
   const t = setup({ detail });
   t.api.open('rhr');
-  assert.match(t.host.innerHTML, /<p class="dt-trend-txt">Your average Resting HR these 30 days was 50 bpm\.<\/p>/);
+  // 10 days of data in a 30-day window: the sentence names the data's first day, not "these 30 days"
+  assert.match(t.host.innerHTML, /<p class="dt-trend-txt">Your average Resting HR since 19 Sep was 50 bpm\.<\/p>/);
   const es = setup({ locale: 'es', detail });
   es.api.open('rhr');
-  assert.ok(es.host.innerHTML.includes(`<p class="dt-trend-txt">Tu media de ${esT.metrics.rhr.title} estos 30 días fue 50 lpm.</p>`) || /<p class="dt-trend-txt">Tu media de [^<]+ estos 30 días fue 50/.test(es.host.innerHTML));
+  assert.match(es.host.innerHTML, /<p class="dt-trend-txt">Tu media de [^<]+ desde el 19 sept? fue 50/);
 });
 
 test('trend sentence: a real change that rounds to the same number gets one more decimal', () => {
@@ -2093,4 +2094,90 @@ test('no region landmarks inside the sheet: a <section> of a deep dive or the tr
   }
   assert.match(deepSource, /<ul class="dd-rows" aria-label="' \+ esc\(P\.aria\)/, 'the contributors list keeps its name');
   assert.match(deepSource, /<ol class="dd-cols" aria-label="/, 'the weekly columns keep theirs');
+});
+
+// clip a metric to its last `n` days (every per-day array sliced, start moved): a user whose data starts late
+function clipped(key, n) {
+  const d = copy(), m = d.metrics[key], len = m.v.length;
+  for (const k of Object.keys(m)) if (Array.isArray(m[k]) && m[k].length === len) m[k] = m[k].slice(-n);
+  m.start = addDays(m.start, len - n);
+  return d;
+}
+
+test('trend sentence: a window clipped to the data\'s first day names that day, never "these 30 days"; a full window keeps its span', () => {
+  for (const [T, locale] of [[enT, 'en'], [esT, 'es']]) {
+    const d = clipped('workouts', 2);
+    const s = setup({ locale, detail: d });
+    s.api.open('workouts');
+    const txt = s.host.innerHTML.match(/<p class="dt-trend-txt">([^<]*)<\/p>/)[1];
+    assert.ok(!txt.includes(T.trend.span.m), `${locale}: ${txt}`);
+    const since = format(T.trend.spanSince, { date: '' });
+    assert.ok(txt.includes(since), `${locale}: ${txt}`);
+    // the owner's case: a full 30-day window still says "these 30 days"
+    const full = setup({ locale });
+    full.api.open('steps');
+    assert.ok(full.host.innerHTML.match(/<p class="dt-trend-txt">([^<]*)<\/p>/)[1].includes(T.trend.span.m), locale);
+  }
+});
+
+test('nutrition score sheet: only today logged (never counts until the day ends) says so, never "no data in this period"', () => {
+  for (const [T, locale] of [[enT, 'en'], [esT, 'es']]) {
+    const s = setup({ locale });
+    s.ctx.window.HCNutriScore = { metric: () => ({ kind: 'nscore', dir: 1, dec: 0, start: NOW, v: [null], days: { [NOW]: { score: 40, partial: true, parts: {}, inc: false, meals: true, assumed: false } }, bands: { good: 85, mid: 60 } }) };
+    s.api.open('nutrition');
+    const txt = s.host.innerHTML.match(/<p class="dt-trend-txt">([^<]*)<\/p>/)[1];
+    assert.equal(txt, format(T.trend.sent.todayPending, { metric: T.metrics.nutrition.title }), locale);
+  }
+  // a window with no day at all keeps the plain "no data" sentence
+  const s = setup();
+  s.ctx.window.HCNutriScore = { metric: () => ({ kind: 'nscore', dir: 1, dec: 0, start: addDays(NOW, -60), v: [10].concat(Array(60).fill(null)), days: {}, bands: { good: 85, mid: 60 } }) };
+  s.api.open('nutrition');
+  assert.ok(s.host.innerHTML.includes(format(enT.trend.sent.none, { metric: enT.metrics.nutrition.title })));
+});
+
+test('a gated recovery sheet explains the gate (the card\'s own text), never the generic "no data yet"', () => {
+  for (const [T, locale] of [[enT, 'en'], [esT, 'es']]) {
+    const d = copy();
+    delete d.metrics.recovery;
+    const s = setup({ locale, detail: d, scores: { recovery: { gated: true, reason: 'insufficient' } } });
+    s.api.open('recovery');
+    assert.ok(s.host.innerHTML.includes(T.rec.insufficient), locale);
+    assert.ok(!s.host.innerHTML.includes(T.empty), locale);
+    assert.ok(s.host.innerHTML.includes('data-dt-act="close"'));
+  }
+});
+
+test('a night signal the device never wrote (absent while other data exists) says so in its sheet; a fresh empty build keeps "no data yet"', () => {
+  for (const [T, locale] of [[enT, 'en'], [esT, 'es']]) {
+    const d = copy();
+    for (const k of ['hrv', 'respiratory', 'wristTemp']) delete d.metrics[k];
+    const s = setup({ locale, detail: d });
+    for (const k of ['hrv', 'respiratory', 'wristTemp']) {
+      s.api.open(k);
+      assert.ok(s.host.innerHTML.includes(T.unrecordedSheet), `${locale} ${k}`);
+      assert.ok(!s.host.innerHTML.includes(T.empty), `${locale} ${k}`);
+    }
+    // a signal with data is unchanged (the owner's case)
+    s.api.open('rhr');
+    assert.match(s.host.innerHTML, /class="dt-cal"/);
+  }
+});
+
+test('sleep day detail: an estimated (in-bed-only) night without stages says the device records only time in bed', () => {
+  const d = addDays(NOW, -1);
+  for (const [T, locale] of [[enT, 'en'], [esT, 'es']]) {
+    const est = copy();
+    const sl = est.metrics.sleep;
+    sl.est = sl.v.map(() => null);
+    sl.est[dayIndex(sl, d)] = 1;
+    for (const k of ['rem', 'deep', 'core', 'awake', 'eff']) if (Array.isArray(sl[k])) sl[k][dayIndex(sl, d)] = null;
+    const o = setup({ locale, detail: est });
+    o.api.open('sleep', d);
+    assert.ok(o.host.innerHTML.includes(T.day.stagesEstimated), locale);
+    assert.ok(!o.host.innerHTML.includes(T.day.stagesNote), locale);
+    // a staged-device night without stages keeps the generic note
+    for (const k of ['rem', 'deep', 'core', 'awake', 'eff']) if (Array.isArray(sl[k])) sl[k][dayIndex(sl, addDays(NOW, -2))] = null;
+    o.api.open('sleep', addDays(NOW, -2));
+    assert.ok(o.host.innerHTML.includes(T.day.stagesNote), locale);
+  }
 });

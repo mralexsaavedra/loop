@@ -54,7 +54,11 @@ Files: `web/src/tabs/Salud.astro` + `health.js`. Top to bottom:
 3. **Top bar**: Health, Training and Nutrition open on the title alone; the avatar and date pill show on
    Home only (`docs/plan-page.md`, top bar); the freshness / Sync controls stay.
 4. **Health monitor** list (`#monitor`, `client/monitor.js`, see `docs/home-tab.md` "Health monitor"); its
-   header reads title → "n out of range" chip → ⓘ at the end.
+   header reads title → "n out of range" chip → ⓘ at the end. The chip counts only fresh cards: out of
+   range, else "Within range", else "Building baseline" (fresh cards with no band yet, e.g. a new device),
+   else "No data". A row whose signal has no reading at all says "Your device does not record it"
+   (`I18N_DETAIL.unrecorded`) and its sheet says the same; sleep keeps 2 decimals
+   (`lib/score/monitor.mjs`), so its h:mm matches the sleep score's.
 5. **Sections of `#health-body`**, in this order: [Recovery](#recovery), [Fitness](#fitness),
    [Sleep](#sleep), [Body composition](#body-composition), [Activity](#activity), [Energy](#energy).
    - Each is a `<section class="hs-sec" id="hl-<key>">` with the shared sentence-case section heading

@@ -22,7 +22,7 @@ const source = fs.readFileSync(path.join(here, 'score.js'), 'utf8');
 const ASOF = '2026-09-29';
 const wig = (i) => ((i * 7) % 5) - 2;
 
-function fixtureScores({ days = 49, shift = 2 } = {}) {
+function fixtureScores({ days = 49, shift = 2, noEffort = false } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'score-client-'));
   try {
     const ds = Array.from({ length: days }, (_, i) => addDays(ASOF, i - (days - 1)));
@@ -32,6 +32,8 @@ function fixtureScores({ days = 49, shift = 2 } = {}) {
     w('sleep-daily.csv', 'date,asleep_hours,source,bedtime,waketime', ds.map((d, i) => `${d},${7.5 + wig(i) * 0.2},W,${23 + wig(i) * 0.1},${7 + wig(i) * 0.1}`));
     const rows = ['date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source,distance_km,relative_effort,kilojoules'];
     ds.forEach((d, i) => {
+      // a band without Strava (Mi Fitness): sessions with no heart rate and no Relative Effort
+      if (noEffort) { if (i % 2 === 0) rows.push(`${d},Running,34,367,,,,Mi Fitness,3.24,,`); return; }
       if (i % 2 === 0) rows.push(`${d},Running,40,,140,,165,Strava API,5,${50 + (i % 7)},`);
       if (i % 5 === 0) rows.push(`${d},Cycling,60,,140,,165,Strava API,20,20,`);
       if (i % 4 === 0) rows.push(`${d},Tennis,60,,,,,Strava API,,15,`);
@@ -1120,4 +1122,47 @@ test('carried values (HC.carried): Salud\'s recovery card dims a headline night 
   render(s, { now: addDays(ASOF, 2), hosts });
   assert.ok(hosts.rec.innerHTML.includes('<div class="rec-when">Tue 29 Sep</div>'), 'its date names the night (weekday kept: full width)');
   assert.doesNotMatch(big(addDays(ASOF, 5)), /carried/, 'stale: the card\'s grey is the stronger state');
+});
+
+/* ---- workouts that never carry effort (a band without Strava): not "Building" ---- */
+test('no effort source: the load dial says the workouts arrive without effort (not "Building") and a line under the dials says what would enable it; es too', () => {
+  for (const [locale, T] of [['en', enT], ['es', esT]]) {
+    const s = fixtureScores({ noEffort: true });
+    const html = withDials(s, { locale });
+    const D = buildDials(s, HEALTH).load;
+    const fig = figOf(html, D.defaultKey);
+    assert.ok(fig.includes(T.dials.load.noEffort), `${locale}: the no-effort word inside the ring`);
+    assert.ok(!fig.includes(`>${T.dials.load.gated}<`), `${locale}: never "Building"`);
+    assert.ok(fig.includes(T.dials.load.ariaNoEffortSource.replace('{modality}', T.load.modalities[D.defaultKey])), `${locale}: the accessible name explains it`);
+    const line = html.match(/<div class="dial-caveat dial-caveat-noeffort">([^<]*)<\/div>/);
+    assert.ok(line, `${locale}: a plain line under the dials`);
+    assert.equal(line[1], T.load.gated.noEffortSource.replace(/'/g, '&#39;'));
+    assert.match(T.load.gated.noEffortSource, /Strava/);
+    assert.doesNotMatch(T.load.gated.noEffortSource, /npm|\.csv|extract/, 'no developer words');
+  }
+});
+
+test('no effort source: the Entreno load cards name it (pill + aria) and a note under the cards says why and what would enable it; es too', () => {
+  for (const [locale, T] of [['en', enT], ['es', esT]]) {
+    const s = fixtureScores({ noEffort: true });
+    const hosts = {};
+    render(s, { locale, hosts, dials: buildDials(s, HEALTH) });
+    const html = hosts.load.innerHTML;
+    assert.doesNotMatch(html, new RegExp(T.load.gated.baselineBuilding.slice(0, 20)), `${locale}: never the 4-weeks promise`);
+    assert.ok(!html.includes(`<span class="ld-pill ld-flat">${T.dials.load.gated}</span>`), `${locale}: no "Building" pill`);
+    assert.equal(count(html, `<span class="ld-pill ld-flat">${T.dials.load.noEffort}</span>`), 3, `${locale}: every card says no effort data`);
+    const note = html.match(/<p class="sc-note ld-noeffort">([^<]*)<\/p>/);
+    assert.ok(note, `${locale}: a note under the cards`);
+    assert.equal(note[1], T.load.gated.noEffortSource.replace(/'/g, '&#39;'));
+  }
+});
+
+test('effort data under 4 weeks (the owner case) keeps "Building": no no-effort line under the dials nor note under the cards', () => {
+  const s = fixtureScores({ days: 14 });
+  const hosts = {};
+  const html = render(s, { hosts, dials: buildDials(s, HEALTH) });
+  assert.ok(hosts.load.innerHTML.includes(`<span class="ld-pill ld-flat">${enT.dials.load.gated}</span>`));
+  assert.doesNotMatch(html, /dial-caveat-noeffort|ld-noeffort/);
+  const s2 = fixtureScores();
+  assert.doesNotMatch(withDials(s2), /dial-caveat-noeffort|ld-noeffort/, 'calibrated: unchanged');
 });

@@ -39,7 +39,7 @@ export const en = {
     height: 'Height',
     weight: 'Weight',
     weighIn: 'Latest weigh-in · {date}',
-    empty: 'Add heightCm to loop-data/cache/profile.json; the weight comes from your latest weigh-in.',
+    empty: 'Your coach adds your height to your profile; the weight comes from your latest weigh-in.',
   },
   gear: {
     heading: 'Gear',
@@ -51,7 +51,7 @@ export const en = {
     frames: { mtb: 'Mountain', cross: 'Cyclocross', road: 'Road', tt: 'Time trial', gravel: 'Gravel' },
     weightKg: '{value} kg',
     none: 'No bikes or shoes on Strava.',
-    scopeMissing: 'Strava shares bikes and shoes only with the profile:read_all permission. Re-authorize the ingest service to show them (services/loop-ingest/README.md).',
+    scopeMissing: 'Strava shares bikes and shoes only with the profile:read_all permission. Reconnect Strava with that permission to show them.',
   },
   devices: {
     heading: 'Devices',
@@ -60,7 +60,7 @@ export const en = {
     usage: '{n} activities on Strava · last {date}',
     usageNoDate: '{n} activities on Strava',
     fromStrava: 'Seen on Strava',
-    none: 'Add your devices to loop-data/cache/profile.json.',
+    none: 'No devices yet: your coach adds them to your profile.',
     manual: 'Manual',
     manualLabel: 'Manual for {name} (PDF, opens in a new tab)',
   },
@@ -84,6 +84,7 @@ export const en = {
     asOf: 'Strava data from {date}',
   },
   note: 'Age is worked out from your birthdate on this device. Weight is your latest weigh-in, not the Strava value.',
+  noteNoStrava: 'Age is worked out from your birthdate on this device. Weight is your latest weigh-in.',
 };
 
 export const es = {
@@ -124,7 +125,7 @@ export const es = {
     height: 'Altura',
     weight: 'Peso',
     weighIn: 'Última pesada · {date}',
-    empty: 'Añade heightCm a loop-data/cache/profile.json; el peso sale de tu última pesada.',
+    empty: 'Tu coach añade tu altura a tu perfil; el peso sale de tu última pesada.',
   },
   gear: {
     heading: 'Material',
@@ -136,7 +137,7 @@ export const es = {
     frames: { mtb: 'Montaña', cross: 'Ciclocross', road: 'Carretera', tt: 'Contrarreloj', gravel: 'Gravel' },
     weightKg: '{value} kg',
     none: 'No hay bicis ni zapatillas en Strava.',
-    scopeMissing: 'Strava solo comparte bicis y zapatillas con el permiso profile:read_all. Vuelve a autorizar el servicio de ingesta para verlas (services/loop-ingest/README.md).',
+    scopeMissing: 'Strava solo comparte bicis y zapatillas con el permiso profile:read_all. Vuelve a conectar Strava con ese permiso para verlas.',
   },
   devices: {
     heading: 'Dispositivos',
@@ -145,7 +146,7 @@ export const es = {
     usage: '{n} actividades en Strava · última {date}',
     usageNoDate: '{n} actividades en Strava',
     fromStrava: 'Visto en Strava',
-    none: 'Añade tus dispositivos a loop-data/cache/profile.json.',
+    none: 'Aún no hay dispositivos: tu coach los añade a tu perfil.',
     manual: 'Manual',
     manualLabel: 'Manual de {name} (PDF, se abre en una pestaña nueva)',
   },
@@ -169,4 +170,5 @@ export const es = {
     asOf: 'Datos de Strava del {date}',
   },
   note: 'La edad se calcula en este dispositivo a partir de tu fecha de nacimiento. El peso es tu última pesada, no el de Strava.',
+  noteNoStrava: 'La edad se calcula en este dispositivo a partir de tu fecha de nacimiento. El peso es tu última pesada.',
 };

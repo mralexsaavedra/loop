@@ -184,6 +184,10 @@ values; no new metric (the recovery % is a rank of the same composite).
   "includes N sessions without effort data" sit under its ⓘ (`docs/detail-views.md`).
 - A gated modality (`baselineBuilding`, or `fewDays` when there is no typical day) is greyed with no
   number (its reason is in the sheet).
+- `noEffortSource` (workouts exist but not one row ever carried Relative Effort, e.g. a band without
+  heart rate and no Strava): the ring says "No effort data" instead of "Building", and one line under the
+  dials (`.dial-caveat-noeffort`) says the workouts arrive without heart rate / effort, so load cannot be
+  calculated, and that a device recording heart rate during workouts, or Strava, would enable it.
 
 ## Monitor tiles
 
@@ -604,6 +608,8 @@ What it shows: per-modality training load from Strava Relative Effort, today vs 
 - Same-day rows follow the [shared rule](#same-day-merge-rule) (junk dropped, one source, then SUM).
 - The series starts at the first date with any RE (`reEpoch`); acute 7d vs chronic 42d EWMA.
 - Gate ("baselineBuilding"): under 28 days since the epoch, under 8 non-zero days, or chronic < 1.
+- Gate ("noEffortSource"): no epoch although workouts exist (`coverage.preEpoch > 0`): no row ever carried
+  effort, so waiting never fills the baseline; every modality gets this reason instead of "baselineBuilding".
 - The 0-100 `relScore` exists only within a modality.
 - A day whose rows in a modality are ALL unscored is MISSING, not rest: both EWMAs carry forward over
   it without decay, and a modality whose last 7 days hold such sessions says so on its card and load

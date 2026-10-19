@@ -107,9 +107,14 @@
       (active.length ? '<ul class="pf-list">' + li(active) + '</ul>' : '') +
       (retired.length ? '<details class="pf-retired"><summary>' + esc(format(T.gear.retired, { n: retired.length })) + '</summary><ul class="pf-list">' + li(retired) + '</ul></details>' : '');
   }
+  // Strava connected = a snapshot that was really fetched (a LOOP server writes an empty placeholder with
+  // fetchedAt null before Strava is ever set up) or one that carries gear: without it no copy names Strava
+  function stravaOn() {
+    return Boolean(P.strava && (P.stravaAsOf || list(P.bikes).length || list(P.shoes).length || P.gearScopeMissing));
+  }
   function gearHtml() {
     var G = T.gear, bikes = list(P.bikes), shoes = list(P.shoes);
-    if (!P.strava && !bikes.length && !shoes.length) return '';
+    if (!stravaOn() && !bikes.length && !shoes.length) return '';
     var inner = gearGroup(G.bikes, bikes, 'bike') + gearGroup(G.shoes, shoes, 'shoe');
     if (P.gearScopeMissing) inner += note(G.scopeMissing, 'pf-note-warn');
     else if (!inner) inner = note(G.none);
@@ -367,7 +372,7 @@
   }
   function render() {
     if (!P.hasData) return { head: headHtml(), body: goalHtml() + langHtml() + note(T.onboarding, 'pf-onboard') };
-    return { head: headHtml(), body: goalHtml() + langHtml() + eventsHtml() + bodyHtml() + gearHtml() + devicesHtml() + supplementsHtml() + stravaHtml() + note(T.note, 'pf-foot') };
+    return { head: headHtml(), body: goalHtml() + langHtml() + eventsHtml() + bodyHtml() + gearHtml() + devicesHtml() + supplementsHtml() + stravaHtml() + note(stravaOn() ? T.note : T.noteNoStrava, 'pf-foot') };
   }
 
   HC.registerView('profile', { title: function () { return T.title; }, render: render });

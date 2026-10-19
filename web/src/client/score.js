@@ -268,6 +268,7 @@
     var name = lt.modalities[m.key] || m.key;
     var dm = loadDialOf(m.key);
     var gated = dm ? dm.state !== 'ok' : !(m.trend && m.trend.ok);
+    var noEff = gated && m.trend && m.trend.reason === 'noEffortSource';
     var last = m.last && isoDate(m.last.date) ? m.last : dm && dm.last && isoDate(dm.last.date) ? dm.last : null;
     var fill = null;
     if (last && dm) (dm.days || []).forEach(function (x) { if (x.date === last.date && x.fill) fill = x.fill; });
@@ -276,7 +277,7 @@
     // no value ("—": no session in the data) = no delta pill either: "▼ -64%" beside "—" read as a value
     var tr = m.trend && m.trend.ok && last && !gated ? m.trend : null;
     var pill = tr ? '<span class="ld-pill ld-' + LOAD_TONE[tr.band] + '">' + esc(LOAD_ARROW[tr.band] + ' ' + pct(tr.trendPct)) + '</span>'
-      : gated ? '<span class="ld-pill ld-flat">' + esc(dl.gated) + '</span>' : '';
+      : gated ? '<span class="ld-pill ld-flat">' + esc(noEff ? dl.noEffort : dl.gated) + '</span>' : '';
     var aria = [format(lt.cardAria, { modality: name })];
     aria.push(last && !gated ? format(lt.lastAria, { date: HC.fmtDate(last.date), re: val }) : gated ? lt.gated[(m.trend && m.trend.reason) || 'baselineBuilding'] : lt.noSession);
     if (tr) aria.push(format(lt.trendLbl, { pct: pct(tr.trendPct) }) + ', ' + lt.bands[tr.band]);
@@ -294,7 +295,8 @@
     if (asOf) out.push('<p>' + esc(asOf.charAt(0).toUpperCase() + asOf.slice(1)) + '. ' + esc(lt.pillHelp) + '</p>');
     L.modalities.forEach(function (m) {
       var parts = [m.relScore != null ? format(lt.relLbl, { score: m.relScore, modality: ADV_MOD[m.key] }) : lt.noRel];
-      if (m.trend && m.trend.ok) parts.push(format(lt.trendLbl, { pct: pct(m.trend.trendPct) }) + ' · ' + lt.bands[m.trend.band]);
+      if (m.trend && m.trend.reason === 'noEffortSource') parts = [lt.gated.noEffortSource];
+      else if (m.trend && m.trend.ok) parts.push(format(lt.trendLbl, { pct: pct(m.trend.trendPct) }) + ' · ' + lt.bands[m.trend.band]);
       else parts.push(lt.gated[(m.trend && m.trend.reason) || 'baselineBuilding']);
       if (m.unscoredAcute > 0) parts.push(format(lt.unscoredNote, { n: m.unscoredAcute }));
       out.push('<p class="sc-mod-line"><b>' + esc(lt.modalities[m.key] || m.key) + ':</b> ' + esc(parts.join(' · ')) + '</p>');
@@ -316,7 +318,8 @@
       HC.infoBtn('ld-info', format(lt.infoLbl, { section: lt.heading })) + '</div>' +
       '<div class="hs-info" id="ld-info" hidden>' + loadInfo(L) + '</div>' +
       (stale ? staleHtml(L.asOf) : '') +
-      '<div class="ld-cards">' + L.modalities.map(loadCard).join('') + '</div></section>';
+      '<div class="ld-cards">' + L.modalities.map(loadCard).join('') + '</div>' +
+      (noEffortSource(L.modalities) ? '<p class="sc-note ld-noeffort">' + esc(lt.gated.noEffortSource) + '</p>' : '') + '</section>';
   }
 
   function caveatsHtml() {
@@ -485,6 +488,10 @@
       var extra = ' data-dmod="' + attr(m.key) + '"' + hid;
       var mod = T.load.modalities[m.key] || m.key;
       var dk = 'load-' + m.key;
+      // workouts that never carry effort: say so (no waiting fills this), never "Building"
+      if (m.state !== 'ok' && m.reason === 'noEffortSource') {
+        return dialFig('dial-load dial-off dial-noeffort', stale, extra, format(lt.ariaNoEffortSource, { modality: mod }), dialSvg({ mid: d.mid }), offCentre(lt.noEffort), lt.label, dk);
+      }
       if (m.state !== 'ok') {
         return dialFig('dial-load dial-off', stale, extra, format(lt.ariaGated, { modality: mod }), dialSvg({ mid: d.mid }), offCentre(lt.gated), lt.label, dk);
       }
@@ -522,12 +529,19 @@
     var sec = sectionId ? document.getElementById(sectionId) : null;
     return !(sec && sec.hidden);
   }
+  // every modality gated because no workout ever carried effort (lib/score/load.mjs): dial (state/reason)
+  // or SCORES (trend.reason) entries
+  function noEffortSource(list) {
+    return !!(list && list.length) && list.every(function (m) { return (m.reason || (m.trend && m.trend.reason)) === 'noEffortSource'; });
+  }
   function caveatLines(dt, hasLoad) {
     var out = '';
     if (D.recovery && D.recovery.state === 'ok' && !detailReachable('health') && dt.recovery.caveatLine) {
       out += '<div class="dial-caveat dial-caveat-rec">' + esc(dt.recovery.caveatLine) + '</div>';
     }
-    if (hasLoad && !detailReachable('entreno', 'sec-load') && dt.load.caveatLine) {
+    if (hasLoad && noEffortSource(D.load.modalities)) {
+      out += '<div class="dial-caveat dial-caveat-noeffort">' + esc(T.load.gated.noEffortSource) + '</div>';
+    } else if (hasLoad && !detailReachable('entreno', 'sec-load') && dt.load.caveatLine) {
       out += '<div class="dial-caveat dial-caveat-load">' + esc(dt.load.caveatLine) + '</div>';
     }
     return out;

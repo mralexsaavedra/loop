@@ -25,6 +25,8 @@ export const en = {
     // the window's days by range (detail.js breakdownHtml): one stacked bar + a count per state
     brk: { title: 'Days in this period', count: '{n}x', learn: 'Learn more' },
     span: { w: 'this week', m: 'these 30 days', m6: 'these 6 months', y: 'this year' },
+    // a window clipped to the data's first day: the sentence names that day, never "these 30 days"
+    spanSince: 'since {date}',
     prevSpan: { w: 'the week before', m: 'the 30 days before', m6: 'the 6 months before', y: 'the year before' },
     sent: {
       up: 'Your average {metric} {span} was {avg}, higher than {prevSpan} ({prev}).',
@@ -32,11 +34,16 @@ export const en = {
       flat: 'Your average {metric} {span} was {avg}, about the same as {prevSpan} ({prev}).',
       only: 'Your average {metric} {span} was {avg}.',
       none: 'No {metric} data in this period.',
+      // the nutrition score: only today is logged, and today never counts until it ends
+      todayPending: 'Today does not count until the day ends: the {metric} is calculated then.',
     },
   },
   prevMonth: 'Previous month',
   nextMonth: 'Next month',
   empty: 'No data for this metric yet.',
+  // a signal with no reading at all (monitor row + its sheet): the user's device does not write it
+  unrecorded: 'Your device does not record it',
+  unrecordedSheet: 'Your device does not record this metric, so there is nothing to show here.',
   viewError: 'This view could not be shown.',
   noData: 'No data',
   latestLbl: 'Latest · {date}',
@@ -72,6 +79,8 @@ export const en = {
   // the dial's own words (score-templates), so the sheet header reads exactly like the dial it opens from
   rec: {
     gated: enS.dials.recovery.gated,
+    // the Salud card's own gate text: the recovery sheet without a score explains it
+    insufficient: enS.recovery.insufficient,
     pctNote: enS.recovery.pctNote,
     sdLbl: enS.recovery.sdLbl,
     sdBands: enS.recovery.bands,
@@ -311,6 +320,8 @@ export const en = {
     bedWake: 'Bed – wake',
     vsTarget: '{delta} vs the {target} target',
     stagesNote: 'No sleep stages for this night (recorded without them, or before the extract had them).',
+    // an in-bed-only night (DETAIL sleep.est): the device never writes stages, so say that instead
+    stagesEstimated: 'No sleep stages: your device records only the time in bed.',
     estimated: 'Estimated from time in bed: your device records time in bed, not sleep.',
     stages: 'REM {rem} · deep {deep} · core {core} · awake {awake}',
     stagesLbl: 'Stages (h)',
@@ -380,6 +391,8 @@ export const es = {
     baseline: 'Rango base',
     brk: { title: 'Días de este periodo', count: '{n}x', learn: 'Saber más' },
     span: { w: 'esta semana', m: 'estos 30 días', m6: 'estos 6 meses', y: 'este año' },
+    // una ventana recortada al primer día con datos: la frase nombra ese día, nunca "estos 30 días"
+    spanSince: 'desde el {date}',
     prevSpan: { w: 'la semana anterior', m: 'los 30 días anteriores', m6: 'los 6 meses anteriores', y: 'el año anterior' },
     sent: {
       up: 'Tu media de {metric} {span} fue {avg}, más alta que {prevSpan} ({prev}).',
@@ -387,11 +400,16 @@ export const es = {
       flat: 'Tu media de {metric} {span} fue {avg}, parecida a {prevSpan} ({prev}).',
       only: 'Tu media de {metric} {span} fue {avg}.',
       none: 'Sin datos de {metric} en este periodo.',
+      // la puntuación de nutrición: solo está registrado hoy, y hoy no cuenta hasta que acaba
+      todayPending: 'Hoy no cuenta hasta que acabe el día: la {metric} se calcula entonces.',
     },
   },
   prevMonth: 'Mes anterior',
   nextMonth: 'Mes siguiente',
   empty: 'Todavía no hay datos de esta métrica.',
+  // una señal sin ninguna lectura (fila del monitor + su hoja): el dispositivo no la registra
+  unrecorded: 'Tu dispositivo no lo registra',
+  unrecordedSheet: 'Tu dispositivo no registra esta métrica, así que aquí no hay nada que mostrar.',
   viewError: 'No se pudo mostrar esta vista.',
   noData: 'Sin datos',
   latestLbl: 'Último · {date}',
@@ -427,6 +445,8 @@ export const es = {
   // the dial's own words (score-templates), so the sheet header reads exactly like the dial it opens from
   rec: {
     gated: esS.dials.recovery.gated,
+    // el texto del bloqueo de la propia tarjeta de Salud: la hoja de recuperación sin puntuación lo explica
+    insufficient: esS.recovery.insufficient,
     pctNote: esS.recovery.pctNote,
     sdLbl: esS.recovery.sdLbl,
     sdBands: esS.recovery.bands,
@@ -653,6 +673,7 @@ export const es = {
     bedWake: 'Acostarse – despertar',
     vsTarget: '{delta} frente al objetivo de {target}',
     stagesNote: 'Sin fases del sueño esta noche (se registró sin ellas, o antes de que el extracto las tuviera).',
+    stagesEstimated: 'Sin fases del sueño: tu dispositivo solo registra el tiempo en la cama.',
     estimated: 'Estimado a partir del tiempo en la cama: tu dispositivo registra el tiempo en la cama, no el sueño.',
     stages: 'REM {rem} · profundo {deep} · ligero {core} · despierto {awake}',
     stagesLbl: 'Fases (h)',

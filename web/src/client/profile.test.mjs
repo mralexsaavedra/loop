@@ -525,3 +525,41 @@ test('language: its own status line (saving, the rebuild note, a coarse reason);
   es.fns.forEach((fn) => fn({ last: { what: 'locale', status: 'saved' } }));
   assert.equal(ee['pf-lang-msg'].textContent, 'Guardado. La página se está regenerando en el nuevo idioma: recárgala en un par de minutos.');
 });
+
+// ---- a server user without Strava, without devices (the server writes an empty Strava placeholder) ----
+const NO_STRAVA = buildProfile({
+  manual: { birthdate: '1990-05-17', heightCm: 170 },
+  strava: { fetchedAt: null, firstname: null, bikes: [], shoes: [], gearScopeMissing: false, devices: [] },
+  weight: { kg: 60.2, date: '2030-01-04' },
+});
+
+test('Strava never connected (empty placeholder snapshot): no gear block, no Strava wording anywhere, viewer-worded devices hint (en/es)', () => {
+  for (const [locale, T] of [['en', enP], ['es', esP]]) {
+    const h = html(setup({ profile: NO_STRAVA, locale }));
+    assert.doesNotMatch(h, /Strava/, `${locale}: Strava is not connected`);
+    assert.ok(!h.includes('>' + T.gear.heading + '<'), `${locale}: no gear section`);
+    assert.ok(h.includes('>' + T.devices.heading + '<') && h.includes(T.devices.none), `${locale}: devices hint`);
+    assert.ok(h.includes(T.noteNoStrava), `${locale}: footnote without the Strava clause`);
+    assert.doesNotMatch(h, /loop-data|\.json/);
+    clean(h);
+  }
+  assert.match(enP.devices.none, /coach/);
+  assert.match(esP.devices.none, /coach/);
+});
+
+test('owner unchanged: with a real Strava snapshot the gear block, the Strava devices and the Strava footnote stay', () => {
+  const h = html(setup());
+  assert.ok(h.includes('>Gear<') && h.includes('Seen on Strava'));
+  assert.ok(h.includes(enP.note) && enP.note.includes('Strava'));
+  const empty = html(setup({ profile: buildProfile({ manual: MANUAL, strava: { ...STRAVA, bikes: [], shoes: [] } }) }));
+  assert.ok(empty.includes('>Gear<') && empty.includes('No bikes or shoes on Strava.'), 'a connected Strava without gear still says so');
+});
+
+test('no profile copy names a file path, a repo folder or a JSON file (a server user has no clone)', () => {
+  const leaves = (o, p = '') => Object.entries(o).flatMap(([k, v]) => (v && typeof v === 'object' ? leaves(v, p + k + '.') : [[p + k, v]]));
+  for (const [locale, dict] of [['es', esP], ['en', enP]]) {
+    for (const [k, v] of leaves(dict)) {
+      assert.doesNotMatch(String(v), /loop-data\/|services\/|[\w-]+\.(json|md|mjs|js)\b|README/, `${locale}.${k}: ${v}`);
+    }
+  }
+});
