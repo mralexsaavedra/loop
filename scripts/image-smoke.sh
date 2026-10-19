@@ -10,7 +10,8 @@
 #
 # Env (all optional): SMOKE_INSTANCE (HC_INSTANCE suffix, default smoke), SMOKE_VERSION (the image tag built and run,
 # default smoke: never a release tag), SMOKE_INGEST_PORT (default 18088), SMOKE_WEB_PORT (default 18090),
-# SMOKE_TIMEOUT (seconds to wait for the first publish, default 600).
+# SMOKE_TIMEOUT (seconds to wait for the first publish, default 600), SMOKE_PLATFORM (the platform to build, default
+# linux/amd64; CI also runs it on a native arm64 runner with linux/arm64).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -19,6 +20,7 @@ VERSION="${SMOKE_VERSION:-smoke}"
 INGEST_PORT="${SMOKE_INGEST_PORT:-18088}"
 WEB_PORT="${SMOKE_WEB_PORT:-18090}"
 TIMEOUT="${SMOKE_TIMEOUT:-600}"
+PLATFORM="${SMOKE_PLATFORM:-linux/amd64}"
 case "${VERSION}" in
   [0-9]*) echo "SMOKE_VERSION=${VERSION}: use a non-release tag (it is built and tagged locally)" >&2; exit 2 ;;
 esac
@@ -55,8 +57,8 @@ cleanup() {
 }
 trap cleanup EXIT
 
-echo "Building loop-server and loop-web :${VERSION} for linux/amd64 (not pushed)"
-DOCKER_DEFAULT_PLATFORM=linux/amd64 compose build
+echo "Building loop-server and loop-web :${VERSION} for ${PLATFORM} (not pushed)"
+DOCKER_DEFAULT_PLATFORM="${PLATFORM}" compose build
 echo "Starting the stack (instance ${INSTANCE}, ports 127.0.0.1:${INGEST_PORT} and 127.0.0.1:${WEB_PORT})"
 compose up -d --wait --wait-timeout 300
 

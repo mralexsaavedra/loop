@@ -73,10 +73,20 @@ jobs:
   # and a minimal compose stack of docker/docker-compose.yml: loop-server /healthz, the first published status.json,
   # GET / 200 over 100 KB, then down -v (scripts/image-smoke.sh).
   images:
-    runs-on: ubuntu-latest
+    # both architectures on native runners, like the release (the arm64 image is never emulated)
+    runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
+    strategy:
+      matrix:
+        include:
+          - runner: ubuntu-24.04
+            platform: linux/amd64
+          - runner: ubuntu-24.04-arm
+            platform: linux/arm64
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
       - run: scripts/image-smoke.sh
+        env:
+          SMOKE_PLATFORM: ${{ matrix.platform }}

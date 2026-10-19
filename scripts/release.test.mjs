@@ -68,7 +68,12 @@ test('CI runs the lint, the typecheck and both suites on every push and pull req
   assert.match(ci, /npm run test:services/);
   const rel = read('.github/workflows/release.yml');
   assert.match(rel, /tags:\s*\n\s*- 'v\*'/);
-  assert.match(rel, /linux\/amd64,linux\/arm64/);
+  // each architecture on a native runner (no QEMU: emulated arm64 crashed Node during npm ci), merged into one manifest
+  assert.match(rel, /- platform: linux\/amd64\n\s+runner: ubuntu-24\.04\n/);
+  assert.match(rel, /- platform: linux\/arm64\n\s+runner: ubuntu-24\.04-arm\n/);
+  assert.doesNotMatch(rel, /setup-qemu-action/, 'no emulation');
+  assert.match(rel, /push-by-digest=true/);
+  assert.match(rel, /docker buildx imagetools create/);
   assert.match(rel, /secrets\.DOCKERHUB_TOKEN/);
   assert.match(rel, /vars\.DOCKERHUB_USERNAME/);
   assert.ok(!/password:\s*[^$\s]/.test(rel), 'no credential in the file');
@@ -87,7 +92,7 @@ test('the release publishes exactly loop-server and loop-web from the repo-root 
   assert.ok(!rel.includes('loop-ingest:') && !/images: mralexandersaavedra\/loop-ingest/.test(rel), 'the host-mode loop-ingest image is no longer published');
   assert.match(rel, /^\s+context: \.$/m, 'the repo root is the build context (its default-deny .dockerignore)');
   assert.match(rel, /^\s+file: docker\/\$\{\{ matrix\.image \}\}\.Dockerfile$/m);
-  assert.match(rel, /^\s+build-args: VERSION=\$\{\{ steps\.meta\.outputs\.version \}\}$/m, 'OCI version label from the tag');
+  assert.match(rel, /^\s+build-args: VERSION=\$\{\{ needs\.check\.outputs\.version \}\}$/m, 'OCI version label from the checked tag');
   for (const t of ['type=semver,pattern={{version}}', 'type=semver,pattern={{major}}.{{minor}}', 'type=raw,value=latest']) assert.ok(rel.includes(t), t);
   assert.match(rel, /^\s+needs: \[check, test\]$/m, 'nothing is pushed before the version check and the CI suites + image smoke');
   // least privilege: read-only contents at the top, no job widens it; every action pinned to a commit SHA
@@ -104,7 +109,8 @@ test('the release waits for the whole CI (suites, Postgres, image build + smoke)
   const ci = read('.github/workflows/ci.yml');
   assert.match(ci, /^on:\n(?:.*\n)*? {2}workflow_call:$/m, 'ci.yml can be called');
   assert.match(rel, /^ {2}test:\n {4}uses: \.\/\.github\/workflows\/ci\.yml$/m, 'release.yml calls it as job test');
-  assert.match(rel, /^ {2}image:\n {4}needs: \[check, test\]$/m);
+  assert.match(rel, /^ {2}build:\n {4}needs: \[check, test\]$/m, 'nothing is built or pushed before the checks and the CI');
+  assert.match(rel, /^ {2}image:\n {4}needs: \[check, build\]$/m);
   assert.match(ci, /^permissions:\n {2}contents: read\n/m);
   assert.doesNotMatch(ci, /: write/);
 });
