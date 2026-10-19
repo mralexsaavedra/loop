@@ -29,7 +29,9 @@ ONE Astro project in `web/` builds to a single self-contained HTML file: no exte
 node scripts/build-web.mjs [--mode personal|example] [--locale es|en]   # or DATA_MODE/LOCALE env vars
 ```
 
-It writes `web/dist/<mode>/index.html`.
+It writes `web/dist/<mode>/index.html`. Builds started at the same time run their Astro step one after another
+(lock `.astro/build.lock`): Astro keeps its prerender chunks in one shared `.astro/.prerender`, so two concurrent builds
+would delete each other's chunks.
 
 - `npm run build` = personal / es (default, the gitignored real files); `npm run build:example` =
   example / en: the tracked `.example` seeds plus the tracked, clearly SYNTHETIC demo extract in
