@@ -134,10 +134,14 @@ function sleepNight(date, hours, target) {
   return { state: 'ok', date, hours, target, pct: sleepPerformance(hours, target), fill: arcPath(0, f) };
 }
 
-function sleepDial(R, H) {
+/** The newest night of the recovery sleep-duration component; without that component (recovery gated, or
+ * under 14 nights of baseline: a new user, a band worn a few nights) last night's own sleep score
+ * (SCORES.sleep, lib/score/sleep.mjs), so a real night never reads "no data". */
+function sleepDial(R, H, Sl) {
   const comp = R && Array.isArray(R.components) ? R.components.find((c) => c.key === 'sleepDur') : null;
   const last = comp && comp.daily && comp.daily.length ? comp.daily[comp.daily.length - 1] : null;
-  return last ? sleepNight(last.date, last.value, sleepTarget(H)) : { state: 'none' };
+  if (last) return sleepNight(last.date, last.value, sleepTarget(H));
+  return Sl && Sl.last ? sleepNight(Sl.last.date, Sl.last.hours, sleepTarget(H)) : { state: 'none' };
 }
 
 /** A PAST day's sleep + recovery dials (Inicio day stepping) from one SCORES.days entry
@@ -200,7 +204,7 @@ export function buildDials(scores, health) {
   const S = scores && scores.hasData ? scores : {};
   return {
     track: arcPath(0, 1),
-    sleep: sleepDial(S.recovery, health),
+    sleep: sleepDial(S.recovery, health, scores && scores.sleep),
     recovery: recoveryDial(S.recovery),
     load: loadDial(S.load),
     strain: strainDial(S.strain),

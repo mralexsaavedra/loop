@@ -157,6 +157,13 @@ test('calendar: 30 day cells ending at the viewer\'s today, level by total minut
   assert.doesNotMatch(html, /NaN|undefined|<script|href=|style=/);
 });
 
+test('calendar hint: one active day reads in the singular, in both languages', () => {
+  const one = activityFromRows([{ date: ASOF, type: 'Running', dur: 34 }]);
+  assert.ok(render(one).includes(enT.calHintOne), 'en: "1 training day out of 30"');
+  assert.ok(render(one, { locale: 'es' }).includes('1 día con entreno de 30'));
+  assert.doesNotMatch(render(one, { locale: 'es' }), /1 días/);
+});
+
 test('the viewer a day ahead of the data: windows end today (today empty), not stale', () => {
   const html = render(ACT, { now: addDays(ASOF, 1) });
   const c = cells(html);

@@ -150,6 +150,19 @@ test('buildDials: gated / missing recovery carries no number', () => {
   assert.equal(buildDials({ hasData: false }, null).recovery.state, 'none');
 });
 
+test('buildDials: no sleep-duration component (recovery gated, or under 14 nights) -> the dial falls back to last night\'s sleep score', () => {
+  const sleep = { need: 7.5, last: { date: '2026-10-19', hours: 8.07, perf: 100, estimated: true } };
+  const gated = buildDials({ hasData: true, recovery: { asOf: '2026-10-19', gated: true }, load: null, sleep }, HEALTH).sleep;
+  assert.deepEqual([gated.state, gated.date, gated.hours, gated.target, gated.pct], ['ok', '2026-10-19', 8.07, 7.5, 100]);
+  assert.equal(gated.fill, arcPath(0, sleepFrac(8.07, 7.5)));
+  // no recovery nor load at all (hasData false): the night still shows
+  assert.equal(buildDials({ hasData: false, sleep }, HEALTH).sleep.hours, 8.07);
+  // nothing to fall back to: still "no data"
+  assert.equal(buildDials({ hasData: true, recovery: { asOf: '2026-10-19', gated: true }, load: null, sleep: null }, HEALTH).sleep.state, 'none');
+  // with the component, the component's night wins (unchanged)
+  assert.equal(buildDials({ hasData: true, recovery: REC, load: LOAD, sleep }, HEALTH).sleep.hours, 6.8);
+});
+
 test('buildDials: sleep = the newest night of the sleep-duration component over the baked target', () => {
   const s = buildDials({ hasData: true, recovery: REC, load: LOAD }, HEALTH).sleep;
   assert.equal(s.state, 'ok');

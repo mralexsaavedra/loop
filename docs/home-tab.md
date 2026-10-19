@@ -133,7 +133,9 @@ values; no new metric (the recovery % is a rank of the same composite).
 ### Sleep dial
 
 - Fill = the sleep-duration component's newest night / the stated target
-  (`health.recovery.sleep.target`, 7.5 h), capped at a full ring.
+  (`health.recovery.sleep.target`, 7.5 h), capped at a full ring. Without that component (recovery gated, or
+  under 14 nights of baseline: a new user, a band worn a few nights) the newest night of the sleep score
+  (`SCORES.sleep.last`, an estimated in-bed night included), so a real night never reads "No data".
 - `pct` = sleep performance (same fraction as a rounded %, `lib/score/sleep.mjs` `sleepPerformance`):
   centre "92" + a small "%" in the sleep colour. The mini row reuses the same svg + accessible name,
   which carries the % and "6:54 of your 7:30 need".
@@ -657,7 +659,7 @@ What it shows: the per-day scores behind [day stepping](#day-stepping). `lib/sco
   | Key | Value |
   | --- | --- |
   | `rec` | the night scored that morning only when it IS that day (`{value, band, sleep, pct?, pctBand?}`); `'gated'` while recovery was gated; null = no complete night that day — never an older night under its date |
-  | `sleep` | that day's asleep hours (the recovery sleep-duration input, the number the sleep dial uses; null while gated) |
+  | `sleep` | that day's asleep hours (the recovery sleep-duration input, the number the sleep dial uses; without that component, recovery gated or under 14 nights, that day's own sleep row; null when the day has no night) |
   | `monitor` | the summary tile on that day: `inR` / `out` among the cards fresh on that day (own date ≤ `STALE_DAYS` before it), `total`, and the HRV card `{value, dec, status, tone, date}` when fresh |
 
 - `buildDials` turns each entry into `DIALS.days[i]` = `{date, sleep, recovery}` in today's dial shapes
