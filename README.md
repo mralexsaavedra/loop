@@ -251,7 +251,8 @@ Before the images, the server ran from a clone: `services/loop-ingest` and `serv
 stacks, with the page built on the host by `services/loop-web/refresh.sh` (a trigger file, a systemd path unit and
 an hourly cron line). It is kept for development and for installs not yet moved to the images
 ([`services/loop-web/README.md` → Install (host)](services/loop-web/README.md#install-host); needs a Linux host with
-systemd and Node.js).
+systemd and Node.js). Moving such an install to the images, in place and keeping its data:
+[`docs/guides/upgrading.md` → Moving a host-mode install to the images](docs/guides/upgrading.md#moving-a-host-mode-install-to-the-images).
 
 ## Privacy
 
