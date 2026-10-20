@@ -4,7 +4,7 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
-## [1.0.3] - 2026-10-19
+## [1.0.3] - 2026-10-20
 
 - **Ten new journal questions** ("Completar el diario"), so a trip or a late film shows up next to the recovery it
   affects: away from home (trip or holiday), ate out or a big meal, meditation or breathing, sauna or hot bath,
