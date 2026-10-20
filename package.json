@@ -1,6 +1,6 @@
 {
   "name": "loop",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "private": true,
   "description": "Tooling for the plan single source of truth (data/nutrition + data/training) and its Astro build (web/).",
   "license": "MIT",

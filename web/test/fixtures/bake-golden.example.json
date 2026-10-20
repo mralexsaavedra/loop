@@ -16658,6 +16658,51 @@
      "group": "status",
      "key": "ill",
      "kind": "yesno"
+    },
+    {
+     "group": "day",
+     "key": "travel",
+     "kind": "yesno"
+    },
+    {
+     "group": "day",
+     "key": "big_meal",
+     "kind": "yesno"
+    },
+    {
+     "group": "day",
+     "key": "meditation",
+     "kind": "yesno"
+    },
+    {
+     "group": "day",
+     "key": "sauna",
+     "kind": "yesno"
+    },
+    {
+     "group": "night",
+     "key": "reading_before_bed",
+     "kind": "yesno"
+    },
+    {
+     "group": "night",
+     "key": "screens_before_bed",
+     "kind": "yesno"
+    },
+    {
+     "group": "night",
+     "key": "hot_bedroom",
+     "kind": "yesno"
+    },
+    {
+     "group": "night",
+     "key": "sex",
+     "kind": "yesno"
+    },
+    {
+     "group": "status",
+     "key": "muscle_soreness",
+     "kind": "yesno"
     }
    ],
    "groups": [
@@ -16750,6 +16795,87 @@
       "status": "need_data",
       "yesDays": 2,
       "yesMean": null
+     },
+     {
+      "diff": 6.1,
+      "key": "travel",
+      "noDays": 37,
+      "noMean": 72.7,
+      "status": "ok",
+      "yesDays": 6,
+      "yesMean": 78.8
+     },
+     {
+      "diff": 1.8,
+      "key": "big_meal",
+      "noDays": 32,
+      "noMean": 73.1,
+      "status": "ok",
+      "yesDays": 11,
+      "yesMean": 74.9
+     },
+     {
+      "diff": 1.3,
+      "key": "meditation",
+      "noDays": 30,
+      "noMean": 73.2,
+      "status": "ok",
+      "yesDays": 13,
+      "yesMean": 74.5
+     },
+     {
+      "diff": null,
+      "key": "sauna",
+      "noDays": 42,
+      "noMean": null,
+      "status": "need_data",
+      "yesDays": 1,
+      "yesMean": null
+     },
+     {
+      "diff": -2.7,
+      "key": "reading_before_bed",
+      "noDays": 24,
+      "noMean": 74.8,
+      "status": "ok",
+      "yesDays": 19,
+      "yesMean": 72.1
+     },
+     {
+      "diff": -9.3,
+      "key": "screens_before_bed",
+      "noDays": 17,
+      "noMean": 79.2,
+      "status": "ok",
+      "yesDays": 26,
+      "yesMean": 69.9
+     },
+     {
+      "diff": -16,
+      "key": "hot_bedroom",
+      "noDays": 37,
+      "noMean": 75.8,
+      "status": "ok",
+      "yesDays": 6,
+      "yesMean": 59.8
+     },
+     {
+      "diff": 2.7,
+      "key": "sex",
+      "noDays": 32,
+      "noMean": 72.9,
+      "status": "ok",
+      "yesDays": 11,
+      "yesMean": 75.6
+     },
+     {
+      "diff": -4.4,
+      "key": "muscle_soreness",
+      "noDays": 33,
+      "noMean": 74.6,
+      "status": "ok",
+      "yesDays": 10,
+      "yesMean": 70.2
      }
     ]
    },
