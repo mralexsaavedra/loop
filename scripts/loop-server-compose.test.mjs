@@ -102,7 +102,9 @@ test('docker/example.env names every variable the compose file reads; .env and t
   const vars = new Set([...compose.matchAll(/\$\{([A-Z_]+)/g)].map((m) => m[1]));
   for (const v of vars) assert.match(example, new RegExp(`^${v}=`, 'm'), v);
   const ignore = read('docker', '.gitignore').split('\n');
-  for (const line of ['.env', '.env.*', '!.env.example', 'files/']) assert.ok(ignore.includes(line), line);
+  for (const line of ['.env', '.env.*', 'files/']) assert.ok(ignore.includes(line), line);
+  assert.ok(!ignore.includes('!.env.example'), 'no exception left for the old template name');
+  assert.equal(spawnSync('git', ['check-ignore', '-q', 'docker/example.env'], { cwd: ROOT }).status, 1, 'the template is tracked, not ignored');
   // the template is example.env, a name no `.env*` rule (gitignore, an agent's deny list) catches, so it is edited like
   // any other tracked file; the old name must not come back
   assert.ok(!fs.existsSync(path.join(ROOT, 'docker', '.env.example')), 'docker/.env.example renamed to docker/example.env');

@@ -1,5 +1,4 @@
 # The install's secrets and the owner files folder (the default HC_FILES_LOCATION=./files) are never committed.
 .env
 .env.*
-!.env.example
 files/
