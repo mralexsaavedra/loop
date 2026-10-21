@@ -144,7 +144,7 @@ same way from its own clone: every name below gains its suffix (`loop-db-second`
    (cd docker && docker compose config -q) && echo valid
    ```
 
-   The stack reads the same variables as the two host-mode files (`docker/.env.example` is their union plus
+   The stack reads the same variables as the two host-mode files (`docker/example.env` is their union plus
    `HC_FILES_LOCATION` and a few `HC_*` settings), so the copy carries over the token, the database credentials,
    the ports, `HC_INSTANCE`, the extra hosts and Strava. A variable in both files (`HC_INSTANCE`, or an old
    `INGEST_PORT` left in `services/loop-web/.env`) must hold the same value in both: delete the stale line in

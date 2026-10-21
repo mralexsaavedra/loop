@@ -12,6 +12,10 @@ operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README
   new `food_product.serving_default` column (`sql/014_food_serving_default.sql`, in the optional `food` group, off
   for every existing product) and sent as `servingDefault` by `/food/products`; a PUT still replaces the whole
   product ([`docs/nutrition-food-log.md`](docs/nutrition-food-log.md)).
+- **The server's env template is now `docker/example.env`** (was `docker/.env.example`): a name no `.env*` rule
+  catches (a `.gitignore`, an AI agent's deny list for secret files), so releases can bump its `HC_VERSION` like any
+  other file. A new install downloads it with the README's `curl` (saved as `.env`, as before); an existing install
+  keeps its own `.env` and needs nothing.
 
 ## [1.0.3] - 2026-10-20
 

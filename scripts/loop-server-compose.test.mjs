@@ -97,12 +97,15 @@ test('compose hardening: read-only root fs, tmpfs for every path the build write
   assert.match(serviceBlock(compose, 'loop-db'), /^\s+read_only: true$/m);
 });
 
-test('docker/.env.example names every variable the compose file reads; .env and the files folder are gitignored', () => {
-  const example = read('docker', '.env.example');
+test('docker/example.env names every variable the compose file reads; .env and the files folder are gitignored', () => {
+  const example = read('docker', 'example.env');
   const vars = new Set([...compose.matchAll(/\$\{([A-Z_]+)/g)].map((m) => m[1]));
   for (const v of vars) assert.match(example, new RegExp(`^${v}=`, 'm'), v);
   const ignore = read('docker', '.gitignore').split('\n');
   for (const line of ['.env', '.env.*', '!.env.example', 'files/']) assert.ok(ignore.includes(line), line);
+  // the template is example.env, a name no `.env*` rule (gitignore, an agent's deny list) catches, so it is edited like
+  // any other tracked file; the old name must not come back
+  assert.ok(!fs.existsSync(path.join(ROOT, 'docker', '.env.example')), 'docker/.env.example renamed to docker/example.env');
 });
 
 test('loop-web Dockerfile: the same digest-pinned nginx as services/loop-web, VERSION build-arg, OCI labels', () => {
