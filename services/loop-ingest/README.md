@@ -30,8 +30,8 @@ parses it into the extract CSVs. A parsing fix later is a re-sync, not a re-impo
 | POST   | `/sync/strava`                | bearer | `200` with the activity count; `409` when unconfigured |
 | GET    | `/export/raw`                 | bearer | `200` with `[{id, received_at, payload}]` (at most `limit` rows and about 32 MB of payloads per page; `X-Has-More: true` when the byte budget cut it); `400` on a bad query |
 | GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate, suffer_score, kilojoules, total_elevation_gain, start_utc, device_watts, hr_hist}]`; `400` on a bad query |
-| GET    | `/food/products`              | header | `200` `{products}`: active products (per-100 macros, store, serving size) |
-| POST / PUT / DELETE | `/food/products[/:id]` | header | create `201` / edit `200` / archive `200`; `409 barcode_exists`, `400 atwater` unless `force` |
+| GET    | `/food/products`              | header | `200` `{products}`: active products (per-100 macros, store, serving size, `servingDefault`) |
+| POST / PUT / DELETE | `/food/products[/:id]` | header | create `201` / edit `200` (PUT = the whole product) / archive `200`; `409 barcode_exists`, `400 atwater` unless `force`; `servingDefault: true` (log by serving by default) only with a `servingSize`, else `400 invalid` |
 | GET    | `/food/recipes`               | header | `200` `{recipes}` with macros COMPUTED from the products + basic snapshots (`perServing` or `per100` cooked) |
 | POST / PUT / DELETE | `/food/recipes[/:id]`  | header | create / edit / archive, same rules; `400 atwater` (a basic snapshot) unless `force` |
 | GET    | `/food/log?date=YYYY-MM-DD`   | header | `200` `{date, entries, totals}` |
@@ -648,6 +648,8 @@ On every start the service applies the `sql/` files listed in `src/migrations.js
   the next start, and only its routes answer `503` meanwhile. `013_settings_locale.sql` sits in the `settings`
   group, so if it ever failed, all of `/food/settings` (goal, target weight and language) would answer
   `503 settings_unavailable` until it applies.
+  `014_food_serving_default.sql` sits in the `food` group the same way: a failure would turn every `/food`
+  route to `503` until it applies.
 - **Installs from before the ledger** (before the release that added it) have every file applied and none
   recorded: on their first start with the ledger every file runs once more (each is idempotent: `IF NOT
   EXISTS`, `ON CONFLICT DO NOTHING`, 009's `CHECK` dropped and re-created; no row is touched) and is

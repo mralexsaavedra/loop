@@ -120,7 +120,9 @@
   // serving size), a per-serving recipe in servings, a batch recipe in grams of cooked food
   function unitsOf(kind, item) {
     if (kind === 'recipe') return item.kind === 'serving' ? ['serving'] : ['g'];
-    return item.servingSize > 0 ? [item.unit, 'serving'] : [item.unit];
+    if (!(item.servingSize > 0)) return [item.unit];
+    // a product marked "log by serving" (servingDefault) starts in servings: units[0] is the sheet's default
+    return item.servingDefault ? ['serving', item.unit] : [item.unit, 'serving'];
   }
   function pickHtml() {
     var pk = S.sheet.pick, item = pickedItem();

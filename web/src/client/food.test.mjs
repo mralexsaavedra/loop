@@ -1746,3 +1746,46 @@ test('file:// (no LAN): the food log never calls /api/food and degrades as when 
   await flush();
   assert.ok(on.calls.some((c) => c.key === 'GET /api/food/products'), 'the LAN page still fetches');
 });
+
+test('a product marked servingDefault starts the add sheet in servings (amount 1); grams stay one switch away', async () => {
+  const routes = { ...BOOT, 'GET /api/food/products': json({ products: [YOG, MILK, { ...OATS, servingDefault: true }] }) };
+  const t = setup({ routes, extraIds: ['fa-panel', 'fa-prev', 'fa-msg'] });
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'breakfast' }));
+  t.window.HCViews['food-add'].render();
+  t.fire('click', t.button({ 'data-food-act': 'pick', 'data-kind': 'product', 'data-id': '3' }));
+  assert.match(t.els['fa-panel'].innerHTML, /<option value="serving" selected>[^<]*<\/option><option value="g">/);
+  assert.match(t.els['fa-panel'].innerHTML, /id="fa-amt"[^>]*value="1"/, 'one serving to start');
+  t.input('fa-amt', '1');
+  t.fire('change', t.input('fa-unit', 'g'));
+  assert.equal(t.doc.getElementById('fa-amt').value, '40', 'to grams = one serving in grams');
+  // a product without the flag keeps grams first (unchanged)
+  t.fire('click', t.button({ 'data-food-act': 'pick', 'data-kind': 'product', 'data-id': '1' }));
+  assert.match(t.els['fa-panel'].innerHTML, /<option value="g" selected>g<\/option><option value="serving">/);
+});
+
+test('product form: the "log by serving" switch is sent as servingDefault: true, prefilled on edit, and left out when off', async () => {
+  const put = [];
+  const flagged = { ...YOG, servingDefault: true };
+  const routes = {
+    ...BOOT,
+    'GET /api/food/products': json({ products: [flagged, MILK, OATS] }),
+    'PUT /api/food/products/1': (init) => { const b = JSON.parse(init.body); put.push(b); return json({ product: { ...flagged, ...b, id: 1 } }); },
+  };
+  const t = setup({ routes, extraIds: ['fp-form-msg'] });
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'p-edit', 'data-id': '1' }));
+  const form = t.els['fp-body'].innerHTML;
+  assert.match(form, /id="fpf-sdef"[^>]*aria-checked="true"|aria-checked="true"[^>]*id="fpf-sdef"/);
+  assert.ok(form.includes(esF.products.form.servingDefault));
+  for (const [id, v] of [['fpf-name', 'Yogur natural'], ['fpf-brand', 'Hacendado'], ['fpf-store', 'mercadona'], ['fpf-code', ''], ['fpf-unit', 'g'], ['fpf-kcal', '60'], ['fpf-p', '10'], ['fpf-c', '4'], ['fpf-f', '0.2'], ['fpf-serv', '125']]) t.input(id, v);
+  t.fire('click', t.button({ 'data-food-act': 'p-save' }));
+  await flush();
+  assert.equal(put[0].servingDefault, true);
+  t.fire('click', t.button({ 'data-food-act': 'p-edit', 'data-id': '1' }));
+  t.fire('click', t.button({ 'data-food-act': 'p-sdef' }));
+  for (const [id, v] of [['fpf-name', 'Yogur natural'], ['fpf-brand', 'Hacendado'], ['fpf-store', 'mercadona'], ['fpf-code', ''], ['fpf-unit', 'g'], ['fpf-kcal', '60'], ['fpf-p', '10'], ['fpf-c', '4'], ['fpf-f', '0.2'], ['fpf-serv', '125']]) t.input(id, v);
+  t.fire('click', t.button({ 'data-food-act': 'p-save' }));
+  await flush();
+  assert.equal('servingDefault' in put[1], false, 'off = not sent (the server reads absent as false)');
+});

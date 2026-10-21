@@ -258,6 +258,26 @@ test('products: create (trimmed, 1 decimal), list, edit, archive; Atwater mismat
   } finally { await t.close() }
 })
 
+test('products: servingDefault (log by serving by default) is stored, false when absent, needs a serving size; a PUT replaces it', async () => {
+  const t = await setup()
+  try {
+    const on = await t.call('POST', '/food/products', { body: { ...YOGURT, servingDefault: true } })
+    assert.equal(on.status, 201)
+    assert.equal(on.body.product.servingDefault, true)
+    const off = await t.call('POST', '/food/products', { body: { ...YOGURT, barcode: null } })
+    assert.equal(off.body.product.servingDefault, false, 'absent -> false (every existing client keeps working)')
+    const noServing = await t.call('POST', '/food/products', { body: { ...MILK, servingDefault: true } })
+    assert.equal(noServing.status, 400)
+    assert.deepEqual(noServing.body, { error: 'invalid', field: 'servingDefault' })
+    const notBool = await t.call('POST', '/food/products', { body: { ...YOGURT, barcode: null, servingDefault: 'yes' } })
+    assert.deepEqual(notBool.body, { error: 'invalid', field: 'servingDefault' })
+    const id = on.body.product.id
+    assert.equal((await t.call('PUT', `/food/products/${id}`, { body: YOGURT })).body.product.servingDefault, false, 'PUT = the whole product')
+    assert.equal((await t.call('PUT', `/food/products/${id}`, { body: { ...YOGURT, servingDefault: true } })).body.product.servingDefault, true)
+    assert.equal((await t.call('GET', '/food/products')).body.products.find((x) => x.id === id).servingDefault, true)
+  } finally { await t.close() }
+})
+
 test('a duplicate barcode among active products -> 409 barcode_exists', async () => {
   const t = await setup()
   try {

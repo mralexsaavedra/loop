@@ -84,7 +84,7 @@ u (a `ud` food: per unit), pc?: {a, r, o, m}, v?: 1 = a verified label}`.
 
 | Table | Columns |
 | --- | --- |
-| `food_product` | per-100 kcal / protein / carbs / fat, store, unit g / ml, serving size?, barcode? (unique among ACTIVE products), source off / label / manual, off_code?, archived |
+| `food_product` | per-100 kcal / protein / carbs / fat, store, unit g / ml, serving size?, serving_default (log by serving by default, `sql/014`; only with a serving size), barcode? (unique among ACTIVE products), source off / label / manual, off_code?, archived |
 | `food_recipe` | kind, servings XOR cooked_weight_g, ingredients JSONB `[{productId, amount} \| {basic, name, unit, amount, per100}]`, archived |
 | `food_log` | the user's LOCAL date sent by the page, meal slot, ref_type product / recipe / quick, ref_id?, label, amount + unit, SNAPSHOT kcal / protein / carbs / fat taken at log time (a later product edit never rewrites history; macros NULL only on a quick entry that did not state them) |
 
@@ -236,8 +236,9 @@ the API answered).
   `--track`), one word each, `nowrap` to fit one line at 360 px: Products (search, grouped by store) /
   Recipes / Quick (label + kcal + optional macros).
 - **Amount** in g / ml / servings (servings only with a serving size; a per-serving recipe in servings, a
-  batch one in grams of cooked food). Switching a product to servings sets the amount to 1, and back to
-  its unit sets one serving in that unit, never reusing the typed number.
+  batch one in grams of cooked food). A product marked **Log by serving by default** (`servingDefault`) starts
+  in servings with amount 1; any other product starts in its own unit. Switching a product to servings sets the
+  amount to 1, and back to its unit sets one serving in that unit, never reusing the typed number.
 - Live preview from the lib formula (`HC_FOODLOG`), `aria-live` results. "SAVE" is THE save button
   (`.save-btn`, design-system.md → Components; also the product and recipe forms' save): closes the sheet,
   re-renders Log food and announces `Añadido: …`.
