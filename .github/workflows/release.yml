@@ -16,7 +16,7 @@ permissions:
 
 jobs:
   # Nothing is pushed unless one plain X.Y.Z version is everywhere: the tag, package.json, the image tag default of
-  # every loop-server / loop-web `image:` line in docker/docker-compose.yml and docker/.env.example (what
+  # every loop-server / loop-web `image:` line in docker/docker-compose.yml and docker/example.env (what
   # `docker compose pull` fetches), and the FIRST version heading of CHANGELOG.md, dated (`## [X.Y.Z] - UNRELEASED`
   # refuses the release); and the tagged commit must be on main. A pre-release or non-semver version is refused, so a
   # release always pushes X.Y.Z and X.Y. `latest` moves only when this version is the highest X.Y.Z tag in the repo:
@@ -44,7 +44,7 @@ jobs:
           images="$(grep -E '^[[:space:]]*image:.*loop-(server|web)' docker/docker-compose.yml || true)"
           good="$(grep -xE "[[:space:]]*image: mralexandersaavedra/loop-(server|web):[$][{]HC_VERSION:-${v//./[.]}[}]" <<<"${images}" || true)"
           test "${images}" = "${good}" && test "$(grep -c . <<<"${good}")" = 2 || { echo "docker/docker-compose.yml: every loop-server / loop-web image line must be mralexandersaavedra/<image>:\${HC_VERSION:-${v}}, got:"; echo "${images}"; exit 1; }
-          grep -qxF "HC_VERSION=${v}" docker/.env.example || { echo "docker/.env.example HC_VERSION != ${v}"; exit 1; }
+          grep -qxF "HC_VERSION=${v}" docker/example.env || { echo "docker/example.env HC_VERSION != ${v}"; exit 1; }
           first="$(grep -m1 -E '^## \[' CHANGELOG.md || true)"
           [[ "${first}" =~ ^"## [${v}] - "[0-9]{4}-[0-9]{2}-[0-9]{2}$ ]] || { echo "CHANGELOG.md: the first version heading is '${first}', not '## [${v}] - YYYY-MM-DD' (still UNRELEASED?)"; exit 1; }
           git merge-base --is-ancestor "${GITHUB_SHA}" origin/main || { echo "the tagged commit ${GITHUB_SHA} is not on main (origin/main)"; exit 1; }

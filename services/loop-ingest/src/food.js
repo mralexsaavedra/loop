@@ -137,7 +137,7 @@ function pathId (s) {
   return ID_RE.test(s) && Number.isSafeInteger(Number(s)) ? Number(s) : null
 }
 export function validateProduct (body) {
-  strictKeys(body, ['name', 'brand', 'store', 'barcode', 'unit', 'per100', 'servingSize', 'source', 'offCode', 'force'])
+  strictKeys(body, ['name', 'brand', 'store', 'barcode', 'unit', 'per100', 'servingSize', 'servingDefault', 'source', 'offCode', 'force'])
   const p = {
     name: str(body.name, 'name', L.nameMax),
     brand: str(body.brand, 'brand', L.brandMax, true),
@@ -146,9 +146,12 @@ export function validateProduct (body) {
     unit: oneOf(body.unit, 'unit', FOOD_UNITS),
     per100: null,
     servingSize: number(body.servingSize, 'servingSize', { max: L.servingMax, above: true, optional: true }),
+    // the log sheet starts in servings (sql/014); only with a serving size
+    servingDefault: flag(body.servingDefault, 'servingDefault'),
     source: oneOf(body.source, 'source', FOOD_SOURCES),
     offCode: pattern(body.offCode, 'offCode', OFF_CODE_RE)
   }
+  if (p.servingDefault && p.servingSize == null) bad('servingDefault')
   strictKeys(body.per100, ['kcal', 'protein', 'carbs', 'fat'], 'per100.')
   p.per100 = {
     kcal: number(body.per100.kcal, 'per100.kcal', { max: L.kcal100Max }),

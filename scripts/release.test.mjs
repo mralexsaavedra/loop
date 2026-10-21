@@ -26,7 +26,7 @@ test('one version: the root package, the data service, the server images\' tag d
   const defaults = [...read('docker/docker-compose.yml').matchAll(/HC_VERSION:-([^}]*)\}/g)].map((m) => m[1]);
   assert.equal(defaults.length, 4, 'both images and both VERSION build args default to the release');
   for (const d of defaults) assert.equal(d, VERSION, 'docker/docker-compose.yml HC_VERSION default');
-  assert.match(read('docker/.env.example'), new RegExp(`^HC_VERSION=${VERSION.replaceAll('.', '\\.')}$`, 'm'));
+  assert.match(read('docker/example.env'), new RegExp(`^HC_VERSION=${VERSION.replaceAll('.', '\\.')}$`, 'm'));
 });
 
 test('one Node version: .nvmrc, both engines fields and the Dockerfile agree on 22', () => {
@@ -174,7 +174,7 @@ function runCheck({ tag, version = VERSION, changelog, compose, env, tags = [], 
     fs.mkdirSync(path.join(dir, 'docker'));
     fs.writeFileSync(path.join(dir, 'package.json'), sub(read('package.json')));
     fs.writeFileSync(path.join(dir, 'docker/docker-compose.yml'), compose ?? sub(read('docker/docker-compose.yml')));
-    fs.writeFileSync(path.join(dir, 'docker/.env.example'), env ?? sub(read('docker/.env.example')));
+    fs.writeFileSync(path.join(dir, 'docker/example.env'), env ?? sub(read('docker/example.env')));
     fs.writeFileSync(path.join(dir, 'CHANGELOG.md'), changelog ?? `# Changelog\n\n## [${version}] - 2026-10-20\n\nNotes.\n`);
     git(dir, 'init', '-q', '-b', 'main');
     git(dir, 'add', '-A');
@@ -213,21 +213,21 @@ test('the release check refuses a CHANGELOG entry still marked UNRELEASED', () =
   assert.match(r.out, /still UNRELEASED/);
 });
 
-test('the release check refuses a compose HC_VERSION default or .env.example HC_VERSION that differs', () => {
+test('the release check refuses a compose HC_VERSION default or example.env HC_VERSION that differs', () => {
   const compose = read('docker/docker-compose.yml').replace(`image: mralexandersaavedra/loop-web:\${HC_VERSION:-${VERSION}}`, 'image: mralexandersaavedra/loop-web:${HC_VERSION:-0.0.1}');
   assert.notEqual(compose, read('docker/docker-compose.yml'));
   const a = runCheck({ compose });
   assert.notEqual(a.status, 0);
   assert.match(a.out, /HC_VERSION defaults/);
-  const b = runCheck({ env: read('docker/.env.example').replace(/^HC_VERSION=.*$/m, 'HC_VERSION=0.0.1') });
+  const b = runCheck({ env: read('docker/example.env').replace(/^HC_VERSION=.*$/m, 'HC_VERSION=0.0.1') });
   assert.notEqual(b.status, 0);
-  assert.match(b.out, /\.env\.example HC_VERSION/);
+  assert.match(b.out, /example\.env HC_VERSION/);
 });
 
-test('the release check refuses an .env.example HC_VERSION that only matches the version as a regex', () => {
-  const r = runCheck({ env: read('docker/.env.example').replace(/^HC_VERSION=.*$/m, `HC_VERSION=${VERSION.replaceAll('.', 'x')}`) });
+test('the release check refuses an example.env HC_VERSION that only matches the version as a regex', () => {
+  const r = runCheck({ env: read('docker/example.env').replace(/^HC_VERSION=.*$/m, `HC_VERSION=${VERSION.replaceAll('.', 'x')}`) });
   assert.notEqual(r.status, 0, r.out);
-  assert.match(r.out, /\.env\.example HC_VERSION/);
+  assert.match(r.out, /example\.env HC_VERSION/);
 });
 
 test('the release check refuses an UNRELEASED first version heading even with a dated one further down', () => {
@@ -293,13 +293,13 @@ test('CI runs the data service suite against a real Postgres, the same image and
 test('the README server quick start downloads the compose files of this release, which exist in the repo', () => {
   const readme = read('README.md');
   const urls = [...readme.matchAll(/https:\/\/raw\.githubusercontent\.com\/mralexsaavedra\/loop\/(v[^/]+)\/(docker\/[^\s]+)/g)];
-  assert.deepEqual(urls.map((m) => m[2]).sort(), ['docker/.env.example', 'docker/docker-compose.yml']);
+  assert.deepEqual(urls.map((m) => m[2]).sort(), ['docker/docker-compose.yml', 'docker/example.env']);
   for (const [, tag, file] of urls) {
     assert.equal(tag, `v${VERSION}`, `${file} is downloaded from the release tag`);
     assert.ok(exists(file), file);
   }
   assert.match(readme, /^\s+curl -fsSLO https:\/\/\S+\/docker\/docker-compose\.yml$/m, 'kept under its own name');
-  assert.match(readme, /^\s+curl -fsSL -o \.env https:\/\/\S+\/docker\/\.env\.example$/m, 'saved as .env');
+  assert.match(readme, /^\s+curl -fsSL -o \.env https:\/\/\S+\/docker\/example\.env$/m, 'saved as .env');
 });
 
 test('the server restore block waits for the database, stops at the first error and only then starts the rest', () => {

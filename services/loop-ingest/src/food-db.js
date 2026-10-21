@@ -12,7 +12,7 @@
 import { createProfileStore } from './profile-db.js'
 
 const PRODUCT_COLS = `id, name, brand, store, barcode, unit, kcal_100, protein_100, carbs_100, fat_100,
-  serving_size, source, off_code, archived, created_at, updated_at`
+  serving_size, serving_default, source, off_code, archived, created_at, updated_at`
 const RECIPE_COLS = 'id, name, kind, servings, cooked_weight_g, ingredients, archived, created_at, updated_at'
 const LOG_COLS = `id, to_char(date, 'YYYY-MM-DD') AS date, meal, ref_type, ref_id, label, amount, unit,
   kcal, protein, carbs, fat, request_id, created_at`
@@ -38,6 +38,7 @@ export function productFromRow (r) {
     unit: r.unit,
     per100: { kcal: num(r.kcal_100), protein: num(r.protein_100), carbs: num(r.carbs_100), fat: num(r.fat_100) },
     servingSize: num(r.serving_size),
+    servingDefault: r.serving_default === true,
     source: r.source,
     offCode: r.off_code ?? null,
     archived: r.archived === true,
@@ -91,7 +92,7 @@ export function logFromRow (r) {
 
 function productValues (p) {
   return [p.name, p.brand ?? null, p.store, p.barcode ?? null, p.unit, p.per100.kcal, p.per100.protein,
-    p.per100.carbs, p.per100.fat, p.servingSize ?? null, p.source, p.offCode ?? null]
+    p.per100.carbs, p.per100.fat, p.servingSize ?? null, p.source, p.offCode ?? null, p.servingDefault === true]
 }
 
 async function guardUnique (fn) {
@@ -173,8 +174,8 @@ export function createFoodStore (pool) {
       return guardUnique(async () => {
         const { rows } = await pool.query(
           `INSERT INTO food_product (name, brand, store, barcode, unit, kcal_100, protein_100, carbs_100, fat_100,
-             serving_size, source, off_code)
-           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+             serving_size, source, off_code, serving_default)
+           VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
            RETURNING ${PRODUCT_COLS}`,
           productValues(p)
         )
@@ -188,8 +189,9 @@ export function createFoodStore (pool) {
         const { rows } = await pool.query(
           `UPDATE food_product
               SET name = $1, brand = $2, store = $3, barcode = $4, unit = $5, kcal_100 = $6, protein_100 = $7,
-                  carbs_100 = $8, fat_100 = $9, serving_size = $10, source = $11, off_code = $12, updated_at = now()
-            WHERE id = $13 AND NOT archived
+                  carbs_100 = $8, fat_100 = $9, serving_size = $10, source = $11, off_code = $12, serving_default = $13,
+                  updated_at = now()
+            WHERE id = $14 AND NOT archived
             RETURNING ${PRODUCT_COLS}`,
           [...productValues(p), id]
         )

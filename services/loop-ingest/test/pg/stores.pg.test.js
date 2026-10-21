@@ -53,6 +53,9 @@ test('food store: products (barcode unique among active ones), recipes, entries 
   assert.deepEqual(p.per100, { kcal: 60, protein: 10, carbs: 4, fat: 0.2 }, 'NUMERIC comes back as numbers')
   await assert.rejects(store.insertProduct(yog), (e) => e.status === 409 && e.code === 'barcode_exists')
   assert.equal((await store.updateProduct(p.id, { ...yog, name: 'Yogur natural' })).name, 'Yogur natural')
+  assert.equal(p.servingDefault, false, 'serving_default defaults to false')
+  assert.equal((await store.updateProduct(p.id, { ...yog, name: 'Yogur natural', servingDefault: true })).servingDefault, true)
+  assert.equal((await store.getProducts([p.id]))[0].servingDefault, true, 'serving_default round-trips')
   assert.equal(await store.archiveProduct(p.id), true)
   assert.equal(await store.archiveProduct(p.id), false)
   const again = await store.insertProduct(yog) // an archived barcode may be re-added

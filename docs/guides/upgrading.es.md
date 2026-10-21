@@ -148,7 +148,7 @@ abajo lleva su sufijo (`loop-db-second`, `loop-server-data-second`, `loop-web-re
    (cd docker && docker compose config -q) && echo valid
    ```
 
-   El stack lee las mismas variables que los dos archivos del modo host (`docker/.env.example` es su unión más
+   El stack lee las mismas variables que los dos archivos del modo host (`docker/example.env` es su unión más
    `HC_FILES_LOCATION` y unos pocos ajustes `HC_*`), así que la copia conserva el token, las credenciales de la base
    de datos, los puertos, `HC_INSTANCE`, los hosts adicionales y Strava. Una variable que esté en los dos archivos
    (`HC_INSTANCE`, o un `INGEST_PORT` antiguo que siga en `services/loop-web/.env`) debe tener el mismo valor en

@@ -12,7 +12,7 @@ function fakePool (handler = () => ({ rows: [] })) {
 const PRODUCT_ROW = {
   id: '7', name: 'Yogur', brand: null, store: 'mercadona', barcode: '8480000123456', unit: 'g',
   kcal_100: '60.0', protein_100: '10.0', carbs_100: '4.0', fat_100: '0.2', serving_size: '125.0',
-  source: 'label', off_code: null, archived: false,
+  serving_default: true, source: 'label', off_code: null, archived: false,
   created_at: new Date('2030-01-10T10:00:00Z'), updated_at: new Date('2030-01-10T11:00:00Z')
 }
 
@@ -20,7 +20,7 @@ test('migration 006_food.sql is registered (as the optional food group) and is i
   // the lists live in migrations.js, which (unlike db.js) does not load pg
   const { CORE_MIGRATIONS, OPTIONAL_MIGRATIONS } = (await import('../src/migrations.js'))
   assert.ok(!CORE_MIGRATIONS.includes('006_food.sql') && !CORE_MIGRATIONS.includes('007_settings.sql'), 'core list: food stays out of it')
-  assert.deepEqual(OPTIONAL_MIGRATIONS, { food: ['006_food.sql'], settings: ['007_settings.sql', '013_settings_locale.sql'], profile: ['011_profile.sql'], journal: ['010_journal.sql'], documents: ['012_documents.sql'] }, 'the food tables and the settings are isolated, optional groups')
+  assert.deepEqual(OPTIONAL_MIGRATIONS, { food: ['006_food.sql', '014_food_serving_default.sql'], settings: ['007_settings.sql', '013_settings_locale.sql'], profile: ['011_profile.sql'], journal: ['010_journal.sql'], documents: ['012_documents.sql'] }, 'the food tables and the settings are isolated, optional groups')
   const sql = await readFile(fileURLToPath(new URL('../sql/006_food.sql', import.meta.url)), 'utf8')
   for (const table of ['food_product', 'food_recipe', 'food_log']) {
     assert.match(sql, new RegExp(`CREATE TABLE IF NOT EXISTS ${table}\\b`))
@@ -37,7 +37,7 @@ test('products map numeric strings to numbers and dates to ISO', async () => {
   const [p] = await createFoodStore(pool).listProducts()
   assert.deepEqual(p, {
     id: 7, name: 'Yogur', brand: null, store: 'mercadona', barcode: '8480000123456', unit: 'g',
-    per100: { kcal: 60, protein: 10, carbs: 4, fat: 0.2 }, servingSize: 125, source: 'label', offCode: null,
+    per100: { kcal: 60, protein: 10, carbs: 4, fat: 0.2 }, servingSize: 125, servingDefault: true, source: 'label', offCode: null,
     archived: false, createdAt: '2030-01-10T10:00:00.000Z', updatedAt: '2030-01-10T11:00:00.000Z'
   })
   assert.match(pool.calls[0].sql, /WHERE NOT archived/)
@@ -117,6 +117,24 @@ test('migration 013_settings_locale.sql: a NEW file in the settings group adds t
   assert.match(sql, /ALTER TABLE app_settings ADD COLUMN IF NOT EXISTS locale TEXT/)
   assert.match(sql, /locale IS NULL OR locale IN \('es', 'en'\)/)
   assert.doesNotMatch(sql, /ADD COLUMN (?!IF NOT EXISTS)/)
+})
+
+test('migration 014_food_serving_default.sql: a NEW file in the food group adds serving_default, idempotent, off by default', async () => {
+  const sql = await readFile(fileURLToPath(new URL('../sql/014_food_serving_default.sql', import.meta.url)), 'utf8')
+  assert.match(sql, /ALTER TABLE food_product ADD COLUMN IF NOT EXISTS serving_default BOOLEAN NOT NULL DEFAULT false/)
+  assert.doesNotMatch(sql, /ADD COLUMN (?!IF NOT EXISTS)/)
+})
+
+test('insertProduct / updateProduct write serving_default as their last product value', async () => {
+  const pool = fakePool(() => ({ rows: [PRODUCT_ROW] }))
+  const store = createFoodStore(pool)
+  const p = { name: 'Yogur', store: 'mercadona', unit: 'g', per100: { kcal: 60, protein: 10, carbs: 4, fat: 0.2 }, servingSize: 125, servingDefault: true, source: 'label' }
+  await store.insertProduct(p)
+  assert.match(pool.calls[0].sql, /off_code, serving_default\)\s+VALUES \(\$1,[^)]*\$13\)/)
+  assert.equal(pool.calls[0].values[12], true)
+  await store.updateProduct(7, { ...p, servingDefault: false })
+  assert.match(pool.calls[1].sql, /serving_default = \$13,[\s\S]*WHERE id = \$14 AND NOT archived/)
+  assert.deepEqual(pool.calls[1].values.slice(12), [false, 7])
 })
 
 test('settings: no row yet = every field null; a row maps NUMERIC to a number', async () => {

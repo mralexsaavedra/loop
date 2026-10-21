@@ -4,6 +4,19 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [1.0.4] - 2026-10-21
+
+- **Log by serving by default**: a product can be marked "Registrar por ración por defecto" in its form (only when it
+  has a serving size). The add sheet then starts it in servings with amount 1 (a yogurt cup, a slice of bread, a
+  soup sachet) instead of grams; grams stay one switch away, and every other product works as before. Stored in a
+  new `food_product.serving_default` column (`sql/014_food_serving_default.sql`, in the optional `food` group, off
+  for every existing product) and sent as `servingDefault` by `/food/products`; a PUT still replaces the whole
+  product ([`docs/nutrition-food-log.md`](docs/nutrition-food-log.md)).
+- **The server's env template is now `docker/example.env`** (was `docker/.env.example`): a name no `.env*` rule
+  catches (a `.gitignore`, an AI agent's deny list for secret files), so releases can bump its `HC_VERSION` like any
+  other file. A new install downloads it with the README's `curl` (saved as `.env`, as before); an existing install
+  keeps its own `.env` and needs nothing.
+
 ## [1.0.3] - 2026-10-20
 
 - **Ten new journal questions** ("Completar el diario"), so a trip or a late film shows up next to the recovery it

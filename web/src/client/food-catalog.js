@@ -73,6 +73,8 @@
       '<div class="food-row food-row-2">' + pf('fpf-kcal', F.kcal, 'kcal', { unit: T.kcal }) + pf('fpf-p', F.protein, 'protein', { unit: T.units.g }) +
       pf('fpf-c', F.carbs, 'carbs', { unit: T.units.g }) + pf('fpf-f', F.fat, 'fat', { unit: T.units.g }) + '</div>' +
       '<div class="food-row">' + pf('fpf-serv', F.serving, 'servingSize', { unit: T.units[unit], ph: F.servingPh }) + '</div>' +
+      // the log sheet starts this product in servings (needs a serving size: the service refuses it without one)
+      '<div class="food-row">' + field('fpf-sdef', F.servingDefault, HC.switchBtn(!!f.servingDefault, F.servingDefault, ' id="fpf-sdef" data-food-act="p-sdef"')) + '</div>' +
       '<div class="food-btns"><button type="button" class="save-btn" id="fp-save" data-food-act="p-save">' + esc(T.products.save) + '</button>' +
       '<button type="button" class="food-btn food-btn-ghost" data-food-act="p-cancel">' + esc(T.products.cancel) + '</button></div>' +
       formMsgHtml('fp-form-msg') + '</div>';
@@ -164,7 +166,7 @@
       if (!BARCODE_RE.test(code)) errs.push({ id: 'fpf-code', key: 'barcode', kind: 'invalid' });
       body.barcode = code;
     }
-    // body key order: name, brand, store, barcode, unit, per100, servingSize, source, offCode
+    // body key order: name, brand, store, barcode, unit, per100, servingSize, servingDefault (only when on), source, offCode
     var ordered = { name: body.name };
     if (body.brand) ordered.brand = body.brand;
     ordered.store = body.store;
@@ -182,11 +184,12 @@
     var sk = numKind(serv, false, true);
     if (sk) errs.push({ id: 'fpf-serv', key: 'servingSize', kind: sk });
     else if (serv != null) ordered.servingSize = serv;
+    if (S.pform.form && S.pform.form.servingDefault) ordered.servingDefault = true;
     ordered.source = body.source;
     if (S.pform.offCode) ordered.offCode = S.pform.offCode;
     return errs.length ? { errs: errs } : { body: ordered };
   }
-  var PRODUCT_FIELDS = { name: 'fpf-name', brand: 'fpf-brand', barcode: 'fpf-code', store: 'fpf-store', unit: 'fpf-unit', 'per100.kcal': 'fpf-kcal', 'per100.protein': 'fpf-p', 'per100.carbs': 'fpf-c', 'per100.fat': 'fpf-f', servingSize: 'fpf-serv' };
+  var PRODUCT_FIELDS = { name: 'fpf-name', brand: 'fpf-brand', barcode: 'fpf-code', store: 'fpf-store', unit: 'fpf-unit', 'per100.kcal': 'fpf-kcal', 'per100.protein': 'fpf-p', 'per100.carbs': 'fpf-c', 'per100.fat': 'fpf-f', servingSize: 'fpf-serv', servingDefault: 'fpf-sdef' };
   var PRODUCT_IDS = Object.keys(PRODUCT_FIELDS).map(function (k) { return PRODUCT_FIELDS[k]; });
   function saveProduct(force) {
     if (!S.pform || S.pform.busy) return;
@@ -215,6 +218,7 @@
     openProductForm(p.source, {
       name: p.name, brand: p.brand || '', store: p.store, unit: p.unit, barcode: p.barcode || '',
       kcal: p.per100.kcal, protein: p.per100.protein, carbs: p.per100.carbs, fat: p.per100.fat, servingSize: p.servingSize,
+      servingDefault: p.servingDefault === true,
     }, null, p.id, p.offCode);
   }
   function archive(kind, id) {
@@ -492,6 +496,13 @@
     'p-use': function (el) { useOff(Number(el.getAttribute('data-i'))); },
     'p-save': function () { saveProduct(false); },
     'p-save-force': function () { saveProduct(true); },
+    // the "log by serving" switch: flips the form state and its own aria-checked (no re-render, typed values stay)
+    'p-sdef': function (el) {
+      if (!S.pform) return;
+      S.pform.form = S.pform.form || {};
+      S.pform.form.servingDefault = !S.pform.form.servingDefault;
+      el.setAttribute('aria-checked', S.pform.form.servingDefault ? 'true' : 'false');
+    },
     'p-cancel': function () { S.pform = null; renderProducts(); prodMsg(''); },
     'p-edit': function (el) { editProduct(el.getAttribute('data-id')); },
     'p-archive': function (el) { S.confirm = 'p:' + el.getAttribute('data-id'); renderProducts(); },

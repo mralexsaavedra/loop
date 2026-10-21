@@ -6,7 +6,7 @@ description: "Trigger: setup, install, instalar, configurar, get started, empeza
 # Guided setup: server and coach
 
 Run it WITH the user, in the user's language. The two install paths are defined in `README.md` → Setup:
-the **server** (`docker/docker-compose.yml` + `docker/.env.example` in a folder of their own, the published
+the **server** (`docker/docker-compose.yml` + `docker/example.env` in a folder of their own, the published
 `loop-server` and `loop-web` images; no clone needed) and the **coach** (this clone, opened in Claude Code, a client
 of the server). The detail lives in the linked docs: read them, do not copy them into chat.
 
@@ -67,9 +67,9 @@ want analyses). The dry run says "would move N files" → the clone predates `lo
 Needs a machine that stays on with Docker Compose (`linux/amd64` or `linux/arm64`). Follow `README.md` → Setup →
 Server step by step; reference: `docs/lan-services.md` → The stack.
 
-1. A folder of its own with `docker-compose.yml` and `.env` (from `.env.example`) of the release, and the files
+1. A folder of its own with `docker-compose.yml` and `.env` (from `example.env`) of the release, and the files
    folder created BEFORE the first start (`mkdir -p files/import files/manuals files/documents`; Docker would
-   create it root-owned). From this clone the two files are `docker/docker-compose.yml` and `docker/.env.example`
+   create it root-owned). From this clone the two files are `docker/docker-compose.yml` and `docker/example.env`
    (copy them out; `cp -n`).
 2. Secrets generated in place and never shown:
    ```sh

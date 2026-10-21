@@ -20,10 +20,7 @@ skip a check to get the tag out.
 - `package.json` and `services/loop-ingest/package.json` (`version`), and both lock files: the root `version` and the
   `packages[""].version` entry (`npm install --package-lock-only` in both folders does it).
 - `docker/docker-compose.yml`: the four `HC_VERSION:-` defaults (two images, two `VERSION` build arguments).
-- `docker/.env.example`: `HC_VERSION=X.Y.Z`. If your permission rules deny editing `.env*` files, give the maintainer
-  this one line to run, never read the file another way:
-  `sed -i 's/^HC_VERSION=OLD$/HC_VERSION=X.Y.Z/' docker/.env.example && grep -c '^HC_VERSION=X.Y.Z$' docker/.env.example`
-  (prints `1`).
+- `docker/example.env`: `HC_VERSION=X.Y.Z` (the env template; named so that no `.env*` deny rule blocks it).
 - `README.md` and `README.es.md`: the two `curl` URLs of the server quick start (`/vX.Y.Z/docker/…`).
 - `CHANGELOG.md`: a `## [X.Y.Z] - YYYY-MM-DD` section at the top, dated the release day, written for someone running
   an install (what changed for them, not the commits). It becomes the GitHub Release body word for word

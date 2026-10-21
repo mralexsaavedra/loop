@@ -171,7 +171,7 @@ highest `X.Y.Z` tag in the repo: a backport tag (`v1.0.5` after `v1.1.0`) leaves
 `check`, stops the release before anything is built or pushed (the `build` job `needs: [check, test]`, the `image` job `needs: [check, build]`) unless the version is a plain `X.Y.Z` (no pre-release),
 the tag equals `v` + the `package.json` version, the tagged commit is on `main`, every `loop-server` / `loop-web`
 `image:` line of [`docker/docker-compose.yml`](../docker/docker-compose.yml) uses `${HC_VERSION:-X.Y.Z}` with that
-version (no hard-coded tag), `HC_VERSION` in `docker/.env.example` is exactly that version, and the first version
+version (no hard-coded tag), `HC_VERSION` in `docker/example.env` is exactly that version, and the first version
 heading of `CHANGELOG.md` is `## [X.Y.Z] - YYYY-MM-DD` (a `- UNRELEASED` one is refused). Its last job, `github-release` (`needs: [check, image]`), publishes the GitHub
 Release of the tag once both images are out: the body is that version's CHANGELOG section
 ([`scripts/release-notes.mjs`](../scripts/release-notes.mjs): repo-relative links pointed at the tagged tree, plus
@@ -192,7 +192,7 @@ updating the installs):
 
 1. Bump `version` in `package.json` and `services/loop-ingest/package.json` (`npm install --package-lock-only` in
    both, so the lock files carry it too), every `HC_VERSION:-` default in `docker/docker-compose.yml` (the two
-   images and their two `VERSION` build arguments), `HC_VERSION` in `docker/.env.example` and the two `curl` URLs of
+   images and their two `VERSION` build arguments), `HC_VERSION` in `docker/example.env` and the two `curl` URLs of
    the server quick start in `README.md` and `README.es.md` (`/vX.Y.Z/docker/…`; `scripts/release.test.mjs` checks them).
 2. Write the `## [X.Y.Z] - UNRELEASED` section at the top of [`CHANGELOG.md`](../CHANGELOG.md) with what changed for
    someone running an install. While it says `UNRELEASED` the suite passes but the release workflow refuses the tag.

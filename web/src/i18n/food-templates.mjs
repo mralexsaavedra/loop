@@ -90,6 +90,7 @@ export const es = {
       fat: 'Grasa por 100',
       serving: 'Peso de una ración (opcional)',
       servingPh: 'p. ej. 30',
+      servingDefault: 'Registrar por ración por defecto',
     },
     save: 'Guardar producto',
     saveAnyway: 'Guardar igualmente',
@@ -149,7 +150,7 @@ export const es = {
   fields: {
     name: 'nombre', brand: 'marca', store: 'tienda', barcode: 'código de barras', unit: 'unidad',
     'per100.kcal': 'kcal', 'per100.protein': 'proteína', 'per100.carbs': 'carbohidratos', 'per100.fat': 'grasa',
-    servingSize: 'ración', servings: 'raciones', cookedWeightG: 'peso cocinado', ingredients: 'ingredientes',
+    servingSize: 'ración', servingDefault: 'registrar por ración (necesita el peso de una ración)', servings: 'raciones', cookedWeightG: 'peso cocinado', ingredients: 'ingredientes',
     'ingredients.productId': 'producto', 'ingredients.amount': 'cantidad', 'ingredients.basic': 'básico', 'ingredients.name': 'nombre del básico',
     'ingredients.unit': 'unidad del básico', 'ingredients.per100': 'valores del básico', 'ingredients.per100.kcal': 'kcal del básico',
     'ingredients.per100.protein': 'proteína del básico', 'ingredients.per100.carbs': 'carbohidratos del básico', 'ingredients.per100.fat': 'grasa del básico', amount: 'cantidad', label: 'qué es',
@@ -267,6 +268,7 @@ export const en = {
       fat: 'Fat per 100',
       serving: 'One serving weighs (optional)',
       servingPh: 'e.g. 30',
+      servingDefault: 'Log by serving by default',
     },
     save: 'Save product',
     saveAnyway: 'Save anyway',
@@ -325,7 +327,7 @@ export const en = {
   fields: {
     name: 'name', brand: 'brand', store: 'store', barcode: 'barcode', unit: 'unit',
     'per100.kcal': 'kcal', 'per100.protein': 'protein', 'per100.carbs': 'carbs', 'per100.fat': 'fat',
-    servingSize: 'serving', servings: 'servings', cookedWeightG: 'cooked weight', ingredients: 'ingredients',
+    servingSize: 'serving', servingDefault: 'log by serving (needs a serving weight)', servings: 'servings', cookedWeightG: 'cooked weight', ingredients: 'ingredients',
     'ingredients.productId': 'product', 'ingredients.amount': 'amount', 'ingredients.basic': 'basic', 'ingredients.name': 'basic name',
     'ingredients.unit': 'basic unit', 'ingredients.per100': 'basic values', 'ingredients.per100.kcal': 'basic kcal',
     'ingredients.per100.protein': 'basic protein', 'ingredients.per100.carbs': 'basic carbs', 'ingredients.per100.fat': 'basic fat', amount: 'amount', label: 'what it is',

@@ -15,7 +15,7 @@ security and exposure, health + tokens; the older host mode (`services/loop-web`
 
 ## The stack — `docker/`
 
-Three containers from `docker/docker-compose.yml` + `docker/.env.example`, which is all an install needs (no clone,
+Three containers from `docker/docker-compose.yml` + `docker/example.env`, which is all an install needs (no clone,
 no Node, cron, systemd unit, `refresh.sh` or branch guard on the host): the official `postgres` (`loop-db`), the
 `loop-server` image (`docker/loop-server.Dockerfile`, built from the repo root), which carries the data service AND
 the page toolchain and builds + publishes the page **inside the container** (`HC_BUILD=container`), and the
@@ -66,7 +66,7 @@ published).
   (mirror the names in `FOOD_ALLOWED_HOSTS`). The image's html folder is owned by uid 1000: Docker seeds an empty
   named volume from the first container that mounts it, and `loop-server` (the `node` user) must be able to publish
   into it whichever container compose creates first.
-- **Compose** (`docker/docker-compose.yml` + `docker/.env.example`): `loop-db` + `loop-server` + `loop-web` (which
+- **Compose** (`docker/docker-compose.yml` + `docker/example.env`): `loop-db` + `loop-server` + `loop-web` (which
   starts once `loop-server` is healthy: while `loop-server` is unhealthy, `docker compose up` does not start the page
   either; `docker compose logs loop-server` says why), the same `HC_INSTANCE` naming (containers, volumes, `loop-net`),
   `INGEST_PORT` / `INGEST_BIND` and hardening as today: read-only root filesystems; `loop-server` with tmpfs for `/tmp`
@@ -109,7 +109,7 @@ service's Host check); `loop-server` carries the network alias `loop-ingest`. So
 port published on the host. That publish (`INGEST_PORT`, required) serves the coach clone's `npm run sync` (and the
 iOS Shortcut if it posts there directly instead of through loop-web). Hence the binds:
 
-- `INGEST_BIND=127.0.0.1` (the `.env.example` default) is the recommended hardening: loopback only, so nothing on
+- `INGEST_BIND=127.0.0.1` (the `example.env` default) is the recommended hardening: loopback only, so nothing on
   the LAN reaches `/export/*`, `/sync/strava` or the food log except through loop-web's nginx, and a coach clone on
   the server itself syncs from `http://127.0.0.1:<INGEST_PORT>`. A coach clone on another computer needs the port
   on the LAN: set `INGEST_BIND` to the server's LAN IP (never on a host whose address is public without a firewall

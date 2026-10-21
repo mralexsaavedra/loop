@@ -48,7 +48,10 @@ before logging what you cannot see (bread, oil, sauce).
 ## Products and recipes
 
 - **Product from a label photo:** `POST /api/food/products` with `{name, brand?, store, unit: "g" | "ml",
-  per100: {kcal, protein, carbs, fat}, servingSize?, source: "label"}`. `store` is required: `mercadona`, `dia`,
+  per100: {kcal, protein, carbs, fat}, servingSize?, servingDefault?, source: "label"}`. `servingDefault: true` (needs
+  `servingSize`) makes the page's add sheet start that product in servings: set it for products eaten by the unit
+  (a yogurt cup, a slice of bread, a soup sachet). A `PUT /api/food/products/:id` replaces the WHOLE product: resend every
+  field, `servingDefault` included, or it is reset. `store` is required: `mercadona`, `dia`,
   `eroski` or `other`. Copy the label's per-100 column; the service refuses kcal that disagree with the macros
   (`400 atwater`) unless `force: true` (alcohol, polyols). Check first that the product does not already exist.
 - **Recipe:** `POST /api/food/recipes` with `{name, kind: "serving" | "batch", servings? | cookedWeightG?,
