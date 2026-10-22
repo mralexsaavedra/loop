@@ -10569,6 +10569,7 @@
     "weighed": "raw"
    },
    "batataprefrita": {
+    "basic": false,
     "c": 28,
     "cat": "carb",
     "g": 5,
@@ -10870,6 +10871,7 @@
     "verified": false
    },
    "cerveza": {
+    "basic": false,
     "c": 3.6,
     "cat": "drink",
     "g": 0,
@@ -11786,6 +11788,7 @@
     "verified": false
    },
    "gnocchi": {
+    "basic": false,
     "c": 37.6,
     "cat": "carb",
     "g": 0.4,
@@ -11802,6 +11805,7 @@
     "verified": true
    },
    "guacamole": {
+    "basic": false,
     "c": 2,
     "cat": "fat",
     "g": 13.7,
@@ -12195,6 +12199,7 @@
     "weighed": "raw"
    },
    "lomoembuchado": {
+    "basic": false,
     "c": 0.5,
     "cat": "protein",
     "g": 5,
@@ -12329,6 +12334,7 @@
     "verified": false
    },
    "mantequillalight": {
+    "basic": false,
     "c": 1.9,
     "cat": "fat",
     "g": 41,
@@ -12858,6 +12864,7 @@
     "verified": false
    },
    "pansemillas": {
+    "basic": false,
     "c": 38,
     "cat": "carb",
     "g": 9.3,
@@ -12979,6 +12986,7 @@
     "verified": true
    },
    "pavo": {
+    "basic": false,
     "c": 0.9,
     "cat": "protein",
     "g": 1.3,
@@ -13918,6 +13926,7 @@
     "verified": false
    },
    "wheylp": {
+    "basic": false,
     "c": 9.1,
     "cat": "protein",
     "g": 6.8,
@@ -13933,6 +13942,7 @@
     "verified": true
    },
    "wheyup": {
+    "basic": false,
     "c": 10.5,
     "cat": "protein",
     "g": 5.7,
@@ -13948,6 +13958,7 @@
     "verified": true
    },
    "yogurgriego": {
+    "basic": false,
     "c": 4.7,
     "cat": "dairy",
     "g": 2,
@@ -14016,6 +14027,7 @@
     "verified": false
    },
    "zumonaranja": {
+    "basic": false,
     "c": 8.6,
     "cat": "drink",
     "g": 0.1,
