@@ -38,7 +38,7 @@
     "import:health": "node scripts/import-health.mjs"
   },
   "dependencies": {
-    "astro": "7.3.8",
+    "astro": "7.4.1",
     "esbuild": "0.28.2"
   },
   "devDependencies": {
