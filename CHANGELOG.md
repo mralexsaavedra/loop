@@ -4,7 +4,7 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
-## [Unreleased]
+## [1.0.5] - 2026-10-22
 
 - **Twelve more basics hidden from the food log** because they are exact copies of the owner's products (same
   macros): lomo embuchado, pechuga de pavo 92%, gnocchi, batata prefrita, pan de molde semillas, mantequilla light,

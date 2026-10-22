@@ -125,8 +125,8 @@ and the endpoint the iOS Shortcut sends your Apple Health data to. Three contain
 
    ```sh
    mkdir loop && cd loop
-   curl -fsSLO https://raw.githubusercontent.com/mralexsaavedra/loop/v1.0.4/docker/docker-compose.yml
-   curl -fsSL -o .env https://raw.githubusercontent.com/mralexsaavedra/loop/v1.0.4/docker/example.env
+   curl -fsSLO https://raw.githubusercontent.com/mralexsaavedra/loop/v1.0.5/docker/docker-compose.yml
+   curl -fsSL -o .env https://raw.githubusercontent.com/mralexsaavedra/loop/v1.0.5/docker/example.env
    mkdir -p files/import files/manuals files/documents
    ```
 
