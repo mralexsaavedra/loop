@@ -58,9 +58,11 @@ Drinks with alcohol (`cerveza`, `cerveza1906`, `clara`) carry kcal above their m
 - `basic: false` (boolean, validated by `validateIngredientCats`; default true) — hides a food from the food
   log's basics search and recipe picker, keeping it for the plan and the portion guide. A per-user choice
   for a food you log as your own product (My products), so the add sheet lists no generic duplicate. The
-  sample sets it on 18 foods (confitura, jamón serrano, gambas, salpicón, tranchete, mozzarella, salsa de
+  sample sets it on 30 foods (confitura, jamón serrano, gambas, salpicón, tranchete, mozzarella, salsa de
   tomate, soja, allioli, mayonesa, pisto, chocolate 85%, helado, napolitana, palomitas, panecillo, patatas
-  horno, tomate frito); `lib/nutrition/basics.mjs` bakes them with `h: 1`.
+  horno, tomate frito, lomo embuchado, pechuga de pavo 92%, gnocchi, batata prefrita, pan de molde semillas,
+  mantequilla light, both wheys, yogur griego ligero, cerveza especial, zumo de naranja Saborfera, guacamole);
+  `lib/nutrition/basics.mjs` bakes them with `h: 1`.
 
 ## The plan file (`plan-data.json`)
 

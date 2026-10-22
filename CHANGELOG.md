@@ -4,6 +4,14 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [Unreleased]
+
+- **Twelve more basics hidden from the food log** because they are exact copies of the owner's products (same
+  macros): lomo embuchado, pechuga de pavo 92%, gnocchi, batata prefrita, pan de molde semillas, mantequilla light,
+  both wheys, yogur griego ligero, cerveza especial, zumo de naranja Saborfera and guacamole now carry
+  `basic: false`, so the add sheet lists only the product; the plan and the portion guide still use them
+  ([`docs/nutrition.md`](docs/nutrition.md)).
+
 ## [1.0.4] - 2026-10-21
 
 - **Log by serving by default**: a product can be marked "Registrar por ración por defecto" in its form (only when it

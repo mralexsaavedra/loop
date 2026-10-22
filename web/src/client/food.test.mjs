@@ -889,7 +889,9 @@ test('basics search: an empty search lists only the products (plus a hint); typi
 });
 
 test('basics search: a verified product label of the food DB says so instead of "average values"', async () => {
-  const t = setup({ routes: BOOT, extraIds: BASIC_IDS });
+  // every verified basic of the sample is hidden (a duplicate of one of the owner's products), so a fixture
+  const basics = [{ k: 'beer', n: 'Cerveza especial Estrella Galicia (5,5%)', u: 'ml', m: [47, 0, 3.6, 0], c: 'drink', v: 1 }];
+  const t = setup({ routes: BOOT, extraIds: BASIC_IDS, basics });
   await flush();
   openProducts(t);
   t.fire('input', t.input('fa-q', 'estrella galicia (5'));
