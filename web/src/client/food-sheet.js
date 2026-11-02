@@ -86,7 +86,7 @@
     return '<div class="fa-pick"><div class="fa-pick-top"><div><div class="fa-item-name">' + esc(b.n) + '</div>' +
       '<div class="fa-item-sub">' + macroLine(per) + ' ' + esc(basicSub(b)) + '</div></div>' +
       '<button type="button" class="food-btn food-btn-ghost" data-food-act="unpick">' + esc(T.sheet.change) + '</button></div>' +
-      '<div class="food-row">' + numField('fa-amt', T.sheet.amount, modeDefault(modes[0])) +
+      '<div class="food-row">' + numField('fa-amt', T.sheet.amount, modeDefault(modes[0], b)) +
       field('fa-unit', T.sheet.unit, '<select class="food-in" id="fa-unit">' + modes.map(function (u, i) {
         return '<option value="' + u + '"' + (i === 0 ? ' selected' : '') + '>' + esc(basicModeText(b, u)) + '</option>';
       }).join('') + '</select>') + '</div>' +
@@ -102,7 +102,7 @@
     var from = sh.basicMode || to;
     var v = basicConvert(b, parseNum(val('fa-amt'), modeUnits(from)), from, to);
     var el = $('fa-amt');
-    if (el && from !== to) el.value = v != null ? HC.numInput(v) : modeDefault(to);
+    if (el && from !== to) el.value = v != null ? HC.numInput(v) : modeDefault(to, b);
     sh.basicMode = to;
   }
   // a product switched to servings starts at 1 serving; back to its own unit, at one serving in that

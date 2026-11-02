@@ -1030,6 +1030,19 @@ test('en locale: basics in English, "pc" in the label, a decimal point', async (
 
 /* ---------- Mis recetas: the ingredient picker also offers the public basics ---------- */
 const rPick = (t, i, kind, id) => t.fire('click', t.button({ 'data-food-act': 'r-pick', 'data-i': String(i), 'data-kind': kind, 'data-id': String(id) }));
+
+test('a basic with a defaultAmt prefills it instead of 100: olive oil opens at 1 ml, in the add sheet and in a recipe row', async () => {
+  const t = setup({ routes: BOOT, extraIds: [...BASIC_IDS, 'frf-prev'] });
+  await flush();
+  openProducts(t);
+  pickBasic(t, 'aceiteoliva');
+  assert.match(t.els['fa-panel'].innerHTML, /id="fa-amt" type="text" inputmode="decimal" autocomplete="off" value="1"/, 'one ml, not 100');
+  t.fire('click', t.button({ 'data-food-act': 'r-new' }));
+  rPick(t, 0, 'basic', 'aceiteoliva');
+  assert.match(t.els['fr-body'].innerHTML, /id="frf-amt-0"[^>]*value="1"/);
+  rPick(t, 0, 'basic', 'arroz');
+  assert.match(t.els['fr-body'].innerHTML, /id="frf-amt-0"[^>]*value="100"/, 'a food without one still starts at 100 g');
+});
 const EGG_SNAP = { basic: 'huevo', name: 'Huevo', unit: 'ud', amount: 2, per100: { kcal: 72, protein: 6.3, carbs: 0.4, fat: 5 } };
 
 test('recipe picker: an empty search lists Mis productos (+ a hint); typing adds "Básicos · valor medio" after them, accent- and case-insensitive', async () => {

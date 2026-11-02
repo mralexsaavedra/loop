@@ -365,7 +365,7 @@
     var from = row.mode || to;
     if (from !== to) {
       var v = basicConvert(b, parseNum(val('frf-amt-' + i), modeUnits(from)), from, to);
-      var txt = v != null ? HC.numInput(v) : modeDefault(to);
+      var txt = v != null ? HC.numInput(v) : modeDefault(to, b);
       var el = $('frf-amt-' + i);
       if (el) el.value = txt;
       row.amount = txt;
@@ -518,7 +518,7 @@
         var b = findBasic(el.getAttribute('data-id'));
         if (!b) return;
         var m0 = basicModes(b)[0];
-        S.rform.rows[i] = { basic: snapOf(b), mode: m0, amount: modeDefault(m0) };
+        S.rform.rows[i] = { basic: snapOf(b), mode: m0, amount: modeDefault(m0, b) };
       } else {
         S.rform.rows[i] = { productId: el.getAttribute('data-id'), amount: '' };
       }

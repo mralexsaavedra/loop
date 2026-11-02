@@ -255,7 +255,7 @@ The search box also looks in `FOOD_BASICS` (it shows even with no product yet).
   `etiqueta` / "label values" for a `verified` label). Nothing matching → `Ningún producto coincide.`.
 - A pick opens the same amount panel as a product: amount in the NATURAL unit (pieces when the food has a
   `piece` — the option names it, `huevos (~50 g)` —, ml for a liquid, g otherwise), prefilled with 1 piece
-  or 100 g / ml (never a "usual" serving), a pieces ↔ g / ml select converting the typed amount
+  or 100 g / ml (never a "usual" serving; a food's `defaultAmt` replaces the 100, olive oil 1 ml), a pieces ↔ g / ml select converting the typed amount
   (`basicConvert`), a live preview = the label to be saved + kcal / P / C / G, and a note that these are
   average table values.
 - Save = ONE `quick` entry with the label and all four macros computed client-side, same request-id /
@@ -287,7 +287,7 @@ The search box also looks in `FOOD_BASICS` (it shows even with no product yet).
   an empty search lists My products (+ the "type to also search the basics" hint); typing lists the
   matching products under `Mis productos`, then `Básicos · valor medio` (FOOD_BASICS, `basicMatches`).
 - A pick (`r-pick`) shows the name (+ a `valor medio` tag for a basic) and `Cambiar` (`r-unpick`), the amount
-  in the NATURAL unit (pieces first, prefilled 1 piece / 100 g / ml) and, when the food has pieces, a
+  in the NATURAL unit (pieces first, prefilled 1 piece / 100 g / ml, or the food's `defaultAmt`) and, when the food has pieces, a
   pieces ↔ g / ml select (`frf-mode-<i>`, converting with `basicConvert`).
 - A basic is saved as a SNAPSHOT `{basic, name, unit, amount, per100}` built by `basicIngredient` (the
   reference, via `HC_FOODLOG`; `BASIC_CASES`): unit = the basic's own unit (g / ml / ud), amount in it (a
