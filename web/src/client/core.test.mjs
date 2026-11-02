@@ -326,7 +326,7 @@ test('the train/rest toggle is gone: core.js exposes no setDay (Resumen de hoy p
 });
 
 /* ---------- midnight rollover: one reload when the viewer's day changes ---------- */
-function rolloverPage({ at, sheetOpen = false }) {
+function rolloverPage({ at, sheetOpen = false, published = null }) {
   const doc = new StubDocument();
   const listeners = {};
   doc.addEventListener = (evt, fn) => { (listeners[evt] = listeners[evt] || []).push(fn); };
@@ -351,6 +351,13 @@ function rolloverPage({ at, sheetOpen = false }) {
   const reloads = [];
   const winListeners = {};
   const reloadState = { throws: false };
+  // /status.json: the server's last publish; null = the service does not answer
+  const server = { publishedAt: published, reads: 0 };
+  const fetch = (url) => {
+    server.reads++;
+    if (url !== '/status.json' || server.publishedAt == null) return Promise.reject(new Error('down'));
+    return Promise.resolve({ ok: true, json: () => Promise.resolve({ publishedAt: server.publishedAt, processedSeq: 1 }) });
+  };
   const window = {
     scrollTo() {},
     location: { reload: () => { reloads.push(clock.now); if (reloadState.throws) throw new Error('sandboxed'); } },
@@ -359,7 +366,7 @@ function rolloverPage({ at, sheetOpen = false }) {
   const NAV = { tabs: [...TAB_KEYS], sectionTab: { ...SECTION_TAB } };
   const ctx = {
     document: doc, window, console, Math, Number, String, Array, Object, JSON, NAV, LOCALE: 'en', Date: FakeDate,
-    setTimeout, setInterval: (fn, ms) => { timers.push({ fn, ms, on: true }); return timers.length; },
+    Promise, fetch, setTimeout, clearTimeout, setInterval: (fn, ms) => { timers.push({ fn, ms, on: true }); return timers.length; },
     clearInterval: (id) => { if (timers[id - 1]) timers[id - 1].on = false; },
   };
   vm.createContext(ctx);
@@ -369,8 +376,56 @@ function rolloverPage({ at, sheetOpen = false }) {
   const tick = () => timers.filter((t) => t.on).forEach((t) => t.fn());
   const pageshow = (persisted) => (winListeners.pageshow || []).forEach((fn) => fn({ persisted }));
   const watching = () => timers.filter((t) => t.on).length;
-  return { doc, sheet, editors, clock, reloads, timers, visible, tick, pageshow, watching, reloadState };
+  return { doc, sheet, editors, clock, reloads, timers, visible, tick, pageshow, watching, reloadState, server };
 }
+
+/* ---------- new publish: back on the page after a Sync (the Shortcut, another device), one reload ---------- */
+const settle = () => new Promise((r) => setImmediate(r));
+
+test('new publish: back on the page after the server published a newer page, it reloads once', async () => {
+  const p = rolloverPage({ at: '2026-11-02T08:00:00', published: '2026-11-02T06:00:00Z' });
+  await settle(); // the load-time read sets the baseline
+  p.visible();
+  await settle();
+  assert.equal(p.reloads.length, 0, 'same publish as on screen');
+  p.server.publishedAt = '2026-11-02T07:42:40Z'; // the Shortcut's sync published a new page
+  p.doc.hidden = true;
+  p.visible();
+  await settle();
+  assert.equal(p.reloads.length, 0, 'hidden: no read, no reload in the background');
+  p.doc.hidden = false;
+  p.visible();
+  await settle();
+  assert.equal(p.reloads.length, 1);
+});
+
+test('new publish: a busy page (open sheet) defers the reload until it is free', async () => {
+  const p = rolloverPage({ at: '2026-11-02T08:00:00', sheetOpen: true, published: '2026-11-02T06:00:00Z' });
+  await settle();
+  p.server.publishedAt = '2026-11-02T07:42:40Z';
+  p.pageshow(true);
+  await settle();
+  assert.equal(p.reloads.length, 0);
+  assert.equal(p.watching(), 1);
+  p.sheet.hidden = true; // closed
+  p.tick();
+  assert.equal(p.reloads.length, 1);
+  assert.equal(p.watching(), 0);
+});
+
+test('new publish: a service that does not answer never reloads (no baseline, no loop)', async () => {
+  const p = rolloverPage({ at: '2026-11-02T08:00:00', published: null });
+  await settle();
+  p.visible();
+  await settle();
+  assert.equal(p.reloads.length, 0);
+  assert.equal(p.watching(), 0);
+  // it comes back: that first answer is only the baseline
+  p.server.publishedAt = '2026-11-02T07:42:40Z';
+  p.visible();
+  await settle();
+  assert.equal(p.reloads.length, 0);
+});
 
 test('rollover: an open product / recipe editor defers the reload (a half-filled form is never lost)', () => {
   for (const id of ['fp-body', 'fr-body']) {

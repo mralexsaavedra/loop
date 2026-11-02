@@ -191,12 +191,17 @@
    * nothing to do (page hidden, clock back on the load day); visibilitychange / pageshow re-arm it.
    * A reload that throws (a sandboxed frame) is not retried by the watcher, only by a later event.
    * food-*.js's own visibilitychange listener still re-reads today's log: when the page reloads that read
-   * is simply dropped, and while a reload is deferred it keeps Registrar on the new day. */
+   * is simply dropped, and while a reload is deferred it keeps Registrar on the new day.
+   * New publish (HC.publishAction), same reload path: at load and on every visibilitychange / pageshow the
+   * page reads /status.json; the first answer is the baseline, a later publishedAt reloads it, so a home-screen
+   * web app shows a Sync made elsewhere (the Shortcut) when the viewer comes back, without closing it. */
   (function () {
     if (typeof HC === 'undefined' || !HC.rolloverAction || typeof document.addEventListener !== 'function') return;
     var loadDay = HC.todayIso();
     var watch = null;
     var reloading = false;
+    var loadPublished = null;
+    var latestPublished = null;
     var EDITOR_HOSTS = ['fp-body', 'fr-body'];
     var FIELDS = 'input, select, textarea';
     function stopWatch() {
@@ -219,6 +224,7 @@
     }
     function check() {
       var action = HC.rolloverAction(loadDay, HC.todayIso(), busy(), !!document.hidden);
+      if (action === 'none') action = HC.publishAction(loadPublished, latestPublished, busy(), !!document.hidden);
       if (action === 'defer') {
         if (watch == null) watch = setInterval(check, 1000);
         return;
@@ -232,9 +238,24 @@
         reloading = false; // a sandboxed frame may refuse: a later visibilitychange / pageshow tries again
       }
     }
-    document.addEventListener('visibilitychange', check);
+    function readPublished() {
+      if (document.hidden || !HC.lan()) return;
+      HC.fetchJson('/status.json', { cache: 'no-store' }, 15000).then(function (s) {
+        var at = s && typeof s.publishedAt === 'string' ? s.publishedAt : null;
+        if (!at) return;
+        if (loadPublished == null) loadPublished = at;
+        else latestPublished = at;
+        check();
+      }, function () {});
+    }
+    function onShow() {
+      check();
+      readPublished();
+    }
+    document.addEventListener('visibilitychange', onShow);
     // a page restored from the back-forward cache
-    if (typeof window.addEventListener === 'function') window.addEventListener('pageshow', check);
+    if (typeof window.addEventListener === 'function') window.addEventListener('pageshow', onShow);
+    readPublished();
   })();
 
   /* A USER's tab switch (the delegated click below, never the load or a hash change) moves focus to the
