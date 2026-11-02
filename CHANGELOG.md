@@ -4,6 +4,15 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [Unreleased]
+
+- **The page reloads itself when you come back to it after a newer publish.** A page kept open, above all the
+  web app added to the iPhone home screen (iOS shows it exactly as it was left), read `status.json` only after its
+  own Sync click, so a Sync made by the Shortcut needed the app closed and reopened. core.js now reads
+  `/status.json` at load and on every `visibilitychange` / `pageshow`; a later `publishedAt` reloads the page once,
+  through the midnight rollover's path (it waits while a sheet, an editor or a text field is busy)
+  ([`docs/plan-page.md`](docs/plan-page.md)).
+
 ## [1.0.5] - 2026-10-22
 
 - **Twelve more basics hidden from the food log** because they are exact copies of the owner's products (same

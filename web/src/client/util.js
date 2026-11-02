@@ -239,6 +239,16 @@ var HC = (function () {
     if (hidden || !isoDate(loadDay) || !isoDate(today) || loadDay === today) return 'none';
     return busy ? 'defer' : 'reload';
   }
+  // new publish: a page kept open (a home-screen web app comes back as it was left, never reloaded) shows the
+  // publish it loaded. 'reload' when the server's status.json publishedAt is later than the baseline read at load
+  // and the page is visible; 'defer' while busy (same rule as rolloverAction); 'none' otherwise (same or older
+  // publish, hidden page, no baseline yet, an unreadable stamp).
+  function publishAction(loadAt, latestAt, busy, hidden) {
+    var a = typeof loadAt === 'string' ? Date.parse(loadAt) : NaN;
+    var b = typeof latestAt === 'string' ? Date.parse(latestAt) : NaN;
+    if (hidden || !isFinite(a) || !isFinite(b) || b <= a) return 'none';
+    return busy ? 'defer' : 'reload';
+  }
   // minutes -> "1:45" / "0:45" (h:mm, the one duration format; the old `units` argument is ignored)
   function duration(min) {
     return HC_FMT.fmtMinutes(min);
@@ -478,6 +488,7 @@ var HC = (function () {
     stressChart: stressChart,
     sheetHead: sheetHead,
     rolloverAction: rolloverAction,
+    publishAction: publishAction,
     registerView: registerView,
     view: view,
   };

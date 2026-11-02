@@ -286,6 +286,23 @@ test('rolloverAction: reload once the viewer\'s day differs from the day the pag
   assert.equal(HC.rolloverAction('2026-10-01', 'bad', false, false), 'none');
 });
 
+test('publishAction: reload once the server published a newer page than the one on screen, deferred while busy', () => {
+  const HC = load();
+  const at = '2026-11-02T07:00:00Z';
+  // same publish (or an older one): nothing to do
+  assert.equal(HC.publishAction(at, at, false, false), 'none');
+  assert.equal(HC.publishAction(at, '2026-11-02T06:00:00Z', false, false), 'none');
+  // a newer publish: reload; busy (sheet, editor, focused field): defer
+  assert.equal(HC.publishAction(at, '2026-11-02T07:42:40Z', false, false), 'reload');
+  assert.equal(HC.publishAction(at, '2026-11-02T07:42:40Z', true, false), 'defer');
+  // a hidden page waits for the next visibility change
+  assert.equal(HC.publishAction(at, '2026-11-02T07:42:40Z', false, true), 'none');
+  // no baseline yet, or an unreadable stamp: never reload
+  assert.equal(HC.publishAction(null, '2026-11-02T07:42:40Z', false, false), 'none');
+  assert.equal(HC.publishAction(at, null, false, false), 'none');
+  assert.equal(HC.publishAction(at, 'bad', false, false), 'none');
+});
+
 test('one date format: no client script formats a date with toLocale*String / Intl (HC.fmtDate / fmtMonth only)', () => {
   const dir = path.dirname(fileURLToPath(import.meta.url));
   const scripts = fs.readdirSync(dir).filter((f) => f.endsWith('.js'));

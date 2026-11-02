@@ -213,7 +213,7 @@ read these instead of redefining them (a test guards it). Tests load it with `we
 | `nf`, `num`, `int`, `pct`, `hours`, `duration` (h:mm), `numInput` (an input's value, never grouped) | thin wrappers adding the page `LOCALE` to `HC_FMT` |
 | `fmtDate`, `fmtMonth`, `weekdayIndex` | the ONE display-date formatter (below) |
 | `detailAttrs`, `registerView` / `view` | detail-sheet openers and registered views; `registerView` is the one writer of `window.HCViews` ([`detail-views.md`](detail-views.md)) |
-| `rolloverAction` | the midnight rollover (below) |
+| `rolloverAction`, `publishAction` | the midnight rollover and the new-publish reload (below) |
 
 ### Globals emitted from `lib/`
 
@@ -251,6 +251,16 @@ Every nutrition global is emitted by `lib/nutrition/client.mjs` `clientSource()`
   while there is something to wait for, stops on `none` (hidden page, clock back) and is re-armed by
   `visibilitychange` / `pageshow`.
 - A `location.reload()` that throws (sandboxed frame) is retried only by a later event, never in a loop.
+
+### New publish reload
+
+- A page kept open shows the publish it loaded; a home-screen web app on iOS comes back exactly as it was left.
+  core.js reads `/status.json` at load (the baseline `publishedAt`) and again on every `visibilitychange` /
+  `pageshow` while visible; a later `publishedAt` (a Sync from the Shortcut, the hourly rebuild, another device)
+  reloads the page once.
+- Same path as the midnight rollover: `HC.publishAction` answers `reload` / `defer` / `none`, the busy rule and the
+  1 s watcher are shared. No baseline (the service down, a `file://` copy) never reloads; a hidden page reads
+  nothing.
 
 ## Page copy, brand & header
 
