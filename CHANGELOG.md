@@ -4,7 +4,7 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
-## [Unreleased]
+## [1.1.0] - 2026-11-02
 
 - **The page reloads itself when you come back to it after a newer publish.** A page kept open, above all the
   web app added to the iPhone home screen (iOS shows it exactly as it was left), read `status.json` only after its
