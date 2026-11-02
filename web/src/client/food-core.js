@@ -312,7 +312,11 @@
   }
   // a mode's amount parser units (a piece is a count) and its prefill: ONE piece, else 100 g / ml
   function modeUnits(mode) { return mode === 'piece' ? null : [mode]; }
-  function modeDefault(mode) { return mode === 'piece' ? '1' : '100'; }
+  // the amount a basic starts at: 1 piece, else its own default (FOOD_BASICS `d`, e.g. 1 ml of oil) or 100 g / ml
+  function modeDefault(mode, b) {
+    if (mode === 'piece') return '1';
+    return b && b.d > 0 ? HC.numInput(b.d) : '100';
+  }
   function errSlot(id) { return '<small class="food-err" id="' + id + '-err"></small>'; }
   function field(id, label, input) {
     return '<div class="food-field"><label class="food-lbl" for="' + id + '">' + esc(label) + '</label>' + input + errSlot(id) + '</div>';

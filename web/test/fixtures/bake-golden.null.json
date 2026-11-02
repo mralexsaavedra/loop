@@ -695,6 +695,7 @@
    "aceiteoliva": {
     "c": 0,
     "cat": "fat",
+    "defaultAmt": 1,
     "g": 91.6,
     "k": 824,
     "name": {

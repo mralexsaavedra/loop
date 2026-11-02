@@ -1572,6 +1572,7 @@
     "aceiteoliva": {
       "per": 100,
       "unit": "ml",
+      "defaultAmt": 1,
       "cat": "fat",
       "verified": false,
       "name": {

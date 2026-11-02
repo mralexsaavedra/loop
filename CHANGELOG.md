@@ -4,6 +4,13 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [Unreleased]
+
+- **Olive oil starts at 1 ml in the food log, not 100 ml.** A basic used to prefill 100 g / ml whatever the
+  food; a new optional `defaultAmt` per food in `ingredients.json` sets that prefill (add sheet and recipe rows),
+  and olive oil carries 1 ml ([`docs/nutrition.md`](docs/nutrition.md)).
+
+
 ## [1.1.0] - 2026-11-02
 
 - **The page reloads itself when you come back to it after a newer publish.** A page kept open, above all the
