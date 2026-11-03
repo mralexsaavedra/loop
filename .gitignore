@@ -131,6 +131,9 @@ web/test/.golden/
 # the nested web/node_modules/ that Astro/Vite create for their own caches
 # since web/ is the Astro project root.)
 node_modules/
+# The slash-less pattern also matches a node_modules SYMLINK (the link a git
+# worktree makes to its main clone's deps); "node_modules/" matches only dirs.
+node_modules
 web/dist/
 web/.astro/
 web/.test-dist/

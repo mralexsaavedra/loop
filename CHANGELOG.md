@@ -4,6 +4,12 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [Unreleased]
+
+- **A stray `node_modules` symlink is out of the repo.** 1.2.0's source carried a link to a worktree's main clone
+  (`.gitignore`'s `node_modules/` matches only directories); a slash-less `node_modules` pattern now ignores a link
+  too. The published images never contained it (`.dockerignore`).
+
 ## [1.2.0] - 2026-11-03
 
 - **Olive oil starts at 1 ml in the food log, not 100 ml.** A basic used to prefill 100 g / ml whatever the
