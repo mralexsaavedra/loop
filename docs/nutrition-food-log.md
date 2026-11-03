@@ -255,7 +255,7 @@ The search box also looks in `FOOD_BASICS` (it shows even with no product yet).
   `etiqueta` / "label values" for a `verified` label). Nothing matching → `Ningún producto coincide.`.
 - A pick opens the same amount panel as a product: amount in the NATURAL unit (pieces when the food has a
   `piece` — the option names it, `huevos (~50 g)` —, ml for a liquid, g otherwise), prefilled with 1 piece
-  or 100 g / ml (never a "usual" serving; a food's `defaultAmt` replaces the 100, olive oil 1 ml), a pieces ↔ g / ml select converting the typed amount
+  or 100 g / ml (never a "usual" serving; a food's `defaultAmt` replaces the 100: olive oil 1 ml, honey 10 g…), a pieces ↔ g / ml select converting the typed amount
   (`basicConvert`), a live preview = the label to be saved + kcal / P / C / G, and a note that these are
   average table values.
 - Save = ONE `quick` entry with the label and all four macros computed client-side, same request-id /

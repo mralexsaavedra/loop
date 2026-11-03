@@ -57,7 +57,8 @@ Drinks with alcohol (`cerveza`, `cerveza1906`, `clara`) carry kcal above their m
 - `maxAmt` — the [portion cap](#portion-caps).
 - `defaultAmt` — the amount the food log's add sheet and recipe rows prefill for this food in g / ml,
   instead of 100 (validated by `validateIngredientCaps`: positive, at most 2000, g / ml foods only; baked
-  as FOOD_BASICS `d`). Olive oil: 1 ml.
+  as FOOD_BASICS `d`). Set from the amounts actually logged: olive oil 1 ml, honey 10 g, grapes 150 g, coffee
+  130 ml, potato 400 g.
 - `basic: false` (boolean, validated by `validateIngredientCats`; default true) — hides a food from the food
   log's basics search and recipe picker, keeping it for the plan and the portion guide. A per-user choice
   for a food you log as your own product (My products), so the add sheet lists no generic duplicate. The
