@@ -6,6 +6,9 @@ operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README
 
 ## [Unreleased]
 
+- **Honey, potato, grapes and coffee start at the amount you usually log** (10 g, 400 g, 150 g, 130 ml: the medians
+  of 35 days of the owner's food log) instead of 100, through the same `defaultAmt` as olive oil.
+
 - **A stray `node_modules` symlink is out of the repo.** 1.2.0's source carried a link to a worktree's main clone
   (`.gitignore`'s `node_modules/` matches only directories); a slash-less `node_modules` pattern now ignores a link
   too. The published images never contained it (`.dockerignore`).

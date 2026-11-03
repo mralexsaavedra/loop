@@ -950,6 +950,7 @@
     "patata": {
       "per": 100,
       "unit": "g",
+      "defaultAmt": 400,
       "cat": "carb",
       "maxAmt": 400,
       "verified": false,
@@ -1039,6 +1040,7 @@
     "miel": {
       "per": 100,
       "unit": "g",
+      "defaultAmt": 10,
       "cat": "sweet",
       "maxAmt": 30,
       "verified": false,
@@ -1331,6 +1333,7 @@
     "uvas": {
       "per": 100,
       "unit": "g",
+      "defaultAmt": 150,
       "cat": "fruit",
       "maxAmt": 200,
       "verified": false,
@@ -1967,6 +1970,7 @@
     "cafe": {
       "per": 100,
       "unit": "ml",
+      "defaultAmt": 130,
       "cat": "drink",
       "swap": false,
       "verified": false,

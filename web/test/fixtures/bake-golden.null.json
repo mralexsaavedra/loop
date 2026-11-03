@@ -1367,6 +1367,7 @@
    "cafe": {
     "c": 0,
     "cat": "drink",
+    "defaultAmt": 130,
     "g": 0.2,
     "k": 2,
     "name": {
@@ -3080,6 +3081,7 @@
    "miel": {
     "c": 82,
     "cat": "sweet",
+    "defaultAmt": 10,
     "g": 0,
     "k": 304,
     "maxAmt": 30,
@@ -3554,6 +3556,7 @@
    "patata": {
     "c": 19.2,
     "cat": "carb",
+    "defaultAmt": 400,
     "g": 0.1,
     "k": 86,
     "maxAmt": 400,
@@ -4428,6 +4431,7 @@
    "uvas": {
     "c": 18,
     "cat": "fruit",
+    "defaultAmt": 150,
     "g": 0.2,
     "k": 69,
     "maxAmt": 200,
