@@ -9,7 +9,8 @@ operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README
 - **Your tools can name and describe a Strava activity.** A new bearer route on the data service,
   `POST /strava/activities/:id/annotate`, writes `{name, description}` to a Strava activity: the description
   only when it has none, the name only over Strava's automatic title ("Morning Run", "Carrera matutina"), so it
-  never overwrites what you wrote; `dry_run` shows the decision. The Strava authorization now asks for
+  never overwrites what you wrote; `dry_run` shows the decision, with the current name and description, and
+  `overwrite: true` replaces them for an edit you asked for (e.g. today's intervals in that run's description). The Strava authorization now asks for
   `activity:write` too: re-authorize once to use it (`services/loop-ingest/README.md` → Naming and describing
   an activity); without it the route answers `409 strava_write_scope_missing` and everything else works.
 

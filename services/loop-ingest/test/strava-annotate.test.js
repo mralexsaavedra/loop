@@ -31,8 +31,9 @@ test('isDefaultActivityName: a title the owner typed is kept', () => {
 })
 
 test('parseAnnotateBody: valid bodies', () => {
-  assert.deepEqual(parseAnnotateBody({ name: ' HP S5D1 ' }), { dryRun: false, name: 'HP S5D1' })
-  assert.deepEqual(parseAnnotateBody({ description: 'A\r\nB\tC', dry_run: true }), { dryRun: true, description: 'A\nB\tC' })
+  assert.deepEqual(parseAnnotateBody({ name: ' HP S5D1 ' }), { dryRun: false, overwrite: false, name: 'HP S5D1' })
+  assert.deepEqual(parseAnnotateBody({ description: 'A\r\nB\tC', dry_run: true }), { dryRun: true, overwrite: false, description: 'A\nB\tC' })
+  assert.deepEqual(parseAnnotateBody({ name: 'X', overwrite: true }), { dryRun: false, overwrite: true, name: 'X' })
 })
 
 test('parseAnnotateBody: refuses bad bodies with a coarse code', () => {
@@ -50,6 +51,8 @@ test('parseAnnotateBody: refuses bad bodies with a coarse code', () => {
   assert.deepEqual(code({ description: 'a\u0007b' }), [400, 'bad_field', 'description'])
   assert.deepEqual(code({ name: 'a\u0000' }), [400, 'nul_character', undefined])
   assert.deepEqual(code({ name: 'x', dry_run: 'yes' }), [400, 'bad_field', 'dry_run'])
+  assert.deepEqual(code({ name: 'x', overwrite: 1 }), [400, 'bad_field', 'overwrite'])
+  assert.deepEqual(code({ overwrite: true }), [400, 'nothing_to_write', undefined])
 })
 
 test('decideAnnotation: never overwrites what the owner wrote', () => {
@@ -59,6 +62,10 @@ test('decideAnnotation: never overwrites what the owner wrote', () => {
   assert.deepEqual(decideAnnotation({ name: 'Rodaje con Ana', description: '' }, wanted).fields, { description: 'A · Tempo' })
   assert.deepEqual(decideAnnotation({ name: 'Morning Run', description: 'mine' }, wanted).fields, { name: 'HP S5D1 · Tempo' })
   assert.deepEqual(decideAnnotation({ name: 'Mine', description: 'mine' }, wanted).fields, {})
+  // an equal value is not written again
+  assert.deepEqual(decideAnnotation({ name: 'Morning Run', description: 'A · Tempo' }, { name: 'Morning Run', description: 'A · Tempo', overwrite: true }).fields, {})
+  // overwrite: an edit the owner asked for replaces their own name and description too
+  assert.deepEqual(decideAnnotation({ name: 'Mine', description: 'mine' }, { ...wanted, overwrite: true }).fields, wanted)
   // only the fields asked for
   assert.deepEqual(decideAnnotation({ name: 'Morning Run', description: '' }, { description: 'D' }).fields, { description: 'D' })
 })
@@ -109,10 +116,20 @@ test('annotator: dry_run reports the decision and writes nothing', async () => {
   const annotate = createActivityAnnotator({ getAccessToken: async () => 'tok', fetchImpl: strava.fetchImpl, log: silent })
   const out = await annotate('5', { dryRun: true, name: 'HP', description: 'D' })
   assert.deepEqual(out, {
-    id: '5', current_name: 'Morning Run', name_is_default: true, had_description: false,
-    name_changed: true, description_changed: true, dry_run: true, updated: false
+    id: '5', current_name: 'Morning Run', current_description: '', name_is_default: true, had_description: false,
+    name_changed: true, description_changed: true, dry_run: true, overwrite: false, updated: false
   })
   assert.deepEqual(strava.calls.map((c) => c.method), ['GET'])
+})
+
+test('annotator: overwrite replaces the owner\'s text and reports what was there', async () => {
+  const strava = fakeStrava({ activity: { name: 'Rodaje con Ana', description: 'mine' } })
+  const annotate = createActivityAnnotator({ getAccessToken: async () => 'tok', fetchImpl: strava.fetchImpl, log: silent })
+  const out = await annotate('5', { dryRun: false, overwrite: true, description: '6 × 1 km @ 4:20' })
+  assert.equal(out.updated, true)
+  assert.equal(out.current_description, 'mine')
+  assert.equal(out.name_changed, false)
+  assert.deepEqual(strava.calls[1].body, { description: '6 × 1 km @ 4:20' })
 })
 
 test('annotator: Strava failures map to coarse codes', async () => {
@@ -187,7 +204,7 @@ test('route: POST /strava/activities/:id/annotate end to end', async (t) => {
   const ok = await app.call('POST', '/strava/activities/123/annotate', { body: { name: 'HP', dry_run: true } })
   assert.equal(ok.status, 200)
   assert.deepEqual(ok.body, { ok: true, id: '123', updated: true })
-  assert.deepEqual(seen, [['123', { dryRun: true, name: 'HP' }]])
+  assert.deepEqual(seen, [['123', { dryRun: true, overwrite: false, name: 'HP' }]])
 
   assert.equal((await app.call('POST', '/strava/activities/123/annotate', { auth: false, body: { name: 'HP' } })).status, 401)
   const noJson = await app.call('POST', '/strava/activities/123/annotate', { json: false, body: { name: 'HP' } })

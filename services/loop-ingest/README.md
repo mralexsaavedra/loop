@@ -30,7 +30,7 @@ parses it into the extract CSVs. A parsing fix later is a re-sync, not a re-impo
 | POST   | `/sync/strava`                | bearer | `200` with the activity count; `409` when unconfigured |
 | GET    | `/export/raw`                 | bearer | `200` with `[{id, received_at, payload}]` (at most `limit` rows and about 32 MB of payloads per page; `X-Has-More: true` when the byte budget cut it); `400` on a bad query |
 | GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate, suffer_score, kilojoules, total_elevation_gain, start_utc, device_watts, hr_hist}]`; `400` on a bad query |
-| POST   | `/strava/activities/:id/annotate` | bearer | `200` `{ok, id, updated, name_changed, description_changed, current_name, name_is_default, had_description, dry_run}`: writes `{name?, description?}` to the Strava activity, the description only when it has none and the name only over Strava's automatic title (see "Naming and describing an activity" below); `400` (`bad_body`, `unknown_field`, `bad_field` + `field`, `nothing_to_write`), `404 activity_not_found`, `409 strava_write_scope_missing` / `strava not configured`, `415`, `429 strava_rate_limited`, `502 strava_auth` / `strava_network` / `strava_error` |
+| POST   | `/strava/activities/:id/annotate` | bearer | `200` `{ok, id, updated, name_changed, description_changed, current_name, current_description, name_is_default, had_description, dry_run, overwrite}`: writes `{name?, description?}` to the Strava activity, the description only when it has none and the name only over Strava's automatic title (`overwrite: true`: an edit the owner asked for replaces both) (see "Naming and describing an activity" below); `400` (`bad_body`, `unknown_field`, `bad_field` + `field`, `nothing_to_write`), `404 activity_not_found`, `409 strava_write_scope_missing` / `strava not configured`, `415`, `429 strava_rate_limited`, `502 strava_auth` / `strava_network` / `strava_error` |
 | GET    | `/food/products`              | header | `200` `{products}`: active products (per-100 macros, store, serving size, `servingDefault`) |
 | POST / PUT / DELETE | `/food/products[/:id]` | header | create `201` / edit `200` (PUT = the whole product) / archive `200`; `409 barcode_exists`, `400 atwater` unless `force`; `servingDefault: true` (log by serving by default) only with a `servingSize`, else `400 invalid` |
 | GET    | `/food/recipes`               | header | `200` `{recipes}` with macros COMPUTED from the products + basic snapshots (`perServing` or `per100` cooked) |
@@ -482,7 +482,8 @@ the backfill starts on the next sync run. An older image keeps answering `/expor
 ### Naming and describing an activity: `POST /strava/activities/:id/annotate`
 
 Lets the owner's tools say what an activity WAS (for example the training session of that day, from a
-private script in `local/`): body `{ "name"?: string ≤ 255, "description"?: string ≤ 8000, "dry_run"?: bool }`,
+private script in `local/`): body `{ "name"?: string ≤ 255, "description"?: string ≤ 8000, "dry_run"?: bool,
+"overwrite"?: bool }`,
 `Content-Type: application/json`, the bearer token. The route reads the activity detail from Strava
 (`GET /activities/:id`; `/export/strava` never exports names), then writes with one `PUT` only what is safe:
 
@@ -494,6 +495,9 @@ private script in `local/`): body `{ "name"?: string ≤ 255, "description"?: st
   `Tirada larga de la tarde con Ana`), is a title the owner typed and stays.
 
 So it never overwrites what the owner wrote, and calling it twice changes nothing the second time.
+`overwrite: true` lifts both guards for an edit the owner asked for explicitly ("put today's intervals in that
+run"): every given field that differs is replaced. Every answer carries `current_name` and
+`current_description`, so a caller can read them with `dry_run` first and merge rather than replace.
 The bearer check comes first (`401` before any other answer). `dry_run: true` answers the same decision (`current_name`, `name_is_default`, `had_description`,
 `name_changed`, `description_changed`) and writes nothing. A rename also updates the stored row's `name`.
 
