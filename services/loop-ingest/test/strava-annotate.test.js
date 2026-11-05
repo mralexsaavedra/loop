@@ -14,13 +14,18 @@ const silent = () => {}
 test('isDefaultActivityName: Strava automatic titles in English and Spanish', () => {
   for (const name of ['Morning Run', 'Afternoon Ride', 'Evening Weight Training', 'Night Walk', 'Lunch Run',
     'Carrera matutina', 'Bicicleta por la tarde', 'Entrenamiento nocturno', 'Carrera vespertina',
-    'Entrenamiento de la mañana', 'Carrera a la hora del almuerzo', '', '   ']) {
+    'Entrenamiento de la mañana', 'Carrera a la hora del almuerzo', 'Morning  Weight Training', 'Lunch HIIT',
+    'Entrenamiento con pesas por la tarde', 'Bicicleta virtual nocturna', '', '   ']) {
     assert.equal(isDefaultActivityName(name), true, name)
   }
 })
 
 test('isDefaultActivityName: a title the owner typed is kept', () => {
-  for (const name of ['HP S5D1 · Tempo', 'Series en el Retiro', 'Hyrox sim', 'Tirada larga', 'Rodaje con Ana']) {
+  for (const name of ['HP S5D1 · Tempo', 'Series en el Retiro', 'Hyrox sim', 'Tirada larga', 'Rodaje con Ana',
+    // a time-of-day word inside a longer title is not Strava's template
+    'Night Owls 10K', 'Lunch with Ana', 'Saturday Night Fever ride', 'Evening Hyrox simulation',
+    'Tirada larga de la tarde con Ana', 'Rodaje matutino suave con el club', 'Carrera popular nocturna de San Silvestre',
+    'Hyrox · sesión de tarde', 'Morning']) {
     assert.equal(isDefaultActivityName(name), false, name)
   }
 })
@@ -191,6 +196,8 @@ test('route: POST /strava/activities/:id/annotate end to end', async (t) => {
   assert.deepEqual([bad.status, bad.body], [400, { error: 'unknown_field', field: 'title' }])
   const get = await app.call('GET', '/strava/activities/123/annotate', { json: false })
   assert.equal(get.status, 405)
+  // the bearer check comes first: without a token not even the method is answered
+  assert.equal((await app.call('GET', '/strava/activities/123/annotate', { auth: false, json: false })).status, 401)
   assert.equal((await app.call('POST', '/strava/activities/abc/annotate', { body: { name: 'HP' } })).status, 404)
   assert.equal(seen.length, 1)
 })

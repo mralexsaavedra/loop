@@ -487,12 +487,14 @@ private script in `local/`): body `{ "name"?: string ≤ 255, "description"?: st
 (`GET /activities/:id`; `/export/strava` never exports names), then writes with one `PUT` only what is safe:
 
 - the **description** only when the activity has none (blank counts as none);
-- the **name** only when it is Strava's automatic title: a title holding a time-of-day word in English or
-  Spanish (`Morning Run`, `Lunch Ride`, `Carrera matutina`, `Bicicleta por la tarde`…). Anything else is a
-  title the owner typed and stays.
+- the **name** only when it is Strava's automatic title: the WHOLE title is `<time of day> <sport>` in English
+  (`Morning Run`, `Lunch Ride`, `Evening Weight Training`) or `<sport> <time of day>` in Spanish
+  (`Carrera matutina`, `Bicicleta por la tarde`), over a closed list of Strava sport names
+  (`isDefaultActivityName`). Anything else, a time-of-day word inside a longer title included (`Night Owls 10K`,
+  `Tirada larga de la tarde con Ana`), is a title the owner typed and stays.
 
 So it never overwrites what the owner wrote, and calling it twice changes nothing the second time.
-`dry_run: true` answers the same decision (`current_name`, `name_is_default`, `had_description`,
+The bearer check comes first (`401` before any other answer). `dry_run: true` answers the same decision (`current_name`, `name_is_default`, `had_description`,
 `name_changed`, `description_changed`) and writes nothing. A rename also updates the stored row's `name`.
 
 It needs the `activity:write` scope: a token authorized without it answers

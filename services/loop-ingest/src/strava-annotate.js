@@ -25,16 +25,31 @@ export const DESCRIPTION_MAX = 8000
 const ROUTE_RE = /^\/strava\/activities\/(\d{1,20})\/annotate$/
 
 // Strava titles an activity "<time of day> <sport>" in the athlete's language: "Morning Run", "Lunch Ride",
-// "Evening Weight Training"; in Spanish "Carrera matutina", "Bicicleta por la tarde", "Entrenamiento nocturno".
-// A title holding one of these time-of-day words is treated as automatic; anything else is the owner's.
+// "Evening Weight Training"; in Spanish "<sport> <time of day>": "Carrera matutina", "Bicicleta por la tarde",
+// "Entrenamiento nocturno". Only a WHOLE title of that shape is automatic: a word like "Night" or "de la tarde"
+// inside a longer title ("Night Owls 10K", "Tirada larga de la tarde con Ana") is the owner's and stays.
+const SPORTS_EN = [
+  'Run', 'Trail Run', 'Virtual Run', 'Ride', 'Virtual Ride', 'Gravel Ride', 'Mountain Bike Ride', 'E-Bike Ride',
+  'E-Mountain Bike Ride', 'Walk', 'Hike', 'Swim', 'Workout', 'Weight Training', 'HIIT',
+  'High Intensity Interval Training', 'Crossfit', 'Row', 'Rowing', 'Virtual Row', 'Yoga', 'Pilates', 'Elliptical',
+  'Stair-Stepper', 'Tennis', 'Padel', 'Pickleball', 'Activity'
+]
+const SPORTS_ES = [
+  'Carrera', 'Carrera por montaña', 'Carrera de montaña', 'Carrera virtual', 'Bicicleta', 'Bicicleta virtual',
+  'Bicicleta de gravel', 'Bicicleta de montaña', 'Bicicleta eléctrica', 'Caminata', 'Excursión', 'Senderismo',
+  'Natación', 'Entrenamiento', 'Entrenamiento con pesas', 'Entrenamiento de fuerza', 'Entrenamiento HIIT',
+  'Entrenamiento de intervalos de alta intensidad', 'HIIT', 'Crossfit', 'Remo', 'Remo virtual', 'Yoga', 'Pilates',
+  'Elíptica', 'Escaladora', 'Tenis', 'Pádel', 'Pickleball', 'Actividad'
+]
+const alt = (list) => list.map((w) => w.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&')).sort((a, b) => b.length - a.length).join('|')
 const DEFAULT_NAME_RES = [
-  /\b(morning|afternoon|evening|night|lunch)\b/i,
-  /(matutin[oa]|vespertin[oa]|nocturn[oa]|por la (mañana|tarde|noche)|de (la )?(mañana|tarde|noche|madrugada)|(a la hora )?del almuerzo|a mediodía|de mediodía)/i
+  new RegExp(`^(Morning|Afternoon|Evening|Night|Lunch) (${alt(SPORTS_EN)})$`, 'i'),
+  new RegExp(`^(${alt(SPORTS_ES)}) (matutin[oa]|vespertin[oa]|nocturn[oa]|por la (mañana|tarde|noche)|de (la )?(mañana|tarde|noche|madrugada)|a la hora del almuerzo|al mediodía|de mediodía)$`, 'i')
 ]
 
 /** Whether `name` is Strava's automatic title (empty counts as automatic: there is nothing to keep). */
 export function isDefaultActivityName (name) {
-  const s = String(name ?? '').trim()
+  const s = String(name ?? '').trim().replace(/\s+/g, ' ')
   if (s === '') return true
   return DEFAULT_NAME_RES.some((re) => re.test(s))
 }
@@ -165,13 +180,14 @@ export function createStravaAnnotateRoutes ({ checkBearer, annotate }) {
     async handle (req, res, url) {
       const m = ROUTE_RE.exec(url.pathname)
       if (!m) return false
-      if (req.method !== 'POST') {
-        writeJson(res, 405, { error: 'method_not_allowed' }, { allow: 'POST' })
-        return true
-      }
       if (!checkBearer(req)) {
         req.resume()
         writeJson(res, 401, { error: 'unauthorized' })
+        return true
+      }
+      if (req.method !== 'POST') {
+        req.resume()
+        writeJson(res, 405, { error: 'method_not_allowed' }, { allow: 'POST' })
         return true
       }
       if (!annotate) {
