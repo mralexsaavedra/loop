@@ -4,15 +4,17 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
-## [Unreleased]
+## [1.3.0] - 2026-11-05
 
-- **Your tools can name and describe a Strava activity.** A new bearer route on the data service,
-  `POST /strava/activities/:id/annotate`, writes `{name, description}` to a Strava activity: the description
-  only when it has none, the name only over Strava's automatic title ("Morning Run", "Carrera matutina"), so it
-  never overwrites what you wrote; `dry_run` shows the decision, with the current name and description, and
-  `overwrite: true` replaces them for an edit you asked for (e.g. today's intervals in that run's description). The Strava authorization now asks for
-  `activity:write` too: re-authorize once to use it (`services/loop-ingest/README.md` → Naming and describing
-  an activity); without it the route answers `409 strava_write_scope_missing` and everything else works.
+- **Your coach can name and describe your Strava activities.** The data service has a new route,
+  `POST /strava/activities/:id/annotate`, that writes a name and a description to a Strava activity (for example
+  the intervals you did in today's run). On its own it never overwrites what you wrote: the description only when
+  the activity has none, the name only over Strava's automatic title ("Morning Run", "Carrera matutina");
+  `dry_run` shows what it would change, and `overwrite: true` replaces both for an edit you asked for.
+- **To use it, re-authorize Strava once.** The authorization now also asks for `activity:write`. Until you
+  re-authorize, the route answers `409 strava_write_scope_missing` and everything else (the activity sync, the
+  page) works as before. The steps, including dropping the stored token so the new one is used:
+  [`services/loop-ingest/README.md`](services/loop-ingest/README.md) → "Gear needs the `profile:read_all` scope".
 
 ## [1.2.1] - 2026-11-03
 
