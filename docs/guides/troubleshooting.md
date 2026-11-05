@@ -113,10 +113,10 @@ ports (page 8090, data service 8088). An older host-mode install (the services r
 - `stravaConfigured: false`: fill `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` and `STRAVA_REFRESH_TOKEN`
   in `.env`, then `docker compose up -d` (host mode: `services/loop-ingest/.env`, `docker compose up -d` in that folder).
 - `strava_auth`, or `401` / `invalid_grant` while exchanging the code: the code was used or expired.
-  Authorize again with `scope=read,activity:read_all,profile:read_all` and exchange the new code at once:
+  Authorize again with `scope=read,activity:read_all,activity:write,profile:read_all` and exchange the new code at once:
   `docker compose exec loop-server node services/loop-ingest/scripts/strava-auth.js --print`, then put the printed
   line in `.env` and `docker compose up -d` (host mode: `node scripts/strava-auth.js` in `services/loop-ingest`).
-  Leave every scope ticked on the consent screen; without `profile:read_all` bikes and shoes stay empty.
+  Leave every scope ticked on the consent screen; without `profile:read_all` bikes and shoes stay empty, without `activity:write` your tools cannot name activities (`409 strava_write_scope_missing`).
 - Then press **Sync** (a coach clone: `npm run sync`).
 - A long history fills in over a few runs: the first pull stores each page of 100 activities as it
   arrives, and when Strava's rate limit (`rateLimited: true` in `docker compose logs loop-server`) stops

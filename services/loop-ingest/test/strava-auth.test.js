@@ -96,5 +96,5 @@ test('authorizeUrl asks for the read, activity and profile scopes with the local
   const url = new URL(authorizeUrl(ID))
   assert.equal(url.searchParams.get('client_id'), ID)
   assert.equal(url.searchParams.get('redirect_uri'), 'http://localhost/exchange_token')
-  assert.equal(url.searchParams.get('scope'), 'read,activity:read_all,profile:read_all')
+  assert.equal(url.searchParams.get('scope'), 'read,activity:read_all,activity:write,profile:read_all')
 })

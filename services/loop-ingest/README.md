@@ -30,6 +30,7 @@ parses it into the extract CSVs. A parsing fix later is a re-sync, not a re-impo
 | POST   | `/sync/strava`                | bearer | `200` with the activity count; `409` when unconfigured |
 | GET    | `/export/raw`                 | bearer | `200` with `[{id, received_at, payload}]` (at most `limit` rows and about 32 MB of payloads per page; `X-Has-More: true` when the byte budget cut it); `400` on a bad query |
 | GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate, suffer_score, kilojoules, total_elevation_gain, start_utc, device_watts, hr_hist}]`; `400` on a bad query |
+| POST   | `/strava/activities/:id/annotate` | bearer | `200` `{ok, id, updated, name_changed, description_changed, current_name, name_is_default, had_description, dry_run}`: writes `{name?, description?}` to the Strava activity, the description only when it has none and the name only over Strava's automatic title (see "Naming and describing an activity" below); `400` (`bad_body`, `unknown_field`, `bad_field` + `field`, `nothing_to_write`), `404 activity_not_found`, `409 strava_write_scope_missing` / `strava not configured`, `415`, `429 strava_rate_limited`, `502 strava_auth` / `strava_network` / `strava_error` |
 | GET    | `/food/products`              | header | `200` `{products}`: active products (per-100 macros, store, serving size, `servingDefault`) |
 | POST / PUT / DELETE | `/food/products[/:id]` | header | create `201` / edit `200` (PUT = the whole product) / archive `200`; `409 barcode_exists`, `400 atwater` unless `force`; `servingDefault: true` (log by serving by default) only with a `servingSize`, else `400 invalid` |
 | GET    | `/food/recipes`               | header | `200` `{recipes}` with macros COMPUTED from the products + basic snapshots (`perServing` or `per100` cooked) |
@@ -478,6 +479,29 @@ and `009_strava_hr_retry.sql`);
 the backfill starts on the next sync run. An older image keeps answering `/export/strava` without
 `hr_hist`, and the page simply shows no zones.
 
+### Naming and describing an activity: `POST /strava/activities/:id/annotate`
+
+Lets the owner's tools say what an activity WAS (for example the training session of that day, from a
+private script in `local/`): body `{ "name"?: string ≤ 255, "description"?: string ≤ 8000, "dry_run"?: bool }`,
+`Content-Type: application/json`, the bearer token. The route reads the activity detail from Strava
+(`GET /activities/:id`; `/export/strava` never exports names), then writes with one `PUT` only what is safe:
+
+- the **description** only when the activity has none (blank counts as none);
+- the **name** only when it is Strava's automatic title: a title holding a time-of-day word in English or
+  Spanish (`Morning Run`, `Lunch Ride`, `Carrera matutina`, `Bicicleta por la tarde`…). Anything else is a
+  title the owner typed and stays.
+
+So it never overwrites what the owner wrote, and calling it twice changes nothing the second time.
+`dry_run: true` answers the same decision (`current_name`, `name_is_default`, `had_description`,
+`name_changed`, `description_changed`) and writes nothing. A rename also updates the stored row's `name`.
+
+It needs the `activity:write` scope: a token authorized without it answers
+`409 strava_write_scope_missing` (grant it with the steps under "Gear needs the `profile:read_all`
+scope" below; the read sync keeps working meanwhile). Each Strava call times out after 15 s
+(`502 strava_network`); a `429` is `429 strava_rate_limited` (two calls per activity, from Strava's shared
+budget of 100 requests / 15 min). Not proxied by loop-web's nginx: only a client holding `INGEST_TOKEN`
+reaches it, on the ingest port. Log events: `strava_annotated` (`id`, which fields), `strava_annotate_failed`.
+
 ### Reading the athlete profile back: `GET /export/athlete`
 
 The sync loop also refreshes a snapshot of the Strava **athlete** (name, city/state/country,
@@ -501,7 +525,8 @@ counted. Photo URLs are returned only when they are `https://` (Strava sends a r
 placeholder path when the athlete has no photo). The repo's `npm run sync`
 (`data/profile/sync-profile.mjs`) reads it into the gitignored `loop-data/profile/`.
 
-**Gear needs the `profile:read_all` scope.** Strava returns `bikes` / `shoes` (and
+**Gear needs the `profile:read_all` scope; naming activities (`POST /strava/activities/:id/annotate`) needs
+`activity:write`.** The steps below grant any scope a token authorized earlier lacks. Strava returns `bikes` / `shoes` (and
 `measurement_preference`) on `GET /athlete` only for a token granted `profile:read_all`. With a
 `read,activity:read_all` token they are absent: the service then sets `gearScopeMissing: true`
 (coarse flag, never an error) and still tries `GET /gear/{id}` for the gear ids seen on
@@ -510,10 +535,10 @@ step before it can be abandoned safely):
 
 1. Back up `.env`: `cp .env .env.bak`.
 2. Run `node scripts/strava-auth.js` (it asks for
-   `scope=read,activity:read_all,profile:read_all`; the authorize URL is
-   `https://www.strava.com/oauth/authorize?client_id=<id>&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=read,activity:read_all,profile:read_all`)
+   `scope=read,activity:read_all,activity:write,profile:read_all`; the authorize URL is
+   `https://www.strava.com/oauth/authorize?client_id=<id>&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=read,activity:read_all,activity:write,profile:read_all`)
    and let it write the new refresh token into `.env`. Check the URL Strava redirects to: its
-   `scope=` parameter must include `profile:read_all` (the consent screen lets you untick it).
+   `scope=` parameter must include `profile:read_all` and `activity:write` (the consent screen lets you untick them).
 3. Verify the new token BEFORE dropping the stored one. With the values from `.env` (type them or
    `set -a; . ./.env; set +a` in a subshell; never paste them into a shared log):
    ```bash
@@ -596,13 +621,15 @@ statement after 30 s.
    Client ID in place of `CLIENT_ID`:
 
    ```text
-   https://www.strava.com/oauth/authorize?client_id=CLIENT_ID&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=read,activity:read_all,profile:read_all
+   https://www.strava.com/oauth/authorize?client_id=CLIENT_ID&response_type=code&redirect_uri=http://localhost/exchange_token&approval_prompt=force&scope=read,activity:read_all,activity:write,profile:read_all
    ```
 
    Click *Authorize*. The browser then lands on `http://localhost/exchange_token?...&code=XXXX&scope=...`
    and shows an error page — **that is expected**. Copy the `code` value from the address bar.
    The scopes: `activity:read_all` reads your activities (private ones included), `profile:read_all`
-   your bikes and shoes.
+   your bikes and shoes, `activity:write` lets your tools name and describe an activity
+   (`POST /strava/activities/:id/annotate`; it never changes anything else). Without it everything but that
+   route works.
 3. **Exchange the code for a refresh token** within a few minutes (the code is single-use and expires).
    Easiest: put `STRAVA_CLIENT_ID` and `STRAVA_CLIENT_SECRET` in `.env` and run `node scripts/strava-auth.js`
    from this folder; it asks for the code and writes the refresh token into `.env` (then skip to step 4's

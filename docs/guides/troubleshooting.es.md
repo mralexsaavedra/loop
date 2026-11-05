@@ -120,11 +120,12 @@ modo host (los servicios se ejecutan desde un clon en `/path/to/loop`) es distin
 - `stravaConfigured: false`: rellena `STRAVA_CLIENT_ID`, `STRAVA_CLIENT_SECRET` y `STRAVA_REFRESH_TOKEN` en `.env`
   y después `docker compose up -d` (modo host: `services/loop-ingest/.env`, `docker compose up -d` en esa carpeta).
 - `strava_auth`, o `401` / `invalid_grant` al canjear el código: el código ya se usó o caducó. Vuelve a autorizar
-  con `scope=read,activity:read_all,profile:read_all` y canjea el código nuevo enseguida:
+  con `scope=read,activity:read_all,activity:write,profile:read_all` y canjea el código nuevo enseguida:
   `docker compose exec loop-server node services/loop-ingest/scripts/strava-auth.js --print`, después pon la línea
   impresa en `.env` y `docker compose up -d` (modo host: `node scripts/strava-auth.js` en `services/loop-ingest`).
   Deja marcados todos los permisos en la pantalla de consentimiento; sin `profile:read_all`, las bicis y las
-  zapatillas se quedan vacías.
+  zapatillas se quedan vacías, y sin `activity:write` tus herramientas no pueden poner nombre a las actividades
+  (`409 strava_write_scope_missing`).
 - Después pulsa **Sincronizar** (en un clon del coach: `npm run sync`).
 - Un historial largo se completa en varias ejecuciones: la primera descarga guarda cada página de 100 actividades
   según llega, y cuando el límite de peticiones de Strava (`rateLimited: true` en `docker compose logs loop-server`)

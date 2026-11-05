@@ -4,6 +4,15 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [Unreleased]
+
+- **Your tools can name and describe a Strava activity.** A new bearer route on the data service,
+  `POST /strava/activities/:id/annotate`, writes `{name, description}` to a Strava activity: the description
+  only when it has none, the name only over Strava's automatic title ("Morning Run", "Carrera matutina"), so it
+  never overwrites what you wrote; `dry_run` shows the decision. The Strava authorization now asks for
+  `activity:write` too: re-authorize once to use it (`services/loop-ingest/README.md` → Naming and describing
+  an activity); without it the route answers `409 strava_write_scope_missing` and everything else works.
+
 ## [1.2.1] - 2026-11-03
 
 - **Honey, potato, grapes and coffee start at the amount you usually log** (10 g, 400 g, 150 g, 130 ml: the medians

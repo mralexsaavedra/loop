@@ -18,7 +18,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url'
 
 export const ENV_PATH = fileURLToPath(new URL('../.env', import.meta.url))
 export const REDIRECT_URI = 'http://localhost/exchange_token'
-export const SCOPE = 'read,activity:read_all,profile:read_all'
+export const SCOPE = 'read,activity:read_all,activity:write,profile:read_all'
 
 export const USAGE = `Usage: node scripts/strava-auth.js [--print]
 

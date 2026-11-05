@@ -110,7 +110,7 @@ port published on the host. That publish (`INGEST_PORT`, required) serves the co
 iOS Shortcut if it posts there directly instead of through loop-web). Hence the binds:
 
 - `INGEST_BIND=127.0.0.1` (the `example.env` default) is the recommended hardening: loopback only, so nothing on
-  the LAN reaches `/export/*`, `/sync/strava` or the food log except through loop-web's nginx, and a coach clone on
+  the LAN reaches `/export/*`, `/sync/strava`, `/strava/activities/*` or the food log except through loop-web's nginx, and a coach clone on
   the server itself syncs from `http://127.0.0.1:<INGEST_PORT>`. A coach clone on another computer needs the port
   on the LAN: set `INGEST_BIND` to the server's LAN IP (never on a host whose address is public without a firewall
   in front: `/export/*` is guarded only by `INGEST_TOKEN`), or empty for every address. Docker-published ports bypass
