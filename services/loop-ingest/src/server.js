@@ -20,6 +20,7 @@ import { createDocumentStore } from './documents-db.js'
 import { moveIdentityToDocument } from './profile-db.js'
 import { createDocumentRoutes } from './documents.js'
 import { createFilesExportRoutes } from './files-export.js'
+import { createActivityAnnotator, createStravaAnnotateRoutes } from './strava-annotate.js'
 
 /**
  * Read the body with a hard ceiling. Health Auto Export can be told to batch
@@ -134,6 +135,8 @@ export function createHandler ({
   documentRoutes = { handle: async () => false },
   // container mode only (files-export.js); outside it nothing handles /export/files, so it is the plain 404
   filesExportRoutes = { handle: async () => false },
+  // POST /strava/activities/:id/annotate (strava-annotate.js); absent in tests that do not exercise it
+  stravaAnnotateRoutes = { handle: async () => false },
   syncRoutes,
   handleExport,
   handleStravaExport,
@@ -206,6 +209,7 @@ export function createHandler ({
       if (await journalRoutes.handle(req, res, url)) return
       if (await documentRoutes.handle(req, res, url)) return
       if (await filesExportRoutes.handle(req, res, url)) return
+      if (await stravaAnnotateRoutes.handle(req, res, url)) return
 
       if (req.method === 'POST' && url.pathname === '/sync') {
         req.resume() // any body is ignored: drain it, never buffer it
@@ -453,6 +457,10 @@ async function main () {
     journalRoutes,
     documentRoutes,
     filesExportRoutes,
+    stravaAnnotateRoutes: createStravaAnnotateRoutes({
+      checkBearer,
+      annotate: stravaSync ? createActivityAnnotator({ getAccessToken: stravaSync.getAccessToken, pool }) : null
+    }),
     syncRoutes,
     handleExport,
     handleStravaExport,

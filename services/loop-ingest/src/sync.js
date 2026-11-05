@@ -108,6 +108,8 @@ export function createStravaSync (pool, env, { status = null, fetchImpl = fetch,
 
   return {
     runOnce: guardSync(runOnce, { status, afterOk: refreshAthleteThenBackfillHr, log }),
+    // the shared single-flight token provider, for the routes that call Strava on request (strava-annotate.js)
+    getAccessToken,
     // the latest background athlete refresh (tests / graceful shutdown); resolves, never rejects
     athleteIdle: () => athleteRun,
     // the latest background HR backfill batch; resolves, never rejects
