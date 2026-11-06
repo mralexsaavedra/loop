@@ -147,10 +147,11 @@ language, jurisdiction; template `profile/coaches.example.md`), every claim cite
 | HYROX / hybrid TRAINING: running + strength + conditioning, stations, race strategy, programs | `hybrid-coach` |
 | Gym / strength / bodybuilding TRAINING: hypertrophy and strength routines, exercise choice and order, sets / reps / RIR, volume per muscle, progression, deloads, technique | `strength-coach` |
 | TRAINING for any other sport: running, swimming, team sports, yoga / pilates, general fitness — sessions, progression, periodization, load | `training-coach` |
+| Home COFFEE (not health): espresso and other brew methods, dialing in, beans, milk, the user's coffee machine and grinder | `coffee-coach` |
 | ANY nutrition: daily diet, body composition, protein / carbs, on-bike / race fuelling, hydration, electrolytes, supplements | `nutrition-coach` |
 
-Fuelling, hydration, supplements and body-composition nutrition go to `nutrition-coach` also when the
-question comes from a training coach's sport; the training coaches answer only the training part and hand off.
+Fuelling, hydration, supplements (caffeine included) and body-composition nutrition go to `nutrition-coach` also when the
+question comes from a training coach's sport or from coffee; the training coaches answer only the training part and hand off.
 
 ## Output principles
 
