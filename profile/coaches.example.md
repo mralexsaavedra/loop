@@ -86,13 +86,29 @@ position stands, WADA Prohibited List, your national food-safety agency's supple
 anti-doping: CELAD (plus the WADA list); food composition: BEDCA; professional title:
 dietista-nutricionista. Replace with your country's equivalents.>
 
+## strength-coach
+
+Gym training: hypertrophy, strength, bodybuilding, or the gym part of another sport. Optional: with no
+sources it answers from your data and `analysis/methodology.md` and says it has no expert sources.
+
+- **Goal**: <what you train in the gym for, e.g. hypertrophy 3×/week alongside cycling, a first bodybuilding show>.
+- **Knowledge folder**: <`knowledge/strength/` (the default)>.
+
+### Knowledge sources (optional)
+
+| Name | Short name | Focus | Folder | How to cite |
+| --- | --- | --- | --- | --- |
+| <coach / channel / book> | <short name used in answers> | <hypertrophy / powerlifting / natural bodybuilding / …> | `knowledge/strength/<source>/` | <video title + `&t=<seconds>s` URL, or book + chapter> |
+
+- **Commercial ties**: <own coaching team, programs, supplement or equipment brands of the source — or "none known">.
+
 ## training-coach
 
-For any sport without its own coach (running, swimming, strength, team sports, yoga / pilates…).
+For any sport without its own coach (running, swimming, team sports, yoga / pilates…).
 Optional: with no sources it answers from your data and `analysis/methodology.md` and says it has no
 expert sources.
 
-- **Sports**: <the sport(s) to coach, e.g. running (10K, half marathon), strength 2×/week>.
+- **Sports**: <the sport(s) to coach, e.g. running (10K, half marathon), swimming 2×/week>.
 - **Knowledge folder**: <`knowledge/training/` (the default)>.
 
 ### Knowledge sources (optional)

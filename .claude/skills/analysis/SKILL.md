@@ -29,7 +29,7 @@ sources and their caveats are in `CLAUDE.md` → Data sources. Do not copy them 
    compare the snapshot and give every one of its actions a status backed by data.
 7. **Coach sub-questions.** Delegate the specialised parts and cite their answers:
    nutrition / body composition / fuelling / supplements → `nutrition-coach`; cycling training →
-   `cycling-coach`; HYROX / hybrid training → `hybrid-coach`; any other sport's training →
+   `cycling-coach`; HYROX / hybrid training → `hybrid-coach`; gym / strength training → `strength-coach`; any other sport's training →
    `training-coach`. They are read-only and cite sources.
 8. **Write** `analysis/reports/YYYY-MM-DD.md` (today's date) in the user's language
    (`profile/coaches.md` → Common → Language; else the language they write in), per methodology §6:

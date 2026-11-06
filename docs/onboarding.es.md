@@ -45,7 +45,7 @@ rellenar un formulario solo. Reproduce la entrevista inicial de un coach de verd
    grasa corporal por bioimpedancia solo sirve como tendencia, ±3–5 %).
 5. **Configura los coaches.** Recorre `profile/coaches.example.md` hacia `profile/coaches.md` (en `.gitignore`):
    idioma de respuesta, país / jurisdicción (límites de los suplementos, base de datos de alimentos) y después,
-   por coach (ciclismo, HYROX / híbrido, nutrición, y `training-coach` para cualquier otro deporte que practique:
+   por coach (ciclismo, HYROX / híbrido, nutrición, `strength-coach` para el gimnasio —su clave **Goal**—, y `training-coach` para cualquier otro deporte que practique:
    su clave **Sports**), las fuentes de conocimiento que quiere (nombre, carpeta dentro de `knowledge/`, cómo
    citarla, vínculos comerciales), su material (con el PDF del manual si lo tiene: con servidor, en la carpeta
    `files/manuals/` del SERVIDOR, que la siguiente sincronización copia en el clon; un archivo puesto solo en el

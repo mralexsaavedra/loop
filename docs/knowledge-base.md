@@ -1,6 +1,6 @@
 # Knowledge base + expert subagents
 
-Transcript ingest, private program syncs, and the four read-only coach subagents.
+Transcript ingest, private program syncs, and the five read-only coach subagents.
 
 > **Reference** — how this area is built, for anyone changing it (keep it in sync with the code in the same
 > commit). Setting up or using the page? Start at the [documentation index](README.md).
@@ -13,7 +13,8 @@ only covers the parts around them:
 | `cycling-coach` | cycling TRAINING (power, FTP, zones, periodization, bike fit, gear, devices) | [`.claude/agents/cycling-coach.md`](../.claude/agents/cycling-coach.md) |
 | `hybrid-coach` | HYROX / hybrid TRAINING (stations, compromised running, race strategy, programs) | [`.claude/agents/hybrid-coach.md`](../.claude/agents/hybrid-coach.md) |
 | `nutrition-coach` | ANY nutrition, also for cycling / HYROX (diet, fuelling, hydration, supplements, body composition) | [`.claude/agents/nutrition-coach.md`](../.claude/agents/nutrition-coach.md) |
-| `training-coach` | TRAINING for every other sport (running, swimming, strength, team sports, yoga / pilates…) | [`.claude/agents/training-coach.md`](../.claude/agents/training-coach.md) |
+| `strength-coach` | gym / strength / bodybuilding TRAINING (routines, exercise order, sets / reps / RIR, volume, progression) | [`.claude/agents/strength-coach.md`](../.claude/agents/strength-coach.md) |
+| `training-coach` | TRAINING for every other sport (running, swimming, team sports, yoga / pilates…) | [`.claude/agents/training-coach.md`](../.claude/agents/training-coach.md) |
 
 The training coaches answer only the training part of a question and hand nutrition off to
 `nutrition-coach`, and vice versa; the frontmatter descriptions say the same, so Claude Code routes
@@ -64,6 +65,7 @@ facts" table names.
 | `## cycling-coach` | **Knowledge sources** table (name, short name, type, folder, how to cite), **Commercial ties**, **FTP stance** (optional), **Gear** table (device → manual under `loop-data/files/manuals/`) |
 | `## hybrid-coach` | **Knowledge folder** (default `knowledge/hybrid/`), **Knowledge sources** in reading order (syntheses, podcasts, past programs, current program), events / rulebook pointers |
 | `## nutrition-coach` | **Knowledge folder** (default `knowledge/nutrition/`), **Evidence folder** (default `<knowledge folder>/evidence/`, `evidencia/` also found), evidence base list, **Practitioner sources** table, **Cross-domain passages** (optional), **Jurisdiction rules** |
+| `## strength-coach` | **Goal**, **Knowledge folder** (default `knowledge/strength/`), **Knowledge sources** table (optional; name, short name, focus, folder, how to cite), **Commercial ties** |
 | `## training-coach` | **Sports**, **Knowledge folder** (default `knowledge/training/`), **Knowledge sources** table (optional; name, short name, sport, folder, how to cite), **Commercial ties** |
 
 The coaches search transcripts with keywords in the user's language AND in English, and check

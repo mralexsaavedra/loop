@@ -145,7 +145,8 @@ language, jurisdiction; template `profile/coaches.example.md`), every claim cite
 | --- | --- |
 | Cycling TRAINING: power, FTP, zones, periodization, bike fit, gear, bike computers, training devices | `cycling-coach` |
 | HYROX / hybrid TRAINING: running + strength + conditioning, stations, race strategy, programs | `hybrid-coach` |
-| TRAINING for any other sport: running, swimming, strength / gym, team sports, yoga / pilates, general fitness — sessions, progression, periodization, load | `training-coach` |
+| Gym / strength / bodybuilding TRAINING: hypertrophy and strength routines, exercise choice and order, sets / reps / RIR, volume per muscle, progression, deloads, technique | `strength-coach` |
+| TRAINING for any other sport: running, swimming, team sports, yoga / pilates, general fitness — sessions, progression, periodization, load | `training-coach` |
 | ANY nutrition: daily diet, body composition, protein / carbs, on-bike / race fuelling, hydration, electrolytes, supplements | `nutrition-coach` |
 
 Fuelling, hydration, supplements and body-composition nutrition go to `nutrition-coach` also when the
