@@ -4,6 +4,14 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [Unreleased]
+
+- **A fifth coach for the gym: `strength-coach`.** Hypertrophy and strength routines, exercise choice and order,
+  sets / reps / RIR, volume, progression and deloads now have their own read-only coach, configured like the others
+  (`## strength-coach` in `profile/coaches.md`, sources under `knowledge/strength/`). `training-coach` keeps every
+  other sport (running, swimming, team sports…); the other coaches, `CLAUDE.md` and the docs route gym questions to
+  the new one.
+
 ## [1.3.0] - 2026-11-05
 
 - **Your coach can name and describe your Strava activities.** The data service has a new route,

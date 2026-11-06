@@ -43,7 +43,7 @@ function sharedSpan(text, name) {
 }
 
 test('the coach list is found on disk and holds every known coach', () => {
-  for (const name of ['cycling-coach.md', 'hybrid-coach.md', 'nutrition-coach.md', 'training-coach.md']) {
+  for (const name of ['cycling-coach.md', 'hybrid-coach.md', 'nutrition-coach.md', 'strength-coach.md', 'training-coach.md']) {
     assert.ok(COACHES.includes(name), `${name} missing from .claude/agents/`);
   }
 });
