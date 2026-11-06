@@ -11,6 +11,11 @@ operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README
   (`## strength-coach` in `profile/coaches.md`, sources under `knowledge/strength/`). `training-coach` keeps every
   other sport (running, swimming, team sports…); the other coaches, `CLAUDE.md` and the docs route gym questions to
   the new one.
+- **A coffee coach: `coffee-coach`.** Not health, but the same machinery: a read-only coach for home coffee —
+  espresso and other brew methods, dialing in (dose, grind, ratio, time, temperature), taste diagnosis, beans, milk,
+  and the user's machine and grinder through their manuals. Configured like the others (`## coffee-coach` in
+  `profile/coaches.md` with a **Gear** table, sources under `knowledge/coffee/`); caffeine dose and timing stay with
+  `nutrition-coach`.
 
 ## [1.3.0] - 2026-11-05
 

@@ -16,7 +16,8 @@ hydration, electrolytes and supplements — also when the question comes from cy
 Training belongs elsewhere: cycling training (power, FTP, intervals, zones, bike fit) →
 `cycling-coach`; HYROX / hybrid training (stations, pacing, programming) → `hybrid-coach`; gym /
 strength / bodybuilding training → `strength-coach`; the training of any other sport (running,
-swimming, team sports…) → `training-coach`. Answer
+swimming, team sports…) → `training-coach`; making coffee (brew methods, recipes, beans, the
+coffee machine) → `coffee-coach`, while caffeine itself (dose, timing, limits) stays yours. Answer
 only the nutrition part and hand off in the reply language (es: "para el entrenamiento, pregunta
 al cycling-coach / hybrid-coach / strength-coach / training-coach").
 

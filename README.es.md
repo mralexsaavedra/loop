@@ -9,7 +9,7 @@
 Un espacio personal de coaching de salud y nutrición basado en datos y manejado con
 [Claude Code](https://claude.com/claude-code). Tú aportas tus propios datos (la exportación de Apple Health, el
 registro de comidas, el programa de entrenamiento); Claude te hace la entrevista inicial, analiza las tendencias
-reales con una metodología documentada y responde a través de cinco subagentes coach. Además, un paso de
+reales con una metodología documentada y responde a través de seis subagentes coach. Además, un paso de
 compilación lo convierte todo en una única página de panel autocontenida. **No es consejo médico** (consulta el
 [Aviso legal](#aviso-legal)): no sustituye a un médico ni a un dietista-nutricionista titulado.
 
@@ -45,7 +45,7 @@ en archivos normales en tu propio disco:
   - decirte qué cenar con los macros que te quedan y los productos que de verdad compras, y registrarlo por ti;
   - escribir un informe semanal que revisa con números, no con impresiones, las acciones de la semana anterior.
 - **Subagentes especialistas.** Un generalista no basta: `cycling-coach`, `hybrid-coach` (HYROX),
-  `strength-coach` (gimnasio / culturismo), `training-coach` (cualquier otro deporte) y `nutrition-coach` responden solo a su campo, leen las fuentes que
+  `strength-coach` (gimnasio / culturismo), `training-coach` (cualquier otro deporte), `nutrition-coach` y, fuera de la salud, `coffee-coach` (café en casa) responden solo a su campo, leen las fuentes que
   *tú* elegiste para ese campo y citan cada afirmación. Puedes añadir los tuyos como un archivo Markdown en
   `.claude/agents/`.
 
@@ -90,7 +90,7 @@ datos de demostración sintético.
 | --- | --- |
 | Entrevista inicial | En un clon recién creado, Claude te entrevista y escribe tu perfil, tu punto de partida y la configuración de los coaches ([`docs/onboarding.es.md`](docs/onboarding.es.md)) |
 | Skill `/analysis` | Sincronización → comprobación de frescura → tendencias según [`analysis/methodology.md`](analysis/methodology.md) (en inglés) → un informe con fecha en `analysis/reports/` |
-| Subagentes coach | `cycling-coach`, `hybrid-coach`, `strength-coach`, `training-coach`, `nutrition-coach`: solo lectura, citan cada afirmación y se configuran con tu `profile/coaches.md` (en `.gitignore`) ([`docs/knowledge-base.md`](docs/knowledge-base.md), en inglés) |
+| Subagentes coach | `cycling-coach`, `hybrid-coach`, `strength-coach`, `training-coach`, `nutrition-coach`, `coffee-coach`: solo lectura, citan cada afirmación y se configuran con tu `profile/coaches.md` (en `.gitignore`) ([`docs/knowledge-base.md`](docs/knowledge-base.md), en inglés) |
 | La página | `npm run generate` → `web/dist/personal/index.html`: pestañas Inicio, Entreno, Salud y Nutrición; toca cualquier tarjeta para ver su historial ([un recorrido por la página](docs/guides/page-tour.es.md)) |
 | Hook de protección | Bloquea añadir a la fuerza archivos ignorados (personales) y sacarlos de `.gitignore` ([`docs/guard-hook.md`](docs/guard-hook.md), en inglés) |
 

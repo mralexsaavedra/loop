@@ -43,7 +43,7 @@ function sharedSpan(text, name) {
 }
 
 test('the coach list is found on disk and holds every known coach', () => {
-  for (const name of ['cycling-coach.md', 'hybrid-coach.md', 'nutrition-coach.md', 'strength-coach.md', 'training-coach.md']) {
+  for (const name of ['coffee-coach.md', 'cycling-coach.md', 'hybrid-coach.md', 'nutrition-coach.md', 'strength-coach.md', 'training-coach.md']) {
     assert.ok(COACHES.includes(name), `${name} missing from .claude/agents/`);
   }
 });
@@ -92,6 +92,12 @@ const PERSONAL_TOKEN_HASHES = new Set([
   '7d0578809d0b1f4814e35ec6cfa00f91618d07f66b788347a27a9e7adf720b62',
   '06556416a0cc370c80fa7553a48afc5b9e934c28e581cc5ebf0113ceac6657b2',
   '5f5f096fd0b165744f0d0283e17290f1e2792860e30cf314db3b70d593a33661',
+  '3eab586753f20284c6a2d8a30969183e4dbb5086e06b9e8d7ef4834c3f426e41',
+  'b081cde8f78f9f32201202d44ad11497a7955c507a8b53918bcde04f865b3993',
+  '6a593252ba7b8835865a6801ebd79eafa9fbdc78f46af1441619c5f278efbf6e',
+  '65bbc7f621fb940ffe5956b21571a6907518be818d38e962fcffe97bbd28c541',
+  '16fc5660368528b3c0ccb362d71b0448cfd1d1c0b1bcd3f28e23973cd69a95dc',
+  '949962658bffdacc3544d80374a2550df9c001886e7872f326ca2751e444c5c2',
 ]);
 const sha256 = (t) => crypto.createHash('sha256').update(t).digest('hex');
 /** The tokens of `text` (words and adjacent-word pairs, lowercased) whose hash is in `hashes`. */

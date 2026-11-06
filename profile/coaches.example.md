@@ -118,3 +118,27 @@ expert sources.
 | <coach / channel / book> | <short name used in answers> | <running / swimming / …> | `knowledge/training/<source>/` | <video title + `&t=<seconds>s` URL, or book + chapter> |
 
 - **Commercial ties**: <brands, own platforms, affiliate links of the source — or "none known">.
+
+## coffee-coach
+
+Home coffee (not health): espresso and other brew methods, dialing in, beans, milk, your machine and
+grinder. Optional: with no sources it answers from your gear manuals and general brewing knowledge and
+says it has no expert sources.
+
+- **Knowledge folder**: <`knowledge/coffee/` (the default)>.
+- **Taste** (optional): <what you like to drink, e.g. espresso and flat white, medium roast, no sugar>.
+
+### Gear
+
+| Device | Manual (Grep it, then Read the passage; cite the section) |
+| --- | --- |
+| <coffee machine model> | `loop-data/files/manuals/<machine>-manual.md` |
+| <grinder model, or "pre-ground coffee"> | <manual path, or "none"> |
+
+### Knowledge sources (optional)
+
+| Name | Short name | Focus | Folder | How to cite |
+| --- | --- | --- | --- | --- |
+| <barista / roaster / channel> | <short name used in answers> | <espresso / filter / beans / home gear / …> | `knowledge/coffee/<source>/` | <video title + `&t=<seconds>s` URL> |
+
+- **Commercial ties**: <own roastery, coffee shop, courses, sponsored machines or affiliate links of the source — or "none known">.

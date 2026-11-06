@@ -9,7 +9,7 @@
 A personal, data-driven health and nutrition coaching workspace operated by
 [Claude Code](https://claude.com/claude-code). You drop in your own data (Apple Health export, food log,
 training program); Claude onboards you, analyses real trends against a documented methodology, and
-answers through five coach subagents — and a build step turns everything into one self-contained
+answers through six coach subagents — and a build step turns everything into one self-contained
 dashboard page. **It is not medical advice** (see [Disclaimer](#disclaimer)): it does not replace a
 physician or a registered dietitian.
 
@@ -44,7 +44,7 @@ disk:
     and log it for you;
   - write a weekly report that follows up on last week's actions with numbers, not vibes.
 - **Specialist subagents.** One generalist is not enough: `cycling-coach`, `hybrid-coach` (HYROX),
-  `strength-coach` (gym / bodybuilding), `training-coach` (any other sport) and `nutrition-coach` each answer only their own field, read the sources *you* chose for that field, and
+  `strength-coach` (gym / bodybuilding), `training-coach` (any other sport), `nutrition-coach` and, off the health track, `coffee-coach` (home coffee) each answer only their own field, read the sources *you* chose for that field, and
   cite every claim. Add your own as a Markdown file in `.claude/agents/`.
 
 It can also run **in the background**: the LOOP server (two Docker images) syncs Apple Health, Strava and the
@@ -88,7 +88,7 @@ dataset.
 | --- | --- |
 | Onboarding | On a fresh clone Claude interviews you and writes your profile, baseline and coach config ([`docs/onboarding.md`](docs/onboarding.md)) |
 | `/analysis` skill | Sync → freshness check → trends per [`analysis/methodology.md`](analysis/methodology.md) → a dated report in `analysis/reports/` |
-| Coach subagents | `cycling-coach`, `hybrid-coach`, `strength-coach`, `training-coach`, `nutrition-coach`: read-only, cite every claim, configured by your gitignored `profile/coaches.md` ([`docs/knowledge-base.md`](docs/knowledge-base.md)) |
+| Coach subagents | `cycling-coach`, `hybrid-coach`, `strength-coach`, `training-coach`, `nutrition-coach`, `coffee-coach`: read-only, cite every claim, configured by your gitignored `profile/coaches.md` ([`docs/knowledge-base.md`](docs/knowledge-base.md)) |
 | The page | `npm run generate` → `web/dist/personal/index.html`: Home, Training, Health, Nutrition tabs; tap any card for its history ([a tour of the page](docs/guides/page-tour.md)) |
 | Guard hook | Blocks force-adding ignored (personal) files and un-ignoring them in `.gitignore` ([`docs/guard-hook.md`](docs/guard-hook.md)) |
 

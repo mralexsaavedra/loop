@@ -26,6 +26,7 @@ in `profile/coaches.md`):
 | `knowledge/hybrid/` | `hybrid-coach` | cross-source `index.md` + `topics/`, one folder per podcast / program |
 | `knowledge/nutrition/` | `nutrition-coach` | `evidence/` (position stands, official documents; `evidencia/` also found) + one folder per practitioner |
 | `knowledge/strength/` | `strength-coach` | optional: gym / strength / bodybuilding, one folder per source |
+| `knowledge/coffee/` | `coffee-coach` | optional: home coffee (brewing, beans, gear), one folder per source |
 | `knowledge/training/` | `training-coach` | optional: any other sport (running, swimming…), one folder per source |
 
 `subs` in the manifest is `manual` (uploaded subtitles), `auto` (YouTube automatic captions —
