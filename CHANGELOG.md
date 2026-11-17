@@ -4,7 +4,7 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
-## [Unreleased]
+## [1.4.0] - 2026-11-17
 
 - **A fifth coach for the gym: `strength-coach`.** Hypertrophy and strength routines, exercise choice and order,
   sets / reps / RIR, volume, progression and deloads now have their own read-only coach, configured like the others
@@ -16,7 +16,6 @@ operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README
   and the user's machine and grinder through their manuals. Configured like the others (`## coffee-coach` in
   `profile/coaches.md` with a **Gear** table, sources under `knowledge/coffee/`); caffeine dose and timing stay with
   `nutrition-coach`.
-
 - **The add sheet works from the keyboard.** In the food log's add sheet, ↑ / ↓ move a highlight over the
   search results (the focus stays in the search field), and Enter picks the highlighted item, or the first match. ← / → switch the
   Products / Recipes / Quick tabs, and Esc on the amount step goes back to the list instead of closing the sheet.
