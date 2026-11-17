@@ -1316,7 +1316,6 @@
   "|||.fa-item-name|||overflow-wrap": "anywhere",
   "|||.fa-item-sub b|||color": "var(--muted)",
   "|||.fa-item-sub b|||font-family": "var(--num)",
-  "|||.fa-item:hover:not([disabled])|||background": "var(--surface-2)",
   "|||.fa-item[disabled]|||color": "var(--faint)",
   "|||.fa-item[disabled]|||cursor": "default",
   "|||.fa-item|||align-items": "flex-start",
@@ -4322,5 +4321,7 @@
   "|||.wp-rows>li:last-child>.wp-row|||border-bottom": "0",
   "|||:root|||--up-rgb": "0, 241, 159",
   "|||:root|||--outlook-a": "#4a4642",
-  "|||:root|||--outlook-b": "#34363a"
+  "|||:root|||--outlook-b": "#34363a",
+  "|||.fa-item:hover:not([disabled]), .fa-item[data-active=true]|||background": "var(--surface-2)",
+  "|||.fa-item[data-active=true]|||box-shadow": "inset 3px 0 0 var(--accent)"
 }

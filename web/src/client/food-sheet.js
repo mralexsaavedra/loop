@@ -27,51 +27,74 @@
     var m = asGroup(meal) || guessMeal();
     // a sheet opened on a past day keeps that date; one opened on "today" stays null and logs to the
     // today of the save (a sheet opened at 23:58 and saved at 00:02 logs to the new day)
-    return { meal: m, date: onToday() ? null : S.view, tab: 'products', q: '', pick: null, busy: false, reqId: null };
+    return { meal: m, date: onToday() ? null : S.view, tab: 'products', q: '', hi: -1, pick: null, busy: false, reqId: null };
   }
   var TAB_KEYS = ['products', 'recipes', 'quick'];
   function tabKeys() {
     return TAB_KEYS;
   }
-  function listHtml() {
+  /** What the list shows for the current tab and search: the recipes, or the matching products and
+   * basics, or the note that replaces them. listHtml renders it and pickable() walks it, so the keyboard
+   * highlight and the list never disagree on the order. */
+  function listData() {
     var sh = S.sheet;
-    if (sh.tab === 'recipes') {
-      if (!S.recipes.length) return '<p class="food-note">' + esc(T.sheet.noRecipes) + '</p>';
-      return '<ul class="fa-items">' + S.recipes.map(function (r) {
+    if (sh.tab === 'recipes') return S.recipes.length ? { recipes: S.recipes } : { note: T.sheet.noRecipes };
+    var q = norm(sh.q).trim();
+    var hint = BASICS.length ? T.sheet.typeToSearch : null;
+    // an empty search lists the user's products only (the basics appear once they type, so the list stays short)
+    if (!q) return S.products.length ? { shown: S.products, basics: [], hint: hint } : { note: T.sheet.noProducts, hint: hint };
+    var shown = S.products.filter(function (p) { return norm(p.name + ' ' + (p.brand || '')).indexOf(q) >= 0; });
+    var basics = basicMatches(q);
+    if (!shown.length && !basics.length) return { note: T.sheet.noMatch };
+    return { shown: shown, basics: basics };
+  }
+  function byStore(shown) {
+    var out = [];
+    K.stores.forEach(function (s) { shown.forEach(function (p) { if (p.store === s) out.push(p); }); });
+    return out;
+  }
+  /** The items Enter / the arrow keys can pick, in list order ({ kind, id }; an incomplete recipe is skipped). */
+  function pickable() {
+    var d = listData();
+    if (d.recipes) return d.recipes.filter(function (r) { return r.complete; }).map(function (r) { return { kind: 'recipe', id: String(r.id) }; });
+    if (d.note) return [];
+    return byStore(d.shown).map(function (p) { return { kind: 'product', id: String(p.id) }; })
+      .concat(d.basics.map(function (b) { return { kind: 'basic', id: String(b.k) }; }));
+  }
+  // the attributes of a pickable item's button: its option id (the search's aria-activedescendant) and the
+  // highlight of the arrow keys (S.sheet.hi, an index into pickable())
+  function optAttrs(n) {
+    return ' id="fa-opt-' + n + '"' + (n === S.sheet.hi ? ' data-active="true"' : '');
+  }
+  function listHtml() {
+    var d = listData();
+    var n = 0;
+    var note = function (s) { return s ? '<p class="food-note">' + esc(s) + '</p>' : ''; };
+    if (d.note) return note(d.note) + note(d.hint);
+    if (d.recipes) {
+      return '<ul class="fa-items">' + d.recipes.map(function (r) {
         var b = r.kind === 'serving' ? r.perServing : r.per100;
         var basis = r.kind === 'serving' ? T.sheet.perServing : T.sheet.per100Cooked;
-        return '<li><button type="button" class="fa-item" data-food-act="pick" data-kind="recipe" data-id="' + esc(r.id) + '"' + (r.complete ? '' : ' disabled') + '>' +
+        return '<li><button type="button" class="fa-item"' + (r.complete ? optAttrs(n++) : '') + ' data-food-act="pick" data-kind="recipe" data-id="' + esc(r.id) + '"' + (r.complete ? '' : ' disabled') + '>' +
           '<span class="fa-item-name">' + esc(r.name) + '</span><span class="fa-item-sub">' +
           (b && r.complete ? esc(kf(b.kcal)) + ' ' + esc(T.kcal) + ' ' + esc(basis) : esc(T.sheet.incomplete)) + '</span></button></li>';
       }).join('') + '</ul>';
     }
-    var q = norm(sh.q).trim();
-    var hint = BASICS.length ? '<p class="food-note">' + esc(T.sheet.typeToSearch) + '</p>' : '';
-    // an empty search lists the user's products only (the basics appear once they type, so the list stays short)
-    if (!q) return (S.products.length ? productGroupsHtml(S.products) : '<p class="food-note">' + esc(T.sheet.noProducts) + '</p>') + hint;
-    var shown = S.products.filter(function (p) { return norm(p.name + ' ' + (p.brand || '')).indexOf(q) >= 0; });
-    var basics = basicMatches(q);
-    if (!shown.length && !basics.length) return '<p class="food-note">' + esc(T.sheet.noMatch) + '</p>';
-    return productGroupsHtml(shown) + basicsHtml(basics);
-  }
-  function basicsHtml(list) {
-    if (!list.length) return '';
-    return '<h4 class="fa-store">' + esc(T.sheet.basics) + '</h4><ul class="fa-items">' + list.map(function (b) {
-      return '<li><button type="button" class="fa-item" data-food-act="pick" data-kind="basic" data-id="' + esc(b.k) + '">' +
-        '<span class="fa-item-name">' + esc(b.n) + '</span>' +
-        '<span class="fa-item-sub">' + esc(kf(b.m[0])) + ' ' + esc(T.kcal) + ' ' + esc(basicSub(b)) + '</span></button></li>';
-    }).join('') + '</ul>';
-  }
-  function productGroupsHtml(shown) {
-    return K.stores.map(function (s) {
-      var list = shown.filter(function (p) { return p.store === s; });
+    var products = K.stores.map(function (s) {
+      var list = d.shown.filter(function (p) { return p.store === s; });
       if (!list.length) return '';
       return '<h4 class="fa-store">' + esc(T.stores[s]) + '</h4><ul class="fa-items">' + list.map(function (p) {
-        return '<li><button type="button" class="fa-item" data-food-act="pick" data-kind="product" data-id="' + esc(p.id) + '">' +
+        return '<li><button type="button" class="fa-item"' + optAttrs(n++) + ' data-food-act="pick" data-kind="product" data-id="' + esc(p.id) + '">' +
           '<span class="fa-item-name">' + esc(p.name) + (p.brand ? ' <span class="fa-item-brand">' + esc(p.brand) + '</span>' : '') + '</span>' +
           '<span class="fa-item-sub">' + esc(kf(p.per100.kcal)) + ' ' + esc(T.kcal) + ' ' + esc(format(T.sheet.per100, { unit: T.units[p.unit] })) + '</span></button></li>';
       }).join('') + '</ul>';
     }).join('');
+    var basics = !d.basics.length ? '' : '<h4 class="fa-store">' + esc(T.sheet.basics) + '</h4><ul class="fa-items">' + d.basics.map(function (b) {
+      return '<li><button type="button" class="fa-item"' + optAttrs(n++) + ' data-food-act="pick" data-kind="basic" data-id="' + esc(b.k) + '">' +
+        '<span class="fa-item-name">' + esc(b.n) + '</span>' +
+        '<span class="fa-item-sub">' + esc(kf(b.m[0])) + ' ' + esc(T.kcal) + ' ' + esc(basicSub(b)) + '</span></button></li>';
+    }).join('') + '</ul>';
+    return products + basics + note(d.hint);
   }
   function pickedItem() {
     var pk = S.sheet && S.sheet.pick;
@@ -156,7 +179,7 @@
     if (sh.tab === 'quick') return quickHtml();
     if (sh.pick) return pickHtml();
     var search = sh.tab === 'products' && (S.products.length || BASICS.length)
-      ? field('fa-q', T.sheet.search, '<input class="food-in" id="fa-q" type="search" autocomplete="off" placeholder="' + esc(T.sheet.searchPh) + '" value="' + esc(sh.q) + '">')
+      ? field('fa-q', T.sheet.search, '<input class="food-in" id="fa-q" type="search" autocomplete="off" role="combobox" aria-autocomplete="list" aria-controls="fa-list" aria-expanded="true" placeholder="' + esc(T.sheet.searchPh) + '" value="' + esc(sh.q) + '">')
       : '';
     return search + '<div id="fa-list" class="fa-list">' + listHtml() + '</div>';
   }
@@ -298,26 +321,91 @@
     var d = S.sheet && S.sheet.date;
     return d && d !== HC.todayIso() ? format(T.sheet.titleDate, { date: HC.fmtDate(d) }) : T.sheet.title;
   }
+  function setSheetTab(k, focusTab) {
+    if (!S.sheet || tabKeys().indexOf(k) < 0) return;
+    S.sheet.tab = k;
+    S.sheet.pick = null;
+    S.sheet.hi = -1;
+    redrawPanel(focusTab ? null : k === 'quick' ? 'fa-label' : k === 'products' ? 'fa-q' : null);
+    if (focusTab) {
+      var tabs = document.querySelectorAll ? document.querySelectorAll('.fa-tab') : [];
+      for (var i = 0; i < tabs.length; i++) if (tabs[i].getAttribute('data-tab') === k && typeof tabs[i].focus === 'function') tabs[i].focus();
+    }
+  }
+  function pickItem(kind, id) {
+    if (!S.sheet) return;
+    S.sheet.pick = { kind: kind === 'recipe' || kind === 'basic' ? kind : 'product', id: id };
+    redrawPanel('fa-amt');
+    updatePreview();
+  }
+  function unpick() {
+    if (!S.sheet) return;
+    S.sheet.pick = null;
+    S.sheet.hi = -1;
+    redrawPanel(S.sheet.tab === 'products' ? 'fa-q' : null);
+  }
+  /** Moves the arrow-key highlight by one (wrapping) and redraws the list. From the search the focus stays
+   * in the field (aria-activedescendant names the item); from anywhere else in the sheet (the Recetas tab
+   * has no search) the highlighted item takes the focus, so Enter / Space press it like a click. */
+  function moveHighlight(step, fromSearch) {
+    var n = pickable().length;
+    if (!n) return;
+    var hi = S.sheet.hi;
+    S.sheet.hi = hi < 0 ? (step > 0 ? 0 : n - 1) : (hi + step + n) % n;
+    setHtml('fa-list', listHtml());
+    var opt = $('fa-opt-' + S.sheet.hi);
+    if (opt && typeof opt.scrollIntoView === 'function') opt.scrollIntoView({ block: 'nearest' });
+    var q = $('fa-q');
+    if (fromSearch) { if (q) q.setAttribute('aria-activedescendant', 'fa-opt-' + S.sheet.hi); }
+    else focus('fa-opt-' + S.sheet.hi);
+  }
+  var TAB_KEY_STEP = { ArrowLeft: -1, ArrowRight: 1, Left: -1, Right: 1 };
+  /* The add sheet's keys (it is a detail.js view; this listener is registered before detail.js's, so a key
+   * handled here is preventDefault()ed and detail.js leaves it alone):
+   * - ArrowDown / ArrowUp on the list view (the search, a tab or an item) move the highlight;
+   * - Enter in the search picks the highlighted item, or the first one when none is highlighted;
+   * - ArrowLeft / ArrowRight on a tab switch to the previous / next tab, the focus stays on the tabs;
+   * - Escape with an item picked goes back to the list (a second Escape closes the sheet). */
+  function onSheetKey(e) {
+    var sh = S.sheet;
+    var t = e && e.target;
+    if (!sh || !t || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
+    var inSheet = t.closest ? t.closest('.fa') : null;
+    if (!inSheet) return;
+    var id = t.getAttribute ? t.getAttribute('id') : null;
+    var onTab = !!(t.closest && t.closest('.fa-tab'));
+    var key = e.key;
+    if ((key === 'Escape' || key === 'Esc') && sh.pick && sh.tab !== 'quick') {
+      e.preventDefault();
+      unpick();
+      return;
+    }
+    if (onTab && TAB_KEY_STEP[key]) {
+      var keys = tabKeys();
+      var at = keys.indexOf(sh.tab);
+      e.preventDefault();
+      setSheetTab(keys[(at + TAB_KEY_STEP[key] + keys.length) % keys.length], true);
+      return;
+    }
+    if (sh.pick || sh.tab === 'quick') return;
+    var onItem = !!(t.closest && t.closest('.fa-item'));
+    if ((key === 'ArrowDown' || key === 'Down' || key === 'ArrowUp' || key === 'Up') && (id === 'fa-q' || onTab || onItem)) {
+      e.preventDefault();
+      moveHighlight(key === 'ArrowDown' || key === 'Down' ? 1 : -1, id === 'fa-q');
+      return;
+    }
+    if (key === 'Enter' && id === 'fa-q') {
+      var items = pickable();
+      var it = items[sh.hi >= 0 && sh.hi < items.length ? sh.hi : 0];
+      e.preventDefault();
+      if (it) pickItem(it.kind, it.id);
+    }
+  }
+  document.addEventListener('keydown', onSheetKey);
   addActs({
-    tab: function (el) {
-      var k = el.getAttribute('data-tab');
-      if (!S.sheet || tabKeys().indexOf(k) < 0) return;
-      S.sheet.tab = k;
-      S.sheet.pick = null;
-      redrawPanel(k === 'quick' ? 'fa-label' : k === 'products' ? 'fa-q' : null);
-    },
-    pick: function (el) {
-      if (!S.sheet) return;
-      var kind = el.getAttribute('data-kind');
-      S.sheet.pick = { kind: kind === 'recipe' || kind === 'basic' ? kind : 'product', id: el.getAttribute('data-id') };
-      redrawPanel('fa-amt');
-      updatePreview();
-    },
-    unpick: function () {
-      if (!S.sheet) return;
-      S.sheet.pick = null;
-      redrawPanel(S.sheet.tab === 'products' ? 'fa-q' : null);
-    },
+    tab: function (el) { setSheetTab(el.getAttribute('data-tab'), false); },
+    pick: function (el) { pickItem(el.getAttribute('data-kind'), el.getAttribute('data-id')); },
+    unpick: unpick,
     save: function () { saveSheet(false); },
     'save-force': function () { saveSheet(true); },
   });

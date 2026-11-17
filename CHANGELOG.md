@@ -17,6 +17,10 @@ operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README
   `profile/coaches.md` with a **Gear** table, sources under `knowledge/coffee/`); caffeine dose and timing stay with
   `nutrition-coach`.
 
+- **The add sheet works from the keyboard.** In the food log's add sheet, ↑ / ↓ move a highlight over the
+  search results (the focus stays in the search field), and Enter picks the highlighted item, or the first match. ← / → switch the
+  Products / Recipes / Quick tabs, and Esc on the amount step goes back to the list instead of closing the sheet.
+
 ## [1.3.0] - 2026-11-05
 
 - **Your coach can name and describe your Strava activities.** The data service has a new route,

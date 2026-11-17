@@ -383,8 +383,12 @@
   color: var(--faint);
   cursor: default;
 }
-.fa-item:hover:not([disabled]) {
+.fa-item:hover:not([disabled]),
+.fa-item[data-active='true'] {
   background: var(--surface-2);
+}
+.fa-item[data-active='true'] {
+  box-shadow: inset 3px 0 0 var(--accent);
 }
 .fa-item-name {
   font-size: var(--fs-md);

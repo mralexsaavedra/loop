@@ -178,6 +178,15 @@ test('the sheet is an accessible modal: focus moves in, the page behind is inert
   assert.equal(opener.focused, 1, 'focus returns to the card that opened it');
 });
 
+test('a key a view already handled (defaultPrevented) is left alone: the add sheet\'s Escape back to its list does not close the sheet', () => {
+  const s = setup();
+  s.api.open('hrv');
+  s.keyEvent({ key: 'Escape', target: s.host, defaultPrevented: true, preventDefault() {} });
+  assert.equal(s.host.hidden, false, 'still open');
+  assert.equal(s.key('Escape').prevented, true, 'an unhandled Escape still closes');
+  assert.equal(s.host.hidden, true);
+});
+
 test('history: opening pushes #detail/<metric>[/<date>], Back (popstate) closes, closing pops the pushed entry', () => {
   const s = setup();
   const d = addDays(NOW, -3);

@@ -200,7 +200,10 @@
     if (!id) return;
     if (id === 'fa-q' && S.sheet) {
       S.sheet.q = val('fa-q');
+      S.sheet.hi = -1; // a new search starts without a highlight (Enter then picks the first match)
       setHtml('fa-list', listHtml());
+      var q = $('fa-q');
+      if (q && q.removeAttribute) q.removeAttribute('aria-activedescendant');
     } else if (id === 'fa-amt' || id === 'fa-unit') {
       if (id === 'fa-unit' && S.sheet && S.sheet.pick && S.sheet.pick.kind === 'basic') switchBasicMode();
       else if (id === 'fa-unit' && S.sheet && S.sheet.pick && S.sheet.pick.kind === 'product') switchProductUnit();
