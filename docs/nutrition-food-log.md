@@ -260,6 +260,7 @@ detail.js ignores a key that was already `preventDefault()`ed. Keys with Ctrl / 
 - **← / →** on a tab switch to the previous / next tab (wrapping); the focus stays on the tabs.
 - **Esc** with an item picked goes back to the list (focus in the search); on the list or the Quick tab,
   Esc closes the sheet as before.
+- The page's `?` help sheet lists these keys too ([`plan-page.md`](plan-page.md) → Keyboard shortcuts).
 
 ### Basics in the products tab
 

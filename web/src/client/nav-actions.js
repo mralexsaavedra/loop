@@ -148,6 +148,18 @@
     }
   });
 
-  window.HCActions = { refresh: refresh, open: open, close: close };
+  // runs one action by name when this page has it (the keyboard shortcuts, client/shortcuts.js): false when
+  // it is not available, so a shortcut for a missing action does nothing
+  function run(name) {
+    var a = Object.prototype.hasOwnProperty.call(ACTIONS, name) ? ACTIONS[name] : null;
+    var ok;
+    try { ok = !!(a && a.ok()); } catch (e) { ok = false; }
+    if (!ok) return false;
+    if (isOpen()) close(false);
+    a.run();
+    return true;
+  }
+
+  window.HCActions = { refresh: refresh, open: open, close: close, run: run };
   refresh();
 })();

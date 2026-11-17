@@ -1386,3 +1386,45 @@ button.dt-day {
 @media (min-width: 900px) {
   .ds-chart { max-height: 230px; }
 }
+
+/* ---------- the "?" keyboard shortcuts sheet (client/shortcuts.js) ---------- */
+.kb-h {
+  font-size: var(--fs-title);
+  font-weight: var(--label-weight);
+  letter-spacing: var(--label-track);
+  text-transform: uppercase;
+  color: var(--faint);
+}
+.kb-list {
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: var(--sp-2);
+}
+.kb-row {
+  display: flex;
+  align-items: center;
+  gap: var(--sp-4);
+  padding: var(--card-pad);
+  border-radius: var(--card-radius);
+  background: var(--surface-2);
+}
+.kb-keys {
+  display: flex;
+  gap: var(--sp-1);
+  min-width: 64px;
+}
+.kb {
+  font-family: var(--num);
+  font-size: var(--fs-sm);
+  padding: 2px var(--sp-2);
+  border: 1px solid var(--line);
+  border-radius: var(--r-xs);
+}
+.kb-label {
+  font-size: var(--fs-md);
+}
+.kb-note {
+  font-size: var(--fs-sm);
+  color: var(--faint);
+}

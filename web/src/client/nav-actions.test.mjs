@@ -157,3 +157,14 @@ test('journal: listed once the journal sheet is registered (its API answered); i
   assert.equal(opened[0].key, 'journal');
   assert.equal(opened[0].opts.opener, p.btn);
 });
+
+test('HCActions.run(name): runs an available action (the keyboard shortcuts), false for a missing or unknown one', () => {
+  const p = page({ food: true });
+  assert.equal(p.window.HCActions.run('food'), true);
+  assert.deepEqual(p.opened.map((o) => [o.key, o.opts.focus]), [['food-add', '#fa-q, #fa-label']], 'the same add sheet the "+" opens');
+  assert.equal(p.window.HCActions.run('journal'), false, 'no journal API: nothing happens');
+  assert.equal(p.window.HCActions.run('sync'), false, 'Sync hidden: not run');
+  assert.equal(p.syncBtn.clicks, 0);
+  assert.equal(p.window.HCActions.run('constructor'), false, 'own action names only');
+  assert.equal(p.opened.length, 1);
+});
