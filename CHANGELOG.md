@@ -20,6 +20,8 @@ operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README
 - **The add sheet works from the keyboard.** In the food log's add sheet, ↑ / ↓ move a highlight over the
   search results (the focus stays in the search field), and Enter picks the highlighted item, or the first match. ← / → switch the
   Products / Recipes / Quick tabs, and Esc on the amount step goes back to the list instead of closing the sheet.
+- **Keyboard shortcuts for the page.** With no modifier and outside a text field: `1`–`4` open the tabs, `a` adds
+  food, `d` opens the journal and `?` opens a sheet that lists every shortcut. Cmd/Ctrl+number is left to the browser.
 
 ## [1.3.0] - 2026-11-05
 

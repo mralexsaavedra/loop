@@ -5,6 +5,22 @@ import { en as enS, es as esS, RECOVERY_UNIT } from './score-templates.mjs';
 const UE = RECOVERY_UNIT.en, US = RECOVERY_UNIT.es;
 export const en = {
   close: 'Close',
+  // the "?" help sheet (client/shortcuts.js)
+  shortcuts: {
+    title: 'Keyboard shortcuts',
+    pageTitle: 'Anywhere on the page',
+    addFood: 'Add food',
+    journal: 'Journal',
+    help: 'This list',
+    sheetTitle: 'In the add food sheet',
+    sheetMove: 'Move through the results',
+    enter: 'Enter',
+    sheetPick: 'Pick the highlighted food (or the first match)',
+    sheetTabs: 'On the tabs: Products · Recipes · Quick',
+    esc: 'Esc',
+    sheetBack: 'Back to the list (again: close)',
+    note: 'Shortcuts work when you are not typing in a field.',
+  },
   rangeLabel: 'Range',
   ranges: { w: 'W', m: 'M', m6: '6M', y: '1Y' },
   rangesLong: { w: 'Week (7 days)', m: 'Month (30 days)', m6: '6 months', y: '1 year' },
@@ -372,6 +388,22 @@ export const en = {
 
 export const es = {
   close: 'Cerrar',
+  // la hoja de ayuda "?" (client/shortcuts.js)
+  shortcuts: {
+    title: 'Atajos de teclado',
+    pageTitle: 'En cualquier parte de la página',
+    addFood: 'Añadir comida',
+    journal: 'Diario',
+    help: 'Esta lista',
+    sheetTitle: 'En la hoja de añadir comida',
+    sheetMove: 'Recorrer los resultados',
+    enter: 'Intro',
+    sheetPick: 'Elegir el alimento resaltado (o el primero que coincide)',
+    sheetTabs: 'En las pestañas: Productos · Recetas · Rápido',
+    esc: 'Esc',
+    sheetBack: 'Volver a la lista (otra vez: cerrar)',
+    note: 'Los atajos funcionan cuando no estás escribiendo en un campo.',
+  },
   rangeLabel: 'Periodo',
   ranges: { w: 'S', m: 'M', m6: '6M', y: '1A' },
   rangesLong: { w: 'Semana (7 días)', m: 'Mes (30 días)', m6: '6 meses', y: '1 año' },

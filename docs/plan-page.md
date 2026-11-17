@@ -388,6 +388,24 @@ in tracked Astro/JS source, which stays fully generic.
   The root and every row ship `hidden`: in the example build, `file://` or a static copy the "+" never
   shows (no dead control).
 
+### Keyboard shortcuts
+
+`client/shortcuts.js` adds single keys with no modifier, like GitHub or Gmail. It is inlined before
+`deepdive.js` / `detail.js` so its help sheet is a registered view (`HC.registerView('shortcuts')`, deep link
+`#shortcuts`, `VIEW_TAB` null) when detail.js reads the URL.
+
+| Key | Does |
+| --- | --- |
+| `1` … `4` | presses the n-th visible tab button (`#t-<key>` in `NAV.tabs` order; a hidden tab shifts the numbers) |
+| `a` | add food: `HCActions.run('food')` (the add sheet the "+" opens; LAN only) |
+| `d` | the journal: `HCActions.run('journal')` (LAN only) |
+| `?` | the help sheet: each visible tab by its button's name, `a` / `d` only when their views exist, and the add sheet's keys ([`nutrition-food-log.md`](nutrition-food-log.md) → Add sheet → Keyboard). Copy: `I18N_DETAIL.shortcuts` |
+
+A key is ignored while typing (input, textarea, select, contenteditable, IME composition), with Ctrl / Cmd / Alt (the
+browser keeps Cmd+1 … for its own tabs), while a sheet (`HCDetail.state()`) or the "+" popover is open, and
+when something else already handled it (`defaultPrevented`). `HCActions.run(name)` (`nav-actions.js`) runs an
+action only when it is available and returns whether it ran, so a shortcut for a missing action does nothing.
+
 ## Tabs and sections
 
 Four tabs, one question each (WHOOP-style: the glance on Home, the detail one tap away), switched by the
