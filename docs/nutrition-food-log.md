@@ -244,6 +244,23 @@ the API answered).
   re-renders Log food and announces `Añadido: …`.
 - The portion guide's "+" logs an example amount (see "Portion guide" in `docs/nutrition.md`).
 
+### Keyboard
+
+`food-sheet.js` listens for keys inside the sheet (`.fa`). Its listener runs before detail.js's, and
+detail.js ignores a key that was already `preventDefault()`ed. Keys with Ctrl / Cmd / Alt are ignored.
+
+- **↑ / ↓** on the list view (the search, a tab or an item) move a highlight over the items that can be picked
+  (`S.sheet.hi`, an index into `pickable()`, in list order: products by store, then basics; an incomplete recipe is
+  skipped), wrapping at both ends. The highlighted button gets `data-active="true"` (accent bar + `--surface-2`).
+  From the search the focus stays in the field: `#fa-q` is a `role="combobox"` and its
+  `aria-activedescendant` names the item (`fa-opt-<n>`). From a tab or an item (Recipes has no search), the
+  item takes the focus, so Enter / Space press it.
+- **Enter** in the search picks the highlighted item, or the first match when none is highlighted. Typing
+  clears the highlight.
+- **← / →** on a tab switch to the previous / next tab (wrapping); the focus stays on the tabs.
+- **Esc** with an item picked goes back to the list (focus in the search); on the list or the Quick tab,
+  Esc closes the sheet as before.
+
 ### Basics in the products tab
 
 The search box also looks in `FOOD_BASICS` (it shows even with no product yet).

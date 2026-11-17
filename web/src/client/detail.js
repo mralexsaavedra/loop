@@ -825,6 +825,8 @@
     open(k, null, { range: state.range, focus: '[data-dt-pick="metric"]' });
   });
   document.addEventListener('keydown', function (e) {
+    // a key a view already handled (the add sheet's Escape back to its list, client/food-sheet.js) is left alone
+    if (e.defaultPrevented) return;
     if (isOpen()) {
       if (e.key === 'Escape' || e.key === 'Esc') { e.preventDefault(); close(); return; }
       if (e.key === 'Tab' && host.querySelectorAll) {

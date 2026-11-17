@@ -1804,3 +1804,134 @@ test('product form: the "log by serving" switch is sent as servingDefault: true,
   await flush();
   assert.equal('servingDefault' in put[1], false, 'off = not sent (the server reads absent as false)');
 });
+
+/* ---------- the add sheet from the keyboard (WS-77) ---------- */
+function keyboardSheet(extra = {}) {
+  const t = setup({ routes: { ...BOOT, 'GET /api/food/recipes': json({ recipes: [RECIPE, { ...RECIPE, id: 10, name: 'Sin terminar', complete: false }, { ...RECIPE, id: 11, name: 'Batido' }] }) }, extraIds: ['fa-panel', 'fa-list', 'fa-prev', 'fa-msg'], ...extra });
+  const sheet = t.doc.el(null, { classes: ['fa'] });
+  const focused = [];
+  const inSheet = (el) => { el.parent = sheet; el.focus = () => focused.push(el.getAttribute('id') || el.getAttribute('data-tab')); return el; };
+  const q = inSheet(t.input('fa-q', ''));
+  const tabs = ['products', 'recipes', 'quick'].map((k) => inSheet(t.doc.el(null, { tag: 'button', classes: ['fa-tab'], attrs: { 'data-food-act': 'tab', 'data-tab': k } })));
+  const key = (k, target = q, mods = {}) => {
+    const e = { key: k, target, defaultPrevented: false, ...mods };
+    e.preventDefault = () => { e.defaultPrevented = true; }; // fire() hands the listeners a copy
+    t.fire('keydown', target, e);
+    return e;
+  };
+  return { ...t, q, tabs, key, focused, inSheet };
+}
+const openSheet = async (t) => {
+  await flush();
+  t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'lunch' }));
+  t.window.HCViews['food-add'].render();
+};
+const active = (html) => (/<button[^>]*data-active="true"[^>]*data-id="([^"]+)"/.exec(html) || [])[1] || null;
+
+test('keyboard: ArrowDown / ArrowUp in the search move a highlight over the items in list order (wrapping), the focus stays in the field', async () => {
+  const t = keyboardSheet();
+  await openSheet(t);
+  const e = t.key('ArrowDown');
+  assert.equal(e.defaultPrevented, true, 'the caret does not move');
+  assert.equal(active(t.els['fa-list'].innerHTML), '1', 'first item: Yogur (Mercadona comes first)');
+  assert.equal(t.q.getAttribute('aria-activedescendant'), 'fa-opt-0');
+  t.key('ArrowDown');
+  assert.equal(active(t.els['fa-list'].innerHTML), '2', 'then Leche (Dia)');
+  t.key('ArrowDown');
+  t.key('ArrowDown');
+  assert.equal(active(t.els['fa-list'].innerHTML), '1', 'past the last one it wraps to the first');
+  t.key('ArrowUp');
+  assert.equal(active(t.els['fa-list'].innerHTML), '3', 'and up from the first to the last (Avena)');
+  assert.deepEqual(t.focused, [], 'the focus never left the search');
+  assert.match(t.window.HCViews['food-add'].render().body, /id="fa-q"[^>]*role="combobox"[^>]*aria-controls="fa-list"/);
+});
+
+test('keyboard: Enter in the search picks the highlighted item, or the first match when none is highlighted; typing clears the highlight', async () => {
+  const t = keyboardSheet();
+  await openSheet(t);
+  t.inSheet(t.input('fa-amt', ''));
+  t.key('ArrowDown');
+  t.key('ArrowDown');
+  const e = t.key('Enter');
+  assert.equal(e.defaultPrevented, true);
+  assert.match(t.els['fa-panel'].innerHTML, /id="fa-amt"/, 'the amount step of the picked item');
+  assert.match(t.els['fa-panel'].innerHTML, /<option value="ml" selected>ml<\/option>/, 'Leche, the highlighted one (measured in ml)');
+  assert.ok(t.focused.includes('fa-amt'), 'the focus moves to the amount');
+
+  const u = keyboardSheet();
+  await openSheet(u);
+  u.key('ArrowDown');
+  u.q.value = 'aven';
+  u.fire('input', u.q);
+  assert.equal(active(u.els['fa-list'].innerHTML), null, 'a new search has no highlight');
+  assert.equal(u.q.getAttribute('aria-activedescendant'), null);
+  u.key('Enter');
+  assert.match(u.els['fa-panel'].innerHTML, /Avena/, 'Enter picks the first match');
+  assert.match(u.els['fa-panel'].innerHTML, /id="fa-amt"/);
+});
+
+test('keyboard: Enter in a search with no match does nothing; a basic is picked like a product', async () => {
+  const t = keyboardSheet();
+  await openSheet(t);
+  t.q.value = 'zzzz';
+  t.fire('input', t.q);
+  t.key('Enter');
+  assert.doesNotMatch(t.els['fa-panel'].innerHTML, /id="fa-amt"/, 'nothing to pick, still the list');
+  t.q.value = 'huevo';
+  t.fire('input', t.q);
+  t.key('ArrowDown');
+  assert.match(t.els['fa-list'].innerHTML, /data-active="true" data-food-act="pick" data-kind="basic"/, 'no product matches: the first basic');
+  t.key('Enter');
+  assert.match(t.els['fa-panel'].innerHTML, /id="fa-amt"/);
+});
+
+test('keyboard: Escape with an item picked goes back to the list and does not reach the sheet; on the list it closes as before', async () => {
+  const t = keyboardSheet();
+  await openSheet(t);
+  t.key('Enter');
+  assert.match(t.els['fa-panel'].innerHTML, /id="fa-amt"/);
+  const amt = t.inSheet(t.input('fa-amt', '100'));
+  const e = t.key('Escape', amt);
+  assert.equal(e.defaultPrevented, true, 'detail.js leaves a handled Escape alone');
+  assert.match(t.els['fa-panel'].innerHTML, /id="fa-q"/, 'back to the search and its list');
+  assert.ok(t.focused.includes('fa-q'));
+  assert.equal(t.key('Escape').defaultPrevented, false, 'on the list Escape is detail.js\'s: it closes the sheet');
+});
+
+test('keyboard: ArrowLeft / ArrowRight on a tab switch tabs (wrapping) and keep the focus on the tabs', async () => {
+  const t = keyboardSheet();
+  await openSheet(t);
+  const e = t.key('ArrowRight', t.tabs[0]);
+  assert.equal(e.defaultPrevented, true);
+  assert.match(t.els['fa-panel'].innerHTML, /Porridge/, 'Recetas');
+  assert.equal(t.tabs[1].getAttribute('aria-pressed'), 'true');
+  assert.deepEqual(t.focused, ['recipes'], 'the focus moves to the Recetas tab, not into the panel');
+  t.key('ArrowLeft', t.tabs[0]);
+  t.key('ArrowLeft', t.tabs[0]);
+  assert.match(t.els['fa-panel'].innerHTML, /id="fa-label"/, 'left of Productos wraps to Rápido');
+  assert.deepEqual(t.focused, ['recipes', 'products', 'quick']);
+  assert.equal(t.key('ArrowRight', t.q).defaultPrevented, false, 'in a text field the arrows still move the caret');
+});
+
+test('keyboard: on Recetas (no search) ArrowDown from a tab focuses the highlighted recipe, skipping an incomplete one', async () => {
+  const t = keyboardSheet();
+  await openSheet(t);
+  t.fire('click', t.tabs[1]);
+  for (const n of [0, 1]) t.inSheet(t.doc.el('fa-opt-' + n, { tag: 'button', classes: ['fa-item'] }));
+  t.key('ArrowDown', t.tabs[1]);
+  assert.equal(active(t.els['fa-list'].innerHTML), '9');
+  t.key('ArrowDown', t.doc.getElementById('fa-opt-0'));
+  assert.equal(active(t.els['fa-list'].innerHTML), '11', 'Sin terminar (incomplete, disabled) is skipped');
+  assert.deepEqual(t.focused.slice(-2), ['fa-opt-0', 'fa-opt-1'], 'the item takes the focus: Enter presses it');
+  assert.doesNotMatch(t.els['fa-list'].innerHTML, /id="fa-opt-\d+"[^>]*data-id="10"/, 'the incomplete recipe gets no option id');
+});
+
+test('keyboard: a key with Ctrl / Cmd / Alt, or outside the sheet, is not the sheet\'s', async () => {
+  const t = keyboardSheet();
+  await openSheet(t);
+  assert.equal(t.key('ArrowDown', t.q, { metaKey: true }).defaultPrevented, false);
+  assert.equal(t.key('Enter', t.q, { ctrlKey: true }).defaultPrevented, false);
+  const outside = t.input('elsewhere', '');
+  assert.equal(t.key('ArrowDown', outside).defaultPrevented, false);
+  assert.equal(active(t.els['fa-list'].innerHTML), null);
+});
