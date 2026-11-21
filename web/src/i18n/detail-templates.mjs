@@ -148,6 +148,11 @@ export const en = {
       loadRestLast: 'No session yet today. Your last one, on {date}, scored {re} (typical day ~{typical}).',
       loadTrend: 'Over the last 7 days your load has been {band} ({pct} vs your 42-day average).',
       strainUsual: 'Your usual day is {value} (median of the prior 30 days).',
+      // the usual day strain on days with the same recovery day band (client/deepdive.js strainByRec):
+      // the middle half of the last 90 days, described, never a target
+      strainByRec: 'On days when your recovery was {band}, your day strain was usually {lo}–{hi} ({n} of the last 90 days).',
+      strainByRecOne: 'On days when your recovery was {band}, your day strain was usually about {lo} ({n} of the last 90 days).',
+      recBand: { above: 'above your usual', at: 'around your usual', below: 'below your usual' },
     },
     // the gym / run / bike pills on a load page (deepdive.js modSwitch; they also set Inicio's load dial)
     modSwitch: 'Load modality',
@@ -527,6 +532,11 @@ export const es = {
       loadRestLast: 'Aún no hay sesión hoy. La última, el {date}, marcó {re} (día típico ~{typical}).',
       loadTrend: 'En los últimos 7 días tu carga ha estado {band} ({pct} frente a tu media de 42 días).',
       strainUsual: 'Tu día habitual es {value} (mediana de los 30 días anteriores).',
+      // la carga del día habitual en días con la misma banda de recuperación (client/deepdive.js strainByRec):
+      // la mitad central de los últimos 90 días, descrita, nunca un objetivo
+      strainByRec: 'En los días con la recuperación {band}, tu carga del día suele estar entre {lo} y {hi} ({n} de los últimos 90 días).',
+      strainByRecOne: 'En los días con la recuperación {band}, tu carga del día suele rondar {lo} ({n} de los últimos 90 días).',
+      recBand: { above: 'por encima de lo habitual', at: 'en lo habitual', below: 'por debajo de lo habitual' },
     },
     // las pastillas gimnasio / carrera / bici de una página de carga (deepdive.js modSwitch; también cambian el dial de carga de Inicio)
     modSwitch: 'Modalidad de carga',

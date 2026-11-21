@@ -9,6 +9,9 @@ operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README
 - **Sleep debt, measured.** The sleep page now says how much sleep you are short (or ahead) over the last 7 nights
   against your fixed 7:30 target: a surplus night offsets a short one, and a night without data counts as nothing.
   The need itself stays your target; nothing adapts to training.
+- **Your usual strain for a recovery like today's.** The day strain page adds what your strain usually was on days
+  whose recovery was in the same band (above, around or below your usual) over the last 90 days: the middle half of
+  those days. It describes your history; it is not a target.
 
 ## [1.5.0] - 2026-11-21
 
