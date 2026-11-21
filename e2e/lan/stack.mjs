@@ -67,8 +67,12 @@ function processTree(pid) {
   for (let i = 0; i < out.length; i++) {
     let kids = '';
     try {
-      kids = execFileSync('ps', ['-o', 'pid=', '--ppid', String(out[i])], { encoding: 'utf8' });
-    } catch {} // ps exits 1 when there is no child
+      kids = execFileSync('ps', ['-o', 'pid=', '--ppid', String(out[i])], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
+    } catch (err) {
+      // exit 1 with no output is "no child"; anything else (no ps, a ps without --ppid) means the build children
+      // cannot be found and may outlive the stop: say so instead of failing silently
+      if (err.status !== 1 || String(err.stderr || '').trim()) log(`cannot list the children of ${out[i]} (${err.code || err.message}): the page build may outlive the stop`);
+    }
     for (const k of kids.split(/\s+/).filter(Boolean)) out.push(Number(k));
   }
   return out;

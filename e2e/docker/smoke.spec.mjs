@@ -48,11 +48,12 @@ test('Sync rebuilds the page inside loop-server and the page reloads', async ({ 
   await openLan(page);
   await page.evaluate(() => { window.__e2eBeforeSync = true; });
   const sync = apiResponse(page, 'POST', '/api/sync');
+  const reloaded = page.waitForEvent('load', { timeout: 280_000 });
   await page.locator('#sync-btn').click();
   const res = await sync;
   expect(res.status()).toBe(202);
   const { seq } = await res.json();
-  await page.waitForEvent('load', { timeout: 280_000 });
+  await reloaded;
   expect(await page.evaluate(() => window.__e2eBeforeSync)).toBeUndefined();
   const status = await (await page.request.get('/status.json')).json();
   expect(status.processedSeq).toBeGreaterThanOrEqual(seq);

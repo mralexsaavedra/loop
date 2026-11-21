@@ -45,6 +45,7 @@ test('Sync rebuilds the page on the server and reloads it', async ({ page }) => 
   await page.evaluate(() => { window.__e2eBeforeSync = true; });
 
   const sync = apiResponse(page, 'POST', '/api/sync');
+  const reloaded = page.waitForEvent('load', { timeout: 200_000 });
   await page.locator('#sync-btn').click();
   const res = await sync;
   expect(res.status()).toBe(202);
@@ -52,7 +53,7 @@ test('Sync rebuilds the page on the server and reloads it', async ({ page }) => 
   await expect(page.locator('#sync-btn')).toHaveAttribute('aria-busy', 'true');
   await expect(page.locator('#sync-msg')).not.toBeEmpty();
 
-  await page.waitForEvent('load', { timeout: 200_000 });
+  await reloaded;
   expect(await page.evaluate(() => window.__e2eBeforeSync)).toBeUndefined();
   const after = await (await page.request.get('/status.json')).json();
   expect(after.processedSeq).toBeGreaterThanOrEqual(seq);

@@ -47,6 +47,7 @@ test('a behaviour switched off leaves the questions, and back on returns', async
   const toggle = page.locator('[data-jr="tog"][data-key="caffeine_late"]');
   await expect(toggle).toHaveAttribute('aria-checked', 'true');
 
+  let passed = false;
   try {
     let put = apiResponse(page, 'PUT', '/api/journal/settings');
     await toggle.click();
@@ -59,10 +60,14 @@ test('a behaviour switched off leaves the questions, and back on returns', async
     expect((await put).status()).toBe(200);
     await expect(toggle).toHaveAttribute('aria-checked', 'true');
     await expect(page.locator('#jr-yes-caffeine_late')).toBeVisible();
+    passed = true;
   } finally {
     // whatever failed above, leave the behaviour on: the LAN specs (and a retry) share one database. A failing
-    // clean-up is logged, never thrown: it must not hide the failure that got us here
+    // clean-up fails a test that passed (the shared state is broken), but never hides the failure that got us here
     await apiWrite(page, 'PUT', '/api/journal/settings', 'journal', { behaviors: { caffeine_late: true } })
-      .catch((err) => console.warn(`journal clean-up failed: ${err.message}`));
+      .catch((err) => {
+        if (passed) throw err;
+        console.warn(`journal clean-up failed: ${err.message}`);
+      });
   }
 });

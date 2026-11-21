@@ -19,10 +19,12 @@ test('the first-run assistant saves the profile and the goal, then the page rebu
     await page.goto('/');
     await expect(page.locator('#act-btn')).toBeVisible();
     await expect(sheet(page)).toBeHidden();
+    // listening before the click: the reload cannot come and go unseen
+    const reloaded = page.waitForEvent('load', { timeout: 200_000 });
     const sync = apiResponse(page, 'POST', '/api/sync');
     await page.locator('#sync-btn').click();
     expect((await sync).status()).toBe(202);
-    await page.waitForEvent('load', { timeout: 200_000 });
+    await reloaded;
     return;
   }
   await page.goto('/');
@@ -61,6 +63,8 @@ test('the first-run assistant saves the profile and the goal, then the page rebu
   const profile = apiResponse(page, 'PUT', '/api/food/profile');
   const settings = apiResponse(page, 'PUT', '/api/food/settings');
   const sync = apiResponse(page, 'POST', '/api/sync');
+  // listening before the click: the reload cannot come and go unseen
+  const reloaded = page.waitForEvent('load', { timeout: 200_000 });
   await page.locator('#detail [data-onb-act="save"]').click();
   expect((await profile).status()).toBe(200);
   expect((await settings).status()).toBe(200);
@@ -68,7 +72,7 @@ test('the first-run assistant saves the profile and the goal, then the page rebu
   await expect(sheet(page)).toBeHidden();
 
   // the Sync the save pressed rebuilds the page and reloads it once status.json reports the new seq
-  await page.waitForEvent('load', { timeout: 200_000 });
+  await reloaded;
   await expect(page.locator('#act-btn')).toBeVisible();
   // a profile now exists: the assistant no longer opens by itself
   await expect(sheet(page)).toBeHidden();
