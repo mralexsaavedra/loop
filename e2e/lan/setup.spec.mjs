@@ -3,14 +3,14 @@
 // `lan-setup`: every other LAN spec runs after it, against a server that has a profile. A retry after the save
 // went through (a slow rebuild timed out) finds that profile: it checks what was stored and proves the rebuild
 // again with the Sync button, so the LAN specs that depend on it still run and a broken rebuild still fails.
-import { test, expect, apiResponse } from './fixtures.mjs';
+import { test, expect, apiResponse, syncAndReload, SYNC_RELOAD_MS, SYNC_TEST_MS } from './fixtures.mjs';
 
 const sheet = (page) => page.locator('#detail');
 const next = (page) => page.locator('#detail [data-onb-act="next"]');
 
 test('the first-run assistant saves the profile and the goal, then the page rebuilds', async ({ page }) => {
   // the save's Sync waits for a real page build
-  test.setTimeout(240_000);
+  test.setTimeout(SYNC_TEST_MS);
   const existing = await page.request.get('/api/food/profile', { headers: { 'X-HC-Food': '1' } });
   if ((await existing.json()).profile && test.info().retry > 0) {
     test.info().annotations.push({ type: 'retry', description: 'the profile was saved by an earlier attempt' });
@@ -19,12 +19,7 @@ test('the first-run assistant saves the profile and the goal, then the page rebu
     await page.goto('/');
     await expect(page.locator('#act-btn')).toBeVisible();
     await expect(sheet(page)).toBeHidden();
-    // listening before the click: the reload cannot come and go unseen
-    const reloaded = page.waitForEvent('load', { timeout: 200_000 });
-    const sync = apiResponse(page, 'POST', '/api/sync');
-    await page.locator('#sync-btn').click();
-    expect((await sync).status()).toBe(202);
-    await reloaded;
+    await syncAndReload(page);
     return;
   }
   await page.goto('/');
@@ -64,7 +59,7 @@ test('the first-run assistant saves the profile and the goal, then the page rebu
   const settings = apiResponse(page, 'PUT', '/api/food/settings');
   const sync = apiResponse(page, 'POST', '/api/sync');
   // listening before the click: the reload cannot come and go unseen
-  const reloaded = page.waitForEvent('load', { timeout: 200_000 });
+  const reloaded = page.waitForEvent('load', { timeout: SYNC_RELOAD_MS });
   await page.locator('#detail [data-onb-act="save"]').click();
   expect((await profile).status()).toBe(200);
   expect((await settings).status()).toBe(200);

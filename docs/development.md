@@ -73,21 +73,31 @@ test fails (`e2e/.report/`, `e2e/.results/`, both gitignored).
 
 | Project | What it opens | Specs |
 | --- | --- | --- |
-| `static-phone` (Pixel 7), `static-desktop` (1280 × 800) | the example page (tracked seeds + the synthetic demo extract), built by `e2e/global-setup.mjs` into `web/.e2e-dist/en-example/` and opened from `file://`, so every LAN-only feature is off | `e2e/static/`: tabs, dock, keys `1`–`4` and `?`, the URL hash and deep links, every card's detail sheet on every tab and the ways to close it, the profile sheet, the day stepper, layout on both sides of the 900 px breakpoint |
+| `static-phone` (Pixel 7), `static-desktop` (1280 × 800) | the example page (tracked seeds + the synthetic demo extract), built by `e2e/global-setup.mjs` into `web/.e2e-dist/en-example/` and opened from `file://`, so every LAN-only feature is off | `e2e/static/`: tabs, dock, keys `1`–`4` and `?`, the URL hash and every deep link (`#detail/<metric>[/<date>]`, view keys, `#d=`, `#monitor`), every visible card's detail sheet on every tab and the ways to close it, the sheet's controls (day, range, window, month, info, learn more, history fold, trend), the ⓘ notes, tab links and folds, both Customize sheets (hide, move, kept after a reload), the Tonight, session and journal-insights views, the profile sheet, the day stepper, layout on both sides of the 900 px breakpoint |
+| `lan-setup` → `lan-phone` → `lan-last` (Pixel 7); only with `TEST_DATABASE_URL`, and only when the run includes a `lan-*` project | the personal page a real data service builds and serves: [`e2e/lan/stack.mjs`](../e2e/lan/stack.mjs) (Playwright's `webServer`) creates a fresh empty database on that Postgres, seeds a synthetic Health extract ending today (the demo generator), runs `services/loop-ingest` in container mode (its real migrations, `scripts/refresh.mjs` building the page into a temporary `HC_SITE_DIR`) and an nginx stand-in on `127.0.0.1:18290` (`E2E_LAN_PORT`) that serves the site with loop-web's security headers and proxies exactly its `/api` routes with their rewrites and headers; everything (processes, database, folders, a build lock a killed build left) is removed on exit, also when it is stopped during startup | `e2e/lan/`: the first-run assistant end to end (`lan-setup`) and its branches (back, Enter, refused steps, the pregnancy and under-18 stops, the medical / eating limits, maintain / cut / bulk, the adjust grid, a failed save, Later, the Edit chip); the food log (quick, basic, product and recipe entries, past days, per-meal add, the add sheet's keyboard, Atwater and Save anyway, 500 / 429 / offline saves, a failed day load and its retry, the empty day, delete); products (label, barcode and text search with Open Food Facts stubbed at the page's `/api/food/off`, log by serving, edit, archive, field errors, cancel); recipes (several products, a basic, batch, edit, archive, cancel); the journal (answers read back, another day, the drink stepper, a failed save, behaviours off and on, insights); the profile (goal, target weight, a refused save); the "+" menu, the freshness popover, Sync and its failures; Home on a past day with the server's data; and last (`lan-last`) the language switch, which rebuilds the shared page in the other locale |
 | `docker` (Pixel 7); only with `E2E_DOCKER_URL`, and then the only project | a running Docker stack's loop-web: `scripts/image-smoke.sh` with `SMOKE_BROWSER=1` points it at the stack it started | `e2e/docker/`: what only the published images can break — loop-web's security headers as served, the page clean of console errors and CSP violations, a food entry saved and deleted through nginx, Sync rebuilding the page inside loop-server |
-| `lan-setup`, then `lan-phone` (Pixel 7); only with `TEST_DATABASE_URL` | the personal page a real data service builds and serves: [`e2e/lan/stack.mjs`](../e2e/lan/stack.mjs) (Playwright's `webServer`) creates a fresh empty database on that Postgres, runs `services/loop-ingest` in container mode (its real migrations, `scripts/refresh.mjs` building the page into a temporary `HC_SITE_DIR`) and an nginx stand-in on `127.0.0.1:18290` (`E2E_LAN_PORT`) that serves the site and proxies exactly loop-web's `/api` routes with its rewrites and headers; everything is removed on exit | `e2e/lan/`: the first-run assistant (`lan-setup`, every other LAN test runs after it), the food log (quick entry, a built-in basic, delete), products (create, edit, log, archive, the Atwater override, an Open Food Facts search stubbed at the page's `/api/food/off`), recipes, the journal (answers saved and read back, a behaviour switched off and on), the profile's goal and target weight, and Sync rebuilding and reloading the page |
 
-Shared rules ([`e2e/fixtures.mjs`](../e2e/fixtures.mjs)): the browser clock is fixed to 10:00 (Europe/Madrid) on
-the demo's last day (`DEMO_DEFAULTS.end` of `scripts/make-demo-data.mjs`), so the suite does not drift with the
-calendar (the LAN specs: 12:00 of the real day, since the data service stores against its own calendar); and
-**every test fails on a console error, an uncaught exception or a CSP violation** (a test that provokes one on
-purpose, such as an API answering 400, names it with `pageErrors.allow(<regexp>)`). The LAN specs share one
-database: name what you create with `unique()` from `e2e/lan/fixtures.mjs` and assert on your own rows. The LAN
-projects need the data service's dependencies (`npm --prefix services/loop-ingest ci`) and a Postgres the user may
-`CREATE DATABASE` on, e.g. the throwaway container of `npm run test:pg`:
-`TEST_DATABASE_URL=postgres://postgres:x@127.0.0.1:5544/postgres npm run test:e2e`. Use the page's
-stable hooks (`#t-<tab>`, `.tab-panel[data-tab]`, `[data-detail]`, `#detail`, `#dt-title`, `#day-prev`) rather
-than text or CSS classes, and never write personal data into a spec.
+Shared rules ([`e2e/fixtures.mjs`](../e2e/fixtures.mjs), [`e2e/lan/fixtures.mjs`](../e2e/lan/fixtures.mjs)): the
+browser clock is fixed to 10:00 (Europe/Madrid) on the demo's last day (`DEMO_DEFAULTS.end` of
+`scripts/make-demo-data.mjs`), so the suite does not drift with the calendar (the LAN specs: 12:00 of the real day,
+read once per test as the `today` fixture, since the data service stores against its own calendar); and **every
+test fails on a console error, an uncaught exception or a CSP violation** (a test that provokes one on purpose, such
+as an API answering 400, names it with `pageErrors.allow(<regexp>)`). The LAN specs share one database: name what
+you create with `unique()`, assert on your own rows, write to a day no other spec uses when a test changes a whole
+day, and clean up in `finally` (`apiWrite`; a failing clean-up never hides the failure that got there). Each test
+is its own client of the data service, like one phone: the browser context sends `x-e2e-client` and the stand-in
+connects upstream from a loopback address of that test's own, so the service's per-client rate limits apply per
+test. A Sync is `syncAndReload()` (listens for the reload before the click, `SYNC_RELOAD_MS` / `SYNC_TEST_MS`). The
+LAN projects need the data service's dependencies (`npm --prefix services/loop-ingest ci`) and a Postgres the user
+may `CREATE DATABASE` on, e.g. the throwaway container of `npm run test:pg`:
+`TEST_DATABASE_URL=postgres://postgres:x@127.0.0.1:5544/postgres npm run test:e2e`. Use the page's stable hooks
+(ids, `data-*`, ARIA) rather than text or CSS classes, and never write personal data into a spec.
+
+Left out on purpose: the real Open Food Facts lookup (it calls the internet; the page side is stubbed), the data
+service's own refusals that the page cannot send (oversized or non-JSON bodies, foreign origins: its node tests
+cover them), drag reordering in the Customize sheets (the ↑ / ↓ buttons drive the same move), device manual links
+and the weight progress line (an empty install has neither), and `GET /api/journal/day` / `GET /api/food/products`,
+which the page never calls.
 
 ## Generated files
 

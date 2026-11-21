@@ -2,7 +2,7 @@
 // the published images can break — nginx's headers and CSP as served, its /api proxy, the page build inside the
 // loop-server container. scripts/image-smoke.sh runs it with SMOKE_BROWSER=1 after its curl checks, on the fresh
 // stack it started (empty database). The flows themselves are covered in depth by e2e/lan/.
-import { test, expect, openLan, unique, apiResponse } from '../lan/fixtures.mjs';
+import { test, expect, openLan, unique, apiResponse, syncAndReload, SYNC_RELOAD_MS, SYNC_TEST_MS } from '../lan/fixtures.mjs';
 import { openAddSheet, saveEntry } from '../lan/food-ui.mjs';
 
 test.describe.configure({ mode: 'serial' });
@@ -43,18 +43,10 @@ test('a food entry is saved through nginx and the data service, then deleted', a
 });
 
 test('Sync rebuilds the page inside loop-server and the page reloads', async ({ page }) => {
-  test.setTimeout(300_000);
+  // the build runs inside the loop-server container, on a CI runner (arm64 included): a wider budget than the LAN stack
+  const reloadMs = SYNC_RELOAD_MS + 80_000;
+  test.setTimeout(SYNC_TEST_MS + 80_000);
   await page.addInitScript(() => localStorage.setItem('hc.onboarding.later', '1'));
   await openLan(page);
-  await page.evaluate(() => { window.__e2eBeforeSync = true; });
-  const sync = apiResponse(page, 'POST', '/api/sync');
-  const reloaded = page.waitForEvent('load', { timeout: 280_000 });
-  await page.locator('#sync-btn').click();
-  const res = await sync;
-  expect(res.status()).toBe(202);
-  const { seq } = await res.json();
-  await reloaded;
-  expect(await page.evaluate(() => window.__e2eBeforeSync)).toBeUndefined();
-  const status = await (await page.request.get('/status.json')).json();
-  expect(status.processedSeq).toBeGreaterThanOrEqual(seq);
+  await syncAndReload(page, { reloadMs });
 });

@@ -9,7 +9,8 @@
  *   - lan-setup / lan-phone: the personal page a real data service builds and serves (e2e/lan/stack.mjs: Postgres,
  *     services/loop-ingest in container mode, an nginx stand-in) — e2e/lan/. Only when TEST_DATABASE_URL points at
  *     a Postgres the suite may CREATE DATABASE on (like `npm run test:pg`); without it these projects are left out.
- *     lan-setup completes the first-run assistant every other lan test starts from.
+ *     lan-setup completes the first-run assistant every other lan test starts from; lan-last (e2e/lan/last/) runs
+ *     after lan-phone, for what changes the whole shared page (the language switch rebuilds it in another locale).
  *   - docker: a browser smoke of the published images (e2e/docker/), against the loop-web E2E_DOCKER_URL points at
  *     (scripts/image-smoke.sh sets it with SMOKE_BROWSER=1). With E2E_DOCKER_URL set it is the ONLY project: no
  *     example build, no LAN stack. */
@@ -19,7 +20,20 @@ import { LAN_PORT } from './e2e/lan/stack.mjs';
 
 const CI = !!process.env.CI;
 const DOCKER_URL = process.env.E2E_DOCKER_URL || '';
-const LAN = !DOCKER_URL && !!process.env.TEST_DATABASE_URL;
+
+/** The --project filters of this run (`--project x` / `--project=x`), [] for all. */
+function projectFilters(argv) {
+  const out = [];
+  argv.forEach((a, i) => {
+    if (a === '--project' && argv[i + 1]) out.push(argv[i + 1]);
+    else if (a.startsWith('--project=')) out.push(a.slice('--project='.length));
+  });
+  return out;
+}
+const PROJECTS = projectFilters(process.argv);
+// the LAN stack (a database, the data service, a page build) only when a LAN project can run: not for a run narrowed
+// to the static projects, even with TEST_DATABASE_URL exported for `npm run test:pg`
+const LAN = !DOCKER_URL && !!process.env.TEST_DATABASE_URL && (PROJECTS.length === 0 || PROJECTS.some((p) => p.startsWith('lan')));
 const LAN_URL = `http://127.0.0.1:${LAN_PORT}`;
 
 export default defineConfig({
@@ -63,10 +77,11 @@ export default defineConfig({
         {
           name: 'lan-phone',
           testMatch: 'lan/**/*.spec.mjs',
-          testIgnore: 'lan/setup.spec.mjs',
+          testIgnore: ['lan/setup.spec.mjs', 'lan/last/**'],
           dependencies: ['lan-setup'],
           use: { ...devices['Pixel 7'], baseURL: LAN_URL },
         },
+        { name: 'lan-last', testMatch: 'lan/last/**/*.spec.mjs', dependencies: ['lan-phone'], use: { ...devices['Pixel 7'], baseURL: LAN_URL } },
       ]
       : []),
   ],

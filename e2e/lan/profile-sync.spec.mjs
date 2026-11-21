@@ -2,7 +2,7 @@
 // docs/plan-page.md → Sync): the goal and the target weight are saved; Sync rebuilds the page on the server and
 // reloads it. The language switch is not driven here: it rebuilds the shared page in the other locale under the
 // specs running next to it.
-import { test, expect, openLan, apiResponse } from './fixtures.mjs';
+import { test, expect, openLan, apiResponse, syncAndReload, SYNC_TEST_MS } from './fixtures.mjs';
 import { settle } from '../fixtures.mjs';
 
 test('the goal and the target weight are saved from the profile sheet', async ({ page }) => {
@@ -38,24 +38,15 @@ test('the goal and the target weight are saved from the profile sheet', async ({
 });
 
 test('Sync rebuilds the page on the server and reloads it', async ({ page }) => {
-  // a real page build
-  test.setTimeout(240_000);
+  test.setTimeout(SYNC_TEST_MS);
   await openLan(page);
   const before = await (await page.request.get('/status.json')).json();
-  await page.evaluate(() => { window.__e2eBeforeSync = true; });
-
-  const sync = apiResponse(page, 'POST', '/api/sync');
-  const reloaded = page.waitForEvent('load', { timeout: 200_000 });
-  await page.locator('#sync-btn').click();
-  const res = await sync;
-  expect(res.status()).toBe(202);
-  const { seq } = await res.json();
-  await expect(page.locator('#sync-btn')).toHaveAttribute('aria-busy', 'true');
-  await expect(page.locator('#sync-msg')).not.toBeEmpty();
-
-  await reloaded;
-  expect(await page.evaluate(() => window.__e2eBeforeSync)).toBeUndefined();
+  await syncAndReload(page, {
+    whileBusy: async (p) => {
+      await expect(p.locator('#sync-btn')).toHaveAttribute('aria-busy', 'true');
+      await expect(p.locator('#sync-msg')).not.toBeEmpty();
+    },
+  });
   const after = await (await page.request.get('/status.json')).json();
-  expect(after.processedSeq).toBeGreaterThanOrEqual(seq);
   expect(after.publishedAt >= before.publishedAt).toBe(true);
 });

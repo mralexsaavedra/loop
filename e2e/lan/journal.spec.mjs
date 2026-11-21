@@ -8,6 +8,8 @@ async function openJournal(page) {
 }
 
 test('today\'s answers are saved and shown again when the journal reopens', async ({ page, today }) => {
+  // start from an empty day, so the clicks below mean the same on a retry (the database is shared)
+  await apiWrite(page, 'PUT', '/api/journal/day', 'journal', { date: today, answers: {} });
   await openLan(page);
   await expect(page.locator('#my-journal')).toBeVisible();
   await openJournal(page);
