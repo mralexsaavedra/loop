@@ -5,11 +5,18 @@
  * Projects:
  *   - static-phone / static-desktop: the example page (synthetic demo data) opened from file://, so every
  *     LAN-only feature is off — e2e/static/. Phone and desktop sit on both sides of the one layout
- *     breakpoint (900 px, docs/plan-page.md). */
+ *     breakpoint (900 px, docs/plan-page.md).
+ *   - lan-setup / lan-phone: the personal page a real data service builds and serves (e2e/lan/stack.mjs: Postgres,
+ *     services/loop-ingest in container mode, an nginx stand-in) — e2e/lan/. Only when TEST_DATABASE_URL points at
+ *     a Postgres the suite may CREATE DATABASE on (like `npm run test:pg`); without it these projects are left out.
+ *     lan-setup completes the first-run assistant every other lan test starts from. */
 import { defineConfig, devices } from '@playwright/test';
 import { E2E_TZ } from './e2e/paths.mjs';
+import { LAN_PORT } from './e2e/lan/stack.mjs';
 
 const CI = !!process.env.CI;
+const LAN = !!process.env.TEST_DATABASE_URL;
+const LAN_URL = `http://127.0.0.1:${LAN_PORT}`;
 
 export default defineConfig({
   testDir: 'e2e',
@@ -25,6 +32,18 @@ export default defineConfig({
     reducedMotion: 'reduce',
     trace: CI ? 'retain-on-failure' : 'off',
   },
+  webServer: LAN
+    ? {
+      command: 'node e2e/lan/stack.mjs',
+      url: `${LAN_URL}/status.json`,
+      // migrations + the first page build
+      timeout: 300_000,
+      reuseExistingServer: false,
+      stdout: 'pipe',
+      stderr: 'pipe',
+      gracefulShutdown: { signal: 'SIGTERM', timeout: 15_000 },
+    }
+    : undefined,
   projects: [
     { name: 'static-phone', testMatch: 'static/**/*.spec.mjs', use: { ...devices['Pixel 7'] } },
     {
@@ -32,5 +51,17 @@ export default defineConfig({
       testMatch: 'static/**/*.spec.mjs',
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
     },
+    ...(LAN
+      ? [
+        { name: 'lan-setup', testMatch: 'lan/setup.spec.mjs', use: { ...devices['Pixel 7'], baseURL: LAN_URL } },
+        {
+          name: 'lan-phone',
+          testMatch: 'lan/**/*.spec.mjs',
+          testIgnore: 'lan/setup.spec.mjs',
+          dependencies: ['lan-setup'],
+          use: { ...devices['Pixel 7'], baseURL: LAN_URL },
+        },
+      ]
+      : []),
   ],
 });

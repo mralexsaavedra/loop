@@ -4,7 +4,8 @@
  *   page shows the demo data as "today" whatever day the suite runs (the day stepper, staleness, the
  *   late-night food logic all read new Date()).
  * - Every test fails on a console error, an uncaught exception or a CSP violation: the page is meant to run
- *   clean, so these are bugs even when the asserted UI looks right. */
+ *   clean, so these are bugs even when the asserted UI looks right. A test that provokes one on purpose (an API
+ *   answering 400, which Chromium logs as "Failed to load resource") names it: `pageErrors.allow(/400/)`. */
 import { test as base, expect } from '@playwright/test';
 import { DEMO_DEFAULTS } from '../scripts/make-demo-data.mjs';
 import { STATIC_URL, E2E_TZ } from './paths.mjs';
@@ -24,19 +25,23 @@ export function zonedInstant(day, hour) {
 export const DEMO_NOW = zonedInstant(DEMO_DAY, 10);
 
 export const test = base.extend({
-  page: async ({ page }, use) => {
-    await page.clock.setFixedTime(DEMO_NOW);
+  // the instant the browser clock is fixed to (e2e/lan/fixtures.mjs overrides it)
+  now: async ({}, use) => use(DEMO_NOW),
+  page: async ({ page, now }, use) => {
+    await page.clock.setFixedTime(now);
     await use(page);
   },
   pageErrors: [
     async ({ page }, use) => {
       const errors = [];
+      const allowed = [];
       page.on('console', (msg) => {
         if (msg.type() === 'error') errors.push(`console: ${msg.text()}`);
       });
       page.on('pageerror', (err) => errors.push(`uncaught: ${err.message}`));
-      await use(errors);
-      expect(errors, 'console errors, uncaught exceptions or CSP violations').toEqual([]);
+      await use({ allow: (re) => allowed.push(re) });
+      const unexpected = errors.filter((e) => !(e.startsWith('console: ') && allowed.some((re) => re.test(e))));
+      expect(unexpected, 'console errors, uncaught exceptions or CSP violations').toEqual([]);
     },
     { auto: true },
   ],

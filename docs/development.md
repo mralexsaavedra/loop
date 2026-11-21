@@ -74,10 +74,17 @@ test fails (`e2e/.report/`, `e2e/.results/`, both gitignored).
 | Project | What it opens | Specs |
 | --- | --- | --- |
 | `static-phone` (Pixel 7), `static-desktop` (1280 × 800) | the example page (tracked seeds + the synthetic demo extract), built by `e2e/global-setup.mjs` into `web/.e2e-dist/en-example/` and opened from `file://`, so every LAN-only feature is off | `e2e/static/`: tabs, dock, keys `1`–`4` and `?`, the URL hash and deep links, every card's detail sheet on every tab and the ways to close it, the profile sheet, the day stepper, layout on both sides of the 900 px breakpoint |
+| `lan-setup`, then `lan-phone` (Pixel 7); only with `TEST_DATABASE_URL` | the personal page a real data service builds and serves: [`e2e/lan/stack.mjs`](../e2e/lan/stack.mjs) (Playwright's `webServer`) creates a fresh empty database on that Postgres, runs `services/loop-ingest` in container mode (its real migrations, `scripts/refresh.mjs` building the page into a temporary `HC_SITE_DIR`) and an nginx stand-in on `127.0.0.1:18290` (`E2E_LAN_PORT`) that serves the site and proxies exactly loop-web's `/api` routes with its rewrites and headers; everything is removed on exit | `e2e/lan/`: the first-run assistant (`lan-setup`, every other LAN test runs after it), the food log (quick entry, a built-in basic, delete), products (create, edit, log, archive, the Atwater override, an Open Food Facts search stubbed at the page's `/api/food/off`), recipes, the journal (answers saved and read back, a behaviour switched off and on), the profile's goal and target weight, and Sync rebuilding and reloading the page |
 
 Shared rules ([`e2e/fixtures.mjs`](../e2e/fixtures.mjs)): the browser clock is fixed to 10:00 (Europe/Madrid) on
 the demo's last day (`DEMO_DEFAULTS.end` of `scripts/make-demo-data.mjs`), so the suite does not drift with the
-calendar; and **every test fails on a console error, an uncaught exception or a CSP violation**. Use the page's
+calendar (the LAN specs: 12:00 of the real day, since the data service stores against its own calendar); and
+**every test fails on a console error, an uncaught exception or a CSP violation** (a test that provokes one on
+purpose, such as an API answering 400, names it with `pageErrors.allow(<regexp>)`). The LAN specs share one
+database: name what you create with `unique()` from `e2e/lan/fixtures.mjs` and assert on your own rows. The LAN
+projects need the data service's dependencies (`npm --prefix services/loop-ingest ci`) and a Postgres the user may
+`CREATE DATABASE` on, e.g. the throwaway container of `npm run test:pg`:
+`TEST_DATABASE_URL=postgres://postgres:x@127.0.0.1:5544/postgres npm run test:e2e`. Use the page's
 stable hooks (`#t-<tab>`, `.tab-panel[data-tab]`, `[data-detail]`, `#detail`, `#dt-title`, `#day-prev`) rather
 than text or CSS classes, and never write personal data into a spec.
 

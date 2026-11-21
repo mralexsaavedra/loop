@@ -134,6 +134,11 @@ test('CI builds both images for amd64 (no push) and smoke-tests a minimal compos
 test('CI runs the browser E2E tests in Chromium (job e2e, npm run test:e2e)', () => {
   const ci = read('.github/workflows/ci.yml');
   assert.match(ci, /^ {2}e2e:\n(?:.*\n)*? {6}- run: npx playwright install --with-deps chromium\n {6}- run: npm run test:e2e$/m);
+  // the LAN projects run only with a database: the job has its Postgres service and the data service's dependencies
+  const job = ci.slice(ci.indexOf('\n  e2e:\n'), ci.indexOf('\n  postgres:\n'));
+  assert.match(job, /image: postgres:17-alpine@sha256:/);
+  assert.match(job, /TEST_DATABASE_URL: postgres:\/\//);
+  assert.match(job, /- run: npm --prefix services\/loop-ingest ci /);
   const pkg = JSON.parse(read('package.json'));
   assert.equal(pkg.scripts['test:e2e'], 'playwright test');
   assert.match(pkg.devDependencies['@playwright/test'], /^\d+\.\d+\.\d+$/, 'pinned to an exact version');

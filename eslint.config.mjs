@@ -58,7 +58,13 @@ export default [
     },
   },
   // Playwright E2E specs: Node modules whose page.evaluate() callbacks run in the browser
-  { files: ['e2e/**/*.mjs'], languageOptions: { globals: { ...globals.node, ...globals.browser } } },
+  {
+    files: ['e2e/**/*.mjs'],
+    languageOptions: { globals: { ...globals.node, ...globals.browser } },
+    // Playwright reads a fixture's dependencies from its first parameter's destructuring: `async ({}, use)` is
+    // how a fixture says it needs none
+    rules: { 'no-empty-pattern': 'off' },
+  },
   // util.js is the script that declares HC
   { files: ['web/src/client/util.js'], languageOptions: { globals: { HC: 'off' } } },
 ];
