@@ -274,14 +274,16 @@ details.rec-raw > summary::after {
 .dd-better.dd-better,
 .dt-pill-good.dt-pill-good,
 .ld-good.ld-good,
-.wp-up.wp-up {
+.wp-up.wp-up,
+.hb-ok.hb-ok {
   color: var(--up);
 }
 .db-bad.db-bad,
 .dd-worse.dd-worse,
 .dt-pill-bad.dt-pill-bad,
 .ld-bad.ld-bad,
-.wp-down.wp-down {
+.wp-down.wp-down,
+.hb-off.hb-off {
   color: var(--down);
 }
 .db-watch.db-watch {

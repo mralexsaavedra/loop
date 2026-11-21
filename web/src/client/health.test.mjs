@@ -2,6 +2,7 @@
  * so Inicio's score cards (and any jump()) can land on it. Runs the real classic script in node:vm
  * against web/test/dom-stub.mjs. */
 import { test } from 'node:test';
+import { HABIT_REF } from '../../../lib/score/healthspan.mjs';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import fs from 'node:fs';
@@ -99,7 +100,7 @@ function renderWith(HEALTH, { DateCls = Date, SCORES, PROFILE, out = {}, detail 
   const train = doc.el('health-train');
   const bal = balance ? doc.el('nutri-balance') : null;
   const ctx = { document: doc, window: {}, HEALTH, SCORES, PROFILE, I18N_HEALTH: enHealth, LOCALE: 'en', Math, String, Number, Date: DateCls, JSON };
-  if (detail) ctx.DETAIL = { metrics: {} };
+  if (detail) ctx.DETAIL = detail === true ? { metrics: {} } : detail;
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
@@ -608,4 +609,59 @@ test('page copy for missing data names no developer step: no export jargon in th
     assert.doesNotMatch(T.fitnessAge.noVo2, /\bexport\b/i, T.fitnessAge.noVo2);
     assert.doesNotMatch(T.emptyMsg, /<code>|data\/|\.mjs|npm run/, T.emptyMsg);
   }
+});
+
+const format = (tpl, vars) => tpl.replace(/\{(\w+)\}/g, (_, k) => (vars[k] != null ? vars[k] : ''));
+// Salud "Healthspan habits" (lib/score/healthspan.mjs habits on DETAIL + the fitness age): one row per habit
+// against its cited reference or the own baseline, a met / not met summary, never an age
+const habits = (over = {}) => ({ from: '2026-06-03', to: '2026-06-30', ref: HABIT_REF,
+  sleep: { mean: 7.25, n: 28 }, activity: { mod: 70, vig: 21, eq: 112, n: 20 }, strength: { days: 3, perWeek: 0.75 },
+  steps: { mean: 9000, n: 28 }, rhr: { now: 50, base: 54, n: 28 }, cons: { now: 20, base: 30, n: 28 }, ...over });
+const habSec = (html) => { const i = html.indexOf('id="hl-habits"'); return i === -1 ? '' : html.slice(i, html.indexOf('</section>', i)); };
+const habAt = (H, { profile = P36, score = fa(), locale } = {}) => {
+  const out = {};
+  renderAt(fitH(), '2026-07-01', { out, detail: { metrics: {}, habits: H }, SCORES: { fitnessAge: score }, PROFILE: profile });
+  return habSec(out.health);
+};
+
+test('healthspan habits: first on Salud, one row per habit vs its reference (met = hb-ok, not met = hb-off), the met count, sources under ⓘ, never an age', () => {
+  const T = enHealth.habits;
+  const sec = habAt(habits());
+  assert.ok(sec, 'the section renders');
+  const order = [...sec.matchAll(/data-habit="(\w+)"/g)].map((m) => m[1]);
+  assert.deepEqual(order, ['sleep', 'activity', 'strength', 'steps', 'fitness', 'rhr', 'cons']);
+  const row = (k) => sec.split(`data-habit="${k}"`)[1].split('</li>')[0];
+  assert.match(row('sleep'), /<b class="hb-ok">7:15<\/b>/);
+  assert.ok(row('sleep').includes(T.ref.sleep));
+  assert.match(row('activity'), /<b class="hb-off">112<\/b><small>min\/wk<\/small>/);
+  assert.ok(row('activity').includes(format(T.mix, { mod: 70, vig: 21 })), 'moderate and vigorous minutes under it');
+  assert.match(row('strength'), /<b class="hb-off">0\.8<\/b><small>days\/wk<\/small>/);
+  assert.match(row('steps'), /<b class="hb-ok">9,000<\/b>/);
+  assert.ok(row('steps').includes(format(T.ref.steps, { lo: '8,000', hi: '10,000', group: T.under60 })), 'aged 36: the under-60 range');
+  assert.match(row('fitness'), /<b class="hb-ok">31<\/b><small>years<\/small>/);
+  assert.ok(row('fitness').includes(format(T.ref.fitness, { age: 36 })));
+  assert.match(row('rhr'), /<b class="hb-ok">50<\/b><small>bpm<\/small>/);
+  assert.ok(row('rhr').includes(format(T.ref.before, { value: '54 bpm' })));
+  assert.match(row('cons'), /<b class="hb-ok">20<\/b><small>min<\/small>/);
+  assert.ok(sec.includes(format(T.summary, { met: 5, n: 7 })), sec.slice(0, 400));
+  for (const n of T.notes) assert.ok(sec.includes(n.slice(0, 40)), 'ⓘ: ' + n.slice(0, 40));
+  assert.doesNotMatch(sec, /healthspan age|edad de|WHOOP/i);
+  assert.match(sec, /data-detail="sleep"/);
+});
+
+test('healthspan habits: from 60 the Paluch 60+ steps range; a habit without data is left out of the rows and the count; no habits at all = no section', () => {
+  const T = enHealth.habits;
+  const old = habAt(habits({ steps: { mean: 7000, n: 28 } }), { profile: { birthdate: '1960-01-01', sex: 'male' } });
+  const steps = old.split('data-habit="steps"')[1].split('</li>')[0];
+  assert.match(steps, /<b class="hb-ok">7,000<\/b>/, '7000 ≥ 6000 from 60');
+  assert.ok(steps.includes(format(T.ref.steps, { lo: '6,000', hi: '8,000', group: T.from60 })));
+  const some = habAt(habits({ activity: null, rhr: { now: 56, base: 54, n: 28 } }), { score: { ok: false, reason: 'no-vo2' } });
+  assert.deepEqual([...some.matchAll(/data-habit="(\w+)"/g)].map((m) => m[1]), ['sleep', 'strength', 'steps', 'rhr', 'cons']);
+  assert.match(some.split('data-habit="rhr"')[1], /<b class="hb-off">56<\/b>/, 'resting HR above its baseline');
+  assert.ok(some.includes(format(T.summary, { met: 3, n: 5 })));
+  // a baseline habit without a baseline yet: shown, uncoloured, not counted
+  const nb = habAt(habits({ rhr: { now: 50, base: null, n: 28 } }));
+  assert.match(nb.split('data-habit="rhr"')[1].split('</li>')[0], /<b>50<\/b>/);
+  assert.ok(nb.includes(format(T.summary, { met: 4, n: 6 })), 'sleep, steps, fitness age, regularity');
+  assert.equal(habAt(undefined), '');
 });

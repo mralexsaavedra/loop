@@ -3540,8 +3540,6 @@
   "|||.dt-range-fill|||display": "grid",
   "|||.dt-range-fill|||grid-auto-flow": "column",
   "|||.dt-range-fill|||grid-auto-columns": "minmax(0, 1fr)",
-  "|||.db-good.db-good, .dd-better.dd-better, .dt-pill-good.dt-pill-good, .ld-good.ld-good, .wp-up.wp-up|||color": "var(--up)",
-  "|||.db-bad.db-bad, .dd-worse.dd-worse, .dt-pill-bad.dt-pill-bad, .ld-bad.ld-bad, .wp-down.wp-down|||color": "var(--down)",
   "|||.db-watch.db-watch|||color": "var(--mid)",
   "|||.db-neutral.db-neutral, .dd-neutral.dd-neutral, .dt-pill-neutral.dt-pill-neutral|||color": "var(--ink)",
   "|||.db-flat.db-flat, .dd-typical.dd-typical, .dt-pill-flat.dt-pill-flat, .ld-flat.ld-flat|||color": "var(--faint)",
@@ -4353,5 +4351,10 @@
   "|||.home-cust|||display": "flex",
   "|||.home-cust|||justify-content": "center",
   "|||.home-cust|||margin-top": "var(--sp-4)",
-  "|||.home-off|||display": "none !important"
+  "|||.home-off|||display": "none !important",
+  "|||.db-good.db-good, .dd-better.dd-better, .dt-pill-good.dt-pill-good, .ld-good.ld-good, .wp-up.wp-up, .hb-ok.hb-ok|||color": "var(--up)",
+  "|||.db-bad.db-bad, .dd-worse.dd-worse, .dt-pill-bad.dt-pill-bad, .ld-bad.ld-bad, .wp-down.wp-down, .hb-off.hb-off|||color": "var(--down)",
+  "|||.hb-sum|||margin": "0 0 var(--sp-3)",
+  "|||.hb-sum|||color": "var(--muted)",
+  "|||.hb-sum|||font-size": "var(--fs-small)"
 }

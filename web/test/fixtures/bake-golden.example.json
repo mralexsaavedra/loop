@@ -829,6 +829,56 @@
  "detail": {
   "asOf": "2026-09-28",
   "days": 365,
+  "habits": {
+   "activity": {
+    "eq": 505,
+    "mod": 437,
+    "n": 27,
+    "vig": 34
+   },
+   "cons": {
+    "base": 16.6,
+    "n": 28,
+    "now": 18.2
+   },
+   "from": "2026-08-31",
+   "ref": {
+    "actMax": 300,
+    "actMin": 150,
+    "ageSplit": 60,
+    "sleepH": 7,
+    "steps": {
+     "from60": [
+      6000,
+      8000
+     ],
+     "under60": [
+      8000,
+      10000
+     ]
+    },
+    "strengthDays": 2,
+    "vigFactor": 2
+   },
+   "rhr": {
+    "base": 55,
+    "n": 28,
+    "now": 53.7
+   },
+   "sleep": {
+    "mean": 7.46,
+    "n": 28
+   },
+   "steps": {
+    "mean": 8764,
+    "n": 28
+   },
+   "strength": {
+    "days": 12,
+    "perWeek": 3
+   },
+   "to": "2026-09-27"
+  },
   "metrics": {
    "bodyfat": {
     "dec": 1,

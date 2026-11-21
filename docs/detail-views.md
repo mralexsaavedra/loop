@@ -111,6 +111,8 @@ has no such key. None has a host tab except
   their highest max HR.
 - `zoneMax` = `{hr, src}`: the max HR the zones were cut with and its source (`profile` / `observed`);
   absent without the file.
+- `habits`: Salud's healthspan habits of the last 28 full days (`lib/score/healthspan.mjs`, shape and rules
+  in `docs/health-tab.md` → Healthspan habits); absent when no habit has data.
 
 ## Openers
 

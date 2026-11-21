@@ -16,6 +16,12 @@ operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README
   and 4–5 (from the all-day heart rate plus each Strava workout's zones) and your gym time, each against your
   weekly average of the 4 weeks before; each one opens its own history (week / month / 6 months). Hidden until
   switched on in Customize.
+- **Healthspan habits on Salud.** A new first section shows the habits WHOOP folds into its "WHOOP age", each over
+  the last 28 days against a published reference: sleep (≥ 7 h, AASM), moderate or vigorous activity
+  (150–300 min a week, WHO), strength days (≥ 2 a week, WHO), steps (Paluch 2022, by age) and your fitness
+  age, plus resting heart rate and sleep regularity against your own previous 12 weeks. A line says how many
+  are at their reference. They are deliberately not combined into an "age": that would need weights no one
+  publishes. Heart-rate zones stand in for the WHO's intensity, an approximation the ⓘ explains.
 
 ## [1.5.0] - 2026-11-21
 
