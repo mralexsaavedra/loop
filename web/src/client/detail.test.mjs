@@ -885,6 +885,28 @@ test('load deep-dive: the day and the 7-day vs 42-day trend as prose in the insi
   assert.doesNotMatch(none.host.innerHTML, /NaN|undefined/);
 });
 
+test('sleep deep-dive: the insight adds the measured sleep debt of the last 7 nights (net shortfall vs the fixed target, surplus offsets); fewer than 5 nights with data = no debt sentence', () => {
+  const week = (vals) => {
+    const D = copy(), m = D.metrics.sleep, i = dayIndex(m, NOW);
+    vals.forEach((v, k) => { m.v[i - (vals.length - 1) + k] = v; });
+    return D;
+  };
+  const ins = (D, locale = 'en') => { const s = setup({ detail: D, dials: DIALS, locale }); s.api.open('sleep'); return insightOf(s.host.innerHTML); };
+  // shortfalls vs 7:30: 0:30, 1:00, 0, −0:30, 1:30, 0:30, 1:00 → 4:00 short over 7 nights
+  const short = week([7, 6.5, 7.5, 8, 6, 7, 6.5]);
+  assert.ok(ins(short).includes(format(enT.deep.prose.debt, { n: 7, value: '4:00' })), ins(short));
+  assert.ok(ins(short, 'es').includes(format(esT.deep.prose.debt, { n: 7, value: '4:00' })));
+  // more than the target on balance: no debt, the surplus stated
+  const over = week([8, 8, 7.5, 9, 7, 8, 7.5]);
+  assert.ok(ins(over).includes(format(enT.deep.prose.debtNone, { n: 7, value: '2:30' })), ins(over));
+  // a night without data is not counted as debt (n = nights with data)
+  const gap = week([7, null, 7.5, 7, 6.5, 7, 7]);
+  assert.ok(ins(gap).includes(format(enT.deep.prose.debt, { n: 6, value: '3:00' })), ins(gap));
+  // fewer than 5 nights with data in the window: no debt sentence at all
+  const thin = week([null, null, null, 7, 6.5, 7, 7]);
+  assert.ok(!ins(thin).includes(enT.deep.prose.debt.split('{n}')[0]) && !ins(thin).includes(enT.deep.prose.debtNone.split('{n}')[0]));
+});
+
 test('sleep deep-dive: the hero is last night\'s sleep performance % in the sleep colour; a stages bar under it; ⓘ explains every formula; the insight states the target and last night vs it', () => {
   const s = setup({ dials: DIALS });
   s.api.open('sleep');

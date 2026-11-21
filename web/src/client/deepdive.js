@@ -19,6 +19,8 @@
   // contributors: today vs the middle half (p25–p75) of the PRIOR_DAYS before it — the same "usual
   // day" idea as the Salud totals' quartile band; fewer than PRIOR_MIN prior values = no marker
   var PRIOR_DAYS = 30, PRIOR_MIN = 7;
+  // the measured sleep debt: the last 7 nights, shown with at least 5 of them on record
+  var DEBT_NIGHTS = 7, DEBT_MIN = 5;
   var WEEK = 7;
   // the recovery composite's scale (view/dial.mjs recoveryFrac: -3..+3 MAD), for the weekly bars
   var Z = 3;
@@ -199,7 +201,21 @@
     var night = format(W.rec, { when: whenOf(isoDate(h.date), X, h.sleep), band: band || '' });
     return prose([adv, night, h.sleep === false ? W.noSleep : '', adv ? '' : format(W.recTrend, trendVars)]);
   }
-  // sleep: last night vs the target, then the contributors that were worse than usual
+  // the measured sleep debt over the DEBT_NIGHTS nights ending at `iso`: Σ (target − asleep) over the
+  // nights with data (a surplus night offsets a short one; a night without data counts as nothing, never
+  // as debt) -> null | {h (> 0 = short), n (nights with data)}; null under DEBT_MIN nights. The need
+  // stays the fixed target (lib/score/sleep.mjs): no adaptive need is invented.
+  function sleepDebt(m, iso, X) {
+    if (!iso || !isNum(m.target)) return null;
+    var h = 0, n = 0;
+    for (var k = 0; k < DEBT_NIGHTS; k++) {
+      var v = X.valueOf(m, shiftIso(iso, -k));
+      if (isNum(v)) { h += m.target - v; n++; }
+    }
+    return n >= DEBT_MIN ? { h: Math.round(h * 60) / 60, n: n } : null;
+  }
+  // sleep: last night vs the target, the measured debt of the last nights, then the contributors that
+  // were worse than usual
   function sleepLines(m, end, X) {
     var W = X.T.deep.prose, d = X.lastDataDate(m, end);
     if (!d) return [{ text: X.T.noData }];
@@ -207,7 +223,9 @@
     var night = m.target != null
       ? format(W.sleep, { when: whenOf(d, X), value: HC.hours(v), delta: HC.hours(v - m.target, true), target: HC.hours(m.target) })
       : format(X.T.latestLbl, { date: HC.fmtDate(d) });
-    return prose([night, contribSentence(sleepRows(m, end, X), X)]);
+    var debt = sleepDebt(m, d, X);
+    var debtLine = debt ? format(debt.h > 0 ? W.debt : W.debtNone, { n: debt.n, value: HC.hours(Math.abs(debt.h)) }) : '';
+    return prose([night, debtLine, contribSentence(sleepRows(m, end, X), X)]);
   }
   // load: the day (today's RE, or the last session) next to the typical day, then the 7-day vs 42-day
   // context (baked DIALS); the ring scale lives under ⓘ

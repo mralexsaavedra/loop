@@ -4,6 +4,12 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [Unreleased]
+
+- **Sleep debt, measured.** The sleep page now says how much sleep you are short (or ahead) over the last 7 nights
+  against your fixed 7:30 target: a surplus night offsets a short one, and a night without data counts as nothing.
+  The need itself stays your target; nothing adapts to training.
+
 ## [1.5.0] - 2026-11-21
 
 - **More metrics for My dashboard.** Customize now also offers daily energy expenditure, day strain, respiratory

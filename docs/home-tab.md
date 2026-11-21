@@ -669,7 +669,7 @@ What it shows: last night's sleep performance, efficiency, consistency and stage
 
 | Field | Definition |
 | --- | --- |
-| `perf` | asleep / need × 100, rounded, capped at 100 — **our need = your target** (`SLEEP_TARGET`, 7.5 h; no adaptive need from strain or debt is invented) |
+| `perf` | asleep / need × 100, rounded, capped at 100 — **our need = your target** (`SLEEP_TARGET`, 7.5 h; no adaptive need from strain or debt is invented; the sleep page states the measured 7-night debt against this same target, `docs/detail-views.md` → Insight card) |
 | `eff` | asleep / in bed × 100 (capped; null when the night has no `inbed_h`) |
 | `cons` | sleep consistency in MINUTES (`recovery.mjs` `sleepConsistency`: the mean of \|bedtime − median\| and \|wake − median\| over the previous 42 nights — the recovery input `sleepCons`; no documented minutes → % mapping exists, so no %) |
 | `stages` | REM / deep / core / unspecified / awake / in bed hours (staged night only) |

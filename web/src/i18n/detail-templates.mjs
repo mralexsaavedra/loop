@@ -135,6 +135,9 @@ export const en = {
       dirs: { up: 'rising', steady: 'steady', down: 'falling' },
       noSleep: 'There is no sleep data for that night.',
       sleep: '{when} you slept {value}, {delta} vs your {target} target.',
+      // the measured sleep debt (client/deepdive.js sleepDebt): the net shortfall vs the same fixed target
+      debt: 'Over the last {n} nights you are {value} short of your target.',
+      debtNone: 'Over the last {n} nights you are not short of sleep ({value} above your target).',
       worse1: '{names} was worse than your usual.',
       worseN: '{names} were worse than your usual.',
       allOk: 'Every contributor was at or better than your usual.',
@@ -511,6 +514,9 @@ export const es = {
       dirs: { up: 'al alza', steady: 'estable', down: 'a la baja' },
       noSleep: 'No hay datos de sueño de esa noche.',
       sleep: '{when} dormiste {value}, {delta} frente a tu objetivo de {target}.',
+      // la deuda de sueño medida (client/deepdive.js sleepDebt): lo que falta, neto, frente al mismo objetivo fijo
+      debt: 'En las últimas {n} noches te faltan {value} respecto a tu objetivo.',
+      debtNone: 'En las últimas {n} noches no acumulas deuda de sueño ({value} por encima de tu objetivo).',
       worse1: '{names} estuvo peor que lo habitual.',
       worseN: '{names} estuvieron peor que lo habitual.',
       allOk: 'Todo estuvo en lo habitual o mejor.',
