@@ -60,7 +60,9 @@ test('a behaviour switched off leaves the questions, and back on returns', async
     await expect(toggle).toHaveAttribute('aria-checked', 'true');
     await expect(page.locator('#jr-yes-caffeine_late')).toBeVisible();
   } finally {
-    // whatever failed above, leave the behaviour on: the LAN specs (and a retry) share one database
-    await apiWrite(page, 'PUT', '/api/journal/settings', 'journal', { behaviors: { caffeine_late: true } });
+    // whatever failed above, leave the behaviour on: the LAN specs (and a retry) share one database. A failing
+    // clean-up is logged, never thrown: it must not hide the failure that got us here
+    await apiWrite(page, 'PUT', '/api/journal/settings', 'journal', { behaviors: { caffeine_late: true } })
+      .catch((err) => console.warn(`journal clean-up failed: ${err.message}`));
   }
 });

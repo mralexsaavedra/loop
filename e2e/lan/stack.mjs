@@ -19,7 +19,7 @@ import http from 'node:http';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
-import { spawn } from 'node:child_process';
+import { spawn, execFileSync } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { createRequire } from 'node:module';
 import { fileURLToPath } from 'node:url';
@@ -59,11 +59,42 @@ function freePort() {
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
-/** Send `sig` to the process group led by `pid` (spawned detached); a group already gone is fine. */
-function signalGroup(pid, sig) {
+/** `pid` and every process below it (Linux `ps --ppid`): the data service and the page build it runs
+ * (scripts/refresh.mjs and its Astro child). They stay in the stack's own process group, so a forced kill of that
+ * group (Playwright's webServer escalation) ends them too; stop() walks the tree for the graceful path. */
+function processTree(pid) {
+  const out = [pid];
+  for (let i = 0; i < out.length; i++) {
+    let kids = '';
+    try {
+      kids = execFileSync('ps', ['-o', 'pid=', '--ppid', String(out[i])], { encoding: 'utf8' });
+    } catch {} // ps exits 1 when there is no child
+    for (const k of kids.split(/\s+/).filter(Boolean)) out.push(Number(k));
+  }
+  return out;
+}
+
+const alive = (pid) => {
   try {
-    process.kill(-pid, sig);
-  } catch {}
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
+/** SIGTERM the tree, then SIGKILL what is left; resolves once none of it runs. */
+async function stopTree(pid) {
+  let tree = processTree(pid);
+  for (const p of tree) {
+    try { process.kill(p, 'SIGTERM'); } catch {}
+  }
+  for (let i = 0; i < 50 && tree.some(alive); i++) await wait(100);
+  tree = [...new Set([...tree, ...processTree(pid)])].filter(alive);
+  for (const p of tree) {
+    try { process.kill(p, 'SIGKILL'); } catch {}
+  }
+  for (let i = 0; i < 20 && tree.some(alive); i++) await wait(100);
 }
 
 /** Remove the repo's Astro build lock when the process holding it is gone (a page build killed by stop() never
@@ -83,15 +114,6 @@ function dropOrphanBuildLock() {
   }
 }
 
-/** Whether any process of the group led by `pid` is still running. */
-function groupAlive(pid) {
-  try {
-    process.kill(-pid, 0);
-    return true;
-  } catch {
-    return false;
-  }
-}
 
 /** nginx's /api routes: [method set, upstream path] for a request path, or null (404). */
 export function upstreamFor(method, pathname) {
@@ -195,12 +217,9 @@ export async function startStack({ databaseUrl = process.env.TEST_DATABASE_URL, 
   const stop = () => (stopping ??= (async () => {
     if (front) await new Promise((r) => front.close(() => r()));
     if (child) {
-      // the whole process group: the data service AND the page build it may be running (scripts/refresh.mjs and
-      // its Astro child), which would otherwise keep writing into the folder removed below
-      signalGroup(child.pid, 'SIGTERM');
-      for (let i = 0; i < 50 && groupAlive(child.pid); i++) await wait(100);
-      signalGroup(child.pid, 'SIGKILL');
-      for (let i = 0; i < 20 && groupAlive(child.pid); i++) await wait(100);
+      // the data service AND the page build it may be running, which would otherwise keep writing into the folder
+      // removed below
+      await stopTree(child.pid);
       dropOrphanBuildLock();
     }
     if (dbName) await admin(databaseUrl, `DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`).catch((e) => log(`drop failed: ${e.message}`));
@@ -213,9 +232,13 @@ export async function startStack({ databaseUrl = process.env.TEST_DATABASE_URL, 
     const dirs = { data: path.join(tmp, 'data'), files: path.join(tmp, 'files'), site: path.join(tmp, 'site') };
     for (const d of Object.values(dirs)) fs.mkdirSync(d, { recursive: true });
 
-    const name = `loop_e2e_${randomBytes(6).toString('hex')}`;
-    await admin(databaseUrl, `CREATE DATABASE ${name}`);
-    dbName = name;
+    // named before it exists: a stop while CREATE DATABASE runs still drops it (DROP … IF EXISTS)
+    dbName = `loop_e2e_${randomBytes(6).toString('hex')}`;
+    await admin(databaseUrl, `CREATE DATABASE ${dbName}`);
+    if (stopping) {
+      await admin(databaseUrl, `DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`).catch(() => {});
+      throw new Error('stopped during startup');
+    }
     const dbUrl = new URL(databaseUrl);
     dbUrl.pathname = `/${dbName}`;
 
@@ -241,8 +264,6 @@ export async function startStack({ databaseUrl = process.env.TEST_DATABASE_URL, 
         ASTRO_TELEMETRY_DISABLED: '1',
       },
       stdio: ['ignore', 'inherit', 'inherit'],
-      // its own process group, so stop() can end the page build it spawns too
-      detached: true,
     });
     child.once('exit', () => { exited = true; });
 
