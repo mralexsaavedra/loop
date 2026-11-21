@@ -22,6 +22,7 @@
     "test": "node --test \"lib/**/*.test.mjs\" \"web/**/*.test.mjs\" \"scripts/*.test.mjs\" \".claude/hooks/*.test.js\" data/nutrition/*.test.mjs data/apple-health/*.test.mjs data/profile/*.test.mjs",
     "test:services": "npm --prefix services/loop-ingest ci --no-audit --no-fund && npm --prefix services/loop-ingest test",
     "test:pg": "npm --prefix services/loop-ingest ci --no-audit --no-fund && npm --prefix services/loop-ingest run test:pg",
+    "test:e2e": "playwright test",
     "test:css:update": "node scripts/update-css-fixture.mjs",
     "sync": "node scripts/sync-all.mjs",
     "sync:shortcut": "node data/apple-health/sync-shortcut.mjs",
@@ -43,6 +44,7 @@
   },
   "devDependencies": {
     "@eslint/js": "10.0.1",
+    "@playwright/test": "1.65.1",
     "@types/node": "22.20.5",
     "eslint": "10.12.0",
     "globals": "17.13.0",

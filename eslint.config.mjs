@@ -28,7 +28,7 @@ const readonly = (names) => Object.fromEntries(names.map((n) => [n, 'readonly'])
 export default [
   {
     ignores: [
-      '**/node_modules/**', 'web/dist/**', 'web/.astro/**', 'web/.test-dist/**', '.claude/**', '.agents/**',
+      '**/node_modules/**', 'web/dist/**', 'web/.astro/**', 'web/.test-dist/**', 'web/.e2e-dist/**', 'e2e/.results/**', 'e2e/.report/**', '.claude/**', '.agents/**',
       'knowledge/**', 'backups/**', 'local/**', 'services/loop-ingest/scripts/**',
     ],
   },
@@ -57,6 +57,8 @@ export default [
       'no-unused-vars': ['error', { vars: 'local', args: 'none', caughtErrors: 'none' }],
     },
   },
+  // Playwright E2E specs: Node modules whose page.evaluate() callbacks run in the browser
+  { files: ['e2e/**/*.mjs'], languageOptions: { globals: { ...globals.node, ...globals.browser } } },
   // util.js is the script that declares HC
   { files: ['web/src/client/util.js'], languageOptions: { globals: { HC: 'off' } } },
 ];

@@ -137,6 +137,10 @@ node_modules
 web/dist/
 web/.astro/
 web/.test-dist/
+# Playwright E2E (npm run test:e2e): the page it builds, results and report
+web/.e2e-dist/
+e2e/.results/
+e2e/.report/
 
 # Knowledge base (knowledge/): transcripts and summaries of third-party content
 # (e.g. YouTube videos) for personal use only — never committed. Only the README

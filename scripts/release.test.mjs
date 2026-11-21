@@ -131,6 +131,15 @@ test('CI builds both images for amd64 (no push) and smoke-tests a minimal compos
   assert.doesNotMatch(sh, /docker (image )?push|docker builder prune|docker (image )?rm .*:1\.0\.0/);
 });
 
+test('CI runs the browser E2E tests in Chromium (job e2e, npm run test:e2e)', () => {
+  const ci = read('.github/workflows/ci.yml');
+  assert.match(ci, /^ {2}e2e:\n(?:.*\n)*? {6}- run: npx playwright install --with-deps chromium\n {6}- run: npm run test:e2e$/m);
+  const pkg = JSON.parse(read('package.json'));
+  assert.equal(pkg.scripts['test:e2e'], 'playwright test');
+  assert.match(pkg.devDependencies['@playwright/test'], /^\d+\.\d+\.\d+$/, 'pinned to an exact version');
+  assert.doesNotMatch(pkg.scripts.test, /playwright|e2e/, 'npm test stays browser-free');
+});
+
 test('every checkout in the workflows drops the job token from .git/config (persist-credentials: false)', () => {
   for (const f of ['.github/workflows/ci.yml', '.github/workflows/release.yml']) {
     const text = read(f);
