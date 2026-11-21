@@ -5,13 +5,16 @@
 #   1. loop-server answers GET /healthz
 #   2. its first build publishes: GET /status.json through loop-web carries publishedAt
 #   3. GET / through loop-web is 200 and the page is over 100 KB (102400 bytes)
+#   4. with SMOKE_BROWSER=1, a Chromium smoke of the served page (Playwright project `docker`, e2e/docker/): loop-web's
+#      security headers, no console error or CSP violation, a food entry saved and deleted through nginx, and Sync
+#      rebuilding the page inside loop-server (needs `npm ci` and `npx playwright install chromium` first)
 # and always takes the stack down with its volumes (down -v), pass or fail. CI runs it (.github/workflows/ci.yml,
 # job images), and so does a release before anything is pushed (release.yml calls ci.yml). docs/development.md -> CI.
 #
 # Env (all optional): SMOKE_INSTANCE (HC_INSTANCE suffix, default smoke), SMOKE_VERSION (the image tag built and run,
 # default smoke: never a release tag), SMOKE_INGEST_PORT (default 18088), SMOKE_WEB_PORT (default 18090),
 # SMOKE_TIMEOUT (seconds to wait for the first publish, default 600), SMOKE_PLATFORM (the platform to build, default
-# linux/amd64; CI also runs it on a native arm64 runner with linux/arm64).
+# linux/amd64; CI also runs it on a native arm64 runner with linux/arm64), SMOKE_BROWSER (1: step 4, default off).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -82,4 +85,10 @@ if [ "${code}" != 200 ] || [ "${size}" -le 102400 ]; then
   exit 1
 fi
 echo "ok: GET / 200, ${size} bytes"
+
+if [ "${SMOKE_BROWSER:-0}" = 1 ]; then
+  echo "Browser smoke against http://127.0.0.1:${WEB_PORT}"
+  (cd "${ROOT}" && E2E_DOCKER_URL="http://127.0.0.1:${WEB_PORT}" npx playwright test)
+  echo "ok: browser smoke"
+fi
 echo "Image smoke test passed"

@@ -115,7 +115,8 @@ jobs:
 
   # Both server images (docker/loop-server.Dockerfile, docker/loop-web.Dockerfile) built for linux/amd64, never pushed,
   # and a minimal compose stack of docker/docker-compose.yml: loop-server /healthz, the first published status.json,
-  # GET / 200 over 100 KB, then down -v (scripts/image-smoke.sh).
+  # GET / 200 over 100 KB, then (SMOKE_BROWSER=1) a Chromium smoke of the served page (e2e/docker/), then down -v
+  # (scripts/image-smoke.sh).
   images:
     # both architectures on native runners, like the release (the arm64 image is never emulated)
     runs-on: ${{ matrix.runner }}
@@ -131,6 +132,14 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
       - run: scripts/image-smoke.sh
         env:
           SMOKE_PLATFORM: ${{ matrix.platform }}
+          SMOKE_BROWSER: '1'

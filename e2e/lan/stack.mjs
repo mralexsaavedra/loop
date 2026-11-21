@@ -110,6 +110,17 @@ export function upstreamFor(method, pathname) {
   return null;
 }
 
+/** nginx's server-level headers (services/loop-web/nginx.conf.template), on every response like `add_header … always`. */
+export const SECURITY_HEADERS = Object.freeze({
+  'cross-origin-opener-policy': 'same-origin',
+  'cross-origin-resource-policy': 'same-origin',
+  'permissions-policy': 'camera=(), microphone=(), geolocation=(), payment=(), usb=()',
+  'x-content-type-options': 'nosniff',
+  'x-frame-options': 'DENY',
+  'referrer-policy': 'no-referrer',
+  'content-security-policy': "frame-ancestors 'none'",
+});
+
 const STATIC_TYPES = { '.html': 'text/html; charset=utf-8', '.json': 'application/json', '.pdf': 'application/pdf' };
 
 function serveStatic(siteDir, pathname, res) {
@@ -123,7 +134,6 @@ function serveStatic(siteDir, pathname, res) {
   res.writeHead(200, {
     'content-type': STATIC_TYPES[path.extname(file)] || 'application/octet-stream',
     'cache-control': 'no-cache, no-store',
-    'x-content-type-options': 'nosniff',
   });
   fs.createReadStream(file).pipe(res);
 }
@@ -131,6 +141,7 @@ function serveStatic(siteDir, pathname, res) {
 /** The front server: the published site + nginx's /api proxy rules, upstream = the data service on `ingestPort`. */
 export function createFront({ siteDir, ingestPort }) {
   return http.createServer((req, res) => {
+    for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
     const url = new URL(req.url, 'http://front');
     if (!url.pathname.startsWith('/api/')) {
       if (req.method !== 'GET' && req.method !== 'HEAD') return res.writeHead(405).end();

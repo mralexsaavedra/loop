@@ -9,19 +9,23 @@
  *   - lan-setup / lan-phone: the personal page a real data service builds and serves (e2e/lan/stack.mjs: Postgres,
  *     services/loop-ingest in container mode, an nginx stand-in) — e2e/lan/. Only when TEST_DATABASE_URL points at
  *     a Postgres the suite may CREATE DATABASE on (like `npm run test:pg`); without it these projects are left out.
- *     lan-setup completes the first-run assistant every other lan test starts from. */
+ *     lan-setup completes the first-run assistant every other lan test starts from.
+ *   - docker: a browser smoke of the published images (e2e/docker/), against the loop-web E2E_DOCKER_URL points at
+ *     (scripts/image-smoke.sh sets it with SMOKE_BROWSER=1). With E2E_DOCKER_URL set it is the ONLY project: no
+ *     example build, no LAN stack. */
 import { defineConfig, devices } from '@playwright/test';
 import { E2E_TZ } from './e2e/paths.mjs';
 import { LAN_PORT } from './e2e/lan/stack.mjs';
 
 const CI = !!process.env.CI;
-const LAN = !!process.env.TEST_DATABASE_URL;
+const DOCKER_URL = process.env.E2E_DOCKER_URL || '';
+const LAN = !DOCKER_URL && !!process.env.TEST_DATABASE_URL;
 const LAN_URL = `http://127.0.0.1:${LAN_PORT}`;
 
 export default defineConfig({
   testDir: 'e2e',
   outputDir: 'e2e/.results',
-  globalSetup: './e2e/global-setup.mjs',
+  globalSetup: DOCKER_URL ? undefined : './e2e/global-setup.mjs',
   fullyParallel: true,
   forbidOnly: CI,
   retries: CI ? 1 : 0,
@@ -44,7 +48,9 @@ export default defineConfig({
       gracefulShutdown: { signal: 'SIGTERM', timeout: 15_000 },
     }
     : undefined,
-  projects: [
+  projects: DOCKER_URL ? [
+    { name: 'docker', testMatch: 'docker/**/*.spec.mjs', use: { ...devices['Pixel 7'], baseURL: DOCKER_URL } },
+  ] : [
     { name: 'static-phone', testMatch: 'static/**/*.spec.mjs', use: { ...devices['Pixel 7'] } },
     {
       name: 'static-desktop',

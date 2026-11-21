@@ -129,6 +129,10 @@ test('CI builds both images for amd64 (no push) and smoke-tests a minimal compos
   assert.ok((fs.statSync(path.join(ROOT, 'scripts/image-smoke.sh')).mode & 0o111) !== 0, 'executable');
   for (const s of ['set -euo pipefail', 'docker/docker-compose.yml', 'build', 'up -d --wait', '/healthz', '/status.json', 'publishedAt', '102400', 'down -v', 'linux/amd64', 'INGEST_BIND=127.0.0.1', 'PLAN_WEB_BIND=127.0.0.1', 'trap ']) assert.ok(sh.includes(s), s);
   assert.doesNotMatch(sh, /docker (image )?push|docker builder prune|docker (image )?rm .*:1\.0\.0/);
+  // step 4: the browser smoke of the served page, on in CI
+  assert.match(sh, /if \[ "\$\{SMOKE_BROWSER:-0\}" = 1 \]; then\n(?:.*\n)*? {2}\(cd "\$\{ROOT\}" && E2E_DOCKER_URL="http:\/\/127\.0\.0\.1:\$\{WEB_PORT\}" npx playwright test\)/);
+  const images = ci.slice(ci.indexOf('\n  images:\n'));
+  assert.match(images, /- run: npx playwright install --with-deps chromium\n {6}- run: scripts\/image-smoke\.sh\n {8}env:\n(?:.*\n)*? {10}SMOKE_BROWSER: '1'/);
 });
 
 test('CI runs the browser E2E tests in Chromium (job e2e, npm run test:e2e)', () => {
