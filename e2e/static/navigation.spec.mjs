@@ -1,6 +1,6 @@
 // Tabs, the dock, keyboard shortcuts and the URL hash on the static example page (docs/plan-page.md →
 // Tabs and sections, URL hash & navigation, Keyboard shortcuts).
-import { test, expect, openStatic, TABS, hashOf } from '../fixtures.mjs';
+import { test, expect, openStatic, TABS, hashOf, settle } from '../fixtures.mjs';
 
 async function expectTab(page, key) {
   await expect(page.locator(`#t-${key}`)).toHaveAttribute('aria-current', 'page');
@@ -63,5 +63,7 @@ test('LAN-only controls stay hidden on file://', async ({ page }) => {
   // shortcuts for missing actions do nothing
   await page.keyboard.press('a');
   await page.keyboard.press('d');
+  await settle(page);
   await expect(page.locator('#detail')).toBeHidden();
+  expect(hashOf(page)).toBe('#home');
 });

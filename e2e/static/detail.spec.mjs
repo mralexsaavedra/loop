@@ -1,6 +1,6 @@
 // The detail sheet (docs/detail-views.md) and the views it hosts (profile, keyboard help) on the static
 // example page: every opener on every tab, the ways to close it, focus, and the deep links.
-import { test, expect, openStatic, TABS, hashOf } from '../fixtures.mjs';
+import { test, expect, openStatic, TABS, hashOf, settle } from '../fixtures.mjs';
 
 const sheet = (page) => page.locator('#detail');
 const title = (page) => page.locator('#dt-title');
@@ -84,7 +84,9 @@ test('? opens the keyboard help, and no shortcut fires while it is open', async 
   await expectOpen(page);
   expect(hashOf(page)).toBe('#shortcuts');
   await page.keyboard.press('3');
-  await expect(page.locator('#t-home')).toHaveAttribute('aria-current', 'page');
+  await settle(page);
+  await expect(page.locator('.tab-panel[data-tab="health"]')).toBeHidden();
+  expect(hashOf(page)).toBe('#shortcuts');
   await page.keyboard.press('Escape');
   await expectClosed(page);
 });

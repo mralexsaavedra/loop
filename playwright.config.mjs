@@ -7,6 +7,7 @@
  *     LAN-only feature is off — e2e/static/. Phone and desktop sit on both sides of the one layout
  *     breakpoint (900 px, docs/plan-page.md). */
 import { defineConfig, devices } from '@playwright/test';
+import { E2E_TZ } from './e2e/paths.mjs';
 
 const CI = !!process.env.CI;
 
@@ -20,7 +21,7 @@ export default defineConfig({
   reporter: CI ? [['list'], ['html', { open: 'never', outputFolder: 'e2e/.report' }]] : 'list',
   use: {
     locale: 'en-GB',
-    timezoneId: 'Europe/Madrid',
+    timezoneId: E2E_TZ,
     reducedMotion: 'reduce',
     trace: CI ? 'retain-on-failure' : 'off',
   },
