@@ -39,7 +39,8 @@ function detail() {
       weight: series(NOW, 40, (i) => (i % 5 === 0 ? 80 : null), { kind: 'sparse', dir: 0, dec: 1 }),
       steps: series(NOW, 40, (i) => (i === 39 ? 300 : i === 38 ? 12000 : 8000), { kind: 'total', dir: 1, dec: 0 }),
       vo2max: series(NOW, 40, (i) => (i === 39 ? 46 : null), { kind: 'sparse', dir: 1, dec: 1 }),
-      energy: series(NOW, 40, () => 2500, { kind: 'total', dir: 0, dec: 0 }),
+      energy: series(NOW, 40, (i) => (i === 39 ? 900 : i === 38 ? 2900 : 2500), { kind: 'total', dir: 0, dec: 0 }),
+      strain: series(NOW, 40, (i) => (i === 39 ? 3 : i === 38 ? 15 : 10), { kind: 'strain', dir: 0, dec: 1 }),
     },
     sessions: [],
   };
@@ -83,7 +84,19 @@ test('prefs: defaults = RHR, HRV, sleep, weight, steps shown, the rest of the ca
   assert.deepEqual(plain(D.DEFAULT_ON), ['rhr', 'hrv', 'sleep', 'weight', 'steps', 'stress']);
   assert.deepEqual(plain(D.prefsFrom(null, ['steps', 'rhr', 'hrv', 'sleep', 'weight', 'vo2max'])),
     [{ key: 'rhr', on: true }, { key: 'hrv', on: true }, { key: 'sleep', on: true }, { key: 'weight', on: true }, { key: 'steps', on: true }, { key: 'vo2max', on: false }]);
-  assert.deepEqual(plain(D.prefsFrom(null, ['hrv', 'energy'])), [{ key: 'hrv', on: true }], 'energy is not a dashboard metric');
+  assert.deepEqual(plain(D.prefsFrom(null, ['hrv', 'bogus'])), [{ key: 'hrv', on: true }], 'a key outside the catalogue is ignored');
+});
+
+test('prefs: energy, strain, respiratory rate, wrist temp, body fat and waist are in the catalogue, hidden by default', () => {
+  const { ctx } = load();
+  const extra = ['energy', 'strain', 'respiratory', 'wristTemp', 'bodyfat', 'waist'];
+  for (const k of extra) assert.ok(ctx.HCDash.CATALOG.includes(k), k);
+  assert.deepEqual(plain(ctx.HCDash.prefsFrom(null, ['rhr', ...extra])),
+    [{ key: 'rhr', on: true }, ...extra.map((k) => ({ key: k, on: false }))]);
+  // a saved layout from before keeps its order; the new keys append hidden
+  const raw = JSON.stringify({ order: ['hrv', 'rhr'], hidden: [] });
+  assert.deepEqual(plain(ctx.HCDash.prefsFrom(raw, ['rhr', 'hrv', 'energy'])),
+    [{ key: 'hrv', on: true }, { key: 'rhr', on: true }, { key: 'energy', on: false }]);
 });
 
 test('prefs: stored order + hidden apply; unknown, duplicate or unavailable keys are ignored; new keys append with their default', () => {
@@ -158,8 +171,8 @@ test('customize: the list opens straight away, no intro paragraph (the reference
 test('customize: every row has a ≡ drag handle (hidden from screen readers; the ↑ / ↓ buttons stay for the keyboard)', () => {
   const { ctx } = load();
   const body = ctx.HCViews['dash-edit'].render().body;
-  assert.equal([...body.matchAll(/<span class="db-grip" data-dash-grip="" data-key="(\w+)" aria-hidden="true"><svg class="db-grip-ico"/g)].length, 6);
-  assert.equal([...body.matchAll(/data-dash-act="(up|down)"/g)].length, 12, 'keyboard-operable moves kept');
+  assert.equal([...body.matchAll(/<span class="db-grip" data-dash-grip="" data-key="(\w+)" aria-hidden="true"><svg class="db-grip-ico"/g)].length, 8);
+  assert.equal([...body.matchAll(/data-dash-act="(up|down)"/g)].length, 16, 'keyboard-operable moves kept');
   assert.match(body, /data-key="rhr" aria-label="Move Resting heart rate down">↓<\/button><span class="db-grip"/, 'the handle sits last, at the row end');
 });
 
@@ -245,6 +258,20 @@ test('row value: newest day, 30-day baseline, arrow + tone by the good direction
   assert.deepEqual([w.arrow, w.tone], ['flat', 'flat'], 'a neutral metric is never coloured');
   assert.deepEqual(rv('vo2max'), { value: 46, date: NOW, base: null, arrow: null, tone: 'flat' }, 'no earlier readings: no baseline, no arrow');
   assert.equal(ctx.HCDash.rowValue(null, NOW), null);
+  const en = rv('energy');
+  assert.deepEqual([en.date, en.value, en.tone], ['2026-09-29', 2900, 'flat'], 'energy is a daily total: today skipped, no good direction');
+  const sr = rv('strain');
+  assert.deepEqual([sr.date, sr.value], ['2026-09-29', 15], 'day strain still builds today: the last full day');
+});
+
+test('render: a newly added metric shows once switched on (full name, unit)', () => {
+  const ls = storage({ 'hc-dash-v1': JSON.stringify({ order: ['energy', 'strain'], hidden: [] }) });
+  const { els } = load({ ls });
+  const html = els['home-dash'].innerHTML;
+  assert.match(html, /<span class="db-name">Daily energy expenditure<\/span><span class="db-vals"><span class="db-val"><b>2,900<\/b><small>kcal<\/small>/);
+  assert.match(html, /<span class="db-name">Day strain<\/span><span class="db-vals"><span class="db-val"><b>15\.0<\/b><small>\/ 21<\/small>/);
+  const es = load({ locale: 'es', ls: storage({ 'hc-dash-v1': JSON.stringify({ order: ['energy'], hidden: [] }) }) }).els['home-dash'].innerHTML;
+  assert.match(es, /<span class="db-name">Gasto energético diario<\/span>/);
 });
 
 test('render: one row per shown metric (full name, value, unit, baseline, arrow, detail opener); sleep as h:mm', () => {
@@ -304,7 +331,7 @@ test('customize: the sheet lists every available metric with show / up / down; a
   const v = ctx.HCViews['dash-edit'];
   assert.equal(v.title(), 'Customize dashboard');
   const body = v.render().body;
-  assert.equal([...body.matchAll(/data-dash-act="toggle"/g)].length, 6, 'rhr hrv sleep weight steps vo2max');
+  assert.equal([...body.matchAll(/data-dash-act="toggle"/g)].length, 8, 'rhr hrv sleep weight steps vo2max energy strain');
   assert.match(body, /data-dash-act="up" data-key="rhr" aria-label="Move Resting heart rate up" disabled/);
   // show / hide is THE switch (no visible word, the state is aria-checked); one control for both states
   assert.match(body, /<button type="button" class="sw" role="switch" aria-checked="false" aria-label="Show VO₂max on the dashboard" data-dash-act="toggle" data-key="vo2max">/);
@@ -312,7 +339,7 @@ test('customize: the sheet lists every available metric with show / up / down; a
   assert.doesNotMatch(body, /db-tog|>Shown<|>Hidden</, 'no white VISIBLE pill / bare HIDDEN word');
   click({ 'data-dash-act': 'toggle', 'data-key': 'vo2max' });
   click({ 'data-dash-act': 'up', 'data-key': 'vo2max' });
-  assert.deepEqual(JSON.parse(ls.data['hc-dash-v1']), { order: ['rhr', 'hrv', 'sleep', 'weight', 'vo2max', 'steps'], hidden: [] });
+  assert.deepEqual(JSON.parse(ls.data['hc-dash-v1']), { order: ['rhr', 'hrv', 'sleep', 'weight', 'vo2max', 'steps', 'energy', 'strain'], hidden: ['energy', 'strain'] });
   assert.match(els['home-dash'].innerHTML, /data-detail="vo2max"[\s\S]*data-detail="steps"/);
   assert.deepEqual(plain(opened.at(-1)), ['dash-edit', '[data-dash-act="up"][data-key="vo2max"]']);
 });

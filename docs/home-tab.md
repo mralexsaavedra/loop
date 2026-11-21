@@ -17,6 +17,7 @@ On this page:
 - [My journal](#my-journal)
 - [My plan](#my-plan)
 - [My dashboard](#my-dashboard)
+- [Customize Home](#customize-home)
 - [Health monitor (on Salud)](#health-monitor-on-salud)
 - [Scoring](#scoring): [recovery](#recovery), [load](#load), [sleep scores](#sleep-scores), [day history](#day-history)
 - [Carried values](#carried-values)
@@ -49,10 +50,13 @@ Order, top to bottom (`web/src/tabs/Home.astro`, which also renders `components/
 | 7 | My journal | `#my-journal` | `journal.js` |
 | 8 | My plan | `#my-plan` | `home-week.js` |
 | 9 | My dashboard | `#my-dash` | `home-dash.js` |
+| 9a | "Customize Home ✎" | `#home-cust` | `home-order.js` (moves blocks 4–9 right before it) |
 | 10 | The programmed session's hidden source section | `hoy` | — |
 
 - Date pill placement: on a phone, its own row under the top bar; on a wide screen, centred in the bar
   row with the wordmark left and the avatar right.
+- Blocks 4–9 follow the user's order and show / hide ([Customize Home](#customize-home)); the table is
+  the built (default) order. The dials, the tiles and the hidden Hoy source never move.
 - Little text on the tab: each block's explanation lives in the detail sheet it opens.
 - The full health monitor list is NOT on Home: it leads Salud ([below](#health-monitor-on-salud)).
 - `client/home-week.js` and `client/home-dash.js` load in `layouts/Plan.astro`'s end-of-body script
@@ -392,13 +396,15 @@ What it shows: user-chosen metric cards with the latest value vs a 30-day baseli
   | Default | Keys |
   | --- | --- |
   | shown (`DEFAULT_ON`) | rhr, hrv, sleep, weight, steps, stress (saved prefs without stress get it appended, shown) |
-  | hidden | vo2max, fitnessAge, walkingHr, exercise |
+  | hidden | vo2max, fitnessAge, walkingHr, exercise, energy, strain, respiratory, wristTemp, bodyfat, waist |
 
 - fitnessAge in whole years, "< 25" / "> 75" at the reference curve's bounds (`docs/health-tab.md` →
   Fitness age).
 - Same series and units as the detail sheet (`I18N_DETAIL`).
-- Value = the newest day with data up to the viewer's today (a daily total skips today, still filling
-  up); sleep shows h:mm.
+- Value = the newest day with data up to the viewer's today (a daily total, energy included, and day strain
+  skip today, still filling up); sleep shows h:mm.
+- Full row names (`home.dash.names`) for rhr, hrv, sleep, walkingHr, energy ("Daily energy expenditure"),
+  wristTemp and stress; the other keys use the detail sheet's title and unit (strain: "Day strain", "/ 21").
 - Baseline = the mean of the 30 days before that day, with ≥ 7 days of data (≥ 2 readings for a
   sparse series like weight); no baseline → no arrow.
 - Arrow ▲▼ = the value vs the baseline: `--up` when better by the metric's good direction (`dir`),
@@ -437,10 +443,30 @@ What it shows: user-chosen metric cards with the latest value vs a 30-day baseli
   - a re-render of the sheet drops a drag in flight; a drag whose row has left the page (sheet closed,
     no `pointerup`) is stale and never blocks the next one;
   - no auto-scroll while dragging (the whole catalogue fits a phone screen).
+- The sheet, the switch, ↑ / ↓, the drag and the preferences are the shared `HC.orderList`
+  (`client/util.js`; the caller registers its returned `sheet` under its own literal key), also used by
+  [Customize Home](#customize-home).
 - Both drag and ↑ / ↓ reorder through the pure `HCDash.move(list, from, to)`.
 - Preferences = `localStorage['hc-dash-v1']` `{order, hidden}`: every read / write is in a try/catch;
   unknown, duplicate or unavailable keys are ignored; a catalogue key missing from the stored order is
   appended with its default visibility; without storage the choice holds in memory for the visit.
+
+## Customize Home
+
+What it does: the user's order and show / hide of the Home blocks from "My day" to "My dashboard"
+(`#home-cust`, `client/home-order.js`).
+
+- A centred caps "CUSTOMIZE HOME ✎" link (`.db-cust`) after the last block opens the registered `home-edit`
+  sheet (deep link `#home-edit`, `VIEW_TAB` → `home`): the same rows, switch, ↑ / ↓ and ≡ drag as the
+  dashboard's [Customize sheet](#customize-sheet) (`HC.orderList`), with the block names
+  (`home.order.names`: My day, Today you eat, Tonight, My journal, My plan, My dashboard).
+- Only blocks present on the page are listed; all are shown by default.
+- Applying (at load, after every block's script, and after each change): each present block, in the
+  saved order, is moved right before `#home-cust`; a block switched off gets `home-off`
+  (`display: none`), never the `hidden` attribute its own script manages, so an empty block stays hidden
+  whatever the user chose. Without `#home-cust` nothing moves; a throw keeps the built order.
+- Preferences = `localStorage['hc-home-v1']` `{order, hidden}`, with the same rules as the dashboard's
+  (unknown keys ignored, missing ones appended with their default, in memory without storage).
 
 ## Health monitor (on Salud)
 

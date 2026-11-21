@@ -276,6 +276,7 @@ var HC = (function () {
     waist: '<path d="M4 8h16v8H4zM8 8v3M12 8v4M16 8v3"/>',
     distance: '<circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7"/>',
     flights: '<path d="M4 20h5v-5h5v-5h5V5"/>',
+    strain: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
     energy: '<path d="M12 21a6 6 0 0 0 6-6c0-4-3-6-4-10-2 2-3 4-3 6-1-1-2-2-2-3-2 2-3 4-3 7a6 6 0 0 0 6 6z"/>',
     gym: '<path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/>',
     run: '<circle cx="14" cy="4.5" r="1.8"/><path d="M6 21l3.5-5 3 2 1-5 3 3h3M8 10l3-3h3l-1.5 6"/>',
@@ -444,6 +445,181 @@ var HC = (function () {
     return all && Object.prototype.hasOwnProperty.call(all, name) ? all[name] : null;
   }
 
+  /* A user-ordered list with show / hide, kept in localStorage, and its customize sheet: Inicio's
+   * "My dashboard" rows (client/home-dash.js, attr 'dash') and Inicio's blocks (client/home-order.js,
+   * attr 'home'). o = {view (the registered sheet key), attr (data-<attr>-act / data-<attr>-grip),
+   * key (the storage key), catalog, defaultOn, available() (the catalogue keys present now), title()
+   * (the sheet title), row(key) -> {icon (html), name (short, shown), full (for the button labels)},
+   * aria: {show, up, down} ('{metric}' templates), changed() (re-render after a save)}.
+   * The caller registers the returned `sheet` under o.view: HC.registerView('<key>', list.sheet).
+   * Preferences = {order, hidden}: every read and write is wrapped in try/catch, unknown, duplicate or
+   * unavailable keys are ignored and a catalogue key missing from the saved order appends with its
+   * default, so the page works the same without storage (kept in memory for the visit).
+   * The sheet: one row per available key — the switch, ↑ / ↓ (keyboard, screen readers) and a ≡ handle
+   * to drag (Pointer Events: mouse, touch, pen); a click or a drop saves, calls changed() and re-opens
+   * the sheet with the focus kept. A drag moves the DOM row live; only the primary pointer starts one
+   * (a mouse only with its main button) and never while one is active; a lost capture is re-taken while
+   * the row is on the page, else it cancels like pointercancel (the saved order re-renders); a drag
+   * whose row left the page is stale and never blocks the next one. */
+  function orderList(o) {
+    var memory = null; // the prefs when storage is unavailable
+    var hasOwn = function (x, k) { return Object.prototype.hasOwnProperty.call(x, k); };
+    // raw: the stored JSON string (or null); avail: the catalogue keys present -> [{key, on}] in display order
+    function prefsFrom(raw, avail) {
+      var keys = o.catalog.filter(function (k) { return avail.indexOf(k) !== -1; });
+      var p;
+      try { p = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { p = null; }
+      var order = p && Array.isArray(p.order) ? p.order : [];
+      var hidden = p && Array.isArray(p.hidden) ? p.hidden : null;
+      var out = [], seen = {};
+      order.concat(keys).forEach(function (k) {
+        if (typeof k !== 'string' || keys.indexOf(k) === -1 || hasOwn(seen, k)) return;
+        seen[k] = true;
+        var stored = order.indexOf(k) !== -1 && hidden;
+        out.push({ key: k, on: stored ? hidden.indexOf(k) === -1 : o.defaultOn.indexOf(k) !== -1 });
+      });
+      return out;
+    }
+    function serialize(list) {
+      return JSON.stringify({ order: list.map(function (x) { return x.key; }), hidden: list.filter(function (x) { return !x.on; }).map(function (x) { return x.key; }) });
+    }
+    function readPrefs() {
+      if (memory != null) return memory;
+      try { return window.localStorage ? window.localStorage.getItem(o.key) : null; } catch (e) { return null; }
+    }
+    function writePrefs(list) {
+      var str = serialize(list);
+      try {
+        if (!window.localStorage) throw new Error('no storage');
+        window.localStorage.setItem(o.key, str);
+        memory = null;
+      } catch (e) {
+        memory = str; // keeps working for this visit
+      }
+    }
+    function copy(list) {
+      return list.map(function (x) { return { key: x.key, on: x.on }; });
+    }
+    function indexOf(list, key) {
+      for (var j = 0; j < list.length; j++) if (list[j].key === key) return j;
+      return -1;
+    }
+    // one item from index `from` to index `to` (pure): a new list; an out-of-range or equal index
+    // returns an unchanged copy. The ↑ / ↓ buttons and the ≡ drag both reorder through it.
+    function move(list, from, to) {
+      var out = copy(list), n = out.length;
+      var ok = function (i) { return typeof i === 'number' && i % 1 === 0 && i >= 0 && i < n; };
+      if (!ok(from) || !ok(to) || from === to) return out;
+      out.splice(to, 0, out.splice(from, 1)[0]);
+      return out;
+    }
+    // up / down / toggle on the list (pure): returns a new list
+    function edit(list, key, act) {
+      var i = indexOf(list, key);
+      if (i === -1) return copy(list);
+      if (act === 'up') return move(list, i, i - 1);
+      if (act === 'down') return move(list, i, i + 1);
+      var out = copy(list);
+      if (act === 'toggle') out[i].on = !out[i].on;
+      return out;
+    }
+    function current() {
+      return prefsFrom(readPrefs(), o.available());
+    }
+    var A = 'data-' + o.attr + '-act', G = 'data-' + o.attr + '-grip';
+    function editHtml(list) {
+      return '<ul class="db-edit">' + list.map(function (p, i) {
+        var r = o.row(p.key), k = esc(p.key);
+        return '<li class="db-erow' + (p.on ? '' : ' db-off') + '">' + r.icon + '<span class="db-name">' + esc(r.name) + '</span>' +
+          switchBtn(p.on, format(o.aria.show, { metric: r.full }), ' ' + A + '="toggle" data-key="' + k + '"') +
+          '<button type="button" class="db-btn" ' + A + '="up" data-key="' + k + '" aria-label="' + esc(format(o.aria.up, { metric: r.full })) + '"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
+          '<button type="button" class="db-btn" ' + A + '="down" data-key="' + k + '" aria-label="' + esc(format(o.aria.down, { metric: r.full })) + '"' + (i === list.length - 1 ? ' disabled' : '') + '>↓</button>' +
+          // the ≡ handle: pointer drag (mouse, touch, pen); the ↑ / ↓ buttons are its keyboard / screen-reader twin
+          '<span class="db-grip" ' + G + '="" data-key="' + k + '" aria-hidden="true"><svg class="db-grip-ico" viewBox="0 0 20 20"><path d="M3 6h14M3 10h14M3 14h14"/></svg></span></li>';
+      }).join('') + '</ul>';
+    }
+    // the sheet's view: the caller registers it under its own literal key, the same as o.view
+    // (HC.registerView('<key>', list.sheet): the one-owner-per-key scan in util.test.mjs reads literals)
+    var sheet = {
+      title: function () { return o.title(); },
+      // a re-render replaces the rows: any drag still in flight is dropped (nothing saved)
+      render: function () { clearDrag(); return { head: '', body: editHtml(current()) }; },
+    };
+    // save a new list, re-render the owner and the open sheet (focus: a selector to keep, or none)
+    function commit(list, focus) {
+      writePrefs(list);
+      o.changed();
+      reopen(focus);
+    }
+    function reopen(focus) {
+      var H = window.HCDetail;
+      if (H && typeof H.open === 'function') H.open(o.view, null, focus ? { focus: focus } : undefined);
+    }
+    document.addEventListener('click', function (e) {
+      var b = e && e.target && e.target.closest ? e.target.closest('[' + A + ']') : null;
+      if (!b) return;
+      var key = b.getAttribute('data-key'), act = b.getAttribute(A);
+      // keep focus on the control just used (or its row's toggle when the move disabled it)
+      commit(edit(current(), key, act), '[' + A + '="' + act + '"][data-key="' + key + '"]');
+    });
+    var drag = null;
+    function clearDrag() {
+      if (drag) drag.li.classList.remove('db-drag');
+      drag = null;
+    }
+    function rowsBut(d) {
+      return [].slice.call(d.ul.children).filter(function (r) { return r !== d.li; });
+    }
+    document.addEventListener('pointerdown', function (e) {
+      if (drag && !drag.li.isConnected) clearDrag();
+      if (drag || !e || !e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
+      var g = e && e.target && e.target.closest ? e.target.closest('[' + G + ']') : null;
+      var li = g && g.closest('li');
+      if (!li || !li.parentNode) return;
+      var from = [].slice.call(li.parentNode.children).indexOf(li);
+      drag = { id: e.pointerId, grip: g, li: li, ul: li.parentNode, key: li.getAttribute('data-key') || g.getAttribute('data-key'), from: from, to: from };
+      try { g.setPointerCapture(e.pointerId); } catch (err) { /* capture is a nicety: document listeners still see the moves */ }
+      li.classList.add('db-drag');
+      e.preventDefault();
+    });
+    document.addEventListener('pointermove', function (e) {
+      if (!drag || e.pointerId !== drag.id) return;
+      var others = rowsBut(drag), to = 0;
+      others.forEach(function (r) {
+        var b = r.getBoundingClientRect();
+        if (b.top + b.height / 2 < e.clientY) to++;
+      });
+      if (to !== drag.to) {
+        drag.ul.insertBefore(drag.li, others[to] || null);
+        drag.to = to;
+      }
+      e.preventDefault();
+    });
+    function endDrag(e, save) {
+      if (!drag || e.pointerId !== drag.id) return;
+      var d = drag;
+      drag = null;
+      d.li.classList.remove('db-drag');
+      try { d.grip.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
+      if (save && d.to !== d.from) {
+        var list = current();
+        commit(move(list, indexOf(list, d.key), d.to));
+      } else if (d.to !== d.from) reopen();
+    }
+    document.addEventListener('pointerup', function (e) { endDrag(e, true); });
+    document.addEventListener('pointercancel', function (e) { endDrag(e, false); });
+    // moving the row in the DOM drops the capture (Chromium fires lostpointercapture on every live
+    // reorder): while the row is on the page, take it back; only when that fails (the pointer is gone)
+    // or the row left the page does the lost capture cancel like pointercancel
+    document.addEventListener('lostpointercapture', function (e) {
+      if (!drag || e.pointerId !== drag.id) return;
+      if (drag.li.isConnected) {
+        try { drag.grip.setPointerCapture(e.pointerId); return; } catch (err) { /* the pointer is no longer active */ }
+      }
+      endDrag(e, false);
+    });
+    return { prefsFrom: prefsFrom, serialize: serialize, edit: edit, move: move, current: current, sheet: sheet };
+  }
   return {
     MS_PER_DAY: MS_PER_DAY,
     STALE_DAYS: C.staleDays,
@@ -490,6 +666,7 @@ var HC = (function () {
     rolloverAction: rolloverAction,
     publishAction: publishAction,
     registerView: registerView,
+    orderList: orderList,
     view: view,
   };
 })();

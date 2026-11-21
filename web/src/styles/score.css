@@ -1229,6 +1229,16 @@ details.rec-raw[open] > summary::after {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
+/* "Customize Home" (client/home-order.js): one centred caps link after the last block; a block the
+   user switched off gets home-off (never the hidden attribute its own script manages) */
+.home-cust {
+  display: flex;
+  justify-content: center;
+  margin-top: var(--sp-4);
+}
+.home-off {
+  display: none !important;
+}
 /* Mi panel's stress monitor card (client/home-dash.js stressCard): a caps title + chevron, the latest
    hour and its band word + value, then the hourly chart (HC.stressChart, the .ds-* look of detail.css) */
 .db-card {

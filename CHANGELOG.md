@@ -4,6 +4,15 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [Unreleased]
+
+- **More metrics for My dashboard.** Customize now also offers daily energy expenditure, day strain, respiratory
+  rate, wrist temperature, body fat and waist (hidden until switched on; a saved layout keeps its order and gets
+  them appended, hidden). Energy and day strain show the last full day, like steps.
+- **Reorder Home.** A "Customize Home" link at the end of Inicio opens a sheet to move (↑ / ↓ or drag) and show /
+  hide the blocks from "My day" to "My dashboard"; the dials and tiles stay on top. Saved in the browser, like
+  the dashboard's layout; both sheets now share one implementation (`HC.orderList`).
+
 ## [1.4.0] - 2026-11-17
 
 - **A fifth coach for the gym: `strength-coach`.** Hypertrophy and strength routines, exercise choice and order,

@@ -174,7 +174,16 @@ export const en = {
       dirs: { up: 'above the average', down: 'below the average', flat: 'about the average' },
       empty: 'Every metric is hidden. Use Customize to show some.',
       // full metric names on the rows (client/home-dash.js); the rest use the detail sheet's title
-      names: { rhr: 'Resting heart rate', hrv: 'Heart rate variability', sleep: 'Hours of sleep', walkingHr: 'Walking heart rate', stress: 'Stress monitor' },
+      names: { rhr: 'Resting heart rate', hrv: 'Heart rate variability', sleep: 'Hours of sleep', walkingHr: 'Walking heart rate', energy: 'Daily energy expenditure', wristTemp: 'Wrist temperature (sleep)', stress: 'Stress monitor' },
+    },
+    // "Customize Home": the order and show / hide of the blocks under the tiles (client/home-order.js)
+    order: {
+      customize: 'Customize Home',
+      editTitle: 'Customize Home',
+      showAria: 'Show {metric} on Home',
+      upAria: 'Move {metric} up',
+      downAria: 'Move {metric} down',
+      names: { day: 'My day', eat: 'Today you eat', tonight: 'Tonight', journal: 'My journal', plan: 'My plan', dash: 'My dashboard' },
     },
   },
   emptyMsg: 'No scores yet. Recovery needs the Apple Health extract; load needs workouts with Relative Effort (Strava).',
@@ -513,7 +522,16 @@ export const es = {
       dirs: { up: 'por encima de la media', down: 'por debajo de la media', flat: 'en torno a la media' },
       empty: 'Todas las métricas están ocultas. Usa Personalizar para mostrar alguna.',
       // nombres completos en las filas (client/home-dash.js); el resto usa el título de la hoja de detalle
-      names: { rhr: 'Frecuencia cardiaca en reposo', hrv: 'Variabilidad de la frecuencia cardiaca', sleep: 'Horas de sueño', walkingHr: 'Frecuencia cardiaca al caminar', stress: 'Monitor de estrés' },
+      names: { rhr: 'Frecuencia cardiaca en reposo', hrv: 'Variabilidad de la frecuencia cardiaca', sleep: 'Horas de sueño', walkingHr: 'Frecuencia cardiaca al caminar', energy: 'Gasto energético diario', wristTemp: 'Temperatura de muñeca (sueño)', stress: 'Monitor de estrés' },
+    },
+    // "Personalizar inicio": el orden y mostrar / ocultar de los bloques bajo las tarjetas (client/home-order.js)
+    order: {
+      customize: 'Personalizar inicio',
+      editTitle: 'Personalizar inicio',
+      showAria: 'Mostrar {metric} en Inicio',
+      upAria: 'Subir {metric}',
+      downAria: 'Bajar {metric}',
+      names: { day: 'Mi día', eat: 'Hoy comes', tonight: 'Esta noche', journal: 'Mi diario', plan: 'Mi plan', dash: 'Mi panel' },
     },
   },
   emptyMsg: 'Aún no hay puntuaciones. La recuperación necesita la exportación de Apple Health; la carga necesita entrenos con Esfuerzo Relativo (Strava).',

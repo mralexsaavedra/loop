@@ -7,14 +7,12 @@
  * beyond the baseline mean. A row opens that metric's detail sheet.
  *
  * Value = the newest day with data up to the viewer's today (a daily total skips today, still filling
- * up); baseline = the mean of the BASE_DAYS (30) days before that day, with at least MIN_BASE (7) days
+ * up, and so does day strain); baseline = the mean of the BASE_DAYS (30) days before that day, with at least MIN_BASE (7) days
  * of data (MIN_BASE_SPARSE (2) readings for a sparse series such as weight); no baseline → no arrow.
  *
  * "Customize ✎" opens a registered sheet ('dash-edit', client/detail.js modal) to show / hide and move
- * rows: drag a row's ≡ handle (Pointer Events: mouse, touch, pen) or use its ↑ / ↓ buttons (keyboard,
- * screen readers); both go through the pure move() and save the same way. Preferences live in localStorage (PREFS_KEY) as {order, hidden}; every read and
- * write is wrapped in try/catch, unknown or unavailable keys are ignored and missing ones fall back to
- * the catalogue order + default visibility, so the page works the same without storage (in memory).
+ * rows: the shared HC.orderList (client/util.js) — the switch, ↑ / ↓ and the ≡ drag; preferences in
+ * localStorage (PREFS_KEY) as {order, hidden}, working the same without storage (in memory).
  *
  * Classic script in layouts/Plan.astro's end-of-body list, right after client/home-week.js and before
  * detail.js (its `dash-edit` sheet is registered before detail.js runs); its own try/catch hides the section on a throw. */
@@ -26,79 +24,17 @@
     if (!TS || !TD || typeof HC === 'undefined') return;
     var esc = HC.esc, format = HC.format;
     // 'stress' is the one chart card (the reference dashboard's stress monitor), from SCORES.stress
-    var CATALOG = ['rhr', 'hrv', 'sleep', 'weight', 'steps', 'vo2max', 'fitnessAge', 'walkingHr', 'exercise', 'stress'];
+    var CATALOG = ['rhr', 'hrv', 'sleep', 'weight', 'steps', 'vo2max', 'fitnessAge', 'walkingHr', 'exercise',
+      'energy', 'strain', 'respiratory', 'wristTemp', 'bodyfat', 'waist', 'stress'];
     var DEFAULT_ON = ['rhr', 'hrv', 'sleep', 'weight', 'steps', 'stress'];
     var PREFS_KEY = 'hc-dash-v1';
     var BASE_DAYS = 30, MIN_BASE = 7, MIN_BASE_SPARSE = 2, FLAT_SHARE = 0.02;
-    var memory = null; // the prefs when storage is unavailable
 
     function fin(v) {
       return typeof v === 'number' && isFinite(v);
     }
     function own(o, k) {
       return !!o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, k);
-    }
-
-    /* ---------- pure: preferences ---------- */
-    // raw: the stored JSON string (or null); available: the catalogue keys with data
-    // -> [{key, on}] in display order
-    function prefsFrom(raw, available) {
-      var avail = CATALOG.filter(function (k) { return available.indexOf(k) !== -1; });
-      var p;
-      try { p = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { p = null; }
-      var order = p && Array.isArray(p.order) ? p.order : [];
-      var hidden = p && Array.isArray(p.hidden) ? p.hidden : null;
-      var out = [], seen = {};
-      order.concat(avail).forEach(function (k) {
-        if (typeof k !== 'string' || avail.indexOf(k) === -1 || own(seen, k)) return;
-        seen[k] = true;
-        var stored = order.indexOf(k) !== -1 && hidden;
-        out.push({ key: k, on: stored ? hidden.indexOf(k) === -1 : DEFAULT_ON.indexOf(k) !== -1 });
-      });
-      return out;
-    }
-    function serialize(list) {
-      return JSON.stringify({ order: list.map(function (x) { return x.key; }), hidden: list.filter(function (x) { return !x.on; }).map(function (x) { return x.key; }) });
-    }
-    function readPrefs() {
-      if (memory != null) return memory;
-      try { return window.localStorage ? window.localStorage.getItem(PREFS_KEY) : null; } catch (e) { return null; }
-    }
-    function writePrefs(list) {
-      var s = serialize(list);
-      try {
-        if (!window.localStorage) throw new Error('no storage');
-        window.localStorage.setItem(PREFS_KEY, s);
-        memory = null;
-      } catch (e) {
-        memory = s; // keeps working for this visit
-      }
-    }
-    function copy(list) {
-      return list.map(function (x) { return { key: x.key, on: x.on }; });
-    }
-    function indexOf(list, key) {
-      for (var j = 0; j < list.length; j++) if (list[j].key === key) return j;
-      return -1;
-    }
-    // one item from index `from` to index `to` (pure): a new list; an out-of-range or equal index
-    // returns an unchanged copy. The ↑ / ↓ buttons and the ≡ drag both reorder through it.
-    function move(list, from, to) {
-      var out = copy(list), n = out.length;
-      var ok = function (i) { return typeof i === 'number' && i % 1 === 0 && i >= 0 && i < n; };
-      if (!ok(from) || !ok(to) || from === to) return out;
-      out.splice(to, 0, out.splice(from, 1)[0]);
-      return out;
-    }
-    // up / down / toggle on the list (pure): returns a new list
-    function edit(list, key, act) {
-      var i = indexOf(list, key);
-      if (i === -1) return copy(list);
-      if (act === 'up') return move(list, i, i - 1);
-      if (act === 'down') return move(list, i, i + 1);
-      var out = copy(list);
-      if (act === 'toggle') out[i].on = !out[i].on;
-      return out;
     }
 
     /* ---------- pure: one row's numbers ---------- */
@@ -110,7 +46,8 @@
     // m: a DETAIL metric, today: the viewer's ISO day -> null | {value, date, base, arrow, tone}
     function rowValue(m, today) {
       if (!m || !Array.isArray(m.v) || !HC.isoDate(m.start) || !HC.isoDate(today)) return null;
-      var end = m.kind === 'total' ? HC.shiftIso(today, -1) : today; // today's total is still filling up
+      // today's total (and today's strain) is still filling up: the last full day
+      var end = m.kind === 'total' || m.kind === 'strain' ? HC.shiftIso(today, -1) : today;
       var date = null;
       for (var d = end, k = 0; d >= m.start && k < m.v.length + 400; d = HC.shiftIso(d, -1), k++) {
         if (at(m, d) != null) { date = d; break; }
@@ -183,9 +120,6 @@
       if (stressDay()) out.push('stress');
       return out;
     }
-    function current() {
-      return prefsFrom(readPrefs(), available());
-    }
     function renderDash() {
       var sec = document.getElementById('my-dash'), host = document.getElementById('home-dash');
       if (!sec || !host) return;
@@ -207,111 +141,25 @@
       }
     }
 
-    // the customize sheet: one row per available metric — show / hide, up, down
-    // the SHORT name (the trend sheet's title: "HRV", "Resting HR"), so a row fits 1-2 lines at 360 px
-    // beside its controls; the full name stays in the buttons' accessible names
+    // the customize sheet (HC.orderList, client/util.js): one row per available metric — show / hide, up,
+    // down, drag. The row shows the SHORT name (the trend sheet's title: "HRV", "Resting HR"), so it fits
+    // 1-2 lines at 360 px beside its controls; the full name stays in the buttons' accessible names.
     function shortOf(key) {
       return own(TD.metrics, key) && TD.metrics[key].title ? TD.metrics[key].title : titleOf(key);
     }
-    function editHtml(list) {
-      return '<ul class="db-edit">' + list.map(function (p, i) {
-        var t = titleOf(p.key);
-        return '<li class="db-erow' + (p.on ? '' : ' db-off') + '">' + icon(p.key) + '<span class="db-name">' + esc(shortOf(p.key)) + '</span>' +
-          HC.switchBtn(p.on, format(TS.showAria, { metric: t }), ' data-dash-act="toggle" data-key="' + esc(p.key) + '"') +
-          '<button type="button" class="db-btn" data-dash-act="up" data-key="' + esc(p.key) + '" aria-label="' + esc(format(TS.upAria, { metric: t })) + '"' + (i === 0 ? ' disabled' : '') + '>↑</button>' +
-          '<button type="button" class="db-btn" data-dash-act="down" data-key="' + esc(p.key) + '" aria-label="' + esc(format(TS.downAria, { metric: t })) + '"' + (i === list.length - 1 ? ' disabled' : '') + '>↓</button>' +
-          // the ≡ handle: pointer drag (mouse, touch, pen); the ↑ / ↓ buttons are its keyboard / screen-reader twin
-          '<span class="db-grip" data-dash-grip="" data-key="' + esc(p.key) + '" aria-hidden="true"><svg class="db-grip-ico" viewBox="0 0 20 20"><path d="M3 6h14M3 10h14M3 14h14"/></svg></span></li>';
-      }).join('') + '</ul>';
-    }
-    HC.registerView('dash-edit', {
+    var OL = HC.orderList({
+      view: 'dash-edit', attr: 'dash', key: PREFS_KEY, catalog: CATALOG, defaultOn: DEFAULT_ON, available: available,
       title: function () { return TS.editTitle; },
-      // a re-render replaces the rows: any drag still in flight is dropped (nothing saved)
-      render: function () { clearDrag(); return { head: '', body: editHtml(current()) }; },
+      row: function (key) { return { icon: icon(key), name: shortOf(key), full: titleOf(key) }; },
+      aria: { show: TS.showAria, up: TS.upAria, down: TS.downAria },
+      changed: function () { renderDash(); },
     });
-    // save a new list, re-render the dashboard and the open sheet (focus: a selector to keep, or none)
-    function commit(list, focus) {
-      writePrefs(list);
-      renderDash();
-      reopen(focus);
+    HC.registerView('dash-edit', OL.sheet);
+    function current() {
+      return OL.current();
     }
-    function reopen(focus) {
-      var H = window.HCDetail;
-      if (H && typeof H.open === 'function') H.open('dash-edit', null, focus ? { focus: focus } : undefined);
-    }
-    document.addEventListener('click', function (e) {
-      var b = e && e.target && e.target.closest ? e.target.closest('[data-dash-act]') : null;
-      if (!b) return;
-      var key = b.getAttribute('data-key'), act = b.getAttribute('data-dash-act');
-      // keep focus on the control just used (or its row's toggle when the move disabled it)
-      commit(edit(current(), key, act), '[data-dash-act="' + act + '"][data-key="' + key + '"]');
-    });
 
-    /* ≡ drag (Pointer Events, so mouse, touch and pen alike): pointerdown on a handle captures the
-     * pointer, every move puts the row where the pointer is (the DOM row moves live), the drop saves
-     * through commit() like ↑ / ↓; a cancel re-renders the saved order. Only the primary pointer starts
-     * a drag (never a second finger), a mouse only with its main button, and never while one is active.
-     * A lost capture is re-taken while the pointer is active, else it cancels like pointercancel; a drag
-     * whose row left the page (sheet closed or
-     * re-rendered) is stale and never blocks the next one. */
-    var drag = null;
-    function clearDrag() {
-      if (drag) drag.li.classList.remove('db-drag');
-      drag = null;
-    }
-    function rowsBut(d) {
-      return [].slice.call(d.ul.children).filter(function (r) { return r !== d.li; });
-    }
-    document.addEventListener('pointerdown', function (e) {
-      if (drag && !drag.li.isConnected) clearDrag();
-      if (drag || !e || !e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
-      var g = e && e.target && e.target.closest ? e.target.closest('[data-dash-grip]') : null;
-      var li = g && g.closest('li');
-      if (!li || !li.parentNode) return;
-      var from = [].slice.call(li.parentNode.children).indexOf(li);
-      drag = { id: e.pointerId, grip: g, li: li, ul: li.parentNode, key: li.getAttribute('data-key') || g.getAttribute('data-key'), from: from, to: from };
-      try { g.setPointerCapture(e.pointerId); } catch (err) { /* capture is a nicety: document listeners still see the moves */ }
-      li.classList.add('db-drag');
-      e.preventDefault();
-    });
-    document.addEventListener('pointermove', function (e) {
-      if (!drag || e.pointerId !== drag.id) return;
-      var others = rowsBut(drag), to = 0;
-      others.forEach(function (r) {
-        var b = r.getBoundingClientRect();
-        if (b.top + b.height / 2 < e.clientY) to++;
-      });
-      if (to !== drag.to) {
-        drag.ul.insertBefore(drag.li, others[to] || null);
-        drag.to = to;
-      }
-      e.preventDefault();
-    });
-    function endDrag(e, save) {
-      if (!drag || e.pointerId !== drag.id) return;
-      var d = drag;
-      drag = null;
-      d.li.classList.remove('db-drag');
-      try { d.grip.releasePointerCapture(e.pointerId); } catch (err) { /* already released */ }
-      if (save && d.to !== d.from) {
-        var list = current();
-        commit(move(list, indexOf(list, d.key), d.to));
-      } else if (d.to !== d.from) reopen();
-    }
-    document.addEventListener('pointerup', function (e) { endDrag(e, true); });
-    document.addEventListener('pointercancel', function (e) { endDrag(e, false); });
-    // moving the row in the DOM drops the capture (Chromium fires lostpointercapture on every live
-    // reorder): while the row is on the page, take it back; only when that fails (the pointer is gone)
-    // or the row left the page does the lost capture cancel like pointercancel
-    document.addEventListener('lostpointercapture', function (e) {
-      if (!drag || e.pointerId !== drag.id) return;
-      if (drag.li.isConnected) {
-        try { drag.grip.setPointerCapture(e.pointerId); return; } catch (err) { /* the pointer is no longer active */ }
-      }
-      endDrag(e, false);
-    });
-
-    window.HCDash = { prefsFrom: prefsFrom, serialize: serialize, edit: edit, move: move, rowValue: rowValue, render: renderDash, CATALOG: CATALOG, DEFAULT_ON: DEFAULT_ON, PREFS_KEY: PREFS_KEY };
+    window.HCDash = { prefsFrom: OL.prefsFrom, serialize: OL.serialize, edit: OL.edit, move: OL.move, rowValue: rowValue, render: renderDash, CATALOG: CATALOG, DEFAULT_ON: DEFAULT_ON, PREFS_KEY: PREFS_KEY };
     renderDash();
   }
   boot();
