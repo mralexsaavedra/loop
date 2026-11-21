@@ -276,6 +276,7 @@ var HC = (function () {
     waist: '<path d="M4 8h16v8H4zM8 8v3M12 8v4M16 8v3"/>',
     distance: '<circle cx="6" cy="18" r="2"/><circle cx="18" cy="6" r="2"/><path d="M8 18h7a3 3 0 0 0 0-6H9a3 3 0 0 1 0-6h7"/>',
     flights: '<path d="M4 20h5v-5h5v-5h5V5"/>',
+    strain: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
     energy: '<path d="M12 21a6 6 0 0 0 6-6c0-4-3-6-4-10-2 2-3 4-3 6-1-1-2-2-2-3-2 2-3 4-3 7a6 6 0 0 0 6 6z"/>',
     gym: '<path d="M6.5 7v10M17.5 7v10M3.5 9.5v5M20.5 9.5v5M6.5 12h11"/>',
     run: '<circle cx="14" cy="4.5" r="1.8"/><path d="M6 21l3.5-5 3 2 1-5 3 3h3M8 10l3-3h3l-1.5 6"/>',

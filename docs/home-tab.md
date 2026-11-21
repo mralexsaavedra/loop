@@ -392,13 +392,15 @@ What it shows: user-chosen metric cards with the latest value vs a 30-day baseli
   | Default | Keys |
   | --- | --- |
   | shown (`DEFAULT_ON`) | rhr, hrv, sleep, weight, steps, stress (saved prefs without stress get it appended, shown) |
-  | hidden | vo2max, fitnessAge, walkingHr, exercise |
+  | hidden | vo2max, fitnessAge, walkingHr, exercise, energy, strain, respiratory, wristTemp, bodyfat, waist |
 
 - fitnessAge in whole years, "< 25" / "> 75" at the reference curve's bounds (`docs/health-tab.md` →
   Fitness age).
 - Same series and units as the detail sheet (`I18N_DETAIL`).
-- Value = the newest day with data up to the viewer's today (a daily total skips today, still filling
-  up); sleep shows h:mm.
+- Value = the newest day with data up to the viewer's today (a daily total, energy included, and day strain
+  skip today, still filling up); sleep shows h:mm.
+- Full row names (`home.dash.names`) for rhr, hrv, sleep, walkingHr, energy ("Daily energy expenditure"),
+  wristTemp and stress; the other keys use the detail sheet's title and unit (strain: "Day strain", "/ 21").
 - Baseline = the mean of the 30 days before that day, with ≥ 7 days of data (≥ 2 readings for a
   sparse series like weight); no baseline → no arrow.
 - Arrow ▲▼ = the value vs the baseline: `--up` when better by the metric's good direction (`dir`),

@@ -7,7 +7,7 @@
  * beyond the baseline mean. A row opens that metric's detail sheet.
  *
  * Value = the newest day with data up to the viewer's today (a daily total skips today, still filling
- * up); baseline = the mean of the BASE_DAYS (30) days before that day, with at least MIN_BASE (7) days
+ * up, and so does day strain); baseline = the mean of the BASE_DAYS (30) days before that day, with at least MIN_BASE (7) days
  * of data (MIN_BASE_SPARSE (2) readings for a sparse series such as weight); no baseline → no arrow.
  *
  * "Customize ✎" opens a registered sheet ('dash-edit', client/detail.js modal) to show / hide and move
@@ -26,7 +26,8 @@
     if (!TS || !TD || typeof HC === 'undefined') return;
     var esc = HC.esc, format = HC.format;
     // 'stress' is the one chart card (the reference dashboard's stress monitor), from SCORES.stress
-    var CATALOG = ['rhr', 'hrv', 'sleep', 'weight', 'steps', 'vo2max', 'fitnessAge', 'walkingHr', 'exercise', 'stress'];
+    var CATALOG = ['rhr', 'hrv', 'sleep', 'weight', 'steps', 'vo2max', 'fitnessAge', 'walkingHr', 'exercise',
+      'energy', 'strain', 'respiratory', 'wristTemp', 'bodyfat', 'waist', 'stress'];
     var DEFAULT_ON = ['rhr', 'hrv', 'sleep', 'weight', 'steps', 'stress'];
     var PREFS_KEY = 'hc-dash-v1';
     var BASE_DAYS = 30, MIN_BASE = 7, MIN_BASE_SPARSE = 2, FLAT_SHARE = 0.02;
@@ -110,7 +111,8 @@
     // m: a DETAIL metric, today: the viewer's ISO day -> null | {value, date, base, arrow, tone}
     function rowValue(m, today) {
       if (!m || !Array.isArray(m.v) || !HC.isoDate(m.start) || !HC.isoDate(today)) return null;
-      var end = m.kind === 'total' ? HC.shiftIso(today, -1) : today; // today's total is still filling up
+      // today's total (and today's strain) is still filling up: the last full day
+      var end = m.kind === 'total' || m.kind === 'strain' ? HC.shiftIso(today, -1) : today;
       var date = null;
       for (var d = end, k = 0; d >= m.start && k < m.v.length + 400; d = HC.shiftIso(d, -1), k++) {
         if (at(m, d) != null) { date = d; break; }

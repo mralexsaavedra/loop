@@ -4,6 +4,12 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [Unreleased]
+
+- **More metrics for My dashboard.** Customize now also offers daily energy expenditure, day strain, respiratory
+  rate, wrist temperature, body fat and waist (hidden until switched on; a saved layout keeps its order and gets
+  them appended, hidden). Energy and day strain show the last full day, like steps.
+
 ## [1.4.0] - 2026-11-17
 
 - **A fifth coach for the gym: `strength-coach`.** Hypertrophy and strength routines, exercise choice and order,
