@@ -135,6 +135,9 @@ export const en = {
       dirs: { up: 'rising', steady: 'steady', down: 'falling' },
       noSleep: 'There is no sleep data for that night.',
       sleep: '{when} you slept {value}, {delta} vs your {target} target.',
+      // the measured sleep debt (client/deepdive.js sleepDebt): the net shortfall vs the same fixed target
+      debt: 'Over the last {n} nights you are {value} short of your target.',
+      debtNone: 'Over the last {n} nights you are not short of sleep ({value} above your target).',
       worse1: '{names} was worse than your usual.',
       worseN: '{names} were worse than your usual.',
       allOk: 'Every contributor was at or better than your usual.',
@@ -145,6 +148,11 @@ export const en = {
       loadRestLast: 'No session yet today. Your last one, on {date}, scored {re} (typical day ~{typical}).',
       loadTrend: 'Over the last 7 days your load has been {band} ({pct} vs your 42-day average).',
       strainUsual: 'Your usual day is {value} (median of the prior 30 days).',
+      // the usual day strain on days with the same recovery day band (client/deepdive.js strainByRec):
+      // the middle half of the last 90 days, described, never a target
+      strainByRec: 'On days when your recovery was {band}, your day strain was usually {lo}–{hi} ({n} of the last 90 days).',
+      strainByRecOne: 'On days when your recovery was {band}, your day strain was usually about {lo} ({n} of the last 90 days).',
+      recBand: { above: 'above your usual', at: 'around your usual', below: 'below your usual' },
     },
     // the gym / run / bike pills on a load page (deepdive.js modSwitch; they also set Inicio's load dial)
     modSwitch: 'Load modality',
@@ -320,6 +328,9 @@ export const en = {
     'load-run': { title: 'Run load', unit: 'RE' },
     'load-bike': { title: 'Bike load', unit: 'RE' },
     strain: { title: 'Day strain', unit: '/ 21' },
+    zones13: { title: 'HR zones 1–3', unit: 'min' },
+    zones45: { title: 'HR zones 4–5', unit: 'min' },
+    gymTime: { title: 'Gym time', unit: 'min' },
     // not a DETAIL key: the stress page's series is SCORES.stress.metric (lib/score/stress.mjs)
     stress: { title: 'Stress estimate', unit: '/ 3' },
     // not a DETAIL key either: the energy bank page's series is SCORES.energy.metric (lib/score/energy.mjs)
@@ -511,6 +522,9 @@ export const es = {
       dirs: { up: 'al alza', steady: 'estable', down: 'a la baja' },
       noSleep: 'No hay datos de sueño de esa noche.',
       sleep: '{when} dormiste {value}, {delta} frente a tu objetivo de {target}.',
+      // la deuda de sueño medida (client/deepdive.js sleepDebt): lo que falta, neto, frente al mismo objetivo fijo
+      debt: 'En las últimas {n} noches te faltan {value} respecto a tu objetivo.',
+      debtNone: 'En las últimas {n} noches no acumulas deuda de sueño ({value} por encima de tu objetivo).',
       worse1: '{names} estuvo peor que lo habitual.',
       worseN: '{names} estuvieron peor que lo habitual.',
       allOk: 'Todo estuvo en lo habitual o mejor.',
@@ -521,6 +535,11 @@ export const es = {
       loadRestLast: 'Aún no hay sesión hoy. La última, el {date}, marcó {re} (día típico ~{typical}).',
       loadTrend: 'En los últimos 7 días tu carga ha estado {band} ({pct} frente a tu media de 42 días).',
       strainUsual: 'Tu día habitual es {value} (mediana de los 30 días anteriores).',
+      // la carga del día habitual en días con la misma banda de recuperación (client/deepdive.js strainByRec):
+      // la mitad central de los últimos 90 días, descrita, nunca un objetivo
+      strainByRec: 'En los días con la recuperación {band}, tu carga del día suele estar entre {lo} y {hi} ({n} de los últimos 90 días).',
+      strainByRecOne: 'En los días con la recuperación {band}, tu carga del día suele rondar {lo} ({n} de los últimos 90 días).',
+      recBand: { above: 'por encima de lo habitual', at: 'en lo habitual', below: 'por debajo de lo habitual' },
     },
     // las pastillas gimnasio / carrera / bici de una página de carga (deepdive.js modSwitch; también cambian el dial de carga de Inicio)
     modSwitch: 'Modalidad de carga',
@@ -691,6 +710,9 @@ export const es = {
     'load-run': { title: 'Carga de carrera', unit: 'RE' },
     'load-bike': { title: 'Carga de bici', unit: 'RE' },
     strain: { title: 'Carga del día', unit: '/ 21' },
+    zones13: { title: 'Zonas FC 1–3', unit: 'min' },
+    zones45: { title: 'Zonas FC 4–5', unit: 'min' },
+    gymTime: { title: 'Tiempo de gimnasio', unit: 'min' },
     stress: { title: 'Estimación de estrés', unit: '/ 3' },
     'energy-bank': { title: 'Banco de energía', unit: '/ 100' },
     // tampoco es clave de DETAIL: la página la puntúa al verla (client/nutri-score.js metric())

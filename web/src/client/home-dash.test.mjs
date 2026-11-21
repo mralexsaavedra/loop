@@ -459,3 +459,25 @@ test('drag: a stale drag (its row left the page) or a re-render never blocks the
   fire('pointerdown', d.rows[1].grip, 90, { pointerId: 4 });
   assert.ok(d.rows[1].classList.contains('db-drag'), 'the next drag starts');
 });
+
+test('weekly metrics (HR zones 1-3 / 4-5, gym time): in the catalogue, hidden by default; the row = the last 7 full days\' total vs the mean of the 4 weeks before, as h:mm', () => {
+  const D = detail();
+  // 10 min a day, the last 7 full days 20 min a day (today, still filling up, 999 = never counted)
+  const wk = () => series(NOW, 40, (i) => (i === 39 ? 999 : i >= 32 ? 20 : 10), { kind: 'total', dir: 1, dec: 0, week: true });
+  D.metrics.zones13 = wk(); D.metrics.zones45 = wk(); D.metrics.gymTime = wk();
+  const ls = storage({ 'hc-dash-v1': JSON.stringify({ order: ['zones13', 'zones45', 'gymTime'], hidden: [] }) });
+  const { ctx, els } = load({ DETAIL: D, ls });
+  for (const k of ['zones13', 'zones45', 'gymTime']) {
+    assert.ok(ctx.HCDash.CATALOG.includes(k), k);
+    assert.ok(!ctx.HCDash.DEFAULT_ON.includes(k), k);
+  }
+  assert.deepEqual(plain(ctx.HCDash.rowValue(D.metrics.zones13, NOW)), { value: 140, date: '2026-09-29', base: 70, arrow: 'up', tone: 'good' });
+  const html = els['home-dash'].innerHTML;
+  assert.match(html, /<span class="db-name">Heart rate zones 1–3 · last 7 days<\/span><span class="db-vals"><span class="db-val"><b>2:20<\/b><span class="db-arr db-good" aria-hidden="true">▲<\/span><\/span><span class="db-base">1:10<\/span>/);
+  assert.match(html, /<span class="db-name">Gym time · last 7 days<\/span>/);
+  // fewer than 2 earlier weeks with 5+ days of data: no baseline, no arrow
+  const thin = { ...wk(), v: wk().v.map((x, i) => (i < 25 ? null : x)) };
+  assert.deepEqual(plain(ctx.HCDash.rowValue(thin, NOW)), { value: 140, date: '2026-09-29', base: null, arrow: null, tone: 'flat' });
+  const es = load({ locale: 'es', DETAIL: D, ls: storage({ 'hc-dash-v1': JSON.stringify({ order: ['zones45'], hidden: [] }) }) }).els['home-dash'].innerHTML;
+  assert.match(es, /<span class="db-name">Zonas de pulso 4–5 · últimos 7 días<\/span>/);
+});

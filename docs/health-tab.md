@@ -59,7 +59,7 @@ Files: `web/src/tabs/Salud.astro` + `health.js`. Top to bottom:
    else "No data". A row whose signal has no reading at all says "Your device does not record it"
    (`I18N_DETAIL.unrecorded`) and its sheet says the same; sleep keeps 2 decimals
    (`lib/score/monitor.mjs`), so its h:mm matches the sleep score's.
-5. **Sections of `#health-body`**, in this order: [Recovery](#recovery), [Fitness](#fitness),
+5. **Sections of `#health-body`**, in this order: [Healthspan habits](#healthspan-habits), [Recovery](#recovery), [Fitness](#fitness),
    [Sleep](#sleep), [Body composition](#body-composition), [Activity](#activity), [Energy](#energy).
    - Each is a `<section class="hs-sec" id="hl-<key>">` with the shared sentence-case section heading
      (`.hs-lbl`, [design-system.md](design-system.md) → Components), an ⓘ toggle and a list of metric rows.
@@ -111,6 +111,38 @@ What it shows: one row per metric — the newest value with its 30-day context. 
 - Each recovery signal row carries an `hl-<key>` anchor.
 - Every row opens its detail sheet (`docs/detail-views.md`: chart, W / M / 6M / 1Y, calendar), which
   holds the history.
+
+## Healthspan habits
+
+What it shows: the habits WHOOP folds into its "WHOOP age", kept apart and never folded into an age (that
+needs weights nobody publishes): each one over the last 28 full days against a cited reference or the
+user's own baseline (`#hl-habits`, first section; `client/health.js` `habitsSection`).
+
+- Bake: `DETAIL.habits` (`lib/score/healthspan.mjs` `healthspanFrom`, called by `detailFromInputs`):
+  `{from, to, ref, sleep, activity, strength, steps, rhr, cons}`; the window = the 28 days before the
+  newest data date (that day is still filling up); `ref` = `HABIT_REF`, so the page never re-types a
+  threshold. A habit needs 14 days of data in the window (else `null`, no row).
+- Rows, in this order (each opens its sheet):
+
+  | Habit | Value | Reference | Source |
+  | --- | --- | --- | --- |
+  | Hours of sleep | mean per night (h:mm) | ≥ 7:00 | Watson et al. 2015, AASM/SRS consensus |
+  | Moderate or vigorous activity | moderate + 2 × vigorous min/week (the two under it) | ≥ 150 (150–300) | WHO 2020, Bull et al. 2020, Table 4 |
+  | Strength days | gym days per week | ≥ 2 | WHO 2020 |
+  | Steps per day | mean | ≥ 8,000 under 60, ≥ 6,000 from 60 (the plateau range shown) | Paluch et al. 2022 |
+  | Fitness age | `SCORES.fitnessAge` | ≤ the real age (profile birthdate) | Loe et al. 2013 (see [Fitness age](#fitness-age)) |
+  | Resting heart rate | 28-day mean | ≤ the mean of the 84 days before (28+ days) | own baseline |
+  | Sleep regularity | 28-day mean consistency minutes | ≤ the 84 days before | own baseline |
+
+- Activity uses the heart-rate zones as an APPROXIMATION of the WHO's MET intensity (said under ⓘ):
+  zones 2–3 (60–80 % of max HR) = moderate, 4–5 = vigorous, zone 1 never; minutes per zone from
+  `lib/score/strain.mjs` `zoneMinutes` (all-day hours + workout zones), scaled to a week over the days with
+  all-day heart rate. Strength days count any gym session (`scoreModality` gym): the Watch labels most
+  strength work as HIIT.
+- Met = the value coloured `--up` (`.hb-ok`), not met = `--down` (`.hb-off`; colours in `base.css` with the
+  trend glyphs); an own-baseline habit without a baseline yet is uncoloured, "No baseline yet", and left
+  out of the count. A "Habits at their reference: met of n (last 28 days)" line leads; the sources sit under ⓘ.
+- No habits (an old bake, no data) → no section; a throw drops the card, never the tab.
 
 ## Recovery
 

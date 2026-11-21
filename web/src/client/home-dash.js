@@ -25,10 +25,13 @@
     var esc = HC.esc, format = HC.format;
     // 'stress' is the one chart card (the reference dashboard's stress monitor), from SCORES.stress
     var CATALOG = ['rhr', 'hrv', 'sleep', 'weight', 'steps', 'vo2max', 'fitnessAge', 'walkingHr', 'exercise',
-      'energy', 'strain', 'respiratory', 'wristTemp', 'bodyfat', 'waist', 'stress'];
+      'energy', 'strain', 'respiratory', 'wristTemp', 'bodyfat', 'waist', 'zones13', 'zones45', 'gymTime', 'stress'];
     var DEFAULT_ON = ['rhr', 'hrv', 'sleep', 'weight', 'steps', 'stress'];
     var PREFS_KEY = 'hc-dash-v1';
     var BASE_DAYS = 30, MIN_BASE = 7, MIN_BASE_SPARSE = 2, FLAT_SHARE = 0.02;
+    // a weekly metric (DETAIL `week`): the last WEEK full days' total, a week counted with WEEK_MIN days
+    // of data; its baseline = the mean of up to BASE_WEEKS earlier weekly totals, at least MIN_WEEKS of them
+    var WEEK = 7, WEEK_MIN = 5, BASE_WEEKS = 4, MIN_WEEKS = 2;
 
     function fin(v) {
       return typeof v === 'number' && isFinite(v);
@@ -43,9 +46,41 @@
       var v = i >= 0 && i < m.v.length ? m.v[i] : null;
       return fin(v) ? v : null;
     }
+    // the arrow + tone of a value vs its baseline (null baseline = no arrow)
+    function arrowOf(m, value, base) {
+      var arrow = null, tone = 'flat';
+      if (base != null) {
+        var rel = base ? (value - base) / Math.abs(base) : value - base;
+        arrow = Math.abs(rel) < FLAT_SHARE ? 'flat' : rel > 0 ? 'up' : 'down';
+        if (arrow !== 'flat' && m.dir) tone = (arrow === 'up') === (m.dir > 0) ? 'good' : 'bad';
+      }
+      return { arrow: arrow, tone: tone };
+    }
+    // the total of the WEEK days ending at `last` -> null (under WEEK_MIN days with data) | {sum, date}
+    function weekSum(m, last) {
+      var sum = 0, n = 0, date = null;
+      for (var k = 0; k < WEEK; k++) {
+        var d = HC.shiftIso(last, -k), v = at(m, d);
+        if (v != null) { sum += v; n++; if (!date) date = d; }
+      }
+      return n >= WEEK_MIN ? { sum: sum, date: date } : null;
+    }
+    // a weekly metric: the last WEEK full days (today still fills up) vs the earlier weeks' mean
+    function weekValue(m, today) {
+      var last = HC.shiftIso(today, -1), cur = weekSum(m, last);
+      if (!cur) return null;
+      var s = 0, n = 0;
+      for (var w = 1; w <= BASE_WEEKS; w++) {
+        var p = weekSum(m, HC.shiftIso(last, -WEEK * w));
+        if (p) { s += p.sum; n++; }
+      }
+      var base = n >= MIN_WEEKS ? s / n : null, a = arrowOf(m, cur.sum, base);
+      return { value: cur.sum, date: cur.date, base: base, arrow: a.arrow, tone: a.tone };
+    }
     // m: a DETAIL metric, today: the viewer's ISO day -> null | {value, date, base, arrow, tone}
     function rowValue(m, today) {
       if (!m || !Array.isArray(m.v) || !HC.isoDate(m.start) || !HC.isoDate(today)) return null;
+      if (m.week) return weekValue(m, today);
       // today's total (and today's strain) is still filling up: the last full day
       var end = m.kind === 'total' || m.kind === 'strain' ? HC.shiftIso(today, -1) : today;
       var date = null;
@@ -58,14 +93,8 @@
         var b = at(m, HC.shiftIso(date, -j));
         if (b != null) { s += b; n++; }
       }
-      var base = n >= (m.kind === 'sparse' ? MIN_BASE_SPARSE : MIN_BASE) ? s / n : null;
-      var arrow = null, tone = 'flat';
-      if (base != null) {
-        var rel = base ? (value - base) / Math.abs(base) : value - base;
-        arrow = Math.abs(rel) < FLAT_SHARE ? 'flat' : rel > 0 ? 'up' : 'down';
-        if (arrow !== 'flat' && m.dir) tone = (arrow === 'up') === (m.dir > 0) ? 'good' : 'bad';
-      }
-      return { value: value, date: date, base: base, arrow: arrow, tone: tone };
+      var base = n >= (m.kind === 'sparse' ? MIN_BASE_SPARSE : MIN_BASE) ? s / n : null, a = arrowOf(m, value, base);
+      return { value: value, date: date, base: base, arrow: a.arrow, tone: a.tone };
     }
 
     /* ---------- render ---------- */
@@ -82,6 +111,7 @@
     }
     function fmt(key, m, v) {
       if (key === 'sleep') return HC.hours(v); // hours → 7:32
+      if (m.week) return HC.hours(v / 60); // a weekly total of minutes → 2:22
       if (key === 'fitnessAge') { // whole years; a value at the reference curve's clamp = that age or beyond
         if (fin(m.lo) && v <= m.lo) return '≤ ' + m.lo;
         if (fin(m.hi) && v >= m.hi) return '≥ ' + m.hi;
@@ -90,7 +120,7 @@
       return HC.num(v, m.dec || 0);
     }
     function rowHtml(key, m, r) {
-      var unit = key === 'sleep' ? '' : unitOf(key);
+      var unit = key === 'sleep' || m.week ? '' : unitOf(key);
       var stale = HC.daysOld(r.date) > HC.STALE_DAYS;
       var aria = format(TS.rowAria, { metric: titleOf(key), value: fmt(key, m, r.value) + (unit ? ' ' + unit : ''), date: HC.fmtDate(r.date) }) +
         (r.base != null ? ' · ' + format(TS.baseAria, { base: fmt(key, m, r.base) + (unit ? ' ' + unit : '') }) + ' · ' + TS.dirs[r.arrow] : '');

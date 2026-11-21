@@ -885,6 +885,28 @@ test('load deep-dive: the day and the 7-day vs 42-day trend as prose in the insi
   assert.doesNotMatch(none.host.innerHTML, /NaN|undefined/);
 });
 
+test('sleep deep-dive: the insight adds the measured sleep debt of the last 7 nights (net shortfall vs the fixed target, surplus offsets); fewer than 5 nights with data = no debt sentence', () => {
+  const week = (vals) => {
+    const D = copy(), m = D.metrics.sleep, i = dayIndex(m, NOW);
+    vals.forEach((v, k) => { m.v[i - (vals.length - 1) + k] = v; });
+    return D;
+  };
+  const ins = (D, locale = 'en') => { const s = setup({ detail: D, dials: DIALS, locale }); s.api.open('sleep'); return insightOf(s.host.innerHTML); };
+  // shortfalls vs 7:30: 0:30, 1:00, 0, −0:30, 1:30, 0:30, 1:00 → 4:00 short over 7 nights
+  const short = week([7, 6.5, 7.5, 8, 6, 7, 6.5]);
+  assert.ok(ins(short).includes(format(enT.deep.prose.debt, { n: 7, value: '4:00' })), ins(short));
+  assert.ok(ins(short, 'es').includes(format(esT.deep.prose.debt, { n: 7, value: '4:00' })));
+  // more than the target on balance: no debt, the surplus stated
+  const over = week([8, 8, 7.5, 9, 7, 8, 7.5]);
+  assert.ok(ins(over).includes(format(enT.deep.prose.debtNone, { n: 7, value: '2:30' })), ins(over));
+  // a night without data is not counted as debt (n = nights with data)
+  const gap = week([7, null, 7.5, 7, 6.5, 7, 7]);
+  assert.ok(ins(gap).includes(format(enT.deep.prose.debt, { n: 6, value: '3:00' })), ins(gap));
+  // fewer than 5 nights with data in the window: no debt sentence at all
+  const thin = week([null, null, null, 7, 6.5, 7, 7]);
+  assert.ok(!ins(thin).includes(enT.deep.prose.debt.split('{n}')[0]) && !ins(thin).includes(enT.deep.prose.debtNone.split('{n}')[0]));
+});
+
 test('sleep deep-dive: the hero is last night\'s sleep performance % in the sleep colour; a stages bar under it; ⓘ explains every formula; the insight states the target and last night vs it', () => {
   const s = setup({ dials: DIALS });
   s.api.open('sleep');
@@ -1565,6 +1587,35 @@ test('strain deep-dive: the hero = the day\'s strain in its baked ring, contribu
   // Relative Effort per modality stays one tap away
   for (const k of ['gym', 'run', 'bike']) if (DEMO.metrics['load-' + k]) assert.match(html, new RegExp(`class="dd-re-link" data-detail="load-${k}"`));
   clean(html);
+});
+
+test('strain deep-dive: the insight adds the usual day strain on days with a similar recovery (p25–p75 of the last 90 days in the same day band, 7+ days); descriptive, from the history only', () => {
+  const D0 = DEMO.metrics.strain, end = addDays(D0.start, D0.v.length - 1), cut = DEMO.metrics.recovery.cut;
+  // 121 days ending at `end`; k = days before `end`. Recovery: k % 3 = 0 above (+2 SD), 1 around (0), 2 below (−2).
+  // Strain: above days cycle 10/12/14/16 (k = 3…90: 8×10, 8×12, 7×14, 7×16 → p25–p75 = 10.5–14.0), around days 8, below days 5;
+  // above days older than 90 days carry 20 (they must not count)
+  const build = ({ recToday = 2 } = {}) => {
+    const D = copy(), n = 121, start = addDays(end, -(n - 1));
+    const rec = [], st = [];
+    for (let i = 0; i < n; i++) {
+      const k = n - 1 - i;
+      rec.push(k === 0 ? recToday : k % 3 === 0 ? 2 : k % 3 === 1 ? 0 : -2);
+      st.push(k === 0 ? 3 : k % 3 === 0 ? (k > 90 ? 20 : [16, 10, 12, 14][(k / 3) % 4]) : k % 3 === 1 ? 8 : 5);
+    }
+    D.metrics.recovery = { ...D.metrics.recovery, start, v: rec, t7: rec.map(() => 0) };
+    D.metrics.strain = { ...D0, start, v: st };
+    return D;
+  };
+  const ins = (D, locale = 'en') => { const s = setup({ detail: D, dials: DIALS, scores: DEMO_SCORES, locale }); s.api.open('strain', end); return insightOf(s.host.innerHTML); };
+  const T = enT.deep.prose;
+  assert.ok(cut > 0 && cut < 2, 'the synthetic ±2 / 0 values sit clearly in the day bands');
+  assert.ok(ins(build()).includes(format(T.strainByRec, { band: T.recBand.above, lo: '10.5', hi: '14.0', n: 30 })), ins(build()));
+  assert.ok(ins(build(), 'es').includes(format(esT.deep.prose.strainByRec, { band: esT.deep.prose.recBand.above, lo: '10,5', hi: '14,0', n: 30 })), ins(build(), 'es'));
+  // every day in the band at the same strain: one value
+  assert.ok(ins(build({ recToday: 0 })).includes(format(T.strainByRecOne, { band: T.recBand.at, lo: '8.0', n: 30 })), ins(build({ recToday: 0 })));
+  // no recovery on the day: no sentence
+  const none = ins(build({ recToday: null }));
+  assert.ok(!none.includes(T.strainByRec.split('{band}')[0]), none);
 });
 
 test('strain deep-dive follows the day it was opened on; a day without all-day heart rate says so', () => {

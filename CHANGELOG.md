@@ -4,6 +4,25 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [Unreleased]
+
+- **Sleep debt, measured.** The sleep page now says how much sleep you are short (or ahead) over the last 7 nights
+  against your fixed 7:30 target: a surplus night offsets a short one, and a night without data counts as nothing.
+  The need itself stays your target; nothing adapts to training.
+- **Your usual strain for a recovery like today's.** The day strain page adds what your strain usually was on days
+  whose recovery was in the same band (above, around or below your usual) over the last 90 days: the middle half of
+  those days. It describes your history; it is not a target.
+- **Weekly minutes in heart-rate zones and gym time.** My dashboard can show the last 7 days' minutes in zones 1–3
+  and 4–5 (from the all-day heart rate plus each Strava workout's zones) and your gym time, each against your
+  weekly average of the 4 weeks before; each one opens its own history (week / month / 6 months). Hidden until
+  switched on in Customize.
+- **Healthspan habits on Salud.** A new first section shows the habits WHOOP folds into its "WHOOP age", each over
+  the last 28 days against a published reference: sleep (≥ 7 h, AASM), moderate or vigorous activity
+  (150–300 min a week, WHO), strength days (≥ 2 a week, WHO), steps (Paluch 2022, by age) and your fitness
+  age, plus resting heart rate and sleep regularity against your own previous 12 weeks. A line says how many
+  are at their reference. They are deliberately not combined into an "age": that would need weights no one
+  publishes. Heart-rate zones stand in for the WHO's intensity, an approximation the ⓘ explains.
+
 ## [1.5.0] - 2026-11-21
 
 - **More metrics for My dashboard.** Customize now also offers daily energy expenditure, day strain, respiratory

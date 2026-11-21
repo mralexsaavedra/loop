@@ -188,3 +188,10 @@
   font-size: var(--fs-2xs);
   font-weight: 400;
 }
+
+/* Healthspan habits (client/health.js habitsSection): the met count over the rows */
+.hb-sum {
+  margin: 0 0 var(--sp-3);
+  color: var(--muted);
+  font-size: var(--fs-small);
+}

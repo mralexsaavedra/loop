@@ -50,7 +50,28 @@ export const es = {
   agoMonthTpl: 'hace {m} mes',
   agoMonthsTpl: 'hace {m} meses',
   agoYearsTpl: 'hace {y} años',
+  // Salud "Hábitos de longevidad" (client/health.js habitsSection, lib/score/healthspan.mjs)
+  habits: {
+    names: { sleep: 'Horas de sueño', activity: 'Actividad moderada o intensa', strength: 'Días de fuerza', steps: 'Pasos al día', fitness: 'Edad física', rhr: 'Pulso en reposo', cons: 'Regularidad del sueño' },
+    units: { minWk: 'min/sem', daysWk: 'días/sem', years: 'años', bpm: 'lpm', min: 'min' },
+    ref: {
+      sleep: 'Recomendado ≥ 7:00 (AASM)', activity: 'Recomendado 150–300 (OMS)', strength: 'Recomendado ≥ 2 (OMS)',
+      steps: 'Meseta {lo}–{hi} ({group})', fitness: 'Tu edad: {age}', before: 'Las 12 semanas anteriores: {value}', noBase: 'Aún sin línea base',
+    },
+    mix: 'Moderada {mod} · intensa {vig}',
+    under60: 'menos de 60 años', from60: '60 años o más',
+    summary: 'Hábitos en su referencia: {met} de {n} (últimos 28 días)',
+    met: 'cumplido', notMet: 'no cumplido',
+    notes: [
+      'Los últimos 28 días completos de cada hábito, frente a una referencia publicada o, en el pulso en reposo y la regularidad del sueño, frente a tus 12 semanas anteriores. Van por separado a propósito: juntarlos en una sola «edad» exigiría unos pesos que nadie publica.',
+      'Sueño: ≥ 7:00 por noche, consenso AASM/SRS (Watson et al., J Clin Sleep Med 2015).',
+      'Actividad y fuerza: directrices de la OMS 2020 (Bull et al., Br J Sports Med 2020): 150–300 min a la semana de actividad moderada o 75–150 de intensa (un minuto intenso cuenta doble), y fortalecimiento muscular 2 o más días a la semana. La OMS define la intensidad en MET; aquí la aproximan las zonas de pulso: zonas 2–3 (60–80% de la FC máxima) como moderada y 4–5 como intensa, con el pulso de todo el día y tus entrenos. Días de fuerza = días con una sesión de gimnasio (el reloj etiqueta casi toda la fuerza como HIIT).',
+      'Pasos: Paluch et al., Lancet Public Health 2022: el beneficio en mortalidad se estabiliza en 8.000–10.000 pasos al día por debajo de los 60 años y en 6.000–8.000 a partir de los 60.',
+      'Edad física: tu VO₂máx frente a la curva de población sana (Loe et al. 2013), como en Forma física. No es una valoración médica.',
+    ],
+  },
   sections: {
+    habits: 'Hábitos de longevidad',
     body: 'Composición corporal',
     activity: 'Actividad',
     energy: 'Energía',
@@ -186,7 +207,28 @@ export const en = {
   agoMonthTpl: '{m} month ago',
   agoMonthsTpl: '{m} months ago',
   agoYearsTpl: '{y} yr ago',
+  // Salud "Healthspan habits" (client/health.js habitsSection, lib/score/healthspan.mjs)
+  habits: {
+    names: { sleep: 'Hours of sleep', activity: 'Moderate or vigorous activity', strength: 'Strength days', steps: 'Steps per day', fitness: 'Fitness age', rhr: 'Resting heart rate', cons: 'Sleep regularity' },
+    units: { minWk: 'min/wk', daysWk: 'days/wk', years: 'years', bpm: 'bpm', min: 'min' },
+    ref: {
+      sleep: 'Recommended ≥ 7:00 (AASM)', activity: 'Recommended 150–300 (WHO)', strength: 'Recommended ≥ 2 (WHO)',
+      steps: 'Plateau {lo}–{hi} ({group})', fitness: 'Your age: {age}', before: 'The 12 weeks before: {value}', noBase: 'No baseline yet',
+    },
+    mix: 'Moderate {mod} · vigorous {vig}',
+    under60: 'under 60', from60: '60 and over',
+    summary: 'Habits at their reference: {met} of {n} (last 28 days)',
+    met: 'met', notMet: 'not met',
+    notes: [
+      'The last 28 full days of each habit, against a published reference or, for resting heart rate and sleep regularity, against your own 12 weeks before. Kept apart on purpose: folding them into one "age" would need weights nobody publishes.',
+      'Sleep: ≥ 7:00 a night, AASM/SRS consensus (Watson et al., J Clin Sleep Med 2015).',
+      'Activity and strength: WHO 2020 guidelines (Bull et al., Br J Sports Med 2020): 150–300 min a week of moderate activity or 75–150 of vigorous (a vigorous minute counts double), and muscle strengthening on 2 or more days a week. The WHO defines intensity in METs; heart-rate zones stand in for it here, an approximation: zones 2–3 (60–80% of max HR) as moderate and 4–5 as vigorous, from the all-day heart rate and your workouts. Strength days = days with a gym session (the watch labels most strength work as HIIT).',
+      'Steps: Paluch et al., Lancet Public Health 2022: the mortality benefit levels off at 8,000–10,000 steps a day under 60 and 6,000–8,000 from 60.',
+      'Fitness age: your VO₂max against the healthy-population curve (Loe et al. 2013), as in Fitness. Not a medical assessment.',
+    ],
+  },
   sections: {
+    habits: 'Healthspan habits',
     body: 'Body composition',
     activity: 'Activity',
     energy: 'Energy',

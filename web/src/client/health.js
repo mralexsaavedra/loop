@@ -266,6 +266,49 @@
     return section('recovery', R.hasData ? safeRows(recSigs) : [],
       R.hasData ? [T.recoveryNoteHtml] : [], '<div id="score-recovery"></div>');
   }
+  /* healthspan habits, first on Salud: DETAIL.habits (lib/score/healthspan.mjs: the last 28 full days, the
+     cited references in `ref`) + the fitness age vs the real age. One row per habit with data: met = hb-ok,
+     not met = hb-off; an own-baseline habit (resting HR, sleep regularity) without a baseline yet stays
+     uncoloured and uncounted. A "met of n" line leads; the sources and the zone approximation sit under ⓘ.
+     Never folded into an age (that needs weights nobody publishes). */
+  function habitsSection(SC) {
+    var H = typeof DETAIL !== 'undefined' && DETAIL && DETAIL.habits ? DETAIL.habits : null, TH = T.habits;
+    if (!H || !H.ref || !TH) return '';
+    var R = H.ref, U = TH.units, P = typeof PROFILE === 'undefined' || !PROFILE ? {} : PROFILE;
+    var age = HC.ageOn(P.birthdate, HC.todayIso());
+    var rows = [], met = 0, n = 0;
+    function add(k, ok, o) {
+      if (ok != null) { n++; if (ok) met++; }
+      var aria = TH.names[k] + ': ' + o.value + (o.unit ? ' ' + o.unit : '') + (ok == null ? '' : ', ' + (ok ? TH.met : TH.notMet)) + ' · ' + o.base;
+      rows.push(HC.metricRow({ key: o.icon, attrs: (o.detail ? HC.detailAttrs(o.detail) : '') + ' data-habit="' + k + '"', aria: aria,
+        name: TH.names[k], value: o.value, unit: o.unit, numCls: ok == null ? '' : ok ? 'hb-ok' : 'hb-off', base: o.base, base2: o.base2 }));
+    }
+    if (H.sleep) add('sleep', H.sleep.mean >= R.sleepH, { icon: 'sleep', detail: 'sleep', value: HC.hours(H.sleep.mean), unit: '', base: TH.ref.sleep });
+    if (H.activity) {
+      add('activity', H.activity.eq >= R.actMin, { icon: 'zones13', detail: 'zones13', value: HC.num(H.activity.eq, 0), unit: U.minWk,
+        base: TH.ref.activity, base2: format(TH.mix, { mod: HC.num(H.activity.mod, 0), vig: HC.num(H.activity.vig, 0) }) });
+    }
+    if (H.strength) add('strength', H.strength.perWeek >= R.strengthDays, { icon: 'gymTime', detail: 'gymTime', value: HC.num(H.strength.perWeek, 1), unit: U.daysWk, base: TH.ref.strength });
+    if (H.steps) {
+      var older = age != null && age >= R.ageSplit, band = older ? R.steps.from60 : R.steps.under60;
+      add('steps', H.steps.mean >= band[0], { icon: 'steps', detail: 'steps', value: HC.num(H.steps.mean, 0), unit: '',
+        base: format(TH.ref.steps, { lo: HC.num(band[0], 0), hi: HC.num(band[1], 0), group: older ? TH.from60 : TH.under60 }) });
+    }
+    var F = SC && SC.fitnessAge;
+    if (F && F.ok && fin(F.age) && age != null) {
+      var fa = Math.round(F.age), shown = F.bound === 'below' ? '< ' + fa : F.bound === 'above' ? '> ' + fa : String(fa);
+      add('fitness', F.age <= age, { icon: 'fitnessAge', detail: 'fitnessAge', value: shown, unit: U.years, base: format(TH.ref.fitness, { age: age }) });
+    }
+    [['rhr', 'rhr', 'rhr', U.bpm], ['cons', 'cons', 'sleep', U.min]].forEach(function (x) {
+      var h = H[x[0]];
+      if (!h || !fin(h.now)) return;
+      add(x[0], fin(h.base) ? h.now <= h.base : null, { icon: x[1], detail: x[2], value: HC.num(h.now, 0), unit: x[3],
+        base: fin(h.base) ? format(TH.ref.before, { value: HC.num(h.base, 0) + ' ' + x[3] }) : TH.ref.noBase });
+    });
+    if (!rows.length) return '';
+    var lead = n ? '<p class="hb-sum">' + esc(format(TH.summary, { met: met, n: n })) + '</p>' : '';
+    return section('habits', rows, TH.notes, lead);
+  }
   /* fitness: the fitness-age ring (+ chronological age and its trend), VO2max (change since the
      first reading) and walking HR */
   function fitnessSection(R, SC) {
@@ -336,6 +379,7 @@
       return;
     }
     var out = [];
+    try { out.push(habitsSection(SC)); } catch (e) { /* a broken habits card never blanks the tab */ }
     if (R.hasData || recScore) out.push(recoverySection(R, SC));
     if (R.hasData) {
       out.push(fitnessSection(R, SC));

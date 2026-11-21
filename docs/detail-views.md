@@ -84,6 +84,8 @@ Same readers and rules as the cards.
 | workouts | minutes per day after the display rule, zero-filled (rest) from the first session up to `asOf` (a day after asOf is missing) |
 | `load-<m>` | RE per day after the load rule (`null` = sessions without RE), the card's typical day (the same `typicalDay` value the load dial puts at its ring midpoint), calendar cuts at 0.5 / 1 / 1.5 typical days, and the dial's `gate` (null / `baselineBuilding` / `fewDays`) + `last` scored session |
 | strain | kind `strain`, only when day strain is calibrated (`lib/score/strain.mjs`): the day strain 0–21 of every day with all-day heart rate (one K for every day); calendar shades at 10 / 14 / 18 (the reference's light / moderate / high / all-out bands on our scale); bars in the chart; the day panel lists the day's sessions |
+| zones13, zones45 | kind `total`, `week` (My dashboard shows their 7-day total): whole minutes per day in heart-rate zones 1–3 / 4–5 (`lib/score/strain.mjs` `zoneMinutes`, the strain's max HR and zone cuts): the all-day hours' histograms plus each Strava workout's zone seconds, Z0 not counted; only days with all-day heart rate (like strain); no max HR → not baked |
+| gymTime | kind `total`, `week`: gym minutes per day (`scoreModality` gym: strength, HIIT, functional, other) from the same-day merged sessions, zero-filled from the first gym session up to `asOf` |
 
 ### Metrics outside `DETAIL`
 
@@ -109,6 +111,8 @@ has no such key. None has a host tab except
   their highest max HR.
 - `zoneMax` = `{hr, src}`: the max HR the zones were cut with and its source (`profile` / `observed`);
   absent without the file.
+- `habits`: Salud's healthspan habits of the last 28 full days (`lib/score/healthspan.mjs`, shape and rules
+  in `docs/health-tab.md` → Healthspan habits); absent when no habit has data.
 
 ## Openers
 
@@ -247,9 +251,9 @@ bottom: header → ⓘ block → hero ring → contributors → insight → week
 | Page | Text |
 | --- | --- |
 | recovery | Home's outlook sentence first (`window.HCAdvice`, it already carries the 7-day trend), then "Last night your recovery was high." (the % band word ONLY when the hero shows a %, else the SD band "at your baseline" — the SD line lives under ⓘ, so the card never shows two different bands; "On Mon 28 Sep …" for an older night; + "There is no sleep data for that night."). Without the advice: "Over the last 7 days it has been steady (+0.5 SD vs your baseline)."; no recent complete night → the 7-day trend sentence |
-| sleep | "Last night you slept 7:32, +0:02 vs your 7:30 target." + the contributors that were worse than usual ("Sleep consistency was worse than your usual.", or "Every contributor was at or better than your usual." when they carry markers) |
+| sleep | "Last night you slept 7:32, +0:02 vs your 7:30 target." + the measured sleep debt ("Over the last 7 nights you are 2:10 short of your target.", or "… you are not short of sleep (0:40 above your target)."; `sleepDebt`: Σ (target − asleep) over the 7 nights ending at that night, a surplus night offsets a short one, a night without data counts as nothing; n = nights with data, no sentence under 5; the need stays the fixed target) + the contributors that were worse than usual ("Sleep consistency was worse than your usual.", or "Every contributor was at or better than your usual." when they carry markers) |
 | load | the day ("Today's Relative Effort is 28; your typical training day is ~42.", or no session / the last one) + "Over the last 7 days your load has been steady (−6% vs your 42-day average)." (baked `DIALS`; none or gated → no trend sentence; the ring scale is under ⓘ); a gated modality shows its gate copy |
-| strain | the band sentence + "Your usual day is 12.4 (median of the prior 30 days)." (the scale's calibration is in ⓘ) |
+| strain | the band sentence + "Your usual day is 12.4 (median of the prior 30 days)." + the usual strain on days with a similar recovery ("On days when your recovery was above your usual, your day strain was usually 11.2–14.0 (18 of the last 90 days)."; `strainByRec`: each of the 90 days before pairs its strain with that date's recovery, grouped by the recovery chart's day band at the metric's `cut`; p25–p75 of the band the shown day falls in, "about X" when both round alike; no recovery that day or fewer than 7 days in the band → no sentence; it describes the history, never a target) (the scale's calibration is in ⓘ) |
 
 - Then the page's own CTA (`deep.ctas`: "SEE MY RECOVERY TREND →", sleep / load / strain likewise; the
   stress and energy pages keep "VIEW TREND"; `data-dt-act="trend"`, a button): scrolls to the period block

@@ -19,6 +19,10 @@
   // contributors: today vs the middle half (p25–p75) of the PRIOR_DAYS before it — the same "usual
   // day" idea as the Salud totals' quartile band; fewer than PRIOR_MIN prior values = no marker
   var PRIOR_DAYS = 30, PRIOR_MIN = 7;
+  // the measured sleep debt: the last 7 nights, shown with at least 5 of them on record
+  var DEBT_NIGHTS = 7, DEBT_MIN = 5;
+  // the usual day strain by recovery band: the last 90 days, shown with at least 7 days in the band
+  var BYREC_DAYS = 90, BYREC_MIN = 7;
   var WEEK = 7;
   // the recovery composite's scale (view/dial.mjs recoveryFrac: -3..+3 MAD), for the weekly bars
   var Z = 3;
@@ -199,7 +203,21 @@
     var night = format(W.rec, { when: whenOf(isoDate(h.date), X, h.sleep), band: band || '' });
     return prose([adv, night, h.sleep === false ? W.noSleep : '', adv ? '' : format(W.recTrend, trendVars)]);
   }
-  // sleep: last night vs the target, then the contributors that were worse than usual
+  // the measured sleep debt over the DEBT_NIGHTS nights ending at `iso`: Σ (target − asleep) over the
+  // nights with data (a surplus night offsets a short one; a night without data counts as nothing, never
+  // as debt) -> null | {h (> 0 = short), n (nights with data)}; null under DEBT_MIN nights. The need
+  // stays the fixed target (lib/score/sleep.mjs): no adaptive need is invented.
+  function sleepDebt(m, iso, X) {
+    if (!iso || !isNum(m.target)) return null;
+    var h = 0, n = 0;
+    for (var k = 0; k < DEBT_NIGHTS; k++) {
+      var v = X.valueOf(m, shiftIso(iso, -k));
+      if (isNum(v)) { h += m.target - v; n++; }
+    }
+    return n >= DEBT_MIN ? { h: Math.round(h * 60) / 60, n: n } : null;
+  }
+  // sleep: last night vs the target, the measured debt of the last nights, then the contributors that
+  // were worse than usual
   function sleepLines(m, end, X) {
     var W = X.T.deep.prose, d = X.lastDataDate(m, end);
     if (!d) return [{ text: X.T.noData }];
@@ -207,7 +225,9 @@
     var night = m.target != null
       ? format(W.sleep, { when: whenOf(d, X), value: HC.hours(v), delta: HC.hours(v - m.target, true), target: HC.hours(m.target) })
       : format(X.T.latestLbl, { date: HC.fmtDate(d) });
-    return prose([night, contribSentence(sleepRows(m, end, X), X)]);
+    var debt = sleepDebt(m, d, X);
+    var debtLine = debt ? format(debt.h > 0 ? W.debt : W.debtNone, { n: debt.n, value: HC.hours(Math.abs(debt.h)) }) : '';
+    return prose([night, debtLine, contribSentence(sleepRows(m, end, X), X)]);
   }
   // load: the day (today's RE, or the last session) next to the typical day, then the 7-day vs 42-day
   // context (baked DIALS); the ring scale lives under ⓘ
@@ -526,8 +546,32 @@
     if (!isNum(v)) return { cls: 'off', label: P.label.strain, word: P.words.none };
     return { cls: 'strain', label: P.label.strain, num: X.fmt(v, 1), fill: dd ? dd.fill : null, stale: stale(D && D.strain && D.strain.asOf) && !X.sel };
   }
+  // a recovery day value (SD units, DETAIL recovery) -> its day band at the metric's own cut, as the
+  // recovery chart's daily points: 'above' / 'at' / 'below'
+  function recDayBand(v, cut) {
+    return v >= cut ? 'above' : v <= -cut ? 'below' : 'at';
+  }
+  // the usual day strain on days whose recovery fell in the same day band as `iso`'s: the p25–p75 of
+  // the strain of those days among the BYREC_DAYS before `iso` (each day's strain with the recovery of
+  // the night before it, the same date) -> null | {band, lo, hi, n}; null without a recovery that day
+  // or with fewer than BYREC_MIN such days. Describes the history; never a target for today.
+  function strainByRec(m, iso, X) {
+    var r = X.metric('recovery');
+    if (!r || !Array.isArray(r.v) || !isNum(r.cut)) return null;
+    var rv = X.at(r.v, r, iso);
+    if (!isNum(rv)) return null;
+    var band = recDayBand(rv, r.cut), vals = [];
+    for (var k = 1; k <= BYREC_DAYS; k++) {
+      var d = shiftIso(iso, -k), x = X.at(r.v, r, d), s = X.at(m.v, m, d);
+      if (isNum(x) && isNum(s) && recDayBand(x, r.cut) === band) vals.push(s);
+    }
+    if (vals.length < BYREC_MIN) return null;
+    vals.sort(function (a, z) { return a - z; });
+    return { band: band, lo: quart(vals, 0.25), hi: quart(vals, 0.75), n: vals.length };
+  }
   // the band sentence, then the usual day (the median of the 30 days before, when 7+ of them have a
-  // strain); the 0-21 scale's calibration lives under ⓘ (strainNotes)
+  // strain), then the usual strain on days with a similar recovery; the 0-21 scale's calibration lives
+  // under ⓘ (strainNotes)
   function strainLines(m, end, X) {
     var P = X.T.deep.strain, iso = strainIso(end, X), v = X.at(m.v, m, iso);
     if (!isNum(v)) return [{ text: format(P.noDay, { date: HC.fmtDate(iso) }) }];
@@ -539,7 +583,12 @@
       prior.sort(function (a, z) { return a - z; });
       usual = format(X.T.deep.prose.strainUsual, { value: X.fmt(quart(prior, 0.5), 1) });
     }
-    return prose([P.bands[strainBand(v)], usual]);
+    var W = X.T.deep.prose, br = strainByRec(m, iso, X), byRec = '';
+    if (br) {
+      var lo = X.fmt(br.lo, 1), hi = X.fmt(br.hi, 1);
+      byRec = format(lo === hi ? W.strainByRecOne : W.strainByRec, { band: W.recBand[br.band], lo: lo, hi: hi, n: br.n });
+    }
+    return prose([P.bands[strainBand(v)], usual, byRec]);
   }
   // contributors: the day's activities (strain share, minutes x zone load) + the all-day remainder
   function strainContribHtml(m, end, X) {
