@@ -5,7 +5,15 @@
  * branches (the food log opens on yesterday before 04:00, the meal is guessed from the hour).
  *
  * Every LAN spec shares one database (the stack is started once per run): name what you create with
- * `unique()` and assert on your own rows, never on counts. */
+ * `unique()` and assert on your own rows, never on counts. A test that changes or reads a WHOLE day takes a day of
+ * its own (shiftDays(today, -n)); the days in use:
+ *   today        any spec, own rows only (unique labels)
+ *   -1           food-log-more (past-day entry, deleted), home-day (one entry, deleted)
+ *   -2           food-log-more (navigated, not written); misc (journal)
+ *   -3           food-log-more (asserted empty of FOOD); misc (journal)
+ *   -4, -5       misc (journal)
+ *   -6           misc (food, Constancia)
+ * A new spec that needs an empty or private day picks one below -6 and adds it here. */
 import { test as base, expect, zonedInstant } from '../fixtures.mjs';
 import { E2E_TZ } from '../paths.mjs';
 
@@ -24,6 +32,37 @@ export const test = base.extend({
 });
 
 export { expect };
+
+/** `iso` shifted by `days` calendar days (YYYY-MM-DD, computed at UTC noon so no zone or DST moves it). */
+export function shiftDays(iso, days) {
+  const d = new Date(`${iso}T12:00:00Z`);
+  d.setUTCDate(d.getUTCDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
+/** Run `body`, then `cleanup` whatever happened. A failing clean-up fails a test whose body passed (the shared
+ * database is left broken), but after a failed body it is only logged: it never hides the failure that got here. */
+export async function withCleanup(body, cleanup) {
+  let passed = false;
+  try {
+    await body();
+    passed = true;
+  } finally {
+    await cleanup().catch((err) => {
+      if (passed) throw err;
+      console.warn(`clean-up failed: ${err.message}`);
+    });
+  }
+}
+
+/** Open the served page and its profile sheet once the settings API answered (its goal and language sections
+ * need it). */
+export async function openProfile(page) {
+  await openLan(page);
+  await expect.poll(() => page.evaluate(() => Boolean(window.HCSettings && window.HCSettings.ready()))).toBe(true);
+  await page.locator('#avatar-btn').click();
+  await expect(page.locator('#detail')).toBeVisible();
+}
 
 /** A name no other test (or retry) uses. */
 export const unique = (prefix) => `${prefix} ${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
@@ -52,13 +91,14 @@ export const SYNC_TEST_MS = SYNC_RELOAD_MS + 40_000;
  * Press Sync and wait until the server has rebuilt the page and the page reloaded itself (docs/plan-page.md → Sync):
  * POST /api/sync answers 202 {seq}, the load event fires (listened for before the click, so a fast rebuild cannot
  * reload unseen), a marker set before the click is gone (a real reload, not the same document) and status.json
- * reports a processedSeq at least `seq`. `whileBusy(page)` runs between the 202 and the reload. Returns { seq }.
+ * reports a processedSeq at least `seq`. `trigger(page)` is what starts it (default: press #sync-btn; the language
+ * switch starts one by itself); `whileBusy(page)` runs between the 202 and the reload. Returns { seq }.
  */
-export async function syncAndReload(page, { reloadMs = SYNC_RELOAD_MS, whileBusy = async () => {} } = {}) {
+export async function syncAndReload(page, { reloadMs = SYNC_RELOAD_MS, trigger = (p) => p.locator('#sync-btn').click(), whileBusy = async () => {} } = {}) {
   await page.evaluate(() => { window.__e2eBeforeSync = true; });
   const reloaded = page.waitForEvent('load', { timeout: reloadMs });
   const posted = apiResponse(page, 'POST', '/api/sync');
-  await page.locator('#sync-btn').click();
+  await trigger(page);
   const res = await posted;
   expect(res.status()).toBe(202);
   const { seq } = await res.json();

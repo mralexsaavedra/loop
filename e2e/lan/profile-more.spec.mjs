@@ -2,7 +2,7 @@
 // web/src/client/profile.js + settings.js): the cut and bulk goals, a cleared target weight and a refused save.
 // The settings API is answered at the page boundary (GET with a known goal and target, every PUT recorded and
 // asserted), so the shared database the other LAN specs read is never changed under them.
-import { test, expect, openLan } from './fixtures.mjs';
+import { test, expect, openProfile } from './fixtures.mjs';
 import { en as pfEn, es as pfEs } from '../../web/src/i18n/profile-templates.mjs';
 
 async function copyOf(page) {
@@ -26,33 +26,15 @@ async function mockSettings(page, initial, { putStatus = 200 } = {}) {
   return puts;
 }
 
-async function openProfile(page) {
-  await openLan(page);
-  await expect.poll(() => page.evaluate(() => Boolean(window.HCSettings && window.HCSettings.ready()))).toBe(true);
-  await page.locator('#avatar-btn').click();
-  await expect(page.locator('#detail')).toBeVisible();
-  await expect(page.locator('#pf-target')).toBeVisible(); // the settings API answered
-}
-
 // every step waits on the real served page; a loaded host makes 30 s tight
 test.describe.configure({ timeout: 90_000 });
-
-/** The food log and journal summary reads share one rate limit per client address across every LAN spec
- * (FOOD_SUMMARY_LIMIT / JOURNAL_SUMMARY_LIMIT, 30 a minute), and these tests never look at them: answer them
- * here with an empty range, so this file neither spends nor trips the shared budget. */
-async function emptySummaries(page) {
-  await page.route(/\/api\/(food\/log|journal)\/summary\?/, (route) => {
-    const q = new URL(route.request().url()).searchParams;
-    return route.fulfill({ json: { from: q.get('from'), to: q.get('to'), days: [] } });
-  });
-}
-test.beforeEach(async ({ page }) => emptySummaries(page));
 
 const goal = (page, g) => page.locator(`input[name="pf-goal"][value="${g}"]`);
 
 test('Lose fat and Gain are saved as the goal', async ({ page }) => {
   const puts = await mockSettings(page, { goal: 'maintain', targetWeightKg: 74, locale: null });
   await openProfile(page);
+  await expect(page.locator('#pf-target')).toBeVisible(); // the settings API answered
   const T = await copyOf(page);
   await expect(goal(page, 'maintain')).toBeChecked();
 
@@ -75,6 +57,7 @@ test('Lose fat and Gain are saved as the goal', async ({ page }) => {
 test('clearing the target weight sends null', async ({ page }) => {
   const puts = await mockSettings(page, { goal: 'cut', targetWeightKg: 74, locale: null });
   await openProfile(page);
+  await expect(page.locator('#pf-target')).toBeVisible(); // the settings API answered
   const T = await copyOf(page);
   await expect(page.locator('#pf-target')).toHaveValue('74.0');
 
@@ -93,6 +76,7 @@ test('a refused goal save says why and keeps the pick pending', async ({ page, p
   pageErrors.allow(/500/);
   const puts = await mockSettings(page, { goal: 'maintain', targetWeightKg: 74, locale: null }, { putStatus: 500 });
   await openProfile(page);
+  await expect(page.locator('#pf-target')).toBeVisible(); // the settings API answered
   const T = await copyOf(page);
 
   await goal(page, 'cut').check({ force: true });

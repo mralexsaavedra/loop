@@ -2,15 +2,9 @@
 // food-sheet.js): the ‹ date › navigator and an entry logged on a past day, the empty past day, the per-meal "+ Add"
 // buttons, the add sheet's "Change" (unpick), its keyboard, the "Save anyway" path of a quick entry whose kcal do
 // not match its macros, and the error states of a save and of a past day's read (provoked with page.route).
-import { test, expect, openLan, unique, apiResponse, apiWrite } from './fixtures.mjs';
+import { test, expect, openLan, unique, apiResponse, apiWrite, shiftDays } from './fixtures.mjs';
 import { settle } from '../fixtures.mjs';
 import { openAddSheet, saveEntry, logRow } from './food-ui.mjs';
-
-/** `iso` shifted by `days` (calendar arithmetic in UTC, so no zone or DST can move it). */
-function shiftIso(iso, days) {
-  const [y, m, d] = iso.split('-').map(Number);
-  return new Date(Date.UTC(y, m - 1, d + days)).toISOString().slice(0, 10);
-}
 
 /** The day's entries straight from the data service. */
 async function entriesOf(page, date) {
@@ -44,7 +38,7 @@ async function cleanUp(page, id, deleted) {
 }
 
 test('the day navigator reads a past day, logs an entry there and comes back to today', async ({ page, today }) => {
-  const yesterday = shiftIso(today, -1);
+  const yesterday = shiftDays(today, -1);
   const label = unique('E2E past');
   let id = null;
   let deleted = false;
@@ -91,10 +85,10 @@ test('the day navigator reads a past day, logs an entry there and comes back to 
     // two days back, then "back to today" in one step
     await page.locator('#food-day-prev').click();
     await expect(logRow(page, label)).toBeVisible();
-    const twoBack = dayRequest(page, shiftIso(today, -2));
+    const twoBack = dayRequest(page, shiftDays(today, -2));
     await page.locator('#food-day-prev').click();
     await twoBack;
-    await expect(page.locator('#food-day-label')).toHaveText(await fmtDate(page, shiftIso(today, -2)));
+    await expect(page.locator('#food-day-label')).toHaveText(await fmtDate(page, shiftDays(today, -2)));
     await page.locator('#food-day-today').click();
     await expect(page.locator('#food-day-label')).toHaveText('Today');
     await expect(page.locator('#food-day-today')).toBeHidden();
@@ -117,12 +111,12 @@ test('the day navigator reads a past day, logs an entry there and comes back to 
 });
 
 test('a past day with nothing logged shows the empty-day copy and its four add buttons', async ({ page, today }) => {
-  const day = shiftIso(today, -3);
+  const day = shiftDays(today, -3);
   expect(await entriesOf(page, day), 'the fresh database has nothing on that day').toEqual([]);
   await openLan(page);
   await page.locator('#t-nutricion').click();
   for (let i = 1; i <= 3; i++) {
-    const read = dayRequest(page, shiftIso(today, -i));
+    const read = dayRequest(page, shiftDays(today, -i));
     await page.locator('#food-day-prev').click();
     await read;
   }
@@ -344,7 +338,7 @@ test('a save that fails (500, 429, offline) keeps the sheet open with the messag
 
 test('a past day that fails to load offers a retry that loads it', async ({ page, today, pageErrors }) => {
   pageErrors.allow(/status of 503/);
-  const yesterday = shiftIso(today, -1);
+  const yesterday = shiftDays(today, -1);
   const isDay = (u) => u.pathname === '/api/food/log' && u.searchParams.get('date') === yesterday;
   let failed = 0;
   await page.route(isDay, (route) => {

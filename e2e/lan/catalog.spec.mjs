@@ -7,7 +7,7 @@
 //
 // Every product / recipe / log entry a test creates is removed in its finally through the API (apiWrite), so the
 // shared database keeps only what other specs create.
-import { test, expect, openLan, unique, apiResponse, apiWrite } from './fixtures.mjs';
+import { test, expect, openLan, unique, apiResponse, apiWrite, withCleanup } from './fixtures.mjs';
 import { settle } from '../fixtures.mjs';
 import { openAddSheet, saveEntry, openProducts, logRow } from './food-ui.mjs';
 
@@ -90,7 +90,7 @@ const uniqueBarcode = () => String(Date.now()).slice(-9) + String(Math.floor(Mat
 
 test('a recipe of several products is saved, edited and archived', async ({ page }) => {
   const made = { products: [], recipes: [] };
-  try {
+  await withCleanup(async () => {
     const a = await apiProduct(page, { name: unique('E2E rice'), kcal: 130, p: 2.7, c: 28, f: 0.3 });
     const b = await apiProduct(page, { name: unique('E2E beans'), kcal: 120, p: 8, c: 21, f: 0.5 });
     const decoy = await apiProduct(page, { name: unique('E2E decoy'), kcal: 100, p: 5, c: 15, f: 2 });
@@ -164,14 +164,12 @@ test('a recipe of several products is saved, edited and archived', async ({ page
     expect((await del).status()).toBe(200);
     await expect(page.locator('#fr-body')).not.toContainText(renamed);
     expect((await listRecipes(page)).some((r) => r.id === recipe.id)).toBe(false);
-  } finally {
-    await cleanUp(page, made);
-  }
+  }, () => cleanUp(page, made));
 });
 
 test('a built-in basic ingredient is stored as its snapshot, and Change clears a pick', async ({ page }) => {
   const made = { products: [], recipes: [] };
-  try {
+  await withCleanup(async () => {
     const a = await apiProduct(page, { name: unique('E2E pasta'), kcal: 350, p: 12, c: 70, f: 2 });
     made.products.push(a.id);
     await openLan(page);
@@ -208,16 +206,14 @@ test('a built-in basic ingredient is stored as its snapshot, and Change clears a
     await expect(page.locator('#fr-body')).toContainText(name);
     const stored = (await listRecipes(page)).find((r) => r.id === recipe.id);
     expect(stored.ingredients).toEqual([snapshot]);
-  } finally {
-    await cleanUp(page, made);
-  }
+  }, () => cleanUp(page, made));
 });
 
 test('a basic that breaks the Atwater check is refused until the recipe is saved anyway', async ({ page, pageErrors }) => {
   // the refused save is a 400 on purpose
   pageErrors.allow(/Failed to load resource: the server responded with a status of 400/);
   const made = { recipes: [] };
-  try {
+  await withCleanup(async () => {
     await openLan(page);
     const basic = await findBasic(page, false);
     test.skip(!basic, 'the baked food DB has no gram basic that breaks the Atwater check');
@@ -248,14 +244,12 @@ test('a basic that breaks the Atwater check is refused until the recipe is saved
     made.recipes.push((await ok.json()).recipe.id);
     await expect(page.locator('#fr-body')).toContainText(name);
     expect((await listRecipes(page)).some((r) => r.name === name)).toBe(true);
-  } finally {
-    await cleanUp(page, made);
-  }
+  }, () => cleanUp(page, made));
 });
 
 test('a batch recipe is saved by its cooked weight and logged by grams', async ({ page, today }) => {
   const made = { products: [], recipes: [], entries: [] };
-  try {
+  await withCleanup(async () => {
     const a = await apiProduct(page, { name: unique('E2E lentils'), kcal: 130, p: 9, c: 20, f: 0.4 });
     made.products.push(a.id);
     await openLan(page);
@@ -299,14 +293,12 @@ test('a batch recipe is saved by its cooked weight and logged by grams', async (
     await expect(logRow(page, name)).toBeVisible();
     const day = await (await apiGet(page, `/api/food/log?date=${today}`)).json();
     expect(day.entries.find((e) => e.id === entry.id)).toMatchObject({ refId: recipe.id, amount: 200, unit: 'g', kcal: 130 });
-  } finally {
-    await cleanUp(page, made);
-  }
+  }, () => cleanUp(page, made));
 });
 
 test('cancelling the recipe editor saves nothing', async ({ page }) => {
   const made = { products: [] };
-  try {
+  await withCleanup(async () => {
     const a = await apiProduct(page, { name: unique('E2E oats'), kcal: 380, p: 13, c: 60, f: 7 });
     made.products.push(a.id);
     await openLan(page);
@@ -324,16 +316,14 @@ test('cancelling the recipe editor saves nothing', async ({ page }) => {
     expect(writes).toEqual([]);
     await expect(page.locator('#fr-body')).not.toContainText(name);
     expect((await listRecipes(page)).some((r) => r.name === name)).toBe(false);
-  } finally {
-    await cleanUp(page, made);
-  }
+  }, () => cleanUp(page, made));
 });
 
 /* ---------- products ---------- */
 
 test('a barcode lookup fills the form and the product is saved with its code', async ({ page }) => {
   const made = { products: [] };
-  try {
+  await withCleanup(async () => {
     const name = unique('E2E OFF yogurt');
     const code = uniqueBarcode();
     const lookups = [];
@@ -374,14 +364,12 @@ test('a barcode lookup fills the form and the product is saved with its code', a
     await expect(page.locator('#fp-body')).toContainText(name);
     const stored = (await listProducts(page)).find((p) => p.id === product.id);
     expect(stored).toMatchObject({ name, barcode: code, source: 'off', offCode: code, servingSize: 125 });
-  } finally {
-    await cleanUp(page, made);
-  }
+  }, () => cleanUp(page, made));
 });
 
 test('a product marked "log by serving" starts the add sheet in one serving', async ({ page, today }) => {
   const made = { products: [], entries: [] };
-  try {
+  await withCleanup(async () => {
     await openLan(page);
     await openProducts(page);
     const name = unique('E2E bar');
@@ -424,9 +412,7 @@ test('a product marked "log by serving" starts the add sheet in one serving', as
     expect(entry).toMatchObject({ amount: 1, unit: 'serving', kcal: 160 });
     await page.locator('#t-nutricion').click();
     await expect(logRow(page, name)).toBeVisible();
-  } finally {
-    await cleanUp(page, made);
-  }
+  }, () => cleanUp(page, made));
 });
 
 test('cancelling the product form saves nothing', async ({ page }) => {
@@ -454,7 +440,7 @@ test('a field the service refuses is marked under that field', async ({ page, pa
   // both refused saves are a 400 on purpose
   pageErrors.allow(/Failed to load resource: the server responded with a status of 400/);
   const made = { products: [] };
-  try {
+  await withCleanup(async () => {
     await openLan(page);
     await openProducts(page);
     const name = unique('E2E refused');
@@ -498,7 +484,5 @@ test('a field the service refuses is marked under that field', async ({ page, pa
     made.products.push((await ok.json()).product.id);
     await expect(page.locator('#fp-body')).toContainText(name);
     expect((await listProducts(page)).find((p) => p.name === name)).toMatchObject({ servingSize: 30, servingDefault: true });
-  } finally {
-    await cleanUp(page, made);
-  }
+  }, () => cleanUp(page, made));
 });

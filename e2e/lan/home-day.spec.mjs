@@ -3,24 +3,18 @@
 // nutrition score and "Activities · <date>", each opening its sheet on that day. The stack seeds a synthetic Health
 // extract ending today (e2e/lan/stack.mjs), which is what makes the day stepper reachable at all.
 import { randomUUID } from 'node:crypto';
-import { test, expect, openLan, unique, apiWrite, syncAndReload, SYNC_TEST_MS } from './fixtures.mjs';
+import { test, expect, openLan, unique, apiWrite, syncAndReload, shiftDays, withCleanup, SYNC_TEST_MS } from './fixtures.mjs';
 import { hashOf } from '../fixtures.mjs';
-
-const yesterdayOf = (iso) => {
-  const d = new Date(`${iso}T12:00:00Z`);
-  d.setUTCDate(d.getUTCDate() - 1);
-  return d.toISOString().slice(0, 10);
-};
 
 test('a day logged on the server shows on Home when stepping back to it', async ({ page, today }) => {
   test.setTimeout(SYNC_TEST_MS);
-  const day = yesterdayOf(today);
+  const day = shiftDays(today, -1);
   const label = unique('E2E past lunch');
   const res = await apiWrite(page, 'POST', '/api/food/log', 'food', {
     date: day, meal: 'lunch', refType: 'quick', label, kcal: 650, protein: 40, carbs: 70, fat: 22, requestId: randomUUID(),
   });
   const { entry } = await res.json();
-  try {
+  await withCleanup(async () => {
     await page.addInitScript(() => localStorage.setItem('hc.onboarding.later', '1'));
     await openLan(page);
     // the score and the day's numbers are baked by the page build: Sync publishes them
@@ -51,7 +45,5 @@ test('a day logged on the server shows on Home when stepping back to it', async 
     expect(hashOf(page)).toBe(`#d=${day}`);
     await page.locator('#day-lbl').click();
     expect(hashOf(page)).toBe('#home');
-  } finally {
-    await apiWrite(page, 'DELETE', `/api/food/log/${entry.id}`, 'food').catch((err) => console.warn(`clean-up failed: ${err.message}`));
-  }
+  }, () => apiWrite(page, 'DELETE', `/api/food/log/${entry.id}`, 'food'));
 });

@@ -10,17 +10,6 @@ import { en as onbEn, es as onbEs } from '../../web/src/i18n/onboarding-template
 // every step waits on the real served page; a loaded host makes 30 s tight
 test.describe.configure({ timeout: 90_000 });
 
-/** The food log and journal summary reads share one rate limit per client address across every LAN spec
- * (FOOD_SUMMARY_LIMIT / JOURNAL_SUMMARY_LIMIT, 30 a minute), and these tests never look at them: answer them
- * here with an empty range, so this file neither spends nor trips the shared budget. */
-async function emptySummaries(page) {
-  await page.route(/\/api\/(food\/log|journal)\/summary\?/, (route) => {
-    const q = new URL(route.request().url()).searchParams;
-    return route.fulfill({ json: { from: q.get('from'), to: q.get('to'), days: [] } });
-  });
-}
-test.beforeEach(async ({ page }) => emptySummaries(page));
-
 const LATER_KEY = 'hc.onboarding.later';
 const sheet = (page) => page.locator('#detail');
 const next = (page) => page.locator('#detail [data-onb-act="next"]');

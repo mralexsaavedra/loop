@@ -1,17 +1,10 @@
 // The dock's "+" popover, the journal sheet's other days, its stepper, a failed save and the behaviour insights,
 // Sync and freshness failures, and the food summary feeding Constancia, against the real data service
 // (web/src/client/nav-actions.js, journal.js, freshness.js, adherence.js; docs/plan-page.md, docs/journal.md,
-// docs/nutrition-food-log.md). Each test that writes uses its own past day of the 7-day journal strip or the
-// 28-day Constancia strip (the other LAN specs write today), and resets it in `finally`.
-import { test, expect, openLan, unique, apiResponse, apiWrite, syncAndReload, SYNC_TEST_MS } from './fixtures.mjs';
+// docs/nutrition-food-log.md). Each test that writes uses a past day of its own (the allocation table in
+// e2e/lan/fixtures.mjs: journal on -2 to -5, food on -6) and resets it in its clean-up.
+import { test, expect, openLan, unique, apiResponse, apiWrite, syncAndReload, shiftDays, withCleanup, SYNC_TEST_MS } from './fixtures.mjs';
 import { settle } from '../fixtures.mjs';
-
-/** `iso` shifted by `days` (calendar days, no time zone involved). */
-function shiftIso(iso, days) {
-  const d = new Date(`${iso}T00:00:00Z`);
-  d.setUTCDate(d.getUTCDate() + days);
-  return d.toISOString().slice(0, 10);
-}
 
 /** Reset one journal day to no answers and no note (the journal API keeps a row per day). */
 const resetJournalDay = (page, date) => apiWrite(page, 'PUT', '/api/journal/day', 'journal', { date, answers: {} });
@@ -31,21 +24,6 @@ async function openJournalOn(page, date) {
   const day = page.locator(`#detail [data-jr="day"][data-date="${date}"]`);
   await day.click();
   await expect(day).toHaveAttribute('aria-pressed', 'true');
-}
-
-/** Run `fn`, then `cleanup` whatever happened; a failing clean-up fails a passing test but never hides the
- * failure that got us there (the LAN specs share one database). */
-async function withCleanup(fn, cleanup) {
-  let passed = false;
-  try {
-    await fn();
-    passed = true;
-  } finally {
-    await cleanup().catch((err) => {
-      if (passed) throw err;
-      console.warn(`clean-up failed: ${err.message}`);
-    });
-  }
 }
 
 test.describe('the "+" popover', () => {
@@ -113,7 +91,7 @@ test.describe('the "+" popover', () => {
 
 test.describe('the journal sheet', () => {
   test('the drink stepper\'s minus lowers the count and stops at 0', async ({ page, today }) => {
-    const date = shiftIso(today, -2);
+    const date = shiftDays(today, -2);
     await resetJournalDay(page, date);
     await withCleanup(async () => {
       await openLan(page);
@@ -146,7 +124,7 @@ test.describe('the journal sheet', () => {
   });
 
   test('another day of the strip is saved with its own date and read back after a reload', async ({ page, today }) => {
-    const date = shiftIso(today, -3);
+    const date = shiftDays(today, -3);
     await resetJournalDay(page, date);
     await withCleanup(async () => {
       await openLan(page);
@@ -177,7 +155,7 @@ test.describe('the journal sheet', () => {
 
   test('a failed save shows the error, keeps the sheet open and stores nothing', async ({ page, pageErrors, today }) => {
     pageErrors.allow(/500/);
-    const date = shiftIso(today, -4);
+    const date = shiftDays(today, -4);
     await resetJournalDay(page, date);
     await withCleanup(async () => {
       await openLan(page);
@@ -205,7 +183,7 @@ test.describe('the journal sheet', () => {
   test('the behaviour insights open from the card, with the formula behind the info button', async ({ page, today }) => {
     // the insights are baked by the page build from the journal: one journaled day, then a Sync
     test.setTimeout(SYNC_TEST_MS);
-    const date = shiftIso(today, -5);
+    const date = shiftDays(today, -5);
     await apiWrite(page, 'PUT', '/api/journal/day', 'journal', { date, answers: { mobility: true } });
     await withCleanup(async () => {
       await openLan(page);
@@ -330,7 +308,7 @@ test.describe('Sync and freshness', () => {
 });
 
 test('a logged past day reaches Constancia through the food summary and opens in Registrar', async ({ page, today }) => {
-  const date = shiftIso(today, -6);
+  const date = shiftDays(today, -6);
   const label = unique('E2E summary');
   // the day as it stands before (a retry may find an entry an interrupted attempt left): the summary must add ours
   const before = await page.request.get(`/api/food/log/summary?from=${date}&to=${date}`, { headers: { 'X-HC-Food': '1' } });

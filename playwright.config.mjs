@@ -21,19 +21,11 @@ import { LAN_PORT } from './e2e/lan/stack.mjs';
 const CI = !!process.env.CI;
 const DOCKER_URL = process.env.E2E_DOCKER_URL || '';
 
-/** The --project filters of this run (`--project x` / `--project=x`), [] for all. */
-function projectFilters(argv) {
-  const out = [];
-  argv.forEach((a, i) => {
-    if (a === '--project' && argv[i + 1]) out.push(argv[i + 1]);
-    else if (a.startsWith('--project=')) out.push(a.slice('--project='.length));
-  });
-  return out;
-}
-const PROJECTS = projectFilters(process.argv);
-// the LAN stack (a database, the data service, a page build) only when a LAN project can run: not for a run narrowed
-// to the static projects, even with TEST_DATABASE_URL exported for `npm run test:pg`
-const LAN = !DOCKER_URL && !!process.env.TEST_DATABASE_URL && (PROJECTS.length === 0 || PROJECTS.some((p) => p.startsWith('lan')));
+// The LAN stack (a database, the data service, a page build) runs whenever TEST_DATABASE_URL is set; E2E_LAN=0 leaves
+// the lan-* projects out (a static-only run with the variable exported for `npm run test:pg`). An environment variable,
+// not --project: Playwright's workers reload this file without the command line, and every process must see the same
+// projects.
+const LAN = !DOCKER_URL && !!process.env.TEST_DATABASE_URL && process.env.E2E_LAN !== '0';
 const LAN_URL = `http://127.0.0.1:${LAN_PORT}`;
 
 export default defineConfig({

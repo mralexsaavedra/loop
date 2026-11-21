@@ -12,7 +12,9 @@
  *     headers (Host: loop-ingest, X-Forwarded-Host = the browser's Host), so the service's Host / Origin checks
  *     run as in production. Everything else under /api/ is a 404. Each test is its own client, like each phone on a
  *     LAN: the data service rate-limits per client address, so the stand-in connects upstream from a loopback
- *     address of the test's own (CLIENT_HEADER, set by e2e/lan/fixtures.mjs), and strips that header.
+ *     address of the test's own (CLIENT_HEADER, set by e2e/lan/fixtures.mjs), and strips that header. Only on Linux,
+ *     where all of 127/8 reaches the loopback device; elsewhere (macOS configures 127.0.0.1 alone) every test shares
+ *     the default address, as before, and a run with many LAN tests can meet the service's rate limits.
  *
  * It listens on 127.0.0.1:E2E_LAN_PORT (default 18290) once the first page is published, and tears everything
  * down (child, database, temporary folders) on SIGINT / SIGTERM. Run by hand to look at the stack in a browser:
@@ -145,6 +147,9 @@ export function upstreamFor(method, pathname) {
 /** The request header naming the test a request belongs to (e2e/lan/fixtures.mjs sets it per browser context). */
 export const CLIENT_HEADER = 'x-e2e-client';
 
+/** Whether this host routes every 127/8 address to loopback (Linux), so a test can have an address of its own. */
+const PER_CLIENT_ADDRESS = process.platform === 'linux';
+
 /** A stable loopback address (127.x.y.z, never 127.0.0.1) for a client id: Linux routes all of 127/8 to lo. */
 export function clientAddress(id) {
   let h = 2166136261;
@@ -218,7 +223,7 @@ export function createFront({ siteDir, ingestPort }) {
         path: route.path + url.search,
         headers,
         timeout: 15_000,
-        ...(client ? { localAddress: clientAddress(client) } : {}),
+        ...(client && PER_CLIENT_ADDRESS ? { localAddress: clientAddress(client) } : {}),
       },
       (upRes) => {
         res.writeHead(upRes.statusCode, upRes.headers);
