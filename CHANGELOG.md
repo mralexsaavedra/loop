@@ -4,7 +4,7 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
-## [Unreleased]
+## [1.6.0] - 2026-11-21
 
 - **Sleep debt, measured.** The sleep page now says how much sleep you are short (or ahead) over the last 7 nights
   against your fixed 7:30 target: a surplus night offsets a short one, and a night without data counts as nothing.
