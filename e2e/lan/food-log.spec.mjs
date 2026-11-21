@@ -1,10 +1,10 @@
 // The food log against the real data service (docs/nutrition-food-log.md): the "+" button and the `a` key open
 // the add sheet; a quick entry and a built-in basic food are logged for today, shown in the day's log and
 // deleted again.
-import { test, expect, openLan, unique, apiResponse, todayIso } from './fixtures.mjs';
+import { test, expect, openLan, unique, apiResponse } from './fixtures.mjs';
 import { openAddSheet, saveEntry, logRow } from './food-ui.mjs';
 
-test('a quick entry is logged for today, listed in the log and deleted', async ({ page }) => {
+test('a quick entry is logged for today, listed in the log and deleted', async ({ page, today }) => {
   await openLan(page);
   await openAddSheet(page);
   const label = unique('E2E quick');
@@ -16,7 +16,7 @@ test('a quick entry is logged for today, listed in the log and deleted', async (
   await page.locator('#fa-c').fill('40');
   await page.locator('#fa-f').fill('15');
   const res = await saveEntry(page);
-  expect(res.request().postDataJSON()).toMatchObject({ date: todayIso(), meal: 'lunch', refType: 'quick', label });
+  expect(res.request().postDataJSON()).toMatchObject({ date: today, meal: 'lunch', refType: 'quick', label });
 
   await page.locator('#t-nutricion').click();
   const row = logRow(page, label);
@@ -29,7 +29,7 @@ test('a quick entry is logged for today, listed in the log and deleted', async (
   await expect(row).toHaveCount(0);
 });
 
-test('the a key opens the add sheet, and a built-in basic food is logged by weight', async ({ page }) => {
+test('the a key opens the add sheet, and a built-in basic food is logged by weight', async ({ page, today }) => {
   await openLan(page);
   await page.keyboard.press('a');
   await expect(page.locator('#fa-q')).toBeVisible();
@@ -43,7 +43,7 @@ test('the a key opens the add sheet, and a built-in basic food is logged by weig
   await page.locator('#fa-amt').fill('150');
   await expect(page.locator('#fa-prev')).not.toBeEmpty();
   const res = await saveEntry(page);
-  expect(res.request().postDataJSON()).toMatchObject({ meal: 'dinner', refType: 'quick', date: todayIso() });
+  expect(res.request().postDataJSON()).toMatchObject({ meal: 'dinner', refType: 'quick', date: today });
   const { entry } = await res.json();
 
   // listed under today with its own delete button; deleted again (the LAN specs share one database)

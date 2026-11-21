@@ -3,6 +3,7 @@
 // reloads it. The language switch is not driven here: it rebuilds the shared page in the other locale under the
 // specs running next to it.
 import { test, expect, openLan, apiResponse } from './fixtures.mjs';
+import { settle } from '../fixtures.mjs';
 
 test('the goal and the target weight are saved from the profile sheet', async ({ page }) => {
   await openLan(page);
@@ -32,6 +33,7 @@ test('the goal and the target weight are saved from the profile sheet', async ({
   await page.locator('#pf-target').fill('20');
   await page.locator('#pf-target').press('Enter');
   await expect(page.locator('#pf-target-err')).not.toBeEmpty();
+  await settle(page);
   expect(sent).toBe(false);
 });
 

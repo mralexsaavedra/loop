@@ -22,7 +22,9 @@ import path from 'node:path';
 import { spawn } from 'node:child_process';
 import { randomBytes } from 'node:crypto';
 import { createRequire } from 'node:module';
+import { fileURLToPath } from 'node:url';
 import { ROOT } from '../paths.mjs';
+import { BUILD_LOCK } from '../../scripts/lib/astro-build.mjs';
 
 export const LAN_PORT = Number(process.env.E2E_LAN_PORT || 18290);
 const SERVICE = path.join(ROOT, 'services', 'loop-ingest');
@@ -56,6 +58,40 @@ function freePort() {
 }
 
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+
+/** Send `sig` to the process group led by `pid` (spawned detached); a group already gone is fine. */
+function signalGroup(pid, sig) {
+  try {
+    process.kill(-pid, sig);
+  } catch {}
+}
+
+/** Remove the repo's Astro build lock when the process holding it is gone (a page build killed by stop() never
+ * releases it, and every later build would wait 10 minutes for it to go stale). A live holder's lock stays. */
+function dropOrphanBuildLock() {
+  let holder;
+  try {
+    holder = Number(fs.readFileSync(BUILD_LOCK, 'utf8').trim());
+  } catch {
+    return;
+  }
+  if (!Number.isInteger(holder) || holder <= 0) return;
+  try {
+    process.kill(holder, 0);
+  } catch (err) {
+    if (err.code === 'ESRCH') fs.rmSync(BUILD_LOCK, { force: true });
+  }
+}
+
+/** Whether any process of the group led by `pid` is still running. */
+function groupAlive(pid) {
+  try {
+    process.kill(-pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** nginx's /api routes: [method set, upstream path] for a request path, or null (404). */
 export function upstreamFor(method, pathname) {
@@ -134,61 +170,76 @@ export function createFront({ siteDir, ingestPort }) {
   });
 }
 
-/** Start the whole stack; resolves to { baseURL, stop() } once the first page is published. */
-export async function startStack({ databaseUrl = process.env.TEST_DATABASE_URL, port = LAN_PORT } = {}) {
+/** Start the whole stack; resolves to { baseURL, stop() } once the first page is published. `onStop(stop)` receives the
+ * teardown before anything is created, so a signal during the (long) boot build still cleans up. */
+export async function startStack({ databaseUrl = process.env.TEST_DATABASE_URL, port = LAN_PORT, onStop = () => {} } = {}) {
   if (!databaseUrl) throw new Error('TEST_DATABASE_URL is not set: the LAN E2E stack needs a Postgres it may CREATE DATABASE on');
-  const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'loop-e2e-'));
-  const dirs = { data: path.join(tmp, 'data'), files: path.join(tmp, 'files'), site: path.join(tmp, 'site') };
-  for (const d of Object.values(dirs)) fs.mkdirSync(d, { recursive: true });
-
-  const dbName = `loop_e2e_${randomBytes(6).toString('hex')}`;
-  await admin(databaseUrl, `CREATE DATABASE ${dbName}`);
-  const dbUrl = new URL(databaseUrl);
-  dbUrl.pathname = `/${dbName}`;
-
-  const ingestPort = await freePort();
-  const child = spawn(process.execPath, [path.join(SERVICE, 'src', 'server.js')], {
-    cwd: SERVICE,
-    env: {
-      PATH: process.env.PATH,
-      HOME: process.env.HOME,
-      TMPDIR: tmp,
-      TZ: 'Europe/Madrid',
-      PORT: String(ingestPort),
-      INGEST_TOKEN: randomBytes(32).toString('hex'),
-      DATABASE_URL: dbUrl.toString(),
-      HC_BUILD: 'container',
-      HC_SITE_DIR: dirs.site,
-      HC_DATA_DIR: dirs.data,
-      HC_FILES_DIR: dirs.files,
-      HC_VERSION: 'e2e',
-      HC_REFRESH_MINUTES: '1440',
-      TRIGGER_DIR: path.join(tmp, 'trigger'),
-      ASTRO_TELEMETRY_DISABLED: '1',
-    },
-    stdio: ['ignore', 'inherit', 'inherit'],
-  });
+  // every piece is created after the teardown that removes it exists
+  let tmp = null;
+  let dbName = null;
+  let child = null;
   let exited = false;
-  child.once('exit', () => { exited = true; });
-
   let front = null;
   let stopping = null;
   const stop = () => (stopping ??= (async () => {
     if (front) await new Promise((r) => front.close(() => r()));
-    if (!exited) {
-      child.kill('SIGTERM');
-      for (let i = 0; i < 50 && !exited; i++) await wait(100);
-      if (!exited) child.kill('SIGKILL');
+    if (child) {
+      // the whole process group: the data service AND the page build it may be running (scripts/refresh.mjs and
+      // its Astro child), which would otherwise keep writing into the folder removed below
+      signalGroup(child.pid, 'SIGTERM');
+      for (let i = 0; i < 50 && groupAlive(child.pid); i++) await wait(100);
+      signalGroup(child.pid, 'SIGKILL');
+      for (let i = 0; i < 20 && groupAlive(child.pid); i++) await wait(100);
+      dropOrphanBuildLock();
     }
-    await admin(databaseUrl, `DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`).catch((e) => log(`drop failed: ${e.message}`));
-    fs.rmSync(tmp, { recursive: true, force: true });
+    if (dbName) await admin(databaseUrl, `DROP DATABASE IF EXISTS ${dbName} WITH (FORCE)`).catch((e) => log(`drop failed: ${e.message}`));
+    if (tmp) fs.rmSync(tmp, { recursive: true, force: true });
   })());
+  onStop(stop);
 
   try {
+    tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'loop-e2e-'));
+    const dirs = { data: path.join(tmp, 'data'), files: path.join(tmp, 'files'), site: path.join(tmp, 'site') };
+    for (const d of Object.values(dirs)) fs.mkdirSync(d, { recursive: true });
+
+    const name = `loop_e2e_${randomBytes(6).toString('hex')}`;
+    await admin(databaseUrl, `CREATE DATABASE ${name}`);
+    dbName = name;
+    const dbUrl = new URL(databaseUrl);
+    dbUrl.pathname = `/${dbName}`;
+
+    const ingestPort = await freePort();
+    if (stopping) throw new Error('stopped during startup');
+    child = spawn(process.execPath, [path.join(SERVICE, 'src', 'server.js')], {
+      cwd: SERVICE,
+      env: {
+        PATH: process.env.PATH,
+        HOME: process.env.HOME,
+        TMPDIR: tmp,
+        TZ: 'Europe/Madrid',
+        PORT: String(ingestPort),
+        INGEST_TOKEN: randomBytes(32).toString('hex'),
+        DATABASE_URL: dbUrl.toString(),
+        HC_BUILD: 'container',
+        HC_SITE_DIR: dirs.site,
+        HC_DATA_DIR: dirs.data,
+        HC_FILES_DIR: dirs.files,
+        HC_VERSION: 'e2e',
+        HC_REFRESH_MINUTES: '1440',
+        TRIGGER_DIR: path.join(tmp, 'trigger'),
+        ASTRO_TELEMETRY_DISABLED: '1',
+      },
+      stdio: ['ignore', 'inherit', 'inherit'],
+      // its own process group, so stop() can end the page build it spawns too
+      detached: true,
+    });
+    child.once('exit', () => { exited = true; });
+
     // the boot build publishes status.json with publishedAt (scripts/refresh.mjs); a first build takes ~30-60 s
     const deadline = Date.now() + 240_000;
     const status = path.join(dirs.site, 'status.json');
     for (;;) {
+      if (stopping) throw new Error('stopped during startup');
       if (exited) throw new Error('the data service exited during startup (its log is above)');
       if (Date.now() > deadline) throw new Error('no page published within 240 s');
       try {
@@ -201,24 +252,25 @@ export async function startStack({ databaseUrl = process.env.TEST_DATABASE_URL, 
       front.once('error', reject);
       front.listen(port, '127.0.0.1', resolve);
     });
+    log(`ready on http://127.0.0.1:${port} (data service :${ingestPort}, database ${dbName})`);
   } catch (err) {
     await stop();
     throw err;
   }
-  const baseURL = `http://127.0.0.1:${port}`;
-  log(`ready on ${baseURL} (data service :${ingestPort}, database ${dbName})`);
-  return { baseURL, stop };
+  return { baseURL: `http://127.0.0.1:${port}`, stop };
 }
 
-if (process.argv[1] && path.resolve(process.argv[1]) === path.resolve(new URL(import.meta.url).pathname)) {
-  const stack = await startStack().catch((err) => {
-    console.error(`[e2e-stack] ${err.message}`);
-    process.exit(1);
-  });
+if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  // registered before the start, so Ctrl-C or Playwright's SIGTERM during the boot build still tears down
+  let stop = null;
   for (const sig of ['SIGINT', 'SIGTERM']) {
     process.once(sig, async () => {
-      await stack.stop();
+      if (stop) await stop();
       process.exit(0);
     });
   }
+  await startStack({ onStop: (fn) => { stop = fn; } }).catch((err) => {
+    console.error(`[e2e-stack] ${err.message}`);
+    process.exit(1);
+  });
 }

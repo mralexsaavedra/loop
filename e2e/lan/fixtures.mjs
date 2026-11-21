@@ -13,7 +13,9 @@ import { E2E_TZ } from '../paths.mjs';
 export const todayIso = () => new Intl.DateTimeFormat('en-CA', { timeZone: E2E_TZ }).format(new Date());
 
 export const test = base.extend({
-  now: async ({}, use) => use(zonedInstant(todayIso(), 12)),
+  // the day the test runs on, read once: a test crossing midnight still compares against one day
+  today: async ({}, use) => use(todayIso()),
+  now: async ({ today }, use) => use(zonedInstant(today, 12)),
 });
 
 export { expect };
@@ -25,6 +27,15 @@ export const unique = (prefix) => `${prefix} ${Date.now().toString(36)}${Math.ra
 export async function openLan(page, hash = '') {
   await page.goto('/' + hash);
   await expect(page.locator('#act-btn')).toBeVisible();
+}
+
+/** A write straight to the data service (no Origin: the service's LAN trust model, like curl), for clean-up
+ * that must run even when the UI steps failed. `kind` 'food' or 'journal' picks the required X-HC-* header. */
+export async function apiWrite(page, method, pathname, kind, data) {
+  const header = kind === 'journal' ? 'X-HC-Journal' : 'X-HC-Food';
+  const res = await page.request.fetch(pathname, { method, headers: { [header]: '1' }, data });
+  expect(res.status(), `${method} ${pathname}: ${await res.text()}`).toBeLessThan(300);
+  return res;
 }
 
 /** Wait for the response to `method path` (a path under /api/, query ignored) and return it. */
