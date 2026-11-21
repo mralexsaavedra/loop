@@ -84,6 +84,8 @@ Same readers and rules as the cards.
 | workouts | minutes per day after the display rule, zero-filled (rest) from the first session up to `asOf` (a day after asOf is missing) |
 | `load-<m>` | RE per day after the load rule (`null` = sessions without RE), the card's typical day (the same `typicalDay` value the load dial puts at its ring midpoint), calendar cuts at 0.5 / 1 / 1.5 typical days, and the dial's `gate` (null / `baselineBuilding` / `fewDays`) + `last` scored session |
 | strain | kind `strain`, only when day strain is calibrated (`lib/score/strain.mjs`): the day strain 0–21 of every day with all-day heart rate (one K for every day); calendar shades at 10 / 14 / 18 (the reference's light / moderate / high / all-out bands on our scale); bars in the chart; the day panel lists the day's sessions |
+| zones13, zones45 | kind `total`, `week` (My dashboard shows their 7-day total): whole minutes per day in heart-rate zones 1–3 / 4–5 (`lib/score/strain.mjs` `zoneMinutes`, the strain's max HR and zone cuts): the all-day hours' histograms plus each Strava workout's zone seconds, Z0 not counted; only days with all-day heart rate (like strain); no max HR → not baked |
+| gymTime | kind `total`, `week`: gym minutes per day (`scoreModality` gym: strength, HIIT, functional, other) from the same-day merged sessions, zero-filled from the first gym session up to `asOf` |
 
 ### Metrics outside `DETAIL`
 

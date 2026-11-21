@@ -12,6 +12,10 @@ operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README
 - **Your usual strain for a recovery like today's.** The day strain page adds what your strain usually was on days
   whose recovery was in the same band (above, around or below your usual) over the last 90 days: the middle half of
   those days. It describes your history; it is not a target.
+- **Weekly minutes in heart-rate zones and gym time.** My dashboard can show the last 7 days' minutes in zones 1–3
+  and 4–5 (from the all-day heart rate plus each Strava workout's zones) and your gym time, each against your
+  weekly average of the 4 weeks before; each one opens its own history (week / month / 6 months). Hidden until
+  switched on in Customize.
 
 ## [1.5.0] - 2026-11-21
 

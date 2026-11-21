@@ -181,7 +181,9 @@ executed-sessions dashboard.
 - One `HC.metricRow` per modality with HR, highest first: its own icon (strength a dumbbell, gym a bolt,
   run, bike; other cardio a neutral clock), the mean HR, the peak as the small line.
 - No zone bars: the per-workout zones are per session, and a modality total would need a W / M / 6M
-  switch of its own.
+  switch of its own. The weekly minutes in zones 1–3 / 4–5 across ALL activity (all-day heart rate +
+  workouts) and the gym minutes are DETAIL metrics of their own (`zones13`, `zones45`, `gymTime`:
+  `docs/detail-views.md`), offered as My dashboard rows.
 - The HR is a fixed 12-week aggregate (not per W / M / 6M), so it stays a compact card of its own instead
   of joining the Activity card.
 - No data or no HR: nothing is drawn (the Activity card holds the empty state).

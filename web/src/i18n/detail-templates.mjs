@@ -328,6 +328,9 @@ export const en = {
     'load-run': { title: 'Run load', unit: 'RE' },
     'load-bike': { title: 'Bike load', unit: 'RE' },
     strain: { title: 'Day strain', unit: '/ 21' },
+    zones13: { title: 'HR zones 1–3', unit: 'min' },
+    zones45: { title: 'HR zones 4–5', unit: 'min' },
+    gymTime: { title: 'Gym time', unit: 'min' },
     // not a DETAIL key: the stress page's series is SCORES.stress.metric (lib/score/stress.mjs)
     stress: { title: 'Stress estimate', unit: '/ 3' },
     // not a DETAIL key either: the energy bank page's series is SCORES.energy.metric (lib/score/energy.mjs)
@@ -707,6 +710,9 @@ export const es = {
     'load-run': { title: 'Carga de carrera', unit: 'RE' },
     'load-bike': { title: 'Carga de bici', unit: 'RE' },
     strain: { title: 'Carga del día', unit: '/ 21' },
+    zones13: { title: 'Zonas FC 1–3', unit: 'min' },
+    zones45: { title: 'Zonas FC 4–5', unit: 'min' },
+    gymTime: { title: 'Tiempo de gimnasio', unit: 'min' },
     stress: { title: 'Estimación de estrés', unit: '/ 3' },
     'energy-bank': { title: 'Banco de energía', unit: '/ 100' },
     // tampoco es clave de DETAIL: la página la puntúa al verla (client/nutri-score.js metric())
