@@ -100,6 +100,8 @@ export const CLIENT_SCRIPTS = [
     requires: ['DETAIL', 'HC', 'HCViews', 'HC_FMT', 'I18N_DATE', 'I18N_DETAIL', 'I18N_SCORE', 'LOCALE', 'SCORES'],
   },
   { file: 'journal.js', provides: ['HCJournal'], requires: ['HC', 'HCViews', 'I18N_DATE', 'I18N_SCORE', 'SCORES'] },
+  // after every Inicio block's script (it moves the rendered blocks), before detail.js (#home-edit)
+  { file: 'home-order.js', provides: ['HCHomeOrder'], requires: ['HC', 'HCViews', 'I18N_SCORE'] },
   // before detail.js: the "?" help sheet is a registered view when detail.js reads a #shortcuts deep link
   { file: 'shortcuts.js', provides: [], requires: ['HC', 'HCViews', 'I18N_DETAIL', 'NAV'] },
   { file: 'deepdive.js', provides: ['HCDeep'], requires: ['HC'] },

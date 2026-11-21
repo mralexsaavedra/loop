@@ -4349,5 +4349,9 @@
   "|||.kb|||border-radius": "var(--r-xs)",
   "|||.kb-label|||font-size": "var(--fs-md)",
   "|||.kb-note|||font-size": "var(--fs-sm)",
-  "|||.kb-note|||color": "var(--faint)"
+  "|||.kb-note|||color": "var(--faint)",
+  "|||.home-cust|||display": "flex",
+  "|||.home-cust|||justify-content": "center",
+  "|||.home-cust|||margin-top": "var(--sp-4)",
+  "|||.home-off|||display": "none !important"
 }
