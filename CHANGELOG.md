@@ -4,6 +4,20 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [1.6.1] - 2026-11-22
+
+- **Easier with a screen reader or voice control.** Cards, rows and buttons that open a page are now named by what
+  they show (the metric and its value), with the date and trend read after it, so "tap Weight" works with voice
+  control. The timeline is a proper list, the strongest days of the strain calendar and the small grey text of the
+  food log are easier to read, and the first-run date, height and weight fields are labelled.
+- **Food search fix.** Tapping a search result in the add-food sheet or a recipe's ingredient search now picks it on
+  the first try in Chrome-based browsers (the list used to redraw under the tap).
+- **Profile link fix.** Opening the page at `#profile` now shows the target weight and the language once your
+  settings load, instead of leaving them out.
+- **Tested in a real browser before every release.** Browser tests (Chrome and Safari's engine, English and Spanish,
+  accessibility included) now run on every change, and the release checks open the page served by the published
+  images in a browser.
+
 ## [1.6.0] - 2026-11-21
 
 - **Sleep debt, measured.** The sleep page now says how much sleep you are short (or ahead) over the last 7 nights
