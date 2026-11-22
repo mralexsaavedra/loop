@@ -1,5 +1,5 @@
 /**
- * The page onboarding's storage, with ONE source for the person's identity. The wizard (PUT /food/profile, food.js
+ * The page onboarding's storage, with ONE source for the person's identity. The wizard (PUT /food/profile, settings-profile.js
  * validateProfile) sends one document; its identity fields (IDENTITY_KEYS: name, sex, birthdate, heightCm) are
  * stored in the profile document (app_document kind 'profile', sql/012, the same one the coach pushes), and only
  * the onboarding's own fields (weight, activity, sports, goals, targets) in app_profile (sql/011). GET composes the
@@ -95,7 +95,7 @@ export function createProfileStore (pool) {
       return r ? composeProfile(r.data, r.doc, r.updated_at) : null
     },
 
-    /** Saves a validated wizard document (food.js validateProfile) across the two rows; returns it composed. */
+    /** Saves a validated wizard document (settings-profile.js validateProfile) across the two rows; returns it composed. */
     async putProfile (data) {
       const { own, identity } = splitProfile(data)
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {

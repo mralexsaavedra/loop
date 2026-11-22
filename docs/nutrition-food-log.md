@@ -109,7 +109,11 @@ Routes (`src/food.js`):
 - Errors are coarse `{error, field?}` codes, never DB text: `invalid`, `atwater`, `barcode_exists`,
   `unknown_product`, `unknown_recipe`, `recipe_incomplete`, `unit`, `not_found`, `rate_limited`, `off_*`,
   `payload_too_large`, `internal`. An unknown `/food/*` path is always `404`.
-- `src/food-db.js` = the parameterized store (NUMERIC → numbers, the date via `to_char`).
+- Layers: `src/food.js` = the HTTP routes only (route table, Host / origin / rate / content-type checks, body
+  reading, answers); `src/food-validate.js` + `src/settings-profile.js` = the body validation (on the shared
+  primitives of `src/validate.js`); `src/food-usecases.js` = the use cases (`createFoodService(store)`: the log
+  entry's macros snapshot, recipe views, idempotent adds, archive / delete); `src/food-db.js` = the parameterized
+  store (NUMERIC → numbers, the date via `to_char`).
 - `006_food.sql` is an OPTIONAL migration group (`src/migrations.js`): if it fails the service logs
   `food_migration_failed` and keeps ingesting / syncing / pulling Strava; only `/food/*` answers
   `503 food_unavailable`.
