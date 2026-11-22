@@ -25,6 +25,10 @@ var HC = (function () {
     return !loc || loc.protocol !== 'file:';
   }
   // markup-safe text AND attribute value (quotes too); an absent value (null / undefined) is ''
+  /** A finite number (not NaN / Infinity, not a numeric string): the client scripts' one copy. */
+  function fin(v) {
+    return typeof v === 'number' && isFinite(v);
+  }
   function esc(s) {
     return (s == null ? '' : String(s)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
@@ -644,6 +648,7 @@ var HC = (function () {
     hours: hours,
     numInput: numInput,
     esc: esc,
+    fin: fin,
     format: format,
     isoDate: isoDate,
     isoOf: isoOf,

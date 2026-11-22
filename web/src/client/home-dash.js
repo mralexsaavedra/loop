@@ -33,9 +33,7 @@
     // of data; its baseline = the mean of up to BASE_WEEKS earlier weekly totals, at least MIN_WEEKS of them
     var WEEK = 7, WEEK_MIN = 5, BASE_WEEKS = 4, MIN_WEEKS = 2;
 
-    function fin(v) {
-      return typeof v === 'number' && isFinite(v);
-    }
+    var fin = HC.fin;
     function own(o, k) {
       return !!o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, k);
     }

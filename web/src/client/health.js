@@ -32,9 +32,7 @@
     if (m < 12) return format(m > 1 ? T.agoMonthsTpl : T.agoMonthTpl, { m: m });
     return format(T.agoYearsTpl, { y: nf(Math.round((m / 12) * 10) / 10) });
   }
-  function fin(x) {
-    return typeof x === 'number' && isFinite(x);
-  }
+  var fin = HC.fin;
   // decimals of a baked value (1 at most): the baseline is shown at the value's own precision
   function decOf(v) {
     return Math.round(v) === v ? 0 : 1;
