@@ -214,7 +214,7 @@ accepted nutrition targets of a user without an AI coach).
 
 ## Ingest side: Strava athlete and gear scope
 
-`services/loop-ingest/src/athlete.js`, table `strava_athlete`, `sql/004_athlete.sql` +
+`services/loop-ingest/src/athlete.js` (its SQL in `athlete-db.js`), table `strava_athlete`, `sql/004_athlete.sql` +
 `005_athlete_refresh.sql`.
 
 ### Refresh
