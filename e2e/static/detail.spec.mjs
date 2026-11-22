@@ -30,10 +30,11 @@ for (const tab of TABS) {
       await opener.scrollIntoViewIfNeeded();
       await opener.click();
       await expectOpen(page);
-      expect(hashOf(page), `hash for ${key}`).not.toBe(`#${tab}`);
+      await expect.poll(() => hashOf(page), `hash for ${key}`).not.toBe(`#${tab}`);
       await page.keyboard.press('Escape');
       await expectClosed(page);
-      expect(hashOf(page), `hash after closing ${key}`).toBe(`#${tab}`);
+      // closing goes back in history, which can land just after the sheet hides (seen on WebKit)
+      await expect.poll(() => hashOf(page), `hash after closing ${key}`).toBe(`#${tab}`);
     }
   });
 }

@@ -3,8 +3,14 @@
 // Sync, the server rebuilds the ONE shared page in that language and the page reloads into it. Project `lan-last`:
 // it runs after every other LAN spec, because the rebuild changes the page they all read. It switches back the
 // same way, and restores the stored value it found even when a step fails.
-import { test, expect, openLan, openProfile, apiResponse, apiWrite, syncAndReload, withCleanup, SYNC_TEST_MS } from '../fixtures.mjs';
+import { test, expect, openLan, openProfile, apiResponse, apiWrite, syncAndReload, withCleanup, unique, SYNC_TEST_MS } from '../fixtures.mjs';
 import { en as pfEn, es as pfEs } from '../../../web/src/i18n/profile-templates.mjs';
+import { en as foodEn, es as foodEs } from '../../../web/src/i18n/food-templates.mjs';
+import { openAddSheet, saveEntry } from '../food-ui.mjs';
+
+const FOOD = { en: foodEn, es: foodEs };
+/** The fixed text before a template's first placeholder ("Añadido: " of "Añadido: {label} ({k} kcal)."). */
+const lead = (template) => template.slice(0, template.indexOf('{'));
 
 const COPY = { en: pfEn, es: pfEs };
 const htmlLang = (page) => page.evaluate(() => document.documentElement.lang);
@@ -44,7 +50,48 @@ async function switchTo(page, from, to) {
   await expect(page.locator(`input[name="pf-lang"][value="${to}"]`)).toBeChecked();
 }
 
-test('the language switch rebuilds the page in the other language, and back', async ({ page }) => {
+/** What the page does in `lang` after the switch rebuilt it: a quick entry logged and deleted, today's journal saved
+ * and read back, each with the copy of that language. Here because lan-last runs alone: the one shared page is in
+ * that language only between the two switches. */
+async function coreFlowsIn(page, lang, today) {
+  await openLan(page);
+  expect(await htmlLang(page)).toBe(lang);
+  const F = FOOD[lang];
+
+  await openAddSheet(page);
+  await expect(page.locator('#dt-title')).toHaveText(F.sheet.title);
+  const label = unique('E2E idioma');
+  await page.locator('#detail [data-food-act="tab"][data-tab="quick"]').click();
+  await page.locator('#fa-label').fill(label);
+  await page.locator('#fa-kcal').fill('300');
+  const { entry } = await (await saveEntry(page)).json();
+  await expect(page.locator('#food-msg')).toContainText(lead(F.added) + label);
+  await page.locator('#t-nutricion').click();
+  const del = page.locator(`#food-log [data-food-act="del"][data-id="${entry.id}"]`);
+  await expect(del).toHaveAttribute('aria-label', F.delAria.replace('{label}', label));
+  const deleted = apiResponse(page, 'DELETE', `/api/food/log/${entry.id}`);
+  await del.click();
+  expect((await deleted).status()).toBe(200);
+  await expect(page.locator('#food-msg')).toContainText(F.deleted.replace('{label}', label));
+
+  // today's journal: saved in this language and read back after a reload; emptied first, since earlier LAN specs may
+  // have answered today (a set mobility would make the click below turn it off)
+  await apiWrite(page, 'PUT', '/api/journal/day', 'journal', { date: today, answers: {} });
+  await openLan(page);
+  await expect.poll(() => page.evaluate(() => !!(window.HCViews && window.HCViews.journal))).toBe(true);
+  await page.keyboard.press('d');
+  await expect(page.locator('#jr-save')).toBeVisible();
+  await page.locator('#jr-yes-mobility').click();
+  const saved = apiResponse(page, 'PUT', '/api/journal/day');
+  await page.locator('#jr-save').click();
+  expect((await saved).request().postDataJSON()).toMatchObject({ date: today, answers: { mobility: true } });
+  await openLan(page);
+  await page.keyboard.press('d');
+  await expect(page.locator('#jr-yes-mobility')).toHaveAttribute('aria-pressed', 'true');
+  await page.keyboard.press('Escape');
+}
+
+test('the language switch rebuilds the page in the other language, and back', async ({ page, today }) => {
   // two real page builds
   test.setTimeout(2 * SYNC_TEST_MS);
   const found = await storedLocale(page);
@@ -55,11 +102,13 @@ test('the language switch rebuilds the page in the other language, and back', as
   await withCleanup(
     async () => {
       await switchTo(page, from, to);
+      await coreFlowsIn(page, to, today);
       await switchTo(page, to, from);
     },
     // leave the stored value exactly as found (none stored = the server's default language) and the shared page
     // built in it again, waiting for that rebuild, so a retry or a later run starts where this one did
     async () => {
+      await apiWrite(page, 'PUT', '/api/journal/day', 'journal', { date: today, answers: {} });
       if ((await storedLocale(page)) !== found) await apiWrite(page, 'PUT', '/api/food/settings', 'food', { locale: found });
       await openLan(page);
       if ((await htmlLang(page)) !== from) await syncAndReload(page);

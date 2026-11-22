@@ -2,7 +2,7 @@
 // kind of detail-sheet control (docs/detail-views.md), the ⓘ toggles, tab links and folds (docs/plan-page.md),
 // the two Customize sheets of Home (docs/home-tab.md) and the registered views the generic opener loop of
 // detail.spec.mjs does not reach (tonight, journal-insights, hoy-session).
-import { test, expect, openStatic, DEMO_DAY, zonedInstant, hashOf, settle } from '../fixtures.mjs';
+import { test, expect, openStatic, DEMO_DAY, zonedInstant, hashOf, settle, dateCopy } from '../fixtures.mjs';
 
 const sheet = (page) => page.locator('#detail');
 const inSheet = (page, sel) => page.locator(`#detail ${sel}`);
@@ -20,11 +20,13 @@ function shiftIso(iso, n) {
   return d.toISOString().slice(0, 10);
 }
 
-/** "20 Sep" for 2026-09-20: the day-and-month part every en-GB date label of the page carries. */
-const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+/** "20 Sep" / "20 sept" for 2026-09-20: the day-and-month part every date label of the page carries, in the page's
+ * own month names (I18N_DATE). */
 function dayMonth(iso) {
-  return `${Number(iso.slice(8, 10))} ${MONTHS[Number(iso.slice(5, 7)) - 1]}`;
+  return `${Number(iso.slice(8, 10))} ${dateCopy().months[Number(iso.slice(5, 7)) - 1]}`;
 }
+/** The page's long month name of a YYYY-MM-DD ("September" / "septiembre"). */
+const monthLong = (iso) => dateCopy().monthsLong[Number(iso.slice(5, 7)) - 1];
 
 async function expectOpen(page) {
   await expect(sheet(page)).toBeVisible();
@@ -157,19 +159,19 @@ test.describe('detail sheet controls', () => {
     const title = inSheet(page, '.dt-month');
     const prev = inSheet(page, '[data-dt-act="month"][data-dir="-1"]');
     const next = inSheet(page, '[data-dt-act="month"][data-dir="1"]');
-    await expect(title).toContainText('September');
+    await expect(title).toContainText(monthLong(DEMO_DAY), { ignoreCase: true });
     await expect(next).toBeDisabled();
     const win = await winLabel(page).textContent();
 
     await prev.click();
-    await expect(title).toContainText('August');
+    await expect(title).toContainText(monthLong(`${DEMO_DAY.slice(0, 5)}${String(Number(DEMO_DAY.slice(5, 7)) - 1).padStart(2, '0')}-01`), { ignoreCase: true });
     await expect(next).toBeEnabled();
     await expect(inSheet(page, `[data-dt-act="day"][data-date="${DEMO_DAY.slice(0, 7)}-01"]`)).toHaveCount(0);
     // the calendar moves alone: the chart window stays
     await expect(winLabel(page)).toHaveText(win);
 
     await next.click();
-    await expect(title).toContainText('September');
+    await expect(title).toContainText(monthLong(DEMO_DAY), { ignoreCase: true });
     await expect(next).toBeDisabled();
   });
 

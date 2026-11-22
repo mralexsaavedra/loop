@@ -5,5 +5,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 export const E2E_TZ = 'Europe/Madrid';
 
 export const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-export const STATIC_PAGE = path.join(ROOT, 'web', '.e2e-dist', 'en-example', 'index.html');
-export const STATIC_URL = pathToFileURL(STATIC_PAGE).href;
+/** The page languages the example page is built in for the static projects (web/src/env.mjs PAGE_LOCALES). */
+export const PAGE_LOCALES = ['en', 'es'];
+/** The example page built in `locale` (e2e/global-setup.mjs). */
+export const staticPage = (locale = 'en') => path.join(ROOT, 'web', '.e2e-dist', `${locale}-example`, 'index.html');
+export const staticUrl = (locale = 'en') => pathToFileURL(staticPage(locale)).href;
+export const STATIC_PAGE = staticPage('en');
+export const STATIC_URL = staticUrl('en');

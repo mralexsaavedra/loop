@@ -8,7 +8,8 @@
  *   answering 400, which Chromium logs as "Failed to load resource") names it: `pageErrors.allow(/400/)`. */
 import { test as base, expect } from '@playwright/test';
 import { DEMO_DEFAULTS } from '../scripts/make-demo-data.mjs';
-import { STATIC_URL, E2E_TZ } from './paths.mjs';
+import { staticUrl, E2E_TZ } from './paths.mjs';
+import { en as dateEn, es as dateEs } from '../web/src/i18n/date-templates.mjs';
 
 export const DEMO_DAY = DEMO_DEFAULTS.end;
 
@@ -57,9 +58,16 @@ export async function loadPage(page, url) {
   return page.goto(url);
 }
 
-/** Open the static example page with a real load, optionally at a hash (`'#health'`, `'#detail/weight'`). */
+/** The page language of this project's static page (project metadata.pageLocale, default English). */
+export const staticLocale = () => test.info().project.metadata?.pageLocale || 'en';
+
+/** The page's own date names (web/src/i18n/date-templates.mjs, baked as I18N_DATE) in this project's language. */
+export const dateCopy = () => (staticLocale() === 'es' ? dateEs : dateEn);
+
+/** Open the static example page, in this project's language, with a real load, optionally at a hash
+ * (`'#health'`, `'#detail/weight'`). */
 export async function openStatic(page, hash = '') {
-  await loadPage(page, STATIC_URL + hash);
+  await loadPage(page, staticUrl(staticLocale()) + hash);
   await expect(page.locator('#t-home')).toBeVisible();
 }
 

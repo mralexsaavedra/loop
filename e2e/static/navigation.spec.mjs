@@ -1,6 +1,6 @@
 // Tabs, the dock, keyboard shortcuts and the URL hash on the static example page (docs/plan-page.md →
 // Tabs and sections, URL hash & navigation, Keyboard shortcuts).
-import { test, expect, openStatic, TABS, hashOf, settle } from '../fixtures.mjs';
+import { test, expect, openStatic, TABS, hashOf, settle, staticLocale } from '../fixtures.mjs';
 
 async function expectTab(page, key) {
   await expect(page.locator(`#t-${key}`)).toHaveAttribute('aria-current', 'page');
@@ -10,6 +10,11 @@ async function expectTab(page, key) {
     else await expect(panel).toBeHidden();
   }
 }
+
+test('the page is in this project\'s language', async ({ page }) => {
+  await openStatic(page);
+  expect(await page.evaluate(() => document.documentElement.lang)).toBe(staticLocale());
+});
 
 test('opens Home by default and writes #home', async ({ page }) => {
   await openStatic(page);

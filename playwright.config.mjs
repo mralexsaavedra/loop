@@ -64,6 +64,13 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
     },
     { name: 'webkit-static', testMatch: 'static/**/*.spec.mjs', use: { ...devices['iPhone 15'] } },
+    // the owner's own setup: an iPhone, the page in Spanish (the example page built with --locale es)
+    {
+      name: 'webkit-static-es',
+      testMatch: 'static/**/*.spec.mjs',
+      metadata: { pageLocale: 'es' },
+      use: { ...devices['iPhone 15'], locale: 'es-ES' },
+    },
     ...(LAN
       ? [
         { name: 'lan-setup', testMatch: 'lan/setup.spec.mjs', use: { ...devices['Pixel 7'], baseURL: LAN_URL } },
