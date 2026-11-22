@@ -21,7 +21,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import * as common from '../apple-health/sync-common.mjs'
+import * as common from '../../scripts/lib/sync-common.mjs'
 import { isMain } from '../../scripts/lib/is-main.mjs'
 import { dataPaths } from '../../lib/paths.mjs'
 

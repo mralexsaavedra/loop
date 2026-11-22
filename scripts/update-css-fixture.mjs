@@ -16,7 +16,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { parseCssRules, ruleDeclarationMap, canonicalSelector } from '../web/test/css-scan.mjs';
 import { isMain } from './lib/is-main.mjs';
-import { parseCli } from '../data/apple-health/sync-common.mjs';
+import { parseCli } from './lib/sync-common.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const FIXTURE_PATH = path.join(ROOT, 'web', 'test', 'fixtures', 'css-expected.json');

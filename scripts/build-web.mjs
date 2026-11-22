@@ -31,7 +31,7 @@ import { dataPaths } from '../lib/paths.mjs';
 import { resolveEnv } from '../web/src/env.mjs';
 import { isMain } from './lib/is-main.mjs';
 import { oldDocumentsWarning } from './lib/old-paths.mjs';
-import { parseCli } from '../data/apple-health/sync-common.mjs';
+import { parseCli } from './lib/sync-common.mjs';
 import { astroBuild } from './lib/astro-build.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));

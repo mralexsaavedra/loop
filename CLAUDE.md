@@ -104,7 +104,7 @@ policy) go in a gitignored `CLAUDE.local.md`, which Claude Code loads next to th
   them (the guard hook blocks it, [`docs/guard-hook.md`](docs/guard-hook.md)). `data/demo/` is tracked
   and must stay synthetic.
 - **Never hand-edit generated files** (`plan-tables.md`, `web/dist/`, `data/demo/extract/`, the service's
-  `food-calc.js` / `journal-calc.js`; table of sources and generators: [`docs/development.md`](docs/development.md))
+  `food-calc.js` / `journal-calc.js` / `profile-rules.js`; table of sources and generators: [`docs/development.md`](docs/development.md))
   and never re-type macros in `food-log.md`; change the source and regenerate.
 - **`knowledge/` is gitignored** except `knowledge/README.md` (third-party transcripts, personal use):
   never commit, publish or `git add -f` it.

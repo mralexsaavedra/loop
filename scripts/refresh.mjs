@@ -41,7 +41,7 @@ import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './lib/is-main.mjs';
-import { runCli } from '../data/apple-health/sync-common.mjs';
+import { runCli } from './lib/sync-common.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 

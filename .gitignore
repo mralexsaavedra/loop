@@ -21,7 +21,6 @@ data/apple-health/*
 !data/apple-health/extract.mjs
 # The Shortcut/Strava syncs and their tests are tooling (synthetic fixtures only, no personal
 # values).
-!data/apple-health/sync-common.mjs
 !data/apple-health/sync-shortcut.mjs
 !data/apple-health/sync-strava.mjs
 !data/apple-health/*.test.mjs

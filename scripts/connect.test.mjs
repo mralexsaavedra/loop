@@ -7,7 +7,7 @@ import http from 'node:http';
 import os from 'node:os';
 import path from 'node:path';
 import { main } from './connect.mjs';
-import { readIngestToken, readBaseUrl } from '../data/apple-health/sync-common.mjs';
+import { readIngestToken, readBaseUrl } from './lib/sync-common.mjs';
 
 const TOKEN = 't'.repeat(40);
 

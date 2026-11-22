@@ -362,8 +362,12 @@ A full-screen flow in the sheet, one question per screen: a `bare` sheet view wi
 The document may carry `sports` — `[{sport, minutes, perWeek}]`, one entry per sport.
 
 - **Sports** (`energy.mjs` `SPORTS`): strength, running, cycling, swimming, hybrid = HYROX / CrossFit, team,
-  yoga = yoga / pilates, other. The service keeps its own copy, `PROFILE_SPORTS`, pinned by a test.
-- **Limits**: minutes 15-600, 1-14 per week.
+  yoga = yoga / pilates, other.
+- **Limits**: minutes 15-600, 1-14 per week (`SPORT_MINUTES`, `SPORT_PER_WEEK`).
+- **Service copy**: the ingest service validates `PUT /food/profile` against `services/loop-ingest/src/profile-rules.js`,
+  GENERATED from `lib/profile/onboarding.mjs` `SERVER` (sex, activity levels, sports, day types, and the age, height,
+  weight and sport bounds of `energy.mjs`). Change the lib, then `npm run gen:profile-rules`; never hand-edit it
+  (`scripts/gen-profile-rules.test.mjs` fails while it is stale).
 - **Day type per session** (`dayTypeOfMinutes`, the same cut-offs as `daytype.mjs` `DETECT`):
 
   | Session length | Day type |

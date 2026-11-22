@@ -36,7 +36,7 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { dataPaths, displayPath, legacyPaths } from '../lib/paths.mjs';
-import { runCli } from '../data/apple-health/sync-common.mjs';
+import { runCli } from './lib/sync-common.mjs';
 import { isMain } from './lib/is-main.mjs';
 import { dataRootGuardError } from './lib/data-root-guard.mjs';
 

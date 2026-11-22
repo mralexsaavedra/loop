@@ -19,7 +19,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readBaseUrl, fetchJson, writeAtomic, runCli, windowEndingOn } from '../data/apple-health/sync-common.mjs';
+import { readBaseUrl, fetchJson, writeAtomic, runCli, windowEndingOn } from './lib/sync-common.mjs';
 import { isIsoDate } from '../lib/date.mjs';
 import { JOURNAL_BEHAVIORS, JOURNAL_LIMITS, journalCsv, parseJournalCsv } from '../lib/journal/journal.mjs';
 import { JOURNAL_FILE } from '../lib/journal/bake.mjs';

@@ -344,7 +344,7 @@ async function runCli(main, { usage, options = {}, argv = process.argv.slice(2),
   // (scripts/lib/data-root-guard.mjs, the same check npm run sync makes; imported only here, so a read-only
   // command such as generate.mjs does not depend on it)
   const guard = guardDataRoot
-    ? (await import('../../scripts/lib/data-root-guard.mjs')).dataRootGuardError({ repoRoot: REPO_ROOT, env: process.env })
+    ? (await import('./data-root-guard.mjs')).dataRootGuardError({ repoRoot: REPO_ROOT, env: process.env })
     : null;
   if (guard) {
     console.error(`ERROR: ${guard}`);

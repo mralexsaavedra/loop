@@ -51,6 +51,7 @@ import {
   FOOD_STORES, FOOD_UNITS, ENTRY_UNITS, FOOD_SOURCES, RECIPE_KINDS, REF_TYPES, FOOD_MEALS, FOOD_LIMITS as L, RECIPE_BASIC_UNITS,
   SETTINGS_GOALS, round1, roundMacros, productEntry, recipeBasis, recipeEntry, dayTotals, daySummaries, atwaterOk
 } from './food-calc.js'
+import { PROFILE_SEX, PROFILE_ACTIVITY, PROFILE_SPORTS, PROFILE_DAY_TYPES, PROFILE_LIMITS } from './profile-rules.js'
 import { createWindowLimiter } from './limits.js'
 import {
   JSON_BODY_LIMIT, httpError, send, isJson, readJson, validDate, hostAllowed, hostOfHeader, writeOriginOk, hasControlChars
@@ -261,22 +262,17 @@ export function validateSettings (body) {
   return out
 }
 
-// The onboarding document (PUT /food/profile). Coarse bounds only: the host sync and the build re-check the
-// targets against lib/nutrition/energy.mjs (the service is built from its own directory and cannot import lib/).
-const PROFILE_SEX = ['male', 'female']
-export const PROFILE_ACTIVITY = ['sedentary', 'light', 'active']
-const PROFILE_DAY_TYPES = ['rest', 'gym', 'bike', 'bikeLong']
-// lib/nutrition/energy.mjs SPORTS (a test pins the copy)
-export const PROFILE_SPORTS = ['strength', 'running', 'cycling', 'swimming', 'hybrid', 'team', 'yoga', 'other']
-
-/** The optional sports list: [{sport, minutes (15-600), perWeek (1-14)}], one entry per sport; any fault = 'sports'. */
+// The onboarding document (PUT /food/profile). Vocabularies and person bounds: profile-rules.js, GENERATED from
+// lib/profile/onboarding.mjs (the service is built from its own directory and cannot import lib/). The target
+// cells keep coarse bounds only: the host sync and the build re-check them against lib/nutrition/energy.mjs.
+/** The optional sports list: [{sport, minutes, perWeek}] within PROFILE_LIMITS, one entry per sport; any fault = 'sports'. */
 function profileSports (v) {
-  const ok = (x, lo, hi) => Number.isInteger(x) && x >= lo && x <= hi
+  const ok = (x, [lo, hi]) => Number.isInteger(x) && x >= lo && x <= hi
   if (!Array.isArray(v) || v.length > PROFILE_SPORTS.length) bad('sports')
   const seen = new Set()
   return v.map((s) => {
     if (!s || typeof s !== 'object' || Array.isArray(s) || Object.keys(s).some((k) => !['sport', 'minutes', 'perWeek'].includes(k))) bad('sports')
-    if (!PROFILE_SPORTS.includes(s.sport) || seen.has(s.sport) || !ok(s.minutes, 15, 600) || !ok(s.perWeek, 1, 14)) bad('sports')
+    if (!PROFILE_SPORTS.includes(s.sport) || seen.has(s.sport) || !ok(s.minutes, PROFILE_LIMITS.sportMinutes) || !ok(s.perWeek, PROFILE_LIMITS.sportPerWeek)) bad('sports')
     seen.add(s.sport)
     return { sport: s.sport, minutes: s.minutes, perWeek: s.perWeek }
   })
@@ -307,9 +303,9 @@ export function validateProfile (body, nowMs = Date.now()) {
   out.sex = oneOf(body.sex, 'sex', PROFILE_SEX)
   out.birthdate = birthDate(body.birthdate) ?? bad('birthdate')
   const age = ageAt(out.birthdate, nowMs)
-  if (age < 18 || age > 100) bad('birthdate')
-  out.heightCm = number(body.heightCm, 'heightCm', { min: 120, max: 230 })
-  out.weightKg = number(body.weightKg, 'weightKg', { min: 30, max: 250 })
+  if (age < PROFILE_LIMITS.age[0] || age > PROFILE_LIMITS.age[1]) bad('birthdate')
+  out.heightCm = number(body.heightCm, 'heightCm', { min: PROFILE_LIMITS.heightCm[0], max: PROFILE_LIMITS.heightCm[1] })
+  out.weightKg = number(body.weightKg, 'weightKg', { min: PROFILE_LIMITS.weightKg[0], max: PROFILE_LIMITS.weightKg[1] })
   out.activity = oneOf(body.activity, 'activity', PROFILE_ACTIVITY)
   if (body.sports !== undefined) out.sports = profileSports(body.sports)
   if (!Array.isArray(body.goals) || !body.goals.length || new Set(body.goals).size !== body.goals.length) bad('goals')

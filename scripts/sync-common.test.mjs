@@ -1,4 +1,4 @@
-/* Tests for the helpers shared by data/apple-health's sync scripts (Shortcut + Strava).
+/* Tests for scripts/lib/sync-common.mjs, the helpers shared by every sync script and generator CLI.
  * Pure functions only where possible; disk I/O tested against real temp files, SYNTHETIC
  * fixtures (no real personal values), no network. */
 import { test } from 'node:test';
@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
-import * as common from './sync-common.mjs';
+import * as common from './lib/sync-common.mjs';
 
 const {
   mergeCsv, fetchJson, fetchPages, resolveToken, readIngestToken, resolveBaseUrl, readBaseUrl, writeAtomic, DEFAULT_URL, ENV_FILE,
@@ -326,7 +326,7 @@ function runCliChild(body, args = []) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-runcli-'));
   try {
     const f = path.join(dir, 'cli.mjs');
-    const url = new URL('./sync-common.mjs', import.meta.url).href;
+    const url = new URL('./lib/sync-common.mjs', import.meta.url).href;
     fs.writeFileSync(f, `import { runCli } from ${JSON.stringify(url)};\nrunCli(${body}, { usage: 'Usage: cli' });\n`);
     return spawnSync(process.execPath, [f, ...args], { encoding: 'utf8' });
   } finally {

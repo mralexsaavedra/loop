@@ -14,6 +14,7 @@
     "build:example": "node scripts/build-web.mjs --mode example --locale en",
     "gen:food-calc": "node scripts/gen-food-calc.mjs",
     "gen:journal-calc": "node scripts/gen-journal-calc.mjs",
+    "gen:profile-rules": "node scripts/gen-profile-rules.mjs",
     "demo:data": "node scripts/make-demo-data.mjs",
     "golden:bake": "node scripts/golden-bake.mjs",
     "lint": "eslint .",

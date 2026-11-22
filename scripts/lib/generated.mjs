@@ -1,4 +1,5 @@
-/* The generator scripts' shared CLI step (scripts/gen-food-calc.mjs, scripts/gen-journal-calc.mjs): write a
+/* The generator scripts' shared CLI step (scripts/gen-food-calc.mjs, scripts/gen-journal-calc.mjs,
+ * scripts/gen-profile-rules.mjs): write a
  * generated file only when it changed, or check it without writing. Here, not in lib/build, because lib/
  * stays fs-free outside its readers (lib/fs-boundary.test.mjs). Tested in scripts/gen-food-calc.test.mjs
  * (the root suite's scripts/*.test.mjs glob). */
@@ -30,7 +31,7 @@ export function writeGenerated(path, source, { label, script, check = false }) {
   return 0;
 }
 
-/** The generators' shared CLI (gen-food-calc, gen-journal-calc): `--check` and `--help` only, parsed strictly
+/** The generators' shared CLI (gen-food-calc, gen-journal-calc, gen-profile-rules): `--check` and `--help` only, parsed strictly
  * by runCli (an unknown flag such as `--chek` or a stray argument exits 2 before anything is written). */
 export const GENERATOR_OPTIONS = { check: { type: 'boolean' } };
 export function generatorUsage(script, label) {

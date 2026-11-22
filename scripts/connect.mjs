@@ -3,7 +3,7 @@
  * answers GET /export/files with the token (a LOOP server installed with the images, docs/data-pipeline.md -> Coach
  * as a client of a LOOP server) and saves {url, token} in <data root>/server.json (mode 600, gitignored with the
  * data root), which every sync then reads after the environment and before services/loop-ingest/.env
- * (data/apple-health/sync-common.mjs). No more INGEST_URL / INGEST_TOKEN in every new terminal.
+ * (scripts/lib/sync-common.mjs). No more INGEST_URL / INGEST_TOKEN in every new terminal.
  *
  *   npm run connect -- <url>        the token from INGEST_TOKEN, else asked in the terminal (not echoed)
  *   npm run connect -- --forget     removes the saved server
@@ -17,7 +17,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { isMain } from './lib/is-main.mjs';
 import { dataRootGuardError } from './lib/data-root-guard.mjs';
-import { serverFileOf } from '../data/apple-health/sync-common.mjs';
+import { serverFileOf } from './lib/sync-common.mjs';
 import { displayPath } from '../lib/paths.mjs';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));

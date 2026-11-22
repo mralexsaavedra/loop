@@ -49,7 +49,7 @@ export async function readPublishedSeq (siteDir) {
 }
 
 // The refresh child's environment is an ALLOWLIST of what scripts/refresh.mjs, the syncs it runs and the page build
-// read (lib/paths.mjs, data/apple-health/sync-common.mjs, scripts/build-web.mjs): the data service's own secrets
+// read (lib/paths.mjs, scripts/lib/sync-common.mjs, scripts/build-web.mjs): the data service's own secrets
 // (POSTGRES_PASSWORD, STRAVA_CLIENT_SECRET / STRAVA_REFRESH_TOKEN, DB_*) never reach it; the syncs talk to this
 // service over INGEST_URL with INGEST_TOKEN only.
 export const CHILD_ENV_NAMES = Object.freeze(['PATH', 'HOME', 'USER', 'TZ', 'LANG', 'LANGUAGE', 'TMPDIR', 'INGEST_URL', 'INGEST_TOKEN', 'ASTRO_TELEMETRY_DISABLED', 'LOCALE', 'DATA_MODE', 'SHORTCUT_AUTOMATION'])

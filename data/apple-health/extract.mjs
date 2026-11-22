@@ -28,7 +28,7 @@ import path from 'node:path';
 import readline from 'node:readline';
 import { fileURLToPath } from 'node:url';
 import { isMain } from '../../scripts/lib/is-main.mjs';
-import { writeAtomic, runCli, withLock } from './sync-common.mjs';
+import { writeAtomic, runCli, withLock } from '../../scripts/lib/sync-common.mjs';
 import { dataPaths } from '../../lib/paths.mjs';
 // shared with sync-shortcut.mjs so export- and Shortcut-derived rows are formatted identically
 import { APPLE_WATCH_RE, derivedRestingHr, csvSource, pickEnergySource, READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER, workoutRow, day, num, minutesBetween, wristTempDate, readingRow, sleepRow, sleepNights, sleepStage } from '../../lib/extract/samples.mjs';

@@ -46,6 +46,7 @@ Playwright's browsers once: `npx playwright install chromium webkit` (on a bare 
 | `npm run demo:data` | Regenerate the synthetic demo extract `data/demo/extract/` (`scripts/make-demo-data.mjs`; `-- --end YYYY-MM-DD --days N --seed N`, `--days` a whole number 2-3650) |
 | `npm run gen:food-calc` | Regenerate `services/loop-ingest/src/food-calc.js` from `lib/nutrition/foodlog.mjs` (a test fails while it is stale) |
 | `npm run gen:journal-calc` | Regenerate `services/loop-ingest/src/journal-calc.js` from `lib/journal/journal.mjs` (a test fails while it is stale) |
+| `npm run gen:profile-rules` | Regenerate `services/loop-ingest/src/profile-rules.js` from `lib/profile/onboarding.mjs` (a test fails while it is stale) |
 
 The everyday commands (`npm run generate`, `npm run sync`, the extractor) are in [`CLAUDE.md`](../CLAUDE.md) and
 the README.
@@ -119,17 +120,23 @@ Never hand-edit them; change the source and regenerate:
 | `data/demo/extract/` | `scripts/make-demo-data.mjs` | `npm run demo:data` |
 | `services/loop-ingest/src/food-calc.js` | `lib/nutrition/foodlog.mjs` | `npm run gen:food-calc` |
 | `services/loop-ingest/src/journal-calc.js` | `lib/journal/journal.mjs` | `npm run gen:journal-calc` |
+| `services/loop-ingest/src/profile-rules.js` | `lib/profile/onboarding.mjs` | `npm run gen:profile-rules` |
 | `web/test/fixtures/css-expected.json` | the example build's CSS | `npm run test:css:update` |
 | `web/test/fixtures/bake-golden.*.json` | `web/src/bakes.mjs` | `npm run golden:bake -- --update` |
 
 A runnable `scripts/*.mjs` guards its CLI with `if (isMain(import.meta.url))` from `scripts/lib/is-main.mjs`
 (realpath compare, so symlinks and relative paths work; importing never runs main). The sync scripts,
 `scripts/build-web.mjs`, `data/nutrition/generate.mjs`, `data/apple-health/extract.mjs` and the dev scripts
-(`publish-manuals`, `make-demo-data`, `gen-food-calc`, `gen-journal-calc`, `update-css-fixture`) parse their
-flags with `parseCli` / `runCli` (`data/apple-health/sync-common.mjs`); `scripts/golden-bake.mjs` keeps its own
+(`publish-manuals`, `make-demo-data`, `gen-food-calc`, `gen-journal-calc`, `gen-profile-rules`, `update-css-fixture`) parse their
+flags with `parseCli` / `runCli` (`scripts/lib/sync-common.mjs`); `scripts/golden-bake.mjs` keeps its own
 parser with the same rules. `--help` prints the usage, and an unknown flag (a typo such as `--chek`, `--mod`
 or `--updte`), a flag without its value or a stray argument exits 2 before anything is read or written.
 Numeric flags are validated the same way (`make-demo-data --days abc` exits 2 instead of writing empty CSVs).
+
+`scripts/lib/` is the tooling kernel every CLI shares (`sync-common.mjs`, `is-main.mjs`, `data-root-guard.mjs`,
+`generated.mjs`). Dependencies between the tooling folders point one way: no non-test module under `scripts/`
+imports from `data/`, and `data/` imports from `scripts/` only through `scripts/lib/`
+(`scripts/tooling-boundary.test.mjs`; `lib/fs-boundary.test.mjs` keeps `lib/` from importing `data/`).
 
 ## Where the data files live
 

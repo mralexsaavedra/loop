@@ -31,7 +31,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
-import * as common from './sync-common.mjs'
+import * as common from '../../scripts/lib/sync-common.mjs'
 import { WORKOUTS_HEADER } from '../../lib/extract/samples.mjs'
 import * as zones from '../../lib/training/hr-zones.mjs'
 import { readProfileMaxHr } from '../../lib/profile/read.mjs'

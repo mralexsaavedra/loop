@@ -24,7 +24,7 @@ import { assertPlanStructure, buildNutrition, validateNutrition } from '../../li
 import { buildDayPlans, fmtFactor } from '../../lib/nutrition/scale.mjs';
 import { buildReference } from '../../lib/nutrition/reference.mjs';
 import { ingName } from '../../lib/nutrition/names.mjs';
-import { writeAtomic, runCli } from '../apple-health/sync-common.mjs';
+import { writeAtomic, runCli } from '../../scripts/lib/sync-common.mjs';
 import { dataPaths, displayPath } from '../../lib/paths.mjs';
 import { resolveLocale } from '../../lib/locale.mjs';
 

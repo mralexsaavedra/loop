@@ -7,7 +7,7 @@
  *
  * Called by every command that writes the data root: npm run sync (scripts/sync-all.mjs), import:health,
  * migrate:data-root, connect, documents, and the single sync scripts and extract.mjs through
- * runCli({ guardDataRoot: true }) (data/apple-health/sync-common.mjs). docs/data-pipeline.md -> The data root guard. */
+ * runCli({ guardDataRoot: true }) (scripts/lib/sync-common.mjs). docs/data-pipeline.md -> The data root guard. */
 import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';

@@ -36,7 +36,7 @@ import { spawn } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './lib/is-main.mjs';
 import { listZip, extractEntry } from './lib/zip.mjs';
-import { runCli, writeAtomic } from '../data/apple-health/sync-common.mjs';
+import { runCli, writeAtomic } from './lib/sync-common.mjs';
 import { dataPaths, displayPath } from '../lib/paths.mjs';
 import { dataRootGuardError } from './lib/data-root-guard.mjs';
 

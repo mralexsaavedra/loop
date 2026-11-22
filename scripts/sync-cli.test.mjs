@@ -1,4 +1,4 @@
-/* Every sync script shares one command line (data/apple-health/sync-common.mjs parseCli / runCli): --help
+/* Every sync script shares one command line (scripts/lib/sync-common.mjs parseCli / runCli): --help
  * prints its usage and exits 0; an unknown flag or a stray argument exits 2 before any request or write. Run
  * as child processes against an ingest URL nothing listens on, so a script that ignored the flag would fail
  * differently (and slowly). */

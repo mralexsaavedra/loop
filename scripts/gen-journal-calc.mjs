@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { SERVER } from '../lib/journal/journal.mjs';
 import { esmModule } from '../lib/build/esm-module.mjs';
 import { writeGenerated, generatorUsage, GENERATOR_OPTIONS } from './lib/generated.mjs';
-import { runCli } from '../data/apple-health/sync-common.mjs';
+import { runCli } from './lib/sync-common.mjs';
 import { isMain } from './lib/is-main.mjs';
 
 export const JOURNAL_CALC_PATH = fileURLToPath(new URL('../services/loop-ingest/src/journal-calc.js', import.meta.url));
