@@ -203,7 +203,7 @@
     if (id === 'weight') return q(T.weight.q, P.weight && P.weight.kg != null ? T.weight.hint : '', 'onb-q-weight') + input('weightKg', a.weightKg, { mode: 'decimal', suffix: 'kg', big: true, q: 'onb-q-weight' });
     if (id === 'activity') {
       var A = T.activity.options;
-      return q(T.activity.q) + cards('activity', 'radio', ['sedentary', 'light', 'active'].map(function (v) { return { value: v, name: A[v].name, desc: A[v].desc, on: a.activity === v }; }), T.activity.q);
+      return q(T.activity.q) + cards('activity', 'radio', Object.keys(E.NEAT).map(function (v) { return { value: v, name: A[v].name, desc: A[v].desc, on: a.activity === v }; }), T.activity.q);
     }
     if (id === 'sports') {
       return q(T.sports.q, T.sports.hint) + cards('sport', 'checkbox', Object.keys(T.sports.names).map(function (k) { return { value: k, name: T.sports.names[k], on: S.picks.indexOf(k) >= 0 }; }), T.sports.q);
