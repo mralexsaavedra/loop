@@ -129,6 +129,33 @@ test('CI builds both images for amd64 (no push) and smoke-tests a minimal compos
   assert.ok((fs.statSync(path.join(ROOT, 'scripts/image-smoke.sh')).mode & 0o111) !== 0, 'executable');
   for (const s of ['set -euo pipefail', 'docker/docker-compose.yml', 'build', 'up -d --wait', '/healthz', '/status.json', 'publishedAt', '102400', 'down -v', 'linux/amd64', 'INGEST_BIND=127.0.0.1', 'PLAN_WEB_BIND=127.0.0.1', 'trap ']) assert.ok(sh.includes(s), s);
   assert.doesNotMatch(sh, /docker (image )?push|docker builder prune|docker (image )?rm .*:1\.0\.0/);
+  // step 4: the browser smoke of the served page, on in CI
+  assert.match(sh, /if \[ "\$\{SMOKE_BROWSER:-0\}" = 1 \]; then\n(?:.*\n)*? {2}\(cd "\$\{ROOT\}" && E2E_DOCKER_URL="http:\/\/127\.0\.0\.1:\$\{WEB_PORT\}" npx playwright test\)/);
+  const images = ci.slice(ci.indexOf('\n  images:\n'));
+  assert.match(images, /- run: npx playwright install --with-deps chromium\n {6}- run: scripts\/image-smoke\.sh\n {8}env:\n(?:.*\n)*? {10}SMOKE_BROWSER: '1'/);
+});
+
+test('CI runs the browser E2E tests in Chromium and WebKit (job e2e, npm run test:e2e)', () => {
+  const ci = read('.github/workflows/ci.yml');
+  assert.match(ci, /^ {2}e2e:\n(?:.*\n)*? {6}- run: npx playwright install --with-deps chromium webkit\n {6}- run: npm run test:e2e$/m);
+  // the LAN projects run only with a database: the job has its Postgres service and the data service's dependencies
+  const job = ci.slice(ci.indexOf('\n  e2e:\n'), ci.indexOf('\n  postgres:\n'));
+  assert.match(job, /image: postgres:17-alpine@sha256:/);
+  assert.match(job, /TEST_DATABASE_URL: postgres:\/\//);
+  assert.match(job, /- run: npm --prefix services\/loop-ingest ci /);
+  const pkg = JSON.parse(read('package.json'));
+  assert.equal(pkg.scripts['test:e2e'], 'playwright test');
+  assert.match(pkg.devDependencies['@playwright/test'], /^\d+\.\d+\.\d+$/, 'pinned to an exact version');
+  assert.doesNotMatch(pkg.scripts.test, /playwright|e2e/, 'npm test stays browser-free');
+  const config = read('playwright.config.mjs');
+  // the Chromium projects of the static and the LAN specs
+  for (const name of ['static-phone', 'lan-phone']) assert.match(config, new RegExp(`name: '${name}'`), name);
+  // and their WebKit twins, on the WebKit iPhone profile (Playwright's devices['iPhone 15'] is a webkit device). The
+  // {0,240} window spans one project entry (name, testMatch, testIgnore, dependencies, use): wide enough for it, too
+  // short to reach the next entry's profile
+  for (const name of ['webkit-static', 'webkit-lan']) {
+    assert.match(config, new RegExp(`name: '${name}',[\\s\\S]{0,240}?devices\\['iPhone 15'\\]`), `${name} on the iPhone 15 profile`);
+  }
 });
 
 test('every checkout in the workflows drops the job token from .git/config (persist-credentials: false)', () => {

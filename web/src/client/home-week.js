@@ -176,8 +176,8 @@
       };
       var wakeLbl = fin(tn.nights) && TT.nights ? format(TT.nights, { n: tn.nights }) : TT.wake;
       var stale = HC.daysOld(tn.asOf) > HC.STALE_DAYS;
-      return '<div class="sc-card tn' + (stale ? ' sc-stale' : '') + '"' + HC.detailAttrs('tonight') +
-        ' aria-label="' + esc(format(TT.aria, { bed: clock(tn.bed), wake: clock(tn.wake) })) + '">' +
+      // named by its content (WCAG 2.5.3): "Tonight's sleep 23:24 Recommended bedtime 06:54 Usual wake …"
+      return '<div class="sc-card tn' + (stale ? ' sc-stale' : '') + '"' + HC.detailAttrs('tonight') + '>' +
         '<h3 class="tn-h">' + esc(TT.heading) + '</h3>' +
         '<div class="tn-row">' + end('moon', clock(tn.bed), TT.bed) + '<span class="tn-dash" aria-hidden="true"></span>' + end('alarm', clock(tn.wake), wakeLbl, TT.wakeState) + '</div></div>';
     }

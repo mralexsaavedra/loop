@@ -248,7 +248,7 @@ test('Enter or Space on a card opener opens its view', () => {
 test('range switch: W / M / 6M / 1Y, opens on M; the pressed button follows, the chart spans that many days ending at the viewer\'s today', () => {
   const s = setup();
   s.api.open('steps');
-  assert.match(s.host.innerHTML, /data-range="30" aria-pressed="true" aria-label="Month \(30 days\)">M</, 'opens on the month');
+  assert.match(s.host.innerHTML, /data-range="30" aria-pressed="true" aria-label="M, Month \(30 days\)">M</, 'opens on the month');
   for (const [r, lbl] of [['7', 'W'], ['182', '6M'], ['365', '1Y']]) assert.match(s.host.innerHTML, new RegExp(`data-range="${r}" aria-pressed="false"[^>]*>${lbl}<`));
   s.click(act('range', { 'data-range': '7' }));
   const html = s.host.innerHTML;

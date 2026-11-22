@@ -341,9 +341,15 @@ test('trendTone / metricRow: a ▲ ▼ is never grey — no good direction reads
   assert.equal(row('flat', 'flat'), 'flat •');
   assert.equal(row('up', 'good'), 'good ▲');
   // an opener row keeps its <li> a list item: the button role sits on an inner <div class="db-row">
-  const open = HC.metricRow({ key: 'weight', cls: 'db-stale', attrs: ' id="hl-w" data-detail="weight" role="button" tabindex="0" aria-haspopup="dialog"', aria: 'Weight', name: 'W', value: '1' });
-  assert.match(open, /^<li><div class="db-row db-stale" id="hl-w" data-detail="weight" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Weight"><svg class="db-ico"/);
+  const open = HC.metricRow({ key: 'weight', cls: 'db-stale', attrs: ' id="hl-w" data-detail="weight" role="button" tabindex="0" aria-haspopup="dialog"', name: 'W', value: '1' });
+  assert.match(open, /^<li><div class="db-row db-stale" id="hl-w" data-detail="weight" role="button" tabindex="0" aria-haspopup="dialog"><svg class="db-ico"/);
   assert.ok(open.endsWith('</span></div></li>'));
+  // named by its content, never an aria-label (WCAG 2.5.3); `sr` says the small lines in words after the value and
+  // hides the shown ones from assistive tech
+  const said = HC.metricRow({ key: 'weight', name: 'W', value: '1', unit: 'kg', base: '2', base2: '3 <b>', sr: '28 Sep · avg 2 & more' });
+  assert.ok(said.includes('<b>1</b><small>kg</small></span><span class="sr-only">28 Sep · avg 2 &amp; more</span><span class="db-base" aria-hidden="true">2</span><span class="db-base" aria-hidden="true">3 &lt;b&gt;</span></span></li>'), said);
+  assert.doesNotMatch(said, /aria-label/);
+  assert.ok(HC.metricRow({ key: 'weight', name: 'W', value: '1', base: '2' }).includes('<span class="db-base">2</span>'), 'no sr: the small line is read as shown');
   assert.match(HC.metricRow({ key: 'weight', name: 'W', value: '1' }), /^<li class="db-row"><svg[\s\S]*<\/li>$/, 'a row that opens nothing stays a plain <li>');
 });
 

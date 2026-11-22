@@ -22,10 +22,13 @@ A Strava / WHOOP-style profile, honest data only.
 
 - **Avatar button** (`web/src/components/Avatar.astro`): a round button in the top bar on every tab — left on a
   phone, at the right end beside Sync from 900 px. Shows the photo, else the initials, else a generic person
-  icon; ≥ 44px; NOT a tab.
+  icon; ≥ 44px; NOT a tab. Its name is "Open profile", or with initials "SS, open profile" (`openIni`: the name
+  starts with the text it shows, WCAG 2.5.3 Label in Name).
 - **The view**: `web/src/client/profile.js` (inlined before detail.js) registers `window.HCViews.profile`;
   detail.js renders any registered view in the same modal (focus, inert, Esc, Back).
-- **Deep link**: `#profile` (instead of `#detail/<metric>`).
+- **Deep link**: `#profile` (instead of `#detail/<metric>`). The sheet it opens on load can render before the LAN
+  settings answer (`HCSettings.ready()` still false), without the target weight field and the Language section;
+  when they arrive and the sheet is still open, profile.js draws it again (keeping the focused control), once.
 - **Focus trap**: the Tab trap also cycles through `<summary>` and a checked radio.
 - **Focused open**: `HCDetail.open(key, date, { focus: '<selector>' })` opens a view focused (and scrolled) on
   one of its controls instead of the close button.
@@ -339,6 +342,9 @@ A full-screen flow in the sheet, one question per screen: a `bare` sheet view wi
   sets its first error into that region in place, so it is announced (WCAG 4.1.3): "Pick one.", "Pick at least
   one.", a field's range, or on the summary the first blocking bound with its day ("Rest day: Below the safe
   minimum (1200 kcal).").
+- A field with no label of its own (the date, height and weight screens) is named by the screen's question
+  (`<h3 class="onb-q" id="onb-q-<screen>">`) plus its unit: `aria-labelledby="onb-q-height onb-heightCm-unit"`
+  ("How tall are you? cm").
 - The error `<small>` has an id (`onb-err-<field>`); the field (on a card screen, its first option) carries
   `aria-invalid="true"` and `aria-describedby` pointing at it, and focus moves there.
 - Summary grid: each cell's name includes its day type (a visually hidden prefix, "Rest day kcal"); every cell of a

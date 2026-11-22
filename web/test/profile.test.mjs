@@ -62,8 +62,10 @@ test('example build: ONE avatar button in the top bar (initials, no photo) openi
   const html = exampleHtml();
   const bar = topbar(html);
   assert.equal((html.match(/id="avatar-btn"/g) || []).length, 1);
-  assert.match(bar, /<button type="button" id="avatar-btn" class="avatar-btn" data-detail="profile" aria-haspopup="dialog" aria-label="Open profile">/);
-  assert.match(bar, /<span class="avatar-ini" aria-hidden="true">[A-Z]{1,2}<\/span>/);
+  // the name starts with the initials it shows (WCAG 2.5.3 Label in Name)
+  const ini = bar.match(/<span class="avatar-ini" aria-hidden="true">([A-Z]{1,2})<\/span>/);
+  assert.ok(ini, 'initials shown');
+  assert.ok(bar.includes(`<button type="button" id="avatar-btn" class="avatar-btn" data-detail="profile" aria-haspopup="dialog" aria-label="${ini[1]}, open profile">`));
   assert.doesNotMatch(bar, /<img/);
   const p = baked(html);
   assert.equal(p.photo, false);

@@ -198,7 +198,11 @@
   function onInput(e) {
     var id = idOf(e && e.target);
     if (!id) return;
+    // a search list redraws on typing (`input`) only: the `change` its blur fires when a result is pressed would
+    // replace that result between mousedown and mouseup, and the click would never pick it
+    var blur = e && e.type === 'change';
     if (id === 'fa-q' && S.sheet) {
+      if (blur) return;
       S.sheet.q = val('fa-q');
       S.sheet.hi = -1; // a new search starts without a highlight (Enter then picks the first match)
       setHtml('fa-list', listHtml());
@@ -217,7 +221,7 @@
       else if (qi) {
         // typing in an ingredient's search redraws only its list (the field keeps focus)
         var row = S.rform.rows[Number(qi[1])];
-        if (row && !rowPicked(row)) { row.q = val(id); setHtml('frf-list-' + qi[1], ingListHtml(Number(qi[1]), row.q)); }
+        if (row && !rowPicked(row) && !blur) { row.q = val(id); setHtml('frf-list-' + qi[1], ingListHtml(Number(qi[1]), row.q)); }
       }
       else if (mi) { switchRowMode(Number(mi[1])); updateRecipePreview(); }
       else updateRecipePreview();

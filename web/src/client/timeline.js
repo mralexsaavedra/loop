@@ -5,8 +5,8 @@
  * Each row = a coloured chip (icon + value: hours asleep; a workout's Relative Effort, else its
  * minutes), the uppercase name, and the details stacked on the right (bed / wake clock for sleep; the
  * minutes when the chip holds RE, and merged parts, for a workout — the extract has no workout start
- * times, so there is no start / end pair; "programmed" for the plan row). A workout row's accessible
- * name spells it out ("Run · RE 94 · 45 min"). Matching a programmed session
+ * times, so there is no start / end pair; "programmed" for the plan row). A row is named by its
+ * content; a workout's chip is read in words after the name ("Run RE 94 0:45"). Matching a programmed session
  * to a done workout is not done anywhere yet, so the plan row is only listed, never ticked.
  *
  * Classic script (is:inline, no module scope). The build bakes only the last few data days; the
@@ -50,12 +50,15 @@
   function icon(key) {
     return '<svg class="tl-ico" viewBox="0 0 24 24" aria-hidden="true">' + (ICON[key] || ICON.other) + '</svg>';
   }
-  // aria: an explicit label (the plan row: its focus can be longer than the ellipsised name)
-  function row(cls, link, ico, chip, name, side, sideCls, aria) {
-    return '<li class="tl-row ' + cls + '"' + link + (aria ? ' aria-label="' + esc(aria) + '"' : '') + '><span class="tl-chip">' + icon(ico) + '<b>' + esc(chip) + '</b></span>' +
-      '<span class="tl-name">' + esc(name) + '</span>' +
+  // A row is a list item holding the opener (<li><div role="button">: a list keeps only <li> children), named
+  // by its own content (WCAG 2.5.3 Label in Name: what it shows is what it is called). sr: the chip read in
+  // words after the name (a workout's "RE 94" or its duration): the chip's bare number is then hidden from the
+  // name, so it reads "Run RE 94 0:45" in the old label's order.
+  function row(cls, link, ico, chip, name, side, sideCls, sr) {
+    return '<li><div class="tl-row ' + cls + '"' + link + '><span class="tl-chip"' + (sr ? ' aria-hidden="true"' : '') + '>' + icon(ico) + '<b>' + esc(chip) + '</b></span>' +
+      '<span class="tl-name">' + esc(name) + '</span>' + (sr ? '<span class="sr-only">' + esc(sr) + '</span>' : '') +
       (side && side.length ? '<span class="tl-side' + (sideCls ? ' ' + sideCls : '') + '">' + side.map(function (x) { return '<span>' + esc(x) + '</span>'; }).join('') + '</span>' : '') +
-      '</li>';
+      '</div></li>';
   }
   // decimal hours (sleep-daily.csv bed / wake) -> "23:07"; past-midnight values wrap
   function clock(h) {
@@ -73,8 +76,8 @@
     if (!P || P.date !== today) return '';
     var kind = String(P.kind || 'gym').replace(/[^a-z]/g, '');
     var focus = P.focus || '';
-    return row('tl-prog tl-prog-' + kind, HC.detailAttrs('hoy-session'), kind, T.programmedChip, focus, [T.programmed], '',
-      focus ? T.programmedChip + ': ' + focus + ' · ' + T.programmed : '');
+    // named by its content: the whole focus is read even where the name is ellipsised
+    return row('tl-prog tl-prog-' + kind, HC.detailAttrs('hoy-session'), kind, T.programmedChip, focus, [T.programmed], '');
   }
 
   // DETAIL dense series value on `iso` ({start, v}: one slot per day), else null
@@ -124,8 +127,8 @@
       if (it.sessions > 1) side.push(format(T.parts, { n: it.sessions }));
       var mod = String(it.modality).replace(/[^a-z]/g, '');
       var name = T.modalities[mod] || mod;
-      var aria = [name].concat(hasRe ? [format(T.re, { n: num(it.re, 0) })] : [], [mins], it.sessions > 1 ? [side[side.length - 1]] : []).join(' · ');
-      list.push(row('tl-' + mod, HC.detailAttrs(modDetail(mod), day.date), mod, hasRe ? num(it.re, 0) : mins, name, side, 'tl-times', aria));
+      list.push(row('tl-' + mod, HC.detailAttrs(modDetail(mod), day.date), mod, hasRe ? num(it.re, 0) : mins, name, side, 'tl-times',
+        hasRe ? format(T.re, { n: num(it.re, 0) }) : mins));
     });
     return list;
   }

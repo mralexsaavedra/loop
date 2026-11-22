@@ -51,7 +51,7 @@
   // (`o.soFar`) is partial: "today, so far", no arrow. A row whose date is more than STALE_DAYS old
   // is greyed with "no recent data" and no arrow (decided at view time; `o.noStale` for a sparse
   // manual measurement dated in its own line). `o.id` = an hl-<key> anchor, `o.detail` = the detail
-  // sheet a tap opens. The date and the baseline are spelled out in the row's aria-label.
+  // sheet a tap opens. The date and the baseline are spelled out in the row's screen-reader words (HC.metricRow sr).
   function mrow(key, title, unit, o) {
     if (!fin(o.value)) throw new Error('no value');
     var age = o.date ? daysOld(o.date) : null;
@@ -62,33 +62,34 @@
     if (hm) unit = '';
     var show = function (v, signed) { return hm ? HC.hours(v, signed) : (signed && v > 0 ? '+' : '') + nf(v); };
     var value = o.text || show(o.value), u = unit ? ' ' + unit : '';
-    var base = '', arrow = null, aria = [title + ': ' + value + u + (o.date ? ', ' + (partial ? T.soFar : fmtD(o.date)) : '')];
+    // sr: the row's small line in words, read after the name and value (HC.metricRow: named by its content)
+    var base = '', arrow = null, sr = [o.date ? (partial ? T.soFar : fmtD(o.date)) : '', o.when || ''];
     if (fin(o.base)) {
       base = hm ? HC.hours(o.base) : nf(round(o.base, decOf(o.value)));
-      aria.push(format(o.baseTpl || T.avg30Tpl, { value: base + u }));
+      sr.push(format(o.baseTpl || T.avg30Tpl, { value: base + u }));
       if (!partial) {
         var rel = o.base ? (o.value - o.base) / Math.abs(o.base) : o.value - o.base;
         arrow = Math.abs(rel) < FLAT_SHARE ? 'flat' : rel > 0 ? 'up' : 'down';
       }
     } else if (fin(o.delta)) {
       base = 'Δ ' + show(hm ? o.delta : round(o.delta, 1), true) + (o.deltaUnit || '');
-      aria.push(format(T.deltaAriaTpl, { value: base.slice(2) }));
+      sr.push(format(T.deltaAriaTpl, { value: base.slice(2) }));
       arrow = o.delta === 0 ? 'flat' : o.delta > 0 ? 'up' : 'down';
     } else if (o.sub) {
       base = o.sub;
-      aria.push(o.sub);
+      sr.push(o.sub);
     }
     if (o.when) base = [o.when, base].filter(Boolean).join(' · ');
     if (partial) base = [base, T.soFar].filter(Boolean).join(' · ');
     if (stale) {
       base = T.staleNote;
       arrow = null;
-      aria.push(T.staleNote);
+      sr.push(T.staleNote);
     }
     var tone = arrow && arrow !== 'flat' && o.dir ? ((arrow === 'up') === (o.dir > 0) ? 'good' : 'bad') : 'flat';
-    if (arrow && T.dirs) aria.push(T.dirs[arrow]);
+    if (arrow && T.dirs) sr.push(T.dirs[arrow]);
     return HC.metricRow({ key: o.icon || key, cls: stale ? 'db-stale' : '', attrs: (o.id ? ' id="hl-' + o.id + '"' : '') + (o.detail ? HC.detailAttrs(o.detail) : ''),
-      aria: aria.join(' · '), name: title, value: value, unit: unit, arrow: arrow, tone: tone, base: base });
+      sr: parts(sr), name: title, value: value, unit: unit, arrow: arrow, tone: tone, base: base });
   }
   // Fitness age (SCORES.fitnessAge, lib/score/fitness-age.mjs) vs the chronological age (PROFILE.birthdate on
   // the viewer's clock): a full ring with the fitness age in whole years (or "< 25" / "> 75" at the
@@ -151,19 +152,19 @@
   // Entreno run / ride rows (HC.metricRow): ONE template for both lists — icon · the date (UPPERCASE) ·
   // the distance big on the right with the small lines under it (run: time · pace; ride: time · climb,
   // then a second line HR · effort · kJ — the ride's work is shown nowhere else). Nothing under the date.
-  // A run's HR, effort and watch dynamics stay in the aria label and the day the row opens (they would
+  // A run's HR, effort and watch dynamics stay in the screen-reader words and the day the row opens (they would
   // wrap to 2-3 lines at 390 px). A dash never stands in for a missing value: a field the source did not
   // record is left out (the ⓘ says which source records what). The row opens that day in its load view
   // (client/detail.js); without the detail sheet it is a plain row (no fake link).
   function parts(list) {
     return list.filter(function (x) { return x != null && x !== ''; }).join(' · ');
   }
-  // note = the run's numbers kept off the row (aria only); base2 = the ride's second small line
+  // note = the run's numbers kept off the row (screen-reader words only); base2 = the ride's second small line
   function sessionRow(key, icon, r, base, note, base2) {
     var name = HC.fmtDate(r.date);
     var value = r.dist != null ? nf(r.dist) : '—';
     return HC.metricRow({ key: icon, attrs: HC.detailAttrs(key, r.date), name: name, value: value, unit: r.dist != null ? 'km' : '', base: base, base2: base2 || '',
-      aria: parts([name, r.dist != null ? nf(r.dist) + ' km' : '', base, note]) });
+      sr: parts([base, note]) });
   }
   function runRow(r) {
     var RT = T.runningTable, u = T.trend.rhr.unit;
@@ -279,8 +280,8 @@
     var rows = [], met = 0, n = 0;
     function add(k, ok, o) {
       if (ok != null) { n++; if (ok) met++; }
-      var aria = TH.names[k] + ': ' + o.value + (o.unit ? ' ' + o.unit : '') + (ok == null ? '' : ', ' + (ok ? TH.met : TH.notMet)) + ' · ' + o.base;
-      rows.push(HC.metricRow({ key: o.icon, attrs: (o.detail ? HC.detailAttrs(o.detail) : '') + ' data-habit="' + k + '"', aria: aria,
+      var sr = parts([ok == null ? '' : ok ? TH.met : TH.notMet, o.base, o.base2]);
+      rows.push(HC.metricRow({ key: o.icon, attrs: (o.detail ? HC.detailAttrs(o.detail) : '') + ' data-habit="' + k + '"', sr: sr,
         name: TH.names[k], value: o.value, unit: o.unit, numCls: ok == null ? '' : ok ? 'hb-ok' : 'hb-off', base: o.base, base2: o.base2 }));
     }
     if (H.sleep) add('sleep', H.sleep.mean >= R.sleepH, { icon: 'sleep', detail: 'sleep', value: HC.hours(H.sleep.mean), unit: '', base: TH.ref.sleep });
@@ -408,9 +409,9 @@
       var u = T.trend.expenditure.unit;
       var net = (b.net < 0 ? '' : '+') + nf(b.net), netLbl = b.net < 0 ? TB.deficitLbl : TB.surplusLbl;
       body = '<p class="nb-win">' + esc(format(TB.winTpl, { from: fmtD(b.from), to: fmtD(b.to), days: b.days })) + '</p><ul class="db-list">' +
-        HC.metricRow({ key: 'food', name: TB.intakeLbl, value: nf(b.intakeAvg), unit: u, aria: TB.intakeLbl + ': ' + nf(b.intakeAvg) + ' ' + u }) +
-        HC.metricRow({ key: 'energy', attrs: HC.detailAttrs('energy'), name: TB.burnLbl, value: nf(b.tdeeAvg), unit: u, aria: TB.burnLbl + ': ' + nf(b.tdeeAvg) + ' ' + u }) +
-        HC.metricRow({ key: 'balance', name: netLbl, value: net, unit: u, aria: netLbl + ': ' + net + ' ' + u }) + '</ul>' +
+        HC.metricRow({ key: 'food', name: TB.intakeLbl, value: nf(b.intakeAvg), unit: u }) +
+        HC.metricRow({ key: 'energy', attrs: HC.detailAttrs('energy'), name: TB.burnLbl, value: nf(b.tdeeAvg), unit: u }) +
+        HC.metricRow({ key: 'balance', name: netLbl, value: net, unit: u }) + '</ul>' +
         (m ? splitHtml(m) : '');
     } else {
       var clause = E.lastIntake ? format(T.balanceNoIntakeNote.lastIntakeClause, { date: esc(fmtD(E.lastIntake)), ago: ago(E.lastIntake) }) : '';
@@ -487,7 +488,7 @@
     var tone = arrow === 'flat' ? 'flat' : (arrow === 'up') === (dir > 0) ? 'good' : 'bad';
     var easy = format(T.loadCards.easyTpl, { value: nf(low) + ' ' + unit });
     return HC.metricRow({ key: icon, name: name, value: nf(high), unit: unit, arrow: arrow, tone: tone, base: easy,
-      aria: name + ': ' + nf(high) + ' ' + unit + ' · ' + easyName + ': ' + nf(low) + ' ' + unit + (T.dirs ? ' · ' + T.dirs[arrow] : '') });
+      sr: parts([easyName + ': ' + nf(low) + ' ' + unit, T.dirs ? T.dirs[arrow] : '']) });
   }
 
   render();

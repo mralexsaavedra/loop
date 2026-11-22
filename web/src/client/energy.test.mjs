@@ -63,7 +63,9 @@ test('today: the latest level big, an "estimate" label, the intraday curve from 
   assert.equal((d.match(/[ML]/g) || []).length, 5);
   assert.match(h, /de-mid/, '55 = the middle band colour');
   assert.match(h, /From 72 at 07:00/);
-  assert.match(h, /aria-label="Energy bank estimate 55 of 100, latest hour 10:00/);
+  // named by its content (no aria-label): "Energy bank estimate 55 of 100, latest hour 10:00 …"
+  assert.doesNotMatch(h, /aria-label/);
+  assert.match(h, /<b class="en-num">55<\/b><\/span><span class="sr-only">of 100, latest hour<\/span><span class="tn-lbl">10:00<\/span>/);
   assert.doesNotMatch(h, /<script|https?:/);
 });
 

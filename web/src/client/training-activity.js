@@ -139,7 +139,7 @@
   function rangeHtml() {
     return '<div class="dt-range act-range" role="group" aria-label="' + esc(T.rangeLabel) + '">' + PERIODS.map(function (r) {
       var k = RANGE_KEY[r];
-      return '<button type="button" data-act-range="' + r + '" aria-pressed="' + (r === range ? 'true' : 'false') + '" aria-label="' + esc(T.rangesLong[k]) + '">' + esc(T.ranges[k]) + '</button>';
+      return '<button type="button" data-act-range="' + r + '" aria-pressed="' + (r === range ? 'true' : 'false') + '" aria-label="' + esc(T.ranges[k] + ', ' + T.rangesLong[k]) + '">' + esc(T.ranges[k]) + '</button>';
     }).join('') + '</div>';
   }
 

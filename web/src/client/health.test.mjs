@@ -150,7 +150,7 @@ test('body section shows waist with its measurement date and change since the fi
   });
   assert.match(html, /<span class="db-name">Waist<\/span>/);
   assert.match(html, /85.2<\/b><small>cm<\/small><span class="db-arr db-good" aria-hidden="true">▼<\/span>/);
-  assert.match(html, /<span class="db-base">1 Jun · Δ -2.8 cm<\/span>/, 'measurement date + change since the first reading');
+  assert.match(html, /(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>1 Jun · Δ -2.8 cm<\/span>/, 'measurement date + change since the first reading');
   assert.doesNotMatch(html, /No waist measurements yet/);
 });
 
@@ -173,20 +173,20 @@ test('cycling section: one list row per ride (newest first): icon · date with H
   });
   assert.match(html, /<section class="hs-sec hs-sec-cycling" id="hl-cycling" aria-labelledby="hs-h-cycling"><div class="hs-head"><h3 class="hs-lbl" id="hs-h-cycling">Cycling<\/h3><button type="button" class="hs-i" data-hs-info="hs-info-cycling"/);
   assert.doesNotMatch(html, /<table|run-tbl/, 'no tables left');
-  const rows = [...html.slice(html.indexOf('id="hl-cycling"')).matchAll(/<li class="db-row"[^>]*><svg class="db-ico"[^>]*>[\s\S]*?<\/svg><span class="db-name">([^<]+)(?:<small class="db-note">([^<]*)<\/small>)?<\/span><span class="db-vals"><span class="db-val"><b>([^<]+)<\/b>(?:<small>([^<]*)<\/small>)?<\/span>(?:<span class="db-base">([^<]*)<\/span>)?/g)].map((m) => m.slice(1));
+  const rows = [...html.slice(html.indexOf('id="hl-cycling"')).matchAll(/<li class="db-row"[^>]*><svg class="db-ico"[^>]*>[\s\S]*?<\/svg><span class="db-name">([^<]+)(?:<small class="db-note">([^<]*)<\/small>)?<\/span><span class="db-vals"><span class="db-val"><b>([^<]+)<\/b>(?:<small>([^<]*)<\/small>)?<\/span>(?:(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>([^<]*)<\/span>)?/g)].map((m) => m.slice(1));
   // ONE row template with the runs: the small lines under the value, nothing under the date
   assert.deepEqual(rows[0], ['Wed 10 Jun', undefined, '40.25', 'km', '1:30 · ↑412 m']);
   // a ride's second small line: HR · effort · kJ (the work is visible on the row, grouped by HC.nf)
-  assert.match(html, /<span class="db-base">1:30 · ↑412 m<\/span><span class="db-base">141 bpm · Effort 96 · 1,310 kJ<\/span><\/span><\/li>/);
-  assert.match(html, /aria-label="Wed 10 Jun · 40.25 km · 1:30 · ↑412 m · 141 bpm · Effort 96 · 1,310 kJ"/, 'and in the aria label');
-  assert.doesNotMatch(html.slice(html.indexOf('Thu 4 Jun')).split('</li>')[0], /class="db-base">[^<]*<\/span><span class="db-base">/, 'nothing recorded: no empty second line');
+  assert.match(html, /(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>1:30 · ↑412 m<\/span>(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>141 bpm · Effort 96 · 1,310 kJ<\/span><\/span><\/li>/);
+  assert.match(html, /<b>40.25<\/b><small>km<\/small><\/span><span class="sr-only">1:30 · ↑412 m · 141 bpm · Effort 96 · 1,310 kJ<\/span>/, 'and in the screen-reader words after the value');
+  assert.doesNotMatch(html.slice(html.indexOf('Thu 4 Jun')).split('</li>')[0], /class="db-base">[^<]*<\/span>(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>/, 'nothing recorded: no empty second line');
   assert.deepEqual(rows[1], ['Thu 4 Jun', undefined, '—', undefined, '1:00'], 'missing fields are left out, never 0; no distance = a dash, no unit');
   const info = html.match(/<div class="hs-info" id="hs-info-cycling" hidden>([\s\S]*?)<\/div>/)[1];
   assert.match(info, /<b>12<\/b> rides/);
   assert.ok(html.indexOf('hl-running') < html.indexOf('hl-cycling'), 'cycling follows running');
 });
 
-test('running rows (text diet): date, distance, time + pace only; HR, effort, climb and the watch dynamics move to the opened day (aria keeps them)', () => {
+test('running rows (text diet): date, distance, time + pace only; HR, effort, climb and the watch dynamics move to the opened day (the screen-reader words keep them)', () => {
   const html = renderWith({
     body: none, activity: none, energy: none, recovery: none, loadRecovery: none, cycling: none,
     running: { hasData: true, count: 5, sessions: [
@@ -194,11 +194,13 @@ test('running rows (text diet): date, distance, time + pace only; HR, effort, cl
       { date: '2026-06-20', dist: null, time: '0:30', pace: null, hrAvg: null, re: null, elev: null, power: 240, gct: 250, vosc: 10, stride: 1.1 },
     ] },
   });
-  assert.match(html, /<span class="db-name">Mon 22 Jun<\/span><span class="db-vals"><span class="db-val"><b>7.7<\/b><small>km<\/small><\/span><span class="db-base">0:41 · 5:18\/km<\/span>/);
-  assert.match(html, /<span class="db-name">Sat 20 Jun<\/span><span class="db-vals"><span class="db-val"><b>—<\/b><\/span><span class="db-base">0:30<\/span>/, 'no distance: no pace');
+  assert.match(html, /<span class="db-name">Mon 22 Jun<\/span><span class="db-vals"><span class="db-val"><b>7.7<\/b><small>km<\/small><\/span>(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>0:41 · 5:18\/km<\/span>/);
+  assert.match(html, /<span class="db-name">Sat 20 Jun<\/span><span class="db-vals"><span class="db-val"><b>—<\/b><\/span>(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>0:30<\/span>/, 'no distance: no pace');
   assert.doesNotMatch(html.slice(html.indexOf('id="hl-running"')), /db-note/, 'no small line under the date');
-  assert.match(html, /aria-label="Mon 22 Jun · 7.7 km · 0:41 · 5:18\/km · 152 bpm · Effort 57 · ↑35 m"/);
-  assert.match(html, /aria-label="Sat 20 Jun · 0:30 · 240 W · GCT 250 ms · Osc\. 10 cm · Stride 1.1 m"/);
+  // named by the row's content: the date and distance shown, then the rest in screen-reader words
+  assert.match(html, /<span class="db-name">Mon 22 Jun<\/span><span class="db-vals"><span class="db-val"><b>7.7<\/b><small>km<\/small><\/span><span class="sr-only">0:41 · 5:18\/km · 152 bpm · Effort 57 · ↑35 m<\/span>/);
+  assert.match(html, /<span class="db-name">Sat 20 Jun<\/span><span class="db-vals"><span class="db-val"><b>—<\/b><\/span><span class="sr-only">0:30 · 240 W · GCT 250 ms · Osc\. 10 cm · Stride 1.1 m<\/span>/);
+  assert.doesNotMatch(html, /db-row[^>]*aria-label/, 'no label replaces what the row shows');
   assert.equal((html.match(/<path d="M6 21l3.5-5/g) || []).length, 2, 'the run icon on every run row');
   assert.match(html.match(/<div class="hs-info" id="hs-info-running" hidden>([\s\S]*?)<\/div>/)[1], /<b>5<\/b> runs/);
 });
@@ -217,7 +219,7 @@ test('load vs recovery: weekly bars (strain blue) in a card, HRV and resting HR 
   assert.ok(html.includes('<div class="wbar"'), 'a week with load');
   assert.match(html, /<div class="wbar"[^>]*><span class="wbar-v">10<\/span><span class="wbar-t"><i style="height:100%"><\/i><\/span><\/div>/);
   assert.match(html, /<div class="wbar zero"[^>]*><span class="wbar-v">0<\/span><span class="wbar-t"><i style="height:0%"><\/i><\/span><\/div>/);
-  assert.match(html, /<span class="db-name">HRV · higher-load weeks<\/span><span class="db-vals"><span class="db-val"><b>50.8<\/b><small>ms<\/small><span class="db-arr db-bad" aria-hidden="true">▼<\/span><\/span><span class="db-base">easy weeks 55.5 ms<\/span>/, 'lower HRV in heavier weeks: ▼ orange');
+  assert.match(html, /<span class="db-name">HRV · higher-load weeks<\/span><span class="db-vals"><span class="db-val"><b>50.8<\/b><small>ms<\/small><span class="db-arr db-bad" aria-hidden="true">▼<\/span><\/span>(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>easy weeks 55.5 ms<\/span>/, 'lower HRV in heavier weeks: ▼ orange');
   assert.match(html, /<span class="db-name">resting HR · higher-load<\/span><span class="db-vals"><span class="db-val"><b>54.4<\/b><small>bpm<\/small><span class="db-arr db-flat" aria-hidden="true">•<\/span>/, 'same resting HR: grey dot');
   assert.doesNotMatch(html, /dash-card|class="hsub"/, 'no tiles, no sub-headings left');
 });
@@ -264,9 +266,9 @@ test('every Salud trend card opens its detail view; run / ride rows open that da
   };
   const html = renderAt(H, '2026-07-01', { detail: true });
   const keys = ['rhr', 'hrv', 'vo2max', 'walkingHr', 'respiratory', 'wristTemp', 'sleep', 'weight', 'bodyfat', 'lean', 'waist', 'steps', 'exercise', 'distance', 'flights', 'energy'];
-  for (const k of keys) assert.match(html, new RegExp(`<li><div class="db-row"(?: id="hl-\\w+")? data-detail="${k}" role="button" tabindex="0" aria-haspopup="dialog" aria-label="`), k);
-  assert.match(html, /<li><div class="db-row" data-detail="load-run" data-date="2026-06-22" role="button" tabindex="0" aria-haspopup="dialog" aria-label="Mon 22 Jun · 7.7 km · /);
-  assert.match(html, /<li><div class="db-row" data-detail="load-bike" data-date="2026-06-10" role="button" tabindex="0" aria-haspopup="dialog" aria-label="/);
+  for (const k of keys) assert.match(html, new RegExp(`<li><div class="db-row"(?: id="hl-\\w+")? data-detail="${k}" role="button" tabindex="0" aria-haspopup="dialog">`), k);
+  assert.match(html, /<li><div class="db-row" data-detail="load-run" data-date="2026-06-22" role="button" tabindex="0" aria-haspopup="dialog"><svg class="db-ico"[^>]*>[\s\S]*?<\/svg><span class="db-name">Mon 22 Jun<\/span>/);
+  assert.match(html, /<li><div class="db-row" data-detail="load-bike" data-date="2026-06-10" role="button" tabindex="0" aria-haspopup="dialog"><svg class="db-ico"[^>]*>[\s\S]*?<\/svg><span class="db-name">Wed 10 Jun<\/span>/);
   assert.doesNotMatch(renderAt(H, '2026-07-01'), /data-detail/, 'no detail sheet baked: plain cards and rows');
 });
 
@@ -276,10 +278,10 @@ test('activity: headline = the latest day with its date, "so far" when it is tod
     activity: { hasData: true, steps: { latest: 9039, latestDate: '2026-06-30', avg30: 8500, days30: 31, d30: 300, spark: sp } },
   };
   const past = renderAt(H, '2026-07-02');
-  assert.match(past, /9,039<\/b><small>steps<\/small><span class="db-arr db-good" aria-hidden="true">▲<\/span><\/span><span class="db-base">8,500<\/span>/);
-  assert.match(past, /aria-label="Steps: 9,039 steps, 30 Jun · 30-day avg 8,500 steps · above"/);
+  assert.match(past, /9,039<\/b><small>steps<\/small><span class="db-arr db-good" aria-hidden="true">▲<\/span><\/span>(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>8,500<\/span>/);
+  assert.match(past, /<span class="sr-only">30 Jun · 30-day avg 8,500 steps · above<\/span>/);
   const today = renderAt(H, '2026-06-30');
-  assert.match(today, /9,039<\/b><small>steps<\/small><\/span><span class="db-base">8,500 · today, so far<\/span>/, 'a partial day: no arrow');
+  assert.match(today, /9,039<\/b><small>steps<\/small><\/span>(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>8,500 · today, so far<\/span>/, 'a partial day: no arrow');
 });
 
 test('recovery: resting HR / HRV / sleep lead with the newest value, the 30-day baseline under it; rows carry hl-<key> anchors for the health monitor', () => {
@@ -295,11 +297,11 @@ test('recovery: resting HR / HRV / sleep lead with the newest value, the 30-day 
     },
   };
   const html = renderAt(H, '2026-07-01');
-  for (const k of ['rhr', 'hrv', 'respiratory', 'wristTemp']) assert.match(html, new RegExp(`<li class="db-row" id="hl-${k}" aria-label="`), k);
+  for (const k of ['rhr', 'hrv', 'respiratory', 'wristTemp']) assert.match(html, new RegExp(`<li class="db-row" id="hl-${k}"><svg class="db-ico"`), k);
   assert.match(html, /<section class="hs-sec hs-sec-sleep" id="hl-sleep"/, 'sleep: the section is the anchor');
-  assert.match(html, /71<\/b><small>ms<\/small><span class="db-arr db-good" aria-hidden="true">▲<\/span><\/span><span class="db-base">60<\/span>/);
-  assert.match(html, /aria-label="HRV: 71 ms, 30 Jun · 30-day avg 60 ms · above"/);
-  assert.match(html, /6:24<\/b><span class="db-arr db-bad" aria-hidden="true">▼<\/span><\/span><span class="db-base">7:12<\/span>/);
+  assert.match(html, /71<\/b><small>ms<\/small><span class="db-arr db-good" aria-hidden="true">▲<\/span><\/span>(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>60<\/span>/);
+  assert.match(html, /<span class="db-name">HRV<\/span><span class="db-vals"><span class="db-val"><b>71<\/b><small>ms<\/small>[\s\S]*?<\/span><span class="sr-only">30 Jun · 30-day avg 60 ms · above<\/span>/);
+  assert.match(html, /6:24<\/b><span class="db-arr db-bad" aria-hidden="true">▼<\/span><\/span>(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>7:12<\/span>/);
   assert.match(html, /30-night avg 7:12/);
   assert.match(html, /52<\/b><small>bpm<\/small><span class="db-arr db-bad" aria-hidden="true">▲<\/span>/, 'resting HR above its baseline is the bad way');
   assert.match(html, /14.8<\/b><small>brpm<\/small><span class="db-arr db-neutral"/, 'a change signal has no good direction: a neutral (never grey) arrow');
@@ -333,8 +335,8 @@ test('energy: expenditure headline = the newest day TDEE with its date; 30-day a
     body: none, activity: none, running: none, recovery: none, loadRecovery: none,
     energy: { hasData: true, tdeeLatest: 2600, tdeeLatestDate: '2026-06-29', tdeeAvg: 2400, tdeeDays: 30, spark: sp, balance: null, intakeDays: 0 },
   }, '2026-07-01');
-  assert.match(html, /2,600<\/b><small>kcal<\/small><span class="db-arr db-neutral" aria-hidden="true">▲<\/span><\/span><span class="db-base">2,400<\/span>/, 'no good direction: a neutral --ink arrow, never grey');
-  assert.match(html, /aria-label="Daily expenditure: 2,600 kcal, 29 Jun · 30-day avg 2,400 kcal/);
+  assert.match(html, /2,600<\/b><small>kcal<\/small><span class="db-arr db-neutral" aria-hidden="true">▲<\/span><\/span>(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>2,400<\/span>/, 'no good direction: a neutral --ink arrow, never grey');
+  assert.match(html, /<span class="sr-only">29 Jun · 30-day avg 2,400 kcal · above<\/span>/);
 });
 
 test('resilience: a non-finite avg30 / d30 never prints NaN or Infinity; one broken trend never blanks the tab', () => {
@@ -384,10 +386,11 @@ test('a Salud row whose newest value is more than 3 days old is greyed with "no 
   assert.ok(!rhr.includes(enHealth.staleNote));
   const hrv = row('HRV'); // 4 days old
   assert.match(hrv, /^<li class="db-row db-stale" id="hl-hrv"/);
-  assert.ok(hrv.includes('<span class="db-base">' + enHealth.staleNote + '</span>'));
+  assert.ok(hrv.includes('<span class="db-base" aria-hidden="true">' + enHealth.staleNote + '</span>'), 'shown, and said in the screen-reader words');
+  assert.match(hrv, new RegExp(`<span class="sr-only">[^<]* · ${enHealth.staleNote}</span>`));
   assert.doesNotMatch(hrv, /db-arr/);
   assert.match(row('Weight'), /^<li class="db-row db-stale"/);
-  assert.match(row('Steps'), /^<li class="db-row"[^>]*aria-label/, 'today is fresh');
+  assert.match(row('Steps'), /^<li class="db-row"[^>]*><svg[\s\S]*<span class="sr-only">today, so far · /, 'today is fresh');
   assert.doesNotMatch(row('Steps'), /db-stale/);
   // waist is a sparse manual measurement dated in its own line: never greyed by this rule
   assert.ok(!row('Waist').includes('db-stale'));
@@ -404,7 +407,7 @@ test('Fitness groups VO₂max (Δ since the first reading) and walking HR, moved
   renderAt(H, '2026-07-01', { out, detail: true });
   const sec = (k) => { const i = out.health.indexOf(`id="hl-${k}"`); return i === -1 ? '' : out.health.slice(i, out.health.indexOf('</section>', i)); };
   assert.match(sec('fitness'), /<h3 class="hs-lbl" id="hs-h-fitness">Fitness<\/h3>/);
-  assert.match(sec('fitness'), /data-detail="vo2max"[\s\S]*45.2<\/b><small>ml\/kg\/min<\/small><span class="db-arr db-good" aria-hidden="true">▲<\/span><\/span><span class="db-base">Δ \+1.2<\/span>/);
+  assert.match(sec('fitness'), /data-detail="vo2max"[\s\S]*45.2<\/b><small>ml\/kg\/min<\/small><span class="db-arr db-good" aria-hidden="true">▲<\/span><\/span>(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>Δ \+1.2<\/span>/);
   assert.match(sec('fitness'), /data-detail="walkingHr"[\s\S]*96<\/b><small>bpm<\/small><span class="db-arr db-good" aria-hidden="true">▼<\/span>/, 'walking HR down is the good way');
   assert.doesNotMatch(sec('recovery'), /vo2max|walkingHr/, 'no longer under Recovery');
   assert.ok(out.health.indexOf('id="hl-recovery"') < out.health.indexOf('id="hl-fitness"'));
@@ -441,8 +444,8 @@ test('sleep consistency: % nights on target, ±spread, bedtime / wake as rows th
   const html = renderAt(H, '2026-07-01', { detail: true });
   assert.match(html, /<span class="db-name">nights ≥ 7:30<\/span><span class="db-vals"><span class="db-val"><b>40<\/b><small>%<\/small>/);
   assert.match(html, /<b>±0:36<\/b>/);
-  assert.match(html, /<b>23:40<\/b><\/span><span class="db-base">±25′<\/span>/);
-  assert.match(html, /<b>07:05<\/b><\/span><span class="db-base">±18′<\/span>/);
+  assert.match(html, /<b>23:40<\/b><\/span>(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>±25′<\/span>/);
+  assert.match(html, /<b>07:05<\/b><\/span>(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>±18′<\/span>/);
   assert.equal((html.match(/data-detail="sleep"/g) || []).length, 5);
 });
 
@@ -549,7 +552,7 @@ test('fitness age: a ring with the fitness age, the years younger than the chron
   assert.ok(sec.includes('VO₂max 47.2 ml/kg/min · 28 Jun · Demo &lt;Watch&gt;'), 'its VO₂max, date and (escaped) source');
   assert.match(sec, /data-detail="fitnessAge"[\s\S]*Chronological age<\/span>[\s\S]*<b>36<\/b><small>years<\/small>/);
   // the 90-day trend row: 31.4 vs 33.6 -> Δ −2.2, lower is better
-  assert.match(sec, /Fitness age, 90 days<\/span>[\s\S]*<b>31<\/b><small>years<\/small><span class="db-arr db-good" aria-hidden="true">▼<\/span><\/span><span class="db-base">Δ -2.2<\/span>/);
+  assert.match(sec, /Fitness age, 90 days<\/span>[\s\S]*<b>31<\/b><small>years<\/small><span class="db-arr db-good" aria-hidden="true">▼<\/span><\/span>(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>Δ -2.2<\/span>/);
   assert.ok(sec.includes(T.noteHtml), 'the ⓘ cites the reference');
   assert.ok(sec.indexOf('class="dial fa') < sec.indexOf('data-detail="vo2max"'), 'the ring leads the section');
 });

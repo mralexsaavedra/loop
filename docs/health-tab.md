@@ -97,7 +97,9 @@ What it shows: one row per metric — the newest value with its 30-day context. 
 - **Stale**: a row whose newest value is more than `STALE_DAYS` (3, `lib/stale.mjs`) before the viewer's
   today is greyed (`db-stale`) with "no recent data" (`sin datos recientes`) and no marker. Waist, dated
   in its own line, is exempt (a sparse manual measurement).
-- **Accessibility**: the date, the baseline and the direction word are in the row's `aria-label`.
+- **Accessibility**: a row is named by its own content (name + value: WCAG 2.5.3 Label in Name, no
+  `aria-label`); the date, the baseline and the direction word follow as screen-reader-only words
+  (`HC.metricRow` `sr`), which stand in for the shown small line.
 - **Robustness**: a non-finite value is never printed; a row that throws is skipped, never blanking the tab.
 
 ### Value sources
@@ -382,7 +384,7 @@ What it shows: RECENT-RUNS list rows, newest first.
 - Row (`HC.metricRow`): icon · the date (UPPERCASE) · the distance big on the right with time and pace =
   time / distance (none without a distance) under it. Same row budget as rides (`RECENT_SESSIONS_SHOWN`, 8).
 - Text diet: no small line under the date. Avg HR, relative effort and elevation are in the row's
-  `aria-label` and the day it opens; the watch running dynamics (power, GCT, vertical osc, stride) in that
+  screen-reader words (`HC.metricRow` `sr`) and the day it opens; the watch running dynamics (power, GCT, vertical osc, stride) in that
   day's panel (`docs/detail-views.md`).
 - Running dynamics are LEFT-joined by date from `running-daily.csv` (export.xml only): a Strava-only run
   simply has none; a dynamics-only day never adds a run; dynamics below 5 km/h (`RUN_MIN_KMH`) are walks /
@@ -398,7 +400,7 @@ run and bike carry equal weight.
 - Source: `workouts.csv` rows of any Cycling type (Watch rides and `sync:strava` rides).
 - ONE row template: nothing under the date; the distance with time (Strava moving time / Watch duration)
   and elevation gain under it, then a second small line avg HR · relative effort · kJ (`base2`; the ride's
-  work is shown nowhere else, so it stays on the row). All of it also in the row's `aria-label`.
+  work is shown nowhere else, so it stays on the row). All of it also in the row's screen-reader words.
 - Ride count and source notes in the section's ⓘ; a row opens that day in `load-bike`.
 - Same-day merge, under the shared same-day rule (`DISPLAY_RULE`: stubs dropped, the Strava copy wins over
   a Watch copy):

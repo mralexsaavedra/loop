@@ -139,19 +139,16 @@
     var h = o.head, run = o.run;
     var tag = run ? TS.inProgress : h.r.inc ? TS.incomplete : '';
     var pct = run ? runPct(run) : null;
-    var aria = run
-      ? [pct != null ? format(TS.ariaRunPct, { pct: pct }) : TS.ariaRun, h ? format(TS.aria, { value: h.r.score, date: dayWord(h.date) }) : '']
-      : [format(TS.aria, { value: h.r.score, date: dayWord(h.date) })];
     var opens = o.sel || (h && !run ? h.date : null);
     var left = run
       ? (pct != null ? '<div class="tn-end ns-now"><span class="tn-time"><b class="en-num">' + esc(String(pct)) + '<small>%</small></b></span>' +
         '<span class="tn-lbl">' + esc(TS.runLbl) + '</span></div>' : '')
-      : '<div class="tn-end"><span class="tn-time"><b class="en-num">' + esc(String(h.r.score)) + '<small>%</small></b></span>' +
+      : '<div class="tn-end"><span class="tn-time"><b class="en-num">' + esc(String(h.r.score)) + '<small>%</small></b></span><span class="sr-only">' + esc(TS.srScore) + '</span>' +
         '<span class="tn-lbl">' + esc(dayWord(h.date)) + '</span></div>';
     var right = run ? '<div class="ns-run-box">' + partRows(run, false) + '</div>' : partRows(h.r, true);
-    return '<div class="sc-card tn en ns' + (run ? '' : ' ' + BAND_CLS[scoreBand(h.r.score)]) + '"' + HC.detailAttrs('nutrition', opens) +
-      ' aria-label="' + esc(aria.filter(Boolean).join(' · ')) + '">' +
-      '<h3 class="tn-h">' + esc(TS.heading + (tag ? ' · ' + tag : '')) + '</h3>' +
+    // named by its content (WCAG 2.5.3 Label in Name): heading, the headline %, the parts, the footer line
+    return '<div class="sc-card tn en ns' + (run ? '' : ' ' + BAND_CLS[scoreBand(h.r.score)]) + '"' + HC.detailAttrs('nutrition', opens) + '>' +
+      '<h3 class="tn-h">' + esc(TS.heading + (tag ? ' · ' + tag : '')) + '</h3>' + (run ? '<span class="sr-only">' + esc(TS.srRun) + '</span>' : '') +
       '<div class="tn-row">' + left + right + '</div>' + (o.extra || '') + '</div>';
   }
   function footHtml(parts) {

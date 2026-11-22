@@ -286,7 +286,9 @@ test('load: one compact card per modality (gym/run/bike): last session RE, "LOAD
   const band = run.trend.band;
   const tone = { steady: 'flat', above: 'good', below: 'good', ramping: 'bad', wellBelow: 'bad' }[band];
   assert.match(card, new RegExp(`<span class="ld-pill ld-${tone}">[▲▼•] ${run.trend.trendPct > 0 ? '\\+' : ''}${run.trend.trendPct}%</span>`), 'pill = 7-day vs 42-day, toned by band');
-  assert.match(card, /aria-label="Run load\. last session [^"]*Relative Effort \d+\. 7-day vs 42-day load/, 'the card reads out in full');
+  // named by its content (WCAG 2.5.3): the shown modality, then the rest in words
+  assert.doesNotMatch(card, /aria-label/);
+  assert.match(card, /<span class="ld-mod">Run<\/span><span class="sr-only">load\. last session [^<]*Relative Effort \d+\. 7-day vs 42-day load: [^<]+, [a-z ]+<\/span>/, 'the card reads out in full');
   const gated = s.load.modalities.filter((m) => !m.trend.ok);
   assert.equal(count(html, 'class="ld-card ld-off"'), gated.length);
   if (gated.length) assert.match(html, new RegExp(enT.load.gated.baselineBuilding.slice(0, 20)));
@@ -460,7 +462,7 @@ test('Entreno load cards open their modality\'s detail view; the Salud recovery 
   const hosts = {};
   render(s, { now: addDays(ASOF, 1), healthNav: true, hosts, detail: true });
   for (const m of s.load.modalities) {
-    assert.match(hosts.load.innerHTML, new RegExp(`<div class="ld-card(?: ld-off)?" data-mod="${m.key}" data-detail="load-${m.key}" role="button" tabindex="0" aria-haspopup="dialog" aria-label="`), m.key);
+    assert.match(hosts.load.innerHTML, new RegExp(`<div class="ld-card(?: ld-off)?" data-mod="${m.key}" data-detail="load-${m.key}" role="button" tabindex="0" aria-haspopup="dialog"><span class="ld-mod">`), m.key);
   }
   // the recovery card holds a <details> fold, so the card itself is not a button: a real button opens the view
   assert.match(hosts.rec.innerHTML, new RegExp(`<div class="sc-head"><span class="sc-asof">[^<]*</span><button type="button" class="cta" data-detail="recovery" aria-haspopup="dialog">${enT.recovery.historyBtn}<span aria-hidden="true"> →</span></button>`));

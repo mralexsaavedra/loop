@@ -185,7 +185,7 @@
   function rangeHtml(range) {
     return '<div class="dt-range" role="group" aria-label="' + esc(T.rangeLabel) + '">' + RANGES.map(function (r) {
       var k = RANGE_KEY[r];
-      return '<button type="button" data-dt-act="range" data-range="' + r + '" aria-pressed="' + (r === range ? 'true' : 'false') + '" aria-label="' + esc(T.rangesLong[k]) + '">' + esc(T.ranges[k]) + '</button>';
+      return '<button type="button" data-dt-act="range" data-range="' + r + '" aria-pressed="' + (r === range ? 'true' : 'false') + '" aria-label="' + esc(T.ranges[k] + ', ' + T.rangesLong[k]) + '">' + esc(T.ranges[k]) + '</button>';
     }).join('') + '</div>';
   }
   // one plain sentence under the pill: the window's average vs the previous window's (no judgement:

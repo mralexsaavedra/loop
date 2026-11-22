@@ -302,21 +302,28 @@ var HC = (function () {
     if (arrow === 'flat') return 'flat';
     return !tone || tone === 'flat' || tone === 'normal' ? 'neutral' : tone;
   }
-  // o = {key, cls?, attrs?, aria?, name, value, unit?, numCls?, arrow? ('up' | 'down' | 'flat'),
+  // o = {key, cls?, attrs?, sr?, name, value, unit?, numCls?, arrow? ('up' | 'down' | 'flat'),
   //      tone? ('good' | 'bad' | 'watch' | 'flat'), base?, base2?} — every text is escaped here; the
   //      secondary lines sit under the value: `base`, then an optional second one `base2` (a ride's
   //      HR · effort · kJ; docs/design-system.md → Metric row)
   //      An opener row (attrs with role="button", detailAttrs) keeps its <li> a list item: the button
   //      role sits on an inner <div class="db-row"> (`<li><div role="button">`), styled as the row itself
+  //      The row is named by its own content, never by an aria-label (WCAG 2.5.3 Label in Name: the name
+  //      holds the visible name and value). `sr`: the secondary lines said in words (the date, what a bare
+  //      number is, the trend the ▲ / ▼ shows), read after the value; the visible `base` lines are then
+  //      hidden from assistive tech, since `sr` already says them.
   function metricRow(o) {
     var arrow = o.arrow && Object.prototype.hasOwnProperty.call(ARROWS, o.arrow) ? ARROWS[o.arrow] : '';
     var tag = /\brole="button"/.test(o.attrs || '') ? 'div' : 'li';
-    return (tag === 'div' ? '<li>' : '') + '<' + tag + ' class="db-row' + (o.cls ? ' ' + o.cls : '') + '"' + (o.attrs || '') + (o.aria ? ' aria-label="' + esc(o.aria) + '"' : '') + '>' + metricIcon(o.key) +
+    var sr = o.sr != null && o.sr !== '';
+    var hide = sr ? ' aria-hidden="true"' : '';
+    return (tag === 'div' ? '<li>' : '') + '<' + tag + ' class="db-row' + (o.cls ? ' ' + o.cls : '') + '"' + (o.attrs || '') + '>' + metricIcon(o.key) +
       '<span class="db-name">' + esc(o.name) + '</span>' +
       '<span class="db-vals"><span class="db-val"><b' + (o.numCls ? ' class="' + o.numCls + '"' : '') + '>' + esc(o.value) + '</b>' + (o.unit ? '<small>' + esc(o.unit) + '</small>' : '') +
       (arrow ? '<span class="db-arr db-' + esc(trendTone(o.arrow, o.tone)) + '" aria-hidden="true">' + arrow + '</span>' : '') + '</span>' +
-      (o.base != null && o.base !== '' ? '<span class="db-base">' + esc(o.base) + '</span>' : '') +
-      (o.base2 ? '<span class="db-base">' + esc(o.base2) + '</span>' : '') + '</span>' + (tag === 'div' ? '</div></li>' : '</li>');
+      (sr ? '<span class="sr-only">' + esc(o.sr) + '</span>' : '') +
+      (o.base != null && o.base !== '' ? '<span class="db-base"' + hide + '>' + esc(o.base) + '</span>' : '') +
+      (o.base2 ? '<span class="db-base"' + hide + '>' + esc(o.base2) + '</span>' : '') + '</span>' + (tag === 'div' ? '</div></li>' : '</li>');
   }
 
   // THE contributor row (docs/design-system.md → Components → Contributor row): the deep-dive sheets'

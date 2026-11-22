@@ -74,6 +74,7 @@ mirror warns about it) but never published; a mirrored file the server removed u
 | `npm run import:health` | Import the newest iPhone Health export zip (or `export.xml`) in `loop-data/files/import/` into the extract; skips one already imported (`-- --force` re-imports); then re-run `npm run sync` |
 | `node data/apple-health/extract.mjs` | Rebuild the extract CSVs from a new `export.xml` (then re-run `npm run sync`) |
 | `npm test` | Full suite; run it before and after any code change |
+| `npm run test:e2e` | Browser end-to-end tests (Playwright, Chromium + WebKit) over the example page, plus the page a real data service serves when `TEST_DATABASE_URL` is set; not part of `npm test` ([`docs/development.md`](docs/development.md) → Browser end-to-end tests) |
 | `npm run lint` / `npm run typecheck` | ESLint over the repo / `tsc` over `lib/`, `data/` and `scripts/` (tests excluded; both run in CI) |
 
 **Changing the code?** Read [`docs/development.md`](docs/development.md) first: the test, golden and fixture

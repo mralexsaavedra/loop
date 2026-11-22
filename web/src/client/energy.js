@@ -60,12 +60,11 @@
   function cardHtml(d, sel) {
     var lv = d.now.lv, time = d.now.h != null ? clock(d.now.h) : d.wake;
     var c = HC.carried(d.date, sel, { weekday: false });
-    var when = c.carried ? c.label + ' · ' + time : time;
     var opens = sel || (c.carried ? d.date : null);
-    return '<div class="sc-card tn en de-' + band(lv) + c.cls + '"' + (opens ? HC.detailAttrs('energy-bank', opens) : HC.detailAttrs('energy-bank')) +
-      ' aria-label="' + esc(format(T.aria, { value: lv, time: when })) + '">' +
+    // named by its content (WCAG 2.5.3 Label in Name): "Energy bank estimate 3 of 100, latest hour 23:00 …"
+    return '<div class="sc-card tn en de-' + band(lv) + c.cls + '"' + (opens ? HC.detailAttrs('energy-bank', opens) : HC.detailAttrs('energy-bank')) + '>' +
       '<h3 class="tn-h">' + esc(T.heading) + ' <small class="tn-lbl">' + esc(T.estimate) + '</small></h3>' +
-      '<div class="tn-row"><div class="tn-end"><span class="tn-time"><b class="en-num">' + esc(String(lv)) + '</b></span>' +
+      '<div class="tn-row"><div class="tn-end"><span class="tn-time"><b class="en-num">' + esc(String(lv)) + '</b></span><span class="sr-only">' + esc(T.sr) + '</span>' +
       '<span class="tn-lbl">' + (c.carried ? '<span class="carried-date">' + esc(c.label) + '</span> · ' : '') + esc(time) + '</span></div>' + curve(d) + '</div>' +
       '<p class="tn-lbl en-sub">' + esc(format(T.from, { start: d.start, wake: d.wake, min: d.min.lv })) + '</p></div>';
   }

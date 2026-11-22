@@ -32,6 +32,8 @@ export const en = {
     rebuilding: 'Saved. The page is rebuilding in the new language: reload it in a minute or two.',
   },
   open: 'Open profile',
+  // the initials button's name starts with what it shows (WCAG 2.5.3 Label in Name)
+  openIni: '{initials}, open profile',
   age: '{n} years',
   onboarding: 'Nothing here yet. Your coach adds your profile (birthdate, height, devices); your name, photo and gear arrive when Strava is connected.',
   body: {
@@ -118,6 +120,7 @@ export const es = {
     rebuilding: 'Guardado. La página se está regenerando en el nuevo idioma: recárgala en un par de minutos.',
   },
   open: 'Abrir perfil',
+  openIni: '{initials}, abrir perfil',
   age: '{n} años',
   onboarding: 'Todavía no hay nada. Tu coach añade tu perfil (fecha de nacimiento, altura, dispositivos); tu nombre, foto y material llegan al conectar Strava.',
   body: {

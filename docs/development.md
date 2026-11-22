@@ -19,7 +19,9 @@ data out of git. Using the project rather than changing it? Start at the [docume
 
 Node `>=22.12` (`package.json` → `engines`), then `npm ci`. `npm test` needs no personal data: it builds the
 example page from the tracked seeds and the synthetic demo extract (`data/demo/`). The data service has its own
-suite and dependencies (`npm run test:services`).
+suite and dependencies (`npm run test:services`). The browser end-to-end tests (`npm run test:e2e`) need
+Playwright's browsers once: `npx playwright install chromium webkit` (on a bare Linux also their system libraries,
+`npx playwright install-deps chromium webkit` as root).
 
 ## Commands
 
@@ -28,6 +30,7 @@ suite and dependencies (`npm run test:services`).
 | `npm test` | Full suite (`node --test`); `pretest` builds the example (+ personal, if present) fixtures |
 | `npm run test:services` | The `services/loop-ingest` suite (not part of `npm test`, which stays dependency-free): `npm ci` there from its lockfile, then its `node --test` |
 | `TEST_DATABASE_URL=postgres://… npm run test:pg` | The data service against a real Postgres (`services/loop-ingest/test/pg/`): the real migrations on a fresh empty database per file, the ledger + lock, the main DB paths. Needs a Postgres 17 where the user may `CREATE DATABASE` (a throwaway `docker run --rm -e POSTGRES_PASSWORD=x -p 127.0.0.1:5544:5432 postgres:17-alpine` does); without the variable the tests skip. CI runs it in the `postgres` job |
+| `npm run test:e2e` | Browser end-to-end tests (Playwright + Chromium, [`playwright.config.mjs`](../playwright.config.mjs)): builds the example page into `web/.e2e-dist/` and runs `e2e/` on a phone and a desktop viewport — [Browser end-to-end tests](#browser-end-to-end-tests). `-- --project static-phone`, `-- -g "<title>"` and `E2E_SKIP_BUILD=1` (exactly `1`: reuse the last build) narrow a run |
 | `npm run check` | Validators only, no build (plan, ingredients, `loop-data/cache/training.json`, `loop-data/cache/profile.json`) |
 | `npm run lint` | ESLint over the whole repo ([`eslint.config.mjs`](../eslint.config.mjs)): correctness rules only (unused / undefined names, redeclarations, useless assignments), never formatting; CI runs it |
 | `npm run typecheck` | TypeScript over `lib/**/*.mjs`, `data/**/*.mjs` and `scripts/*.mjs` (tests excluded) as JavaScript ([`jsconfig.json`](../jsconfig.json), `checkJs`, no emit): a wrong property, argument count or shape fails; types come from JSDoc (`@param`, `@type`, `@returns`), never `// @ts-ignore`; CI runs it |
@@ -39,7 +42,7 @@ suite and dependencies (`npm run test:services`).
 | `npm run import:health` | Import the newest Apple Health export zip (or `export.xml`) in `<files>/import/` into the extract via `extract.mjs --source` (skipped when already imported, `-- --force` re-imports; state in `<data root>/import-state.json`) — [`data-pipeline.md` → Apple Health export and extract](data-pipeline.md#apple-health-export-and-extract) |
 | `HC_SITE_DIR=<dir> node scripts/refresh.mjs [--seq N] [--wait-lock]` | The loop-server image's page refresh (the container port of `services/loop-web/refresh.sh`): the Apple Health import (`scripts/import-health.mjs`, non-fatal, under `HC_IMPORT_TIMEOUT`, default 1800 s), sync (non-fatal), validate + build the personal page (under a timeout), sanity check, atomic publish into `HC_SITE_DIR` with `status.json` (`commit` = the image version: `HC_VERSION`, else `package.json`; error codes `build` / `sanity` / `lock`), then the device manuals. The ingest service runs it in container mode ([`services/loop-ingest/README.md`](../services/loop-ingest/README.md#container-mode)); `--help` for the env variables |
 | `npm run connect -- <url>` | Save the LOOP server a coach clone mirrors (`scripts/connect.mjs`): checks `GET <url>/export/files` with the token (`INGEST_TOKEN`, else a hidden terminal prompt), writes `loop-data/server.json` `{url, token}` mode 600; `-- --forget` removes it — [`data-pipeline.md` → Coach as a client](data-pipeline.md#coach-as-a-client-of-a-loop-server) |
-| `scripts/image-smoke.sh` | Build both server images (`SMOKE_PLATFORM`, default `linux/amd64`; CI runs `linux/amd64` and `linux/arm64` on native runners; tag `smoke`, never pushed) and smoke-test a minimal compose stack, then `down -v`; CI job `images` — [Releasing](#releasing) |
+| `scripts/image-smoke.sh` | Build both server images (`SMOKE_PLATFORM`, default `linux/amd64`; CI runs `linux/amd64` and `linux/arm64` on native runners; tag `smoke`, never pushed) and smoke-test a minimal compose stack (`SMOKE_BROWSER=1`: also in Chromium, the Playwright project `docker`), then `down -v`; CI job `images` — [Releasing](#releasing) |
 | `npm run demo:data` | Regenerate the synthetic demo extract `data/demo/extract/` (`scripts/make-demo-data.mjs`; `-- --end YYYY-MM-DD --days N --seed N`, `--days` a whole number 2-3650) |
 | `npm run gen:food-calc` | Regenerate `services/loop-ingest/src/food-calc.js` from `lib/nutrition/foodlog.mjs` (a test fails while it is stale) |
 | `npm run gen:journal-calc` | Regenerate `services/loop-ingest/src/journal-calc.js` from `lib/journal/journal.mjs` (a test fails while it is stale) |
@@ -51,6 +54,7 @@ the README.
 
 - `npm test` runs the `*.test.mjs` files of `lib/`, `web/`, `scripts/` and `data/{nutrition,apple-health,profile}/`,
   plus the Claude Code hooks (`.claude/hooks/*.test.js`: the guard hook, the skills and the coach subagents).
+- `npm test` stays browser-free; the browser tests are `npm run test:e2e` (below).
 - Database migrations (`services/loop-ingest/sql/`) run once each and are recorded in `schema_migrations` with a
   checksum. **Never edit an applied migration; add a new file** (and list it in `src/migrations.js`): the
   service refuses to start when a recorded file changed
@@ -60,6 +64,50 @@ the README.
 - Lib code that also runs in the page is emitted from the lib itself (`lib/nutrition/client.mjs` and friends),
   never copied: `web/test/client-copies.test.mjs` fails on a hand-kept copy, and
   `web/test/client-globals-build.test.mjs` runs the emitted globals against the lib.
+
+### Browser end-to-end tests
+
+`npm run test:e2e` runs Playwright ([`playwright.config.mjs`](../playwright.config.mjs), `@playwright/test` pinned in
+`devDependencies`) over `e2e/` in two engines: Chromium (Chrome, Edge, Android) and WebKit (Safari, and every browser on
+an iPhone), each on a phone profile; the desktop layout runs on Chromium. CI runs it in the job `e2e` and uploads the HTML report and traces when a
+test fails (`e2e/.report/`, `e2e/.results/`, both gitignored).
+
+| Project | What it opens | Specs |
+| --- | --- | --- |
+| `static-phone` (Pixel 7), `static-desktop` (1280 × 800), `webkit-static` (iPhone 15), `webkit-static-es` (iPhone 15, the page built in Spanish, `es-ES` browser) | the example page (tracked seeds + the synthetic demo extract), built by `e2e/global-setup.mjs` into `web/.e2e-dist/<locale>-example/` (one per locale) and opened from `file://`, so every LAN-only feature is off | `e2e/static/`: tabs, dock, keys `1`–`4` and `?`, the URL hash and every deep link (`#detail/<metric>[/<date>]`, view keys, `#d=`, `#monitor`), every visible card's detail sheet on every tab and the ways to close it, the sheet's controls (day, range, window, month, info, learn more, history fold, trend), the ⓘ notes, tab links and folds, both Customize sheets (hide, move, kept after a reload), the Tonight, session and journal-insights views, the profile sheet, the day stepper, layout on both sides of the 900 px breakpoint; in `webkit-static-es` the same specs against the Spanish copy (`<html lang>`, month and date wording) |
+| `lan-setup` → `lan-phone` (Pixel 7) → `webkit-lan` (iPhone 15, the same specs, after `lan-phone` because specs own whole days of the shared database) → `lan-last` (Pixel 7); only with `TEST_DATABASE_URL` (`E2E_LAN=0` leaves them out of a run) | the personal page a real data service builds and serves: [`e2e/lan/stack.mjs`](../e2e/lan/stack.mjs) (Playwright's `webServer`) creates a fresh empty database on that Postgres, seeds a synthetic Health extract ending today (the demo generator), runs `services/loop-ingest` in container mode (its real migrations, `scripts/refresh.mjs` building the page into a temporary `HC_SITE_DIR`) and an nginx stand-in on `127.0.0.1:18290` (`E2E_LAN_PORT`) that serves the site with loop-web's security headers and proxies exactly its `/api` routes with their rewrites and headers; everything (processes, database, folders, a build lock a killed build left) is removed on exit, also when it is stopped during startup | `e2e/lan/`: the first-run assistant end to end (`lan-setup`) and its branches (back, Enter, refused steps, the pregnancy and under-18 stops, the medical / eating limits, maintain / cut / bulk, the adjust grid, a failed save, Later, the Edit chip); the food log (quick, basic, product and recipe entries, past days, per-meal add, the add sheet's keyboard, Atwater and Save anyway, 500 / 429 / offline saves, a failed day load and its retry, the empty day, delete); products (label, barcode and text search with Open Food Facts stubbed at the page's `/api/food/off`, log by serving, edit, archive, field errors, cancel); recipes (several products, a basic, batch, edit, archive, cancel); the journal (answers read back, another day, the drink stepper, a failed save, behaviours off and on, insights); the profile (goal, target weight, a refused save); the "+" menu, the freshness popover, Sync and its failures; Home on a past day with the server's data; and last (`lan-last`) the language switch, which rebuilds the shared page in the other locale and, between the two switches, logs and deletes a food entry and saves the journal in that language |
+| `docker` (Pixel 7); only with `E2E_DOCKER_URL`, and then the only project | a running Docker stack's loop-web: `scripts/image-smoke.sh` with `SMOKE_BROWSER=1` points it at the stack it started | `e2e/docker/`: what only the published images can break — loop-web's security headers as served, the page clean of console errors and CSP violations, a food entry saved and deleted through nginx, Sync rebuilding the page inside loop-server |
+
+Shared rules ([`e2e/fixtures.mjs`](../e2e/fixtures.mjs), [`e2e/lan/fixtures.mjs`](../e2e/lan/fixtures.mjs)): the
+browser clock is fixed to 10:00 (Europe/Madrid) on the demo's last day (`DEMO_DEFAULTS.end` of
+`scripts/make-demo-data.mjs`), so the suite does not drift with the calendar (the LAN specs: 12:00 of the real day,
+read once per test as the `today` fixture, since the data service stores against its own calendar); and **every
+test fails on a console error, an uncaught exception or a CSP violation** (a test that provokes one on purpose, such
+as an API answering 400, names it with `pageErrors.allow(<regexp>)`). The LAN specs share one database: name what
+you create with `unique()`, assert on your own rows, take a day of your own when a test changes or reads a whole
+day (the allocation table at the top of `e2e/lan/fixtures.mjs`), and clean up with `withCleanup()` (a failing
+clean-up fails a passing test but never hides the failure that got there). Each test
+is its own client of the data service, like one phone: the browser context sends `x-e2e-client` and the stand-in
+connects upstream from a loopback address of that test's own, so the service's per-client rate limits apply per
+test (on Linux, where all of 127/8 is loopback; elsewhere every test shares one address and a full LAN run can meet
+the limits). A Sync is `syncAndReload()` (listens for the reload before the click, `SYNC_RELOAD_MS` / `SYNC_TEST_MS`). The
+LAN projects need the data service's dependencies (`npm --prefix services/loop-ingest ci`) and a Postgres the user
+may `CREATE DATABASE` on, e.g. the throwaway container of `npm run test:pg`:
+`TEST_DATABASE_URL=postgres://postgres:x@127.0.0.1:5544/postgres npm run test:e2e`. Use the page's stable hooks
+(ids, `data-*`, ARIA) rather than text or CSS classes, and never write personal data into a spec.
+
+Accessibility: `e2e/static/a11y.spec.mjs` and `e2e/lan/a11y.spec.mjs` run axe-core (`@axe-core/playwright`, pinned in
+`devDependencies`) through `expectAccessible()` of [`e2e/a11y.mjs`](../e2e/a11y.mjs) over every tab, one sheet of
+every kind, the add-food sheet in each state, the product and recipe forms, the journal, the "+" menu, the profile
+with the server settings and each first-run screen, and fail on any WCAG 2.1 A / AA violation (Label in Name
+included: [`docs/design-system.md`](design-system.md) → Accessible names of openers). There is no exclusion list: a
+violation is fixed in the page.
+
+Left out on purpose: the real Open Food Facts lookup (it calls the internet; the page side is stubbed), the data
+service's own refusals that the page cannot send (oversized or non-JSON bodies, foreign origins: its node tests
+cover them), drag reordering in the Customize sheets (the ↑ / ↓ buttons drive the same move), device manual links
+and the weight progress line (an empty install has neither), and `GET /api/journal/day` / `GET /api/food/products`,
+which the page never calls.
 
 ## Generated files
 
@@ -150,12 +198,13 @@ has the full table; `lib/paths.test.mjs` pins both layouts path by path.
 ## Releasing
 
 CI ([`.github/workflows/ci.yml`](../.github/workflows/ci.yml)) runs `npm run lint`, `npm run typecheck`, `npm test`,
-`npm run test:services`, (job `postgres`, a Postgres 17 service container) `npm run test:pg` and (job `images`)
+`npm run test:services`, (job `e2e`) `npm run test:e2e`, (job `postgres`, a Postgres 17 service container) `npm run test:pg` and (job `images`)
 [`scripts/image-smoke.sh`](../scripts/image-smoke.sh) on every push to `main` and every pull request; a fresh clone
 needs no personal data to pass. The image smoke test builds both server images for `linux/amd64` (tag `smoke`, never
 pushed), starts a minimal stack of `docker/docker-compose.yml` (empty database and files folder, random secrets, both
 ports on `127.0.0.1`) and checks loop-server `GET /healthz`, a first `status.json` with `publishedAt` through
-loop-web, and `GET /` 200 over 100 KB, then always runs `down -v`. Locally:
+loop-web, `GET /` 200 over 100 KB and, with `SMOKE_BROWSER=1` (CI sets it), the browser smoke of the served page
+(Playwright project `docker`), then always runs `down -v`. Locally:
 `SMOKE_INSTANCE=mine SMOKE_VERSION=mine SMOKE_INGEST_PORT=18188 SMOKE_WEB_PORT=18190 scripts/image-smoke.sh` (the
 `:mine` images stay; `docker image rm` them after). Every checkout sets `persist-credentials: false` and both
 workflows keep `permissions: contents: read`; the one exception is the release's last job, `github-release`

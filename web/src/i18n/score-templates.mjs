@@ -26,7 +26,6 @@ export const en = {
       // the card's wake side: a teal state line, then where the time comes from
       wakeState: 'Usual wake',
       nights: 'Last {n} nights',
-      aria: 'Tonight\'s sleep: recommended bedtime {bed}, usual wake time {wake}',
       rule: 'Bedtime {bed} = your usual wake time ({wake}, the median of your last {n} nights) minus your sleep target of {target}.',
       note: 'A suggestion from your own data only: the page cannot set an alarm.',
       history: 'See sleep history',
@@ -45,9 +44,9 @@ export const en = {
       parts: { k: 'Kcal', p: 'Protein', f: 'Fat' },
       // a closed day's component points, never a bare "· 0" that reads like "0 kcal"
       ptsTpl: '{name} · {pts} pts',
-      aria: '{date}: nutrition score {value}%',
-      ariaRun: 'Nutrition today: in progress, no score yet',
-      ariaRunPct: 'Nutrition today: in progress, {pct}% of the kcal target, no score yet',
+      // screen-reader words (the card is named by its content): after a closed day's %, and after today's heading
+      srScore: 'score',
+      srRun: 'no score yet',
       // today being logged heads the card alone (its kcal % of target); the closed day goes to the footer
       runLbl: 'Kcal today',
       prev: '{date} {value}',
@@ -56,7 +55,8 @@ export const en = {
     energy: {
       heading: 'Energy bank',
       estimate: 'estimate',
-      aria: 'Energy bank estimate {value} of 100, latest hour {time}',
+      // read after the level (screen readers only; the card is named by its content)
+      sr: 'of 100, latest hour',
       from: 'From {start} at {wake} · low {min}',
     },
     // "My journal" card + the journal sheet (client/journal.js, LAN page only for writing)
@@ -169,7 +169,6 @@ export const en = {
       showAria: 'Show {metric} on the dashboard',
       upAria: 'Move {metric} up',
       downAria: 'Move {metric} down',
-      rowAria: '{metric}: {value}, {date}',
       baseAria: '30-day average {base}',
       dirs: { up: 'above the average', down: 'below the average', flat: 'about the average' },
       empty: 'Every metric is hidden. Use Customize to show some.',
@@ -236,7 +235,8 @@ export const en = {
     heading: 'Load',
     infoLbl: 'About {section}',
     today: 'today',
-    cardAria: '{modality} load',
+    // a load card is named "<modality> load. last session …": the shown modality, then these words (screen readers only)
+    cardSr: 'load',
     lastAria: 'last session {date}: Relative Effort {re}',
     noSession: 'no scored session yet',
     pillHelp: 'Each card: the last scored session\'s Relative Effort; the ring is that session against your typical day (the tick = a typical day, half the ring). The pill is the 7-day vs 42-day load: grey • steady, teal ▲▼ above or below usual (±10%), orange ▲▼ ramping (+30% or more) or well below (−30% or less). Tap a card for its history.',
@@ -320,7 +320,9 @@ export const en = {
     // Inicio summary tile (#home-tiles): counts from the same cards; "metrics" = in range / all cards
     tile: { inRange: 'Within range', out: '{n} out of range', none: 'No data', metrics: '{n}/{total} metrics', ariaLabel: 'Monitor summary' },
     // Inicio tile 2 (lib/score/stress.mjs): the latest waking hour's heart-rate-only stress estimate
-    stress: { label: 'Stress monitor', bands: { low: 'Low', medium: 'Medium', high: 'High' }, aria: 'Stress estimate {value}, {band}, {time}' },
+    stress: { label: 'Stress monitor', bands: { low: 'Low', medium: 'Medium', high: 'High' },
+      // read after the tile's label (screen readers only): the value is a heart-rate estimate
+      sr: 'estimate' },
     labels: { respiratory: 'Respiratory rate', rhr: 'Resting HR', hrv: 'HRV', wristTemp: 'Wrist temp (sleep)', sleep: 'Sleep' },
     units: { respiratory: 'brpm', rhr: 'bpm', hrv: 'ms', wristTemp: '°C', sleep: 'h' },
     status: { normal: 'Normal', high: 'High', low: 'Low', building: 'Building baseline', none: 'No data', stale: 'No recent data' },
@@ -378,7 +380,6 @@ export const es = {
       // el lado del despertar en la tarjeta: una línea de estado en verde azulado y de dónde sale la hora
       wakeState: 'Despertar habitual',
       nights: 'Últimas {n} noches',
-      aria: 'Esta noche: hora recomendada para acostarte {bed}, despertar habitual {wake}',
       rule: 'Acostarte a las {bed} = tu hora habitual de despertar ({wake}, la mediana de tus últimas {n} noches) menos tu objetivo de sueño de {target}.',
       note: 'Solo una sugerencia a partir de tus datos: la página no puede poner una alarma.',
       history: 'Ver historial de sueño',
@@ -395,9 +396,8 @@ export const es = {
       unknown: 'sin registrar',
       parts: { k: 'Kcal', p: 'Proteína', f: 'Grasa' },
       ptsTpl: '{name} · {pts} pts',
-      aria: '{date}: puntuación de nutrición {value}%',
-      ariaRun: 'Nutrición hoy: en curso, aún sin puntuación',
-      ariaRunPct: 'Nutrición hoy: en curso, {pct}% de las kcal objetivo, aún sin puntuación',
+      srScore: 'puntuación',
+      srRun: 'aún sin puntuación',
       runLbl: 'Kcal hoy',
       prev: '{date} {value}',
       avg7: 'Media de 7 días {value}%',
@@ -405,7 +405,7 @@ export const es = {
     energy: {
       heading: 'Banco de energía',
       estimate: 'estimación',
-      aria: 'Banco de energía, estimación {value} de 100, última hora {time}',
+      sr: 'de 100, última hora',
       from: 'Desde {start} a las {wake} · mínimo {min}',
     },
     // tarjeta "Mi diario" + la hoja del diario (client/journal.js, escribir solo en la página LAN)
@@ -517,7 +517,6 @@ export const es = {
       showAria: 'Mostrar {metric} en el panel',
       upAria: 'Subir {metric}',
       downAria: 'Bajar {metric}',
-      rowAria: '{metric}: {value}, {date}',
       baseAria: 'media de 30 días {base}',
       dirs: { up: 'por encima de la media', down: 'por debajo de la media', flat: 'en torno a la media' },
       empty: 'Todas las métricas están ocultas. Usa Personalizar para mostrar alguna.',
@@ -581,7 +580,7 @@ export const es = {
     heading: 'Carga',
     infoLbl: 'Sobre {section}',
     today: 'hoy',
-    cardAria: 'Carga de {modality}',
+    cardSr: 'carga',
     lastAria: 'última sesión {date}: Esfuerzo Relativo {re}',
     noSession: 'aún no hay sesiones puntuadas',
     pillHelp: 'Cada tarjeta: el Esfuerzo Relativo de la última sesión puntuada; el anillo es esa sesión frente a tu día típico (la marca = un día típico, medio anillo). La píldora es la carga de 7 días frente a la de 42: gris • estable, verde azulado ▲▼ por encima o por debajo de lo habitual (±10%), naranja ▲▼ subiendo rápido (+30% o más) o muy por debajo (−30% o menos). Toca una tarjeta para ver su historial.',
@@ -663,7 +662,8 @@ export const es = {
     // tile resumen de Inicio (#home-tiles): cuenta las mismas tarjetas; "métricas" = en rango / todas
     tile: { inRange: 'En rango', out: '{n} fuera de rango', none: 'Sin datos', metrics: '{n}/{total} métricas', ariaLabel: 'Resumen del monitor' },
     // tile 2 de Inicio (lib/score/stress.mjs): la estimación de estrés (solo pulso) de la última hora despierto
-    stress: { label: 'Monitor de estrés', bands: { low: 'Bajo', medium: 'Medio', high: 'Alto' }, aria: 'Estimación de estrés {value}, {band}, {time}' },
+    stress: { label: 'Monitor de estrés', bands: { low: 'Bajo', medium: 'Medio', high: 'Alto' },
+      sr: 'estimación' },
     ariaLabel: 'Señales nocturnas frente a tu propio rango normal',
     info: 'Sobre el monitor de salud',
     labels: { respiratory: 'Frecuencia respiratoria', rhr: 'FC en reposo', hrv: 'VFC', wristTemp: 'Temp. de muñeca (sueño)', sleep: 'Sueño' },

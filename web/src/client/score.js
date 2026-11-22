@@ -278,11 +278,13 @@
     var tr = m.trend && m.trend.ok && last && !gated ? m.trend : null;
     var pill = tr ? '<span class="ld-pill ld-' + LOAD_TONE[tr.band] + '">' + esc(LOAD_ARROW[tr.band] + ' ' + pct(tr.trendPct)) + '</span>'
       : gated ? '<span class="ld-pill ld-flat">' + esc(noEff ? dl.noEffort : dl.gated) + '</span>' : '';
-    var aria = [format(lt.cardAria, { modality: name })];
-    aria.push(last && !gated ? format(lt.lastAria, { date: HC.fmtDate(last.date), re: val }) : gated ? lt.gated[(m.trend && m.trend.reason) || 'baselineBuilding'] : lt.noSession);
-    if (tr) aria.push(format(lt.trendLbl, { pct: pct(tr.trendPct) }) + ', ' + lt.bands[tr.band]);
-    return '<div class="ld-card' + (gated ? ' ld-off' : '') + '" data-mod="' + esc(m.key) + '"' + HC.detailAttrs('load-' + m.key) + ' aria-label="' + attr(aria.join('. ')) + '">' +
-      '<span class="ld-mod" aria-hidden="true">' + esc(name) + '</span>' +
+    // named by its content (WCAG 2.5.3 Label in Name): the shown modality, then the rest in words (the number,
+    // date and pill are hidden from the name, said here instead)
+    var sr = [lt.cardSr];
+    sr.push(last && !gated ? format(lt.lastAria, { date: HC.fmtDate(last.date), re: val }) : gated ? lt.gated[(m.trend && m.trend.reason) || 'baselineBuilding'] : lt.noSession);
+    if (tr) sr.push(format(lt.trendLbl, { pct: pct(tr.trendPct) }) + ', ' + lt.bands[tr.band]);
+    return '<div class="ld-card' + (gated ? ' ld-off' : '') + '" data-mod="' + esc(m.key) + '"' + HC.detailAttrs('load-' + m.key) + '>' +
+      '<span class="ld-mod">' + esc(name) + '</span><span class="sr-only">' + esc(sr.join('. ')) + '</span>' +
       '<span class="ld-mid" aria-hidden="true"><b class="ld-num">' + esc(val) + '</b>' + miniRing(gated ? null : fill) + '</span>' +
       '<span class="ld-lbl" aria-hidden="true">' + esc(dl.label) + (when && !gated ? ' · ' + esc(when) : '') + '</span>' +
       (pill ? '<span class="ld-foot" aria-hidden="true">' + pill + '</span>' : '') + '</div>';

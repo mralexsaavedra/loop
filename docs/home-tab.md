@@ -279,8 +279,9 @@ the nutrition score and today's activities.
 | Nothing logged today | the newest CLOSED day while ≤ 3 days old: its score big in D-DIN, band colour (≥ 85 `--good`, 60–84 `--mid`, < 60 `--low`, via `.de-hi/.de-mid/.de-lo`), "Yesterday" or the date under it | rows with their points ("KCAL · 85 pts"), bar = the points in their band colour | "7-day average 79%" (final scores only) |
 | Nothing logged / nothing fresh | hidden | — | — |
 
-- When today is logged the accessible name says both ("Nutrition today: in progress, 22% of the kcal
-  target, no score yet · Yesterday: nutrition score 56%").
+- The card is named by its content (WCAG 2.5.3 Label in Name, no `aria-label`): when today is logged it reads
+  "Nutrition · in progress, no score yet, 22 % Kcal today …, Yesterday 56% · 7-day average 85%" ("no score yet"
+  and a closed day's "score" are screen-reader-only words).
 - Opens the nutrition trend sheet (`docs/detail-views.md`, key `nutrition`). On the LAN page
   Constancia's live summary re-renders it after every add / delete.
 
@@ -295,10 +296,11 @@ the nutrition score and today's activities.
   as a bare number, else its minutes; dark ink), the uppercase name, and the details stacked on the
   right behind a thin bar of the row's colour: bed / wake time for sleep; for a workout the minutes
   (when the chip holds RE) and "N parts".
-- workouts.csv has no start time, so a workout has no start / end clock pair; the row's `aria-label`
-  spells it out ("Run · RE 94 · 45 min · 2 parts").
+- workouts.csv has no start time, so a workout has no start / end clock pair. Each row is an `<li>` holding the
+  opener (`<li><div role="button">`), named by its content; a workout's chip is hidden from the name and said in
+  words after it ("Run, RE 94, 0:45, 2 parts").
 - Programmed session (viewer's today only, `window.HCProgram` from `client/training-today.js`): the last
-  row — an outline chip "Plan", its focus (one line, ellipsised; the `aria-label` carries the whole
+  row — an outline chip "Plan", its focus (one line, ellipsised; the row's content-derived name carries the whole
   focus and the session view shows it in full), "Programmed" (white caps; the row's bar carries the
   colour); opens the session as the `hoy-session` detail view. Nothing matches it to a done workout
   yet, so it is only listed, never ticked; it is not shown under an older day's heading; with no baked
@@ -482,11 +484,11 @@ false; `components/HealthMonitor.astro` + `client/monitor.js`.
   band explanation, collapsed: `#hm-info`).
 - One shared metric row per signal (`HC.metricRow`, the My dashboard row): icon · NAME · value + unit ·
   ▲ above / ▼ below / • inside the band; the range "lo–hi" as the small line under the value (the word
-  "Normal range" is in the row's aria-label and the ⓘ); the short date "28 Sep" when not last night.
+  "Normal range" is in the row's screen-reader words and the ⓘ); the short date "28 Sep" when not last night.
 - Signals: respiratory rate, resting HR, HRV, sleeping wrist temperature, sleep duration.
 - Each = the newest daily value (per-day median of the plausible samples; a sample outside the signal's plausibility range is an artefact and is dropped, never clamped, so a lone dropout leaves no day) + unit, its date when
   not from the viewer's today, and Normal / High / Low (es: `Normal` / `Alto` / `Bajo`; the status word
-  is in the row's `aria-label`).
+  is in the row's screen-reader words, `HC.metricRow` `sr`).
 - Band = median ± `BAND_K` (2) × scaled MAD (`robustBaseline`, floored per signal) over the 42 days
   BEFORE that value: ~5 % false flags per card; HRV in log space like `recovery.mjs`, so asymmetric in
   ms.

@@ -1,5 +1,5 @@
-# Lint, the lib/ typecheck and both test suites on every push and pull request, plus the data service against a real
-# Postgres (job `postgres`) and the two server images built and smoke-tested on a minimal compose stack (job `images`).
+# Lint, the lib/ typecheck and both test suites on every push and pull request, the browser E2E tests (job `e2e`), plus
+# the data service against a real Postgres (job `postgres`) and the two server images built and smoke-tested on a minimal compose stack (job `images`).
 # The suites need no personal data: a fresh clone passes (the personal-only checks skip themselves). release.yml calls
 # this whole workflow (workflow_call) and pushes nothing unless every job here passes.
 name: CI
@@ -38,6 +38,51 @@ jobs:
       - run: npm test
       - run: npm run test:services
 
+  # Browser end-to-end tests (Playwright + Chromium, playwright.config.mjs): the example page on a phone and a
+  # desktop viewport, and (TEST_DATABASE_URL set) the page a real data service builds and serves, against a Postgres
+  # service container (e2e/lan/stack.mjs). The HTML report and failure traces are uploaded when a test fails.
+  e2e:
+    runs-on: ubuntu-latest
+    # two engines: the static and LAN specs run on Chromium and again on WebKit (about 12 minutes on a runner)
+    timeout-minutes: 35
+    services:
+      postgres:
+        image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      TEST_DATABASE_URL: postgres://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            services/loop-ingest/package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npm --prefix services/loop-ingest ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium webkit
+      - run: npm run test:e2e
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-report
+          path: |
+            e2e/.report/
+            e2e/.results/
+          retention-days: 7
+
   # The data service against a real Postgres (services/loop-ingest/test/pg): the real migrations on an empty
   # database, the ledger + advisory lock, and the main DB paths. Same image and digest as the compose file
   # (scripts/release.test.mjs checks it).
@@ -71,7 +116,8 @@ jobs:
 
   # Both server images (docker/loop-server.Dockerfile, docker/loop-web.Dockerfile) built for linux/amd64, never pushed,
   # and a minimal compose stack of docker/docker-compose.yml: loop-server /healthz, the first published status.json,
-  # GET / 200 over 100 KB, then down -v (scripts/image-smoke.sh).
+  # GET / 200 over 100 KB, then (SMOKE_BROWSER=1) a Chromium smoke of the served page (e2e/docker/), then down -v
+  # (scripts/image-smoke.sh).
   images:
     # both architectures on native runners, like the release (the arm64 image is never emulated)
     runs-on: ${{ matrix.runner }}
@@ -87,6 +133,23 @@ jobs:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+          cache-dependency-path: package-lock.json
+      - run: npm ci --no-audit --no-fund
+      - run: npx playwright install --with-deps chromium
       - run: scripts/image-smoke.sh
         env:
           SMOKE_PLATFORM: ${{ matrix.platform }}
+          SMOKE_BROWSER: '1'
+      - if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: e2e-docker-${{ matrix.runner }}
+          path: |
+            e2e/.report/
+            e2e/.results/
+          retention-days: 7
+          if-no-files-found: ignore
