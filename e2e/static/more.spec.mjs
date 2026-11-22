@@ -164,7 +164,9 @@ test.describe('detail sheet controls', () => {
     const win = await winLabel(page).textContent();
 
     await prev.click();
-    await expect(title).toContainText(monthLong(`${DEMO_DAY.slice(0, 5)}${String(Number(DEMO_DAY.slice(5, 7)) - 1).padStart(2, '0')}-01`), { ignoreCase: true });
+    const prevMonth = new Date(`${DEMO_DAY.slice(0, 7)}-01T12:00:00Z`);
+    prevMonth.setUTCMonth(prevMonth.getUTCMonth() - 1);
+    await expect(title).toContainText(monthLong(prevMonth.toISOString().slice(0, 10)), { ignoreCase: true });
     await expect(next).toBeEnabled();
     await expect(inSheet(page, `[data-dt-act="day"][data-date="${DEMO_DAY.slice(0, 7)}-01"]`)).toHaveCount(0);
     // the calendar moves alone: the chart window stays
