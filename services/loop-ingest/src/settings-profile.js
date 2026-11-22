@@ -32,7 +32,7 @@ export function validateSettings (body) {
 
 /** The optional sports list: [{sport, minutes, perWeek}] within PROFILE_LIMITS, one entry per sport; any fault = 'sports'. */
 function profileSports (v) {
-  const ok = (x, [lo, hi]) => Number.isInteger(x) && x >= lo && x <= hi
+  const ok = (/** @type {unknown} */ x, /** @type {readonly number[]} */ [lo, hi]) => Number.isInteger(x) && Number(x) >= lo && Number(x) <= hi
   if (!Array.isArray(v) || v.length > PROFILE_SPORTS.length) bad('sports')
   const seen = new Set()
   return v.map((s) => {

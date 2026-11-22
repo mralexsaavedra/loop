@@ -80,7 +80,7 @@ export function createRefreshSpawner ({ script = DEFAULT_REFRESH_SCRIPT, env = p
     })
     const exited = new Promise((resolve) => {
       child.once('error', (err) => {
-        log(JSON.stringify({ event: 'build_spawn_failed', seq, code: err.code ?? null, message: err.message }))
+        log(JSON.stringify({ event: 'build_spawn_failed', seq, code: /** @type {NodeJS.ErrnoException} */ (err).code ?? null, message: err.message }))
         resolve({ code: null, signal: null })
       })
       child.once('exit', (code, signal) => resolve({ code, signal }))
@@ -93,7 +93,7 @@ export function createRefreshSpawner ({ script = DEFAULT_REFRESH_SCRIPT, env = p
  * The serialized builder. `spawnRefresh(seq)` -> { child, exited } (injected by the tests); `onFailure(seq)` is
  * awaited for a non-zero exit. Returns { request, writeTrigger, startTimer, idle, stop }.
  */
-export function createBuilder ({ spawnRefresh, onFailure = async () => {}, log = console.log, setTimer = setTimeout, clearTimer = clearTimeout, setRepeat = setInterval, clearRepeat = clearInterval }) {
+export function createBuilder ({ spawnRefresh, onFailure = async (/** @type {number} */ _seq) => {}, log = console.log, setTimer = setTimeout, clearTimer = clearTimeout, setRepeat = setInterval, clearRepeat = clearInterval }) {
   let running = null // { seq, child, done }
   let queued = null // the highest seq requested while a child runs
   let stopped = false
@@ -110,7 +110,7 @@ export function createBuilder ({ spawnRefresh, onFailure = async () => {}, log =
     try {
       spawned = spawnRefresh(seq)
     } catch (err) {
-      log(JSON.stringify({ event: 'build_spawn_failed', seq, code: err.code ?? null, message: err.message }))
+      log(JSON.stringify({ event: 'build_spawn_failed', seq, code: /** @type {NodeJS.ErrnoException} */ (err).code ?? null, message: err.message }))
       spawned = { child: null, exited: Promise.resolve({ code: null, signal: null }) }
     }
     log(JSON.stringify({ event: 'build_started', seq }))

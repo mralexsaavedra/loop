@@ -119,6 +119,11 @@ export function buildConfig (env) {
  * The request listener, with every dependency injected so the route table can be tested without
  * Postgres, Strava or the network (test/server.test.js). main() below wires the real ones.
  */
+/** A route module: `handle(req, res, url)` answers and resolves true, or resolves false (the caller keeps routing).
+ * @typedef {{ handle: (req: import('node:http').IncomingMessage, res: import('node:http').ServerResponse, url: URL) => Promise<boolean> }} RouteModule */
+/** The default for an optional route module: handles nothing. @type {RouteModule} */
+const NO_ROUTES = { handle: async () => false }
+
 export function createHandler ({
   token,
   // one checker for every bearer route, so its failure count covers them all (auth.js)
@@ -131,12 +136,12 @@ export function createHandler ({
   stravaEnabled,
   stravaSync,
   foodRoutes,
-  journalRoutes = { handle: async () => false },
-  documentRoutes = { handle: async () => false },
+  journalRoutes = NO_ROUTES,
+  documentRoutes = NO_ROUTES,
   // container mode only (files-export.js); outside it nothing handles /export/files, so it is the plain 404
-  filesExportRoutes = { handle: async () => false },
+  filesExportRoutes = NO_ROUTES,
   // POST /strava/activities/:id/annotate (strava-annotate.js); absent in tests that do not exercise it
-  stravaAnnotateRoutes = { handle: async () => false },
+  stravaAnnotateRoutes = NO_ROUTES,
   syncRoutes,
   handleExport,
   handleStravaExport,
