@@ -3,6 +3,9 @@ import { fileURLToPath } from 'node:url'
 import pg from 'pg'
 import { CORE_MIGRATIONS, OPTIONAL_MIGRATIONS, runMigrations } from './migrations.js'
 
+// the raw_payload insert moved to raw-payload-db.js; it keeps its historical import path
+export { insertRawPayload } from './raw-payload-db.js'
+
 /** The pool. `connection` is a connection string or a {host, port, user, password, database} object
  * (server.js databaseConfig). An idle client's error (a Postgres restart) is logged instead of crashing the
  * process, a connection attempt gives up after 5 s (so /healthz answers instead of hanging while the DB is
@@ -23,24 +26,6 @@ export function createPool (connection, { Pool = pg.Pool, log = console.error } 
 export function migrate (pool, log = console.log) {
   const readSql = (file) => readFile(fileURLToPath(new URL(`../sql/${file}`, import.meta.url)), 'utf8')
   return runMigrations(pool, { core: CORE_MIGRATIONS, optional: OPTIONAL_MIGRATIONS, readSql, log })
-}
-
-export async function insertRawPayload (pool, record) {
-  const { rows } = await pool.query(
-    `INSERT INTO raw_payload (source, automation, aggregation, period, session_id, byte_size, payload)
-     VALUES ($1, $2, $3, $4, $5, $6, $7)
-     RETURNING id, received_at`,
-    [
-      record.source,
-      record.automation,
-      record.aggregation,
-      record.period,
-      record.sessionId,
-      record.byteSize,
-      record.payload
-    ]
-  )
-  return rows[0]
 }
 
 export async function ping (pool) {
