@@ -11,7 +11,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readBaseUrl, fetchJson, writeAtomic, runCli } from '../data/apple-health/sync-common.mjs';
+import { readBaseUrl, fetchJson, writeAtomic, runCli } from './lib/sync-common.mjs';
 import { ONBOARDING_JSON, normalizeOnboarding } from '../lib/profile/onboarding.mjs';
 import { isMain } from './lib/is-main.mjs';
 import { dataPaths, displayPath } from '../lib/paths.mjs';

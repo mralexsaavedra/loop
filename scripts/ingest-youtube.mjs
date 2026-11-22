@@ -23,7 +23,7 @@ import {
   mergeManifest, pendingIds, isoDate, wordCount, videoUrl,
 } from './youtube-transcript.mjs';
 import { isMain } from './lib/is-main.mjs';
-import { writeAtomic } from '../data/apple-health/sync-common.mjs';
+import { writeAtomic } from './lib/sync-common.mjs';
 
 const CALL_TIMEOUT_MS = 180_000;
 const RETRY_WAIT_MS = [20_000, 60_000];

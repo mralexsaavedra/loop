@@ -44,8 +44,7 @@ function mirrorTree(root, files) {
   fs.copyFileSync(path.join(REPO, 'lib', 'paths.mjs'), path.join(root, 'lib', 'paths.mjs'));
   fs.copyFileSync(path.join(REPO, 'lib', 'locale.mjs'), path.join(root, 'lib', 'locale.mjs'));
   fs.copyFileSync(path.join(REPO, 'scripts', 'lib', 'is-main.mjs'), path.join(root, 'scripts', 'lib', 'is-main.mjs'));
-  fs.mkdirSync(path.join(root, 'data', 'apple-health'), { recursive: true });
-  fs.copyFileSync(path.join(REPO, 'data', 'apple-health', 'sync-common.mjs'), path.join(root, 'data', 'apple-health', 'sync-common.mjs'));
+  fs.copyFileSync(path.join(REPO, 'scripts', 'lib', 'sync-common.mjs'), path.join(root, 'scripts', 'lib', 'sync-common.mjs'));
   return nutDir;
 }
 

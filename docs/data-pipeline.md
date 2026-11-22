@@ -537,7 +537,7 @@ gitignored with it). The token is never printed.
 | no answer, anything else | `ERROR: could not reach <url> ...` / `... answered HTTP <n> ...; nothing saved`; exit 1 |
 
 `npm run connect -- --forget` removes the saved server. Every sync script then resolves the server in this order
-(`data/apple-health/sync-common.mjs`), each of `INGEST_URL` and `INGEST_TOKEN` on its own: the environment, then
+(`scripts/lib/sync-common.mjs`), each of `INGEST_URL` and `INGEST_TOKEN` on its own: the environment, then
 `loop-data/server.json`, then the clone's `services/loop-ingest/.env` (`INGEST_TOKEN=`, `INGEST_PORT=` →
 `http://localhost:<port>`, the host-mode setup). The saved token is used only when the resolved URL is the saved
 one (compared without a trailing slash, scheme and host case-insensitive): an env `INGEST_URL` pointing at another

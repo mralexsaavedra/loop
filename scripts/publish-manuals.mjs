@@ -8,7 +8,7 @@
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { publishManuals } from '../lib/profile/manuals.mjs';
-import { runCli } from '../data/apple-health/sync-common.mjs';
+import { runCli } from './lib/sync-common.mjs';
 import { dataPaths } from '../lib/paths.mjs';
 import { isMain } from './lib/is-main.mjs';
 

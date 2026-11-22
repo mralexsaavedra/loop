@@ -17,7 +17,7 @@ import { spawnSync } from 'node:child_process';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { isMain } from './lib/is-main.mjs';
-import { runCli, readIngestToken, readBaseUrl } from '../data/apple-health/sync-common.mjs';
+import { runCli, readIngestToken, readBaseUrl } from './lib/sync-common.mjs';
 import { dataPaths, displayPath } from '../lib/paths.mjs';
 import { detectServer, waitForSeq, mirrorFiles, syncWaitSeconds } from './sync-client.mjs';
 import { dataRootGuardError } from './lib/data-root-guard.mjs';

@@ -18,7 +18,7 @@ import { validateNutrition } from '../../lib/nutrition/macros.mjs';
 import { validateProgram } from '../../lib/training/program.mjs';
 import { validateManual } from '../../lib/profile/profile.mjs';
 import { validateDocument } from '../../services/loop-ingest/src/documents.js';
-import { writeAtomic } from '../../data/apple-health/sync-common.mjs';
+import { writeAtomic } from './sync-common.mjs';
 import { dataPaths, displayPath } from '../../lib/paths.mjs';
 
 /** kind -> the clone file it becomes without HC_DATA_DIR (the default data root), in sync order (profile first:

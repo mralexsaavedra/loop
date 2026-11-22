@@ -25,7 +25,7 @@
  * Exit: 0 done, 1 a document was refused or could not be sent / written, 2 bad usage.
  */
 import { parseArgs } from 'node:util';
-import { readBaseUrl, readIngestToken } from '../data/apple-health/sync-common.mjs';
+import { readBaseUrl, readIngestToken } from './lib/sync-common.mjs';
 import { KINDS, documentLayout, contentHash, readState, recordState, readDocumentFile, documentProblems } from './lib/documents.mjs';
 import { main as pull, fetchDocument, ROOT } from './sync-documents.mjs';
 import { isMain } from './lib/is-main.mjs';

@@ -126,10 +126,15 @@ A runnable `scripts/*.mjs` guards its CLI with `if (isMain(import.meta.url))` fr
 (realpath compare, so symlinks and relative paths work; importing never runs main). The sync scripts,
 `scripts/build-web.mjs`, `data/nutrition/generate.mjs`, `data/apple-health/extract.mjs` and the dev scripts
 (`publish-manuals`, `make-demo-data`, `gen-food-calc`, `gen-journal-calc`, `update-css-fixture`) parse their
-flags with `parseCli` / `runCli` (`data/apple-health/sync-common.mjs`); `scripts/golden-bake.mjs` keeps its own
+flags with `parseCli` / `runCli` (`scripts/lib/sync-common.mjs`); `scripts/golden-bake.mjs` keeps its own
 parser with the same rules. `--help` prints the usage, and an unknown flag (a typo such as `--chek`, `--mod`
 or `--updte`), a flag without its value or a stray argument exits 2 before anything is read or written.
 Numeric flags are validated the same way (`make-demo-data --days abc` exits 2 instead of writing empty CSVs).
+
+`scripts/lib/` is the tooling kernel every CLI shares (`sync-common.mjs`, `is-main.mjs`, `data-root-guard.mjs`,
+`generated.mjs`). Dependencies between the tooling folders point one way: no non-test module under `scripts/`
+imports from `data/`, and `data/` imports from `scripts/` only through `scripts/lib/`
+(`scripts/tooling-boundary.test.mjs`; `lib/fs-boundary.test.mjs` keeps `lib/` from importing `data/`).
 
 ## Where the data files live
 

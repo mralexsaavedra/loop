@@ -24,7 +24,7 @@
  *          other documents still sync). */
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { readBaseUrl, readIngestToken, fetchJson, runCli } from '../data/apple-health/sync-common.mjs';
+import { readBaseUrl, readIngestToken, fetchJson, runCli } from './lib/sync-common.mjs';
 import { validateDocument } from '../services/loop-ingest/src/documents.js';
 import {
   DOCUMENT_FILES, KINDS, documentLayout, contentHash, readState, recordState, readDocumentFile, writeDocumentFile, backupDocumentFile,

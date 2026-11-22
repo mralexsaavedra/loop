@@ -32,7 +32,7 @@ import * as S from '../../lib/extract/samples.mjs';
 import * as HR from '../../lib/health/hr-hourly.mjs';
 import { HOURLY_CSV, HOURLY_HEADER } from '../../lib/health/ride-energy.mjs';
 import { ZONES_CSV } from '../../lib/training/hr-zones.mjs';
-import * as common from './sync-common.mjs';
+import * as common from '../../scripts/lib/sync-common.mjs';
 import { isMain } from '../../scripts/lib/is-main.mjs';
 import { dataPaths } from '../../lib/paths.mjs';
 

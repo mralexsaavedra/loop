@@ -7,7 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
-import { withLock } from '../../data/apple-health/sync-common.mjs';
+import { withLock } from './sync-common.mjs';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 export const ASTRO_BIN = path.join(ROOT, 'node_modules', '.bin', 'astro');

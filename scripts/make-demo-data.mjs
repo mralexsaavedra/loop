@@ -24,7 +24,7 @@ import { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER } from '../lib/extract/sa
 import { HR_HOURLY_HEADER, HR_HOURLY_CSV } from '../lib/health/hr-hourly.mjs';
 import { ZONES_HEADER, ZONES_CSV } from '../lib/training/hr-zones.mjs';
 import { addDays, isIsoDate } from '../lib/date.mjs';
-import { runCli } from '../data/apple-health/sync-common.mjs';
+import { runCli } from './lib/sync-common.mjs';
 
 // journal-daily.csv: the last JOURNAL_DAYS days, most of them journaled (the example's My journal card +
 // behaviour insights)
