@@ -2,10 +2,27 @@
 // docs/plan-page.md → Sync): the goal and the target weight are saved; Sync rebuilds the page on the server and
 // reloads it. The language switch is not driven here: it rebuilds the shared page in the other locale under the
 // specs running next to it.
-import { test, expect, openLan, apiResponse, syncAndReload, SYNC_TEST_MS } from './fixtures.mjs';
+import { test, expect, openLan, apiResponse, apiWrite, syncAndReload, withCleanup, SYNC_TEST_MS } from './fixtures.mjs';
 import { settle } from '../fixtures.mjs';
 
 test('the goal and the target weight are saved from the profile sheet', async ({ page }) => {
+  // start from a goal and a target this test then changes: picking what is already stored sends nothing (the
+  // shared database keeps what an earlier project or run left); what it found is put back at the end
+  const res = await page.request.get('/api/food/settings', { headers: { 'X-HC-Food': '1' } });
+  expect(res.status()).toBe(200);
+  const found = (await res.json()).settings;
+  // lan-setup stored a goal; the API cannot store "no goal" back, so a goal is required to restore it
+  expect(found.goal, 'a stored goal to restore').toBeTruthy();
+  await apiWrite(page, 'PUT', '/api/food/settings', 'food', { goal: 'cut', targetWeightKg: null });
+  await withCleanup(() => goalAndTarget(page), () => restoreSettings(page, found));
+});
+
+/** Put the goal and the target weight back as they were (a missing target is stored as none). */
+function restoreSettings(page, { goal, targetWeightKg }) {
+  return apiWrite(page, 'PUT', '/api/food/settings', 'food', { goal, targetWeightKg: targetWeightKg ?? null });
+}
+
+async function goalAndTarget(page) {
   await openLan(page);
   await page.locator('#avatar-btn').click();
   await expect(page.locator('#detail')).toBeVisible();
@@ -35,7 +52,7 @@ test('the goal and the target weight are saved from the profile sheet', async ({
   await expect(page.locator('#pf-target-err')).not.toBeEmpty();
   await settle(page);
   expect(sent).toBe(false);
-});
+}
 
 test('Sync rebuilds the page on the server and reloads it', async ({ page }) => {
   test.setTimeout(SYNC_TEST_MS);

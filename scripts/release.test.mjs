@@ -135,9 +135,9 @@ test('CI builds both images for amd64 (no push) and smoke-tests a minimal compos
   assert.match(images, /- run: npx playwright install --with-deps chromium\n {6}- run: scripts\/image-smoke\.sh\n {8}env:\n(?:.*\n)*? {10}SMOKE_BROWSER: '1'/);
 });
 
-test('CI runs the browser E2E tests in Chromium (job e2e, npm run test:e2e)', () => {
+test('CI runs the browser E2E tests in Chromium and WebKit (job e2e, npm run test:e2e)', () => {
   const ci = read('.github/workflows/ci.yml');
-  assert.match(ci, /^ {2}e2e:\n(?:.*\n)*? {6}- run: npx playwright install --with-deps chromium\n {6}- run: npm run test:e2e$/m);
+  assert.match(ci, /^ {2}e2e:\n(?:.*\n)*? {6}- run: npx playwright install --with-deps chromium webkit\n {6}- run: npm run test:e2e$/m);
   // the LAN projects run only with a database: the job has its Postgres service and the data service's dependencies
   const job = ci.slice(ci.indexOf('\n  e2e:\n'), ci.indexOf('\n  postgres:\n'));
   assert.match(job, /image: postgres:17-alpine@sha256:/);
@@ -147,6 +147,15 @@ test('CI runs the browser E2E tests in Chromium (job e2e, npm run test:e2e)', ()
   assert.equal(pkg.scripts['test:e2e'], 'playwright test');
   assert.match(pkg.devDependencies['@playwright/test'], /^\d+\.\d+\.\d+$/, 'pinned to an exact version');
   assert.doesNotMatch(pkg.scripts.test, /playwright|e2e/, 'npm test stays browser-free');
+  const config = read('playwright.config.mjs');
+  // the Chromium projects of the static and the LAN specs
+  for (const name of ['static-phone', 'lan-phone']) assert.match(config, new RegExp(`name: '${name}'`), name);
+  // and their WebKit twins, on the WebKit iPhone profile (Playwright's devices['iPhone 15'] is a webkit device). The
+  // {0,240} window spans one project entry (name, testMatch, testIgnore, dependencies, use): wide enough for it, too
+  // short to reach the next entry's profile
+  for (const name of ['webkit-static', 'webkit-lan']) {
+    assert.match(config, new RegExp(`name: '${name}',[\\s\\S]{0,240}?devices\\['iPhone 15'\\]`), `${name} on the iPhone 15 profile`);
+  }
 });
 
 test('every checkout in the workflows drops the job token from .git/config (persist-credentials: false)', () => {

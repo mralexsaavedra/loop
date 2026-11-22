@@ -3,6 +3,10 @@
 import { test, expect, openLan, apiResponse, apiWrite } from './fixtures.mjs';
 
 async function openJournal(page) {
+  // the `d` shortcut works once journal.js registered its view (after GET /api/journal/settings answered); the My
+  // journal card comes from another request and can show first
+  await expect(page.locator('#my-journal')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => !!(window.HCViews && window.HCViews.journal))).toBe(true);
   await page.keyboard.press('d');
   await expect(page.locator('#jr-save')).toBeVisible();
 }

@@ -18,6 +18,8 @@ async function expectClosed(page) {
 
 for (const tab of TABS) {
   test(`every visible card on ${tab} opens its sheet and Esc closes it`, async ({ page }) => {
+    // every card's sheet, one by one: dozens of open / close cycles, which WebKit takes about four times as long for
+    test.slow(test.info().project.use.defaultBrowserType === 'webkit', 'WebKit opens and closes each sheet more slowly');
     await openStatic(page, `#${tab}`);
     const openers = page.locator(`.tab-panel[data-tab="${tab}"] [data-detail]:visible`);
     const count = await openers.count();

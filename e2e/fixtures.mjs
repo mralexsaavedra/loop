@@ -49,9 +49,17 @@ export const test = base.extend({
 
 export { expect };
 
-/** Open the static example page, optionally at a hash (`'#health'`, `'#detail/weight'`). */
+/** Go to `url` with a real page load. From a page already open, a goto that changes only the hash is a same-document
+ * navigation: no reload, and a deep link is then handled by `hashchange` instead of the page's own load. Going
+ * through about:blank first makes every open a load, so a deep-link test proves what a link opened cold does. */
+export async function loadPage(page, url) {
+  if (page.url() !== 'about:blank') await page.goto('about:blank');
+  return page.goto(url);
+}
+
+/** Open the static example page with a real load, optionally at a hash (`'#health'`, `'#detail/weight'`). */
 export async function openStatic(page, hash = '') {
-  await page.goto(STATIC_URL + hash);
+  await loadPage(page, STATIC_URL + hash);
   await expect(page.locator('#t-home')).toBeVisible();
 }
 

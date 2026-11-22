@@ -43,7 +43,8 @@ jobs:
   # service container (e2e/lan/stack.mjs). The HTML report and failure traces are uploaded when a test fails.
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # two engines: the static and LAN specs run on Chromium and again on WebKit (about 12 minutes on a runner)
+    timeout-minutes: 35
     services:
       postgres:
         image: postgres:17-alpine@sha256:b0f9560a2de083e2cc7382e75f808c7381a32852a7ec49117deedb300e552b24
@@ -71,7 +72,7 @@ jobs:
             services/loop-ingest/package-lock.json
       - run: npm ci --no-audit --no-fund
       - run: npm --prefix services/loop-ingest ci --no-audit --no-fund
-      - run: npx playwright install --with-deps chromium
+      - run: npx playwright install --with-deps chromium webkit
       - run: npm run test:e2e
       - if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

@@ -1,6 +1,6 @@
 /* Playwright E2E config (`npm run test:e2e`, docs/development.md → Tests → Browser end-to-end tests).
- * Not part of `npm test`, which stays browser-free. Chromium only: the page targets the phone browser the
- * owner uses and one engine keeps CI fast.
+ * Not part of `npm test`, which stays browser-free. Two engines: Chromium (Chrome, Edge, Android) and WebKit
+ * (Safari and every browser on an iPhone), each on a phone profile; the desktop layout runs on Chromium.
  *
  * Projects:
  *   - static-phone / static-desktop: the example page (synthetic demo data) opened from file://, so every
@@ -63,6 +63,7 @@ export default defineConfig({
       testMatch: 'static/**/*.spec.mjs',
       use: { ...devices['Desktop Chrome'], viewport: { width: 1280, height: 800 } },
     },
+    { name: 'webkit-static', testMatch: 'static/**/*.spec.mjs', use: { ...devices['iPhone 15'] } },
     ...(LAN
       ? [
         { name: 'lan-setup', testMatch: 'lan/setup.spec.mjs', use: { ...devices['Pixel 7'], baseURL: LAN_URL } },
@@ -73,7 +74,19 @@ export default defineConfig({
           dependencies: ['lan-setup'],
           use: { ...devices['Pixel 7'], baseURL: LAN_URL },
         },
-        { name: 'lan-last', testMatch: 'lan/last/**/*.spec.mjs', dependencies: ['lan-phone'], use: { ...devices['Pixel 7'], baseURL: LAN_URL } },
+        // the same LAN specs on WebKit, AFTER lan-phone: several specs own whole days of the shared database. They run
+        // again on what lan-phone left there, which is why every spec creates unique rows, cleans up, and sets the
+        // state it starts from (a goal, a day) instead of assuming an empty database
+        {
+          name: 'webkit-lan',
+          testMatch: 'lan/**/*.spec.mjs',
+          testIgnore: ['lan/setup.spec.mjs', 'lan/last/**'],
+          dependencies: ['lan-phone'],
+          use: { ...devices['iPhone 15'], baseURL: LAN_URL },
+        },
+        // last: it rebuilds the shared page in another locale under whatever still runs. Behind webkit-lan too, so a
+        // WebKit failure also skips it (Playwright skips a project whose dependency failed); the job fails either way
+        { name: 'lan-last', testMatch: 'lan/last/**/*.spec.mjs', dependencies: ['lan-phone', 'webkit-lan'], use: { ...devices['Pixel 7'], baseURL: LAN_URL } },
       ]
       : []),
   ],

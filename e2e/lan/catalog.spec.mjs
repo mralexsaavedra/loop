@@ -7,7 +7,7 @@
 //
 // Every product / recipe / log entry a test creates is removed in its finally through the API (apiWrite), so the
 // shared database keeps only what other specs create.
-import { test, expect, openLan, unique, apiResponse, apiWrite, withCleanup } from './fixtures.mjs';
+import { test, expect, openLan, unique, apiResponse, apiWrite, withCleanup, uniqueBarcode } from './fixtures.mjs';
 import { settle } from '../fixtures.mjs';
 import { openAddSheet, saveEntry, openProducts, logRow } from './food-ui.mjs';
 
@@ -83,8 +83,6 @@ function recordWrites(page, pathname) {
   return writes;
 }
 
-/** A barcode no other test (or run) uses: the service refuses a second product with the same one. */
-const uniqueBarcode = () => String(Date.now()).slice(-9) + String(Math.floor(Math.random() * 1e4)).padStart(4, '0');
 
 /* ---------- recipes ---------- */
 

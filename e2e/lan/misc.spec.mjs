@@ -195,10 +195,12 @@ test.describe('the journal sheet', () => {
       await expect(sheet).toBeVisible();
       await expect(sheet).toContainText('Journal insights');
       await expect(sheet.locator('.jr-top .jr-g')).toHaveText(/^Last \d+ days · to /);
-      // without recovery data no behaviour has enough days: one shared "need more data" card
+      // a handful of journaled days (this spec's and the others') is far below each behaviour's minimum: one shared
+      // "need more data" card. How many count depends on which journaled days the seeded Health extract has a next
+      // morning's recovery for, and on which specs ran first, so only its form is pinned
       const need = sheet.locator('.ji-empty');
       await expect(need).toContainText('Need more data');
-      await expect(need).toContainText('Days that count so far: 0.');
+      await expect(need).toContainText(/Days that count so far: \d+\./);
       await expect(sheet.locator('.ji-row:not(.ji-empty)')).toHaveCount(0);
 
       const info = sheet.locator('[data-dt-act="info"]');

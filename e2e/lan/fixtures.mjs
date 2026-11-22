@@ -14,7 +14,7 @@
  *   -4, -5       misc (journal)
  *   -6           misc (food, Constancia)
  * A new spec that needs an empty or private day picks one below -6 and adds it here. */
-import { test as base, expect, zonedInstant } from '../fixtures.mjs';
+import { test as base, expect, zonedInstant, loadPage } from '../fixtures.mjs';
 import { E2E_TZ } from '../paths.mjs';
 
 /** Today's date (YYYY-MM-DD) in E2E_TZ. */
@@ -64,12 +64,18 @@ export async function openProfile(page) {
   await expect(page.locator('#detail')).toBeVisible();
 }
 
+/** A 13-digit barcode no other test, project or run uses (the time plus a random suffix; not a valid EAN check
+ * digit, which neither the page nor the service verifies): the service refuses a second product with a barcode
+ * already stored, and every LAN project runs against the same database. */
+export const uniqueBarcode = () => String(Date.now()).slice(-9) + String(Math.floor(Math.random() * 1e4)).padStart(4, '0');
+
 /** A name no other test (or retry) uses. */
 export const unique = (prefix) => `${prefix} ${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
-/** Open the served page at a hash and wait until the food API answered (the "+" button shows then). */
+/** Open the served page with a real load (loadPage) at a hash, and wait until the food API answered (the "+" button
+ * shows then). */
 export async function openLan(page, hash = '') {
-  await page.goto('/' + hash);
+  await loadPage(page, '/' + hash);
   await expect(page.locator('#act-btn')).toBeVisible();
 }
 

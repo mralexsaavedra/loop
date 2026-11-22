@@ -1,7 +1,7 @@
 // Products against the real data service (docs/nutrition-food-log.md → Products): create from a label, edit,
 // log by amount, archive; the Atwater check and its override; the Open Food Facts lookup (stubbed at the page's
 // /api/food/off: the real one would call the internet).
-import { test, expect, openLan, unique, apiResponse } from './fixtures.mjs';
+import { test, expect, openLan, unique, apiResponse, uniqueBarcode } from './fixtures.mjs';
 import { openAddSheet, saveEntry, openProducts, createProduct, logRow } from './food-ui.mjs';
 
 test('a product is created, edited, logged by amount and archived', async ({ page }) => {
@@ -66,10 +66,11 @@ test('macros that break the Atwater check are refused until the save is forced',
 
 test('an Open Food Facts search fills the form and the product is saved from it', async ({ page }) => {
   const name = unique('E2E OFF muesli');
+  const code = uniqueBarcode();
   await page.route('**/api/food/off?**', (route) =>
     route.fulfill({
       json: {
-        results: [{ code: '8410000000001', name, brand: 'E2E brand', stores: '', unit: 'g', servingSize: 40, per100: { kcal: 370, protein: 10, carbs: 62, fat: 7 } }],
+        results: [{ code, name, brand: 'E2E brand', stores: '', unit: 'g', servingSize: 40, per100: { kcal: 370, protein: 10, carbs: 62, fat: 7 } }],
       },
     }),
   );
