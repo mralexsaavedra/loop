@@ -25,7 +25,9 @@ A Strava / WHOOP-style profile, honest data only.
   icon; ≥ 44px; NOT a tab.
 - **The view**: `web/src/client/profile.js` (inlined before detail.js) registers `window.HCViews.profile`;
   detail.js renders any registered view in the same modal (focus, inert, Esc, Back).
-- **Deep link**: `#profile` (instead of `#detail/<metric>`).
+- **Deep link**: `#profile` (instead of `#detail/<metric>`). The sheet it opens on load can render before the LAN
+  settings answer (`HCSettings.ready()` still false), without the target weight field and the Language section;
+  when they arrive and the sheet is still open, profile.js draws it again (keeping the focused control), once.
 - **Focus trap**: the Tab trap also cycles through `<summary>` and a checked radio.
 - **Focused open**: `HCDetail.open(key, date, { focus: '<selector>' })` opens a view focused (and scrolled) on
   one of its controls instead of the close button.

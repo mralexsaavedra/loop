@@ -85,3 +85,40 @@ test('a refused goal save says why and keeps the pick pending', async ({ page, p
   // kept on this viewer until a save goes through (retried on the next load)
   expect(await page.evaluate(() => window.HCNutri.pendingGoal())).toBe('cut');
 });
+
+test('a #profile link opened before the settings answer shows the target weight and the language once they do', async ({ page }) => {
+  // the sheet a deep link opens on load can render before GET /api/food/settings answers (WebKit's order showed
+  // it): the answer is held back here, so the race is the same in every engine
+  let release;
+  const held = new Promise((r) => { release = r; });
+  await page.route('**/api/food/settings', async (route) => {
+    if (route.request().method() === 'GET') await held;
+    return route.fallback();
+  });
+  await page.addInitScript(() => localStorage.setItem('hc.onboarding.later', '1'));
+  await page.goto('/#profile');
+  await expect(page.locator('#detail')).toBeVisible();
+  await expect(page.locator('#pf-goal')).toBeVisible();
+  await expect(page.locator('#pf-target')).toHaveCount(0); // no settings yet: no target field
+  // a control the viewer is on keeps the focus through the redraw, and the redraw adds no history entry
+  const picked = page.locator('input[name="pf-goal"]').first();
+  await picked.focus();
+  const value = await picked.getAttribute('value');
+  const before = await page.evaluate(() => history.length);
+  release();
+  await expect(page.locator('#pf-target')).toBeVisible();
+  await expect(page.locator('#pf-lang')).toBeVisible();
+  await expect(page.locator('#detail')).toBeVisible(); // still the same open sheet
+  expect(new URL(page.url()).hash).toBe('#profile');
+  await expect(page.locator(`input[name="pf-goal"][value="${value}"]`)).toBeFocused();
+  expect(await page.evaluate(() => history.length)).toBe(before);
+  // drawn once: a later settings change updates the status line in place, the target field is the same element
+  const target = await page.locator('#pf-target').elementHandle();
+  await page.locator('#pf-target').fill('77');
+  await page.locator('#pf-target').press('Enter');
+  await expect(page.locator('#pf-goal-msg')).not.toBeEmpty();
+  expect(await target.evaluate((el) => el.isConnected)).toBe(true);
+  // one Escape closes it (a deep-linked sheet has no entry of its own to go back to)
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#detail')).toBeHidden();
+});

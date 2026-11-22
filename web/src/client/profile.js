@@ -316,8 +316,28 @@
     });
   }
   var ST = window.HCSettings;
+  // whether the last render saw the server settings: a sheet a #profile link opens on load can render before
+  // GET /settings answers, without the target field and the Language section; their arrival draws it again
+  var drawnWithSettings = false;
+  // a selector that finds the focused control again in the redrawn sheet: its id, or a radio's name + value
+  function focusSelector(a) {
+    if (!a || !a.closest || !a.closest('#detail')) return null;
+    var esc1 = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape : function (v) { return String(v).replace(/["\\]/g, '\\$&'); };
+    if (a.id) return '#' + esc1(a.id);
+    if (a.name && a.value != null) return 'input[name="' + esc1(a.name) + '"][value="' + esc1(a.value) + '"]';
+    return null;
+  }
+  function redrawIfEarly() {
+    var D = window.HCDetail, open = D && typeof D.state === 'function' ? D.state() : null;
+    if (drawnWithSettings || !settings() || !open || open.key !== 'profile') return;
+    // reopening the open sheet re-renders it in place (no history entry: detail.js only replaces the hash)
+    var focus = focusSelector(document.activeElement);
+    D.open('profile', null, focus ? { focus: focus } : {});
+  }
   if (ST && typeof ST.onChange === 'function') {
     ST.onChange(function (s) {
+      // first draw it again if it was drawn without the settings; the status lines below then go to the new sheet
+      redrawIfEarly();
       if (s && s.last && s.last.what === 'locale') { setText('pf-lang-msg', langStatusText(s.last)); return; }
       setText('pf-goal-msg', statusText(s));
       var prog = progressText();
@@ -371,6 +391,7 @@
     return '<button type="button" class="chip pf-edit" data-onb-open="">' + esc(O.edit) + '</button>';
   }
   function render() {
+    drawnWithSettings = !!settings();
     if (!P.hasData) return { head: headHtml(), body: goalHtml() + langHtml() + note(T.onboarding, 'pf-onboard') };
     return { head: headHtml(), body: goalHtml() + langHtml() + eventsHtml() + bodyHtml() + gearHtml() + devicesHtml() + supplementsHtml() + stravaHtml() + note(stravaOn() ? T.note : T.noteNoStrava, 'pf-foot') };
   }
