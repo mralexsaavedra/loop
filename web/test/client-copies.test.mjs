@@ -45,3 +45,12 @@ for (const [file, global, fns] of COPIES) {
     assert.ok(g < at, `${global} before ${file}`);
   });
 }
+
+test('the client scripts read the one HC.fin (client/util.js) instead of defining their own', () => {
+  const dir = path.join(WEB_ROOT, 'src', 'client');
+  const copies = fs.readdirSync(dir)
+    .filter((f) => f.endsWith('.js') && !f.endsWith('.test.js') && f !== 'util.js')
+    .filter((f) => /function fin\(/.test(src(f)));
+  assert.deepEqual(copies, []);
+  assert.match(src('util.js'), /\bfin: fin\b/, 'util.js exports HC.fin');
+});

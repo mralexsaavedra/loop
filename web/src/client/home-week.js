@@ -40,9 +40,7 @@
     var D = typeof DETAIL !== 'undefined' && DETAIL ? DETAIL : null;
 
     /* ---------- pure: the week ---------- */
-    function fin(v) {
-      return typeof v === 'number' && isFinite(v);
-    }
+    var fin = HC.fin;
     function weekOf(today) {
       var start = HC.shiftIso(today, -HC.weekdayIndex(today));
       return { start: start, end: HC.shiftIso(start, 6), elapsed: HC.weekdayIndex(today) + 1, daysLeft: 6 - HC.weekdayIndex(today) };

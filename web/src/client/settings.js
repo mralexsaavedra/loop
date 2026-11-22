@@ -26,7 +26,7 @@
   var RETRY_DELAYS_MS = [1000, 3000]; // GET /settings: 3 tries in all
   var loading = false;
 
-  function fin(v) { return typeof v === 'number' && isFinite(v); }
+  var fin = HC.fin;
   function nutri() {
     var n = window.HCNutri;
     return n && typeof n.state === 'function' ? n : null;

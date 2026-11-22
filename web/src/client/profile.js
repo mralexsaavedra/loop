@@ -42,9 +42,7 @@
   function list(v) {
     return Array.isArray(v) ? v : [];
   }
-  function fin(v) {
-    return typeof v === 'number' && isFinite(v);
-  }
+  var fin = HC.fin;
   // whole years between an ISO birthdate and an ISO day (the shared HC.ageOn, client/util.js)
   var ageOn = HC.ageOn;
   function photoSrc() {
