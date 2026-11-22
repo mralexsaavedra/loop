@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { profileRulesSource, PROFILE_RULES_PATH, PROFILE_RULES_HEADER } from './gen-profile-rules.mjs';
 import { NEAT, SPORTS, SPORT_MINUTES, SPORT_PER_WEEK, AGE_RANGE, HEIGHT_CM_RANGE, WEIGHT_KG_RANGE } from '../lib/nutrition/energy.mjs';
 import { DAY_TYPES } from '../lib/nutrition/targets.mjs';
@@ -35,10 +36,12 @@ test('the service module exports exactly the lib vocabularies and bounds, deep-f
   assert.ok(Object.isFrozen(S.PROFILE_LIMITS) && Object.isFrozen(S.PROFILE_LIMITS.age) && Object.isFrozen(S.PROFILE_SPORTS));
 });
 
+// --check on a stale file (exit 1, nothing written) is the shared writeGenerated step, tested in
+// scripts/gen-food-calc.test.mjs
 test('gen-profile-rules: --help prints the usage, an unknown flag exits 2, --check exits 0 when current and writes nothing', async () => {
   const { spawnSync } = await import('node:child_process');
   const { statSync } = await import('node:fs');
-  const script = new URL('./gen-profile-rules.mjs', import.meta.url).pathname;
+  const script = fileURLToPath(new URL('./gen-profile-rules.mjs', import.meta.url));
   const before = statSync(PROFILE_RULES_PATH).mtimeMs;
   const run = (args) => spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' });
   const help = run(['--help']);

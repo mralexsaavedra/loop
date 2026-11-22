@@ -3,6 +3,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { journalCalcSource, JOURNAL_CALC_PATH, JOURNAL_CALC_HEADER } from './gen-journal-calc.mjs';
 import * as J from '../lib/journal/journal.mjs';
 import * as S from '../services/loop-ingest/src/journal-calc.js';
@@ -33,7 +34,7 @@ test('both generators: --help prints the usage, an unknown flag or a stray argum
   const { statSync } = await import('node:fs');
   const { FOOD_CALC_PATH } = await import('./gen-food-calc.mjs');
   for (const [name, file] of [['gen-journal-calc.mjs', JOURNAL_CALC_PATH], ['gen-food-calc.mjs', FOOD_CALC_PATH]]) {
-    const script = new URL('./' + name, import.meta.url).pathname;
+    const script = fileURLToPath(new URL('./' + name, import.meta.url));
     const before = statSync(file).mtimeMs;
     const run = (args) => spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' });
     const help = run(['--help']);
