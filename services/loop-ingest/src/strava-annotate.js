@@ -20,6 +20,7 @@
  * only a coach clone holding INGEST_TOKEN reaches it on the ingest port.
  */
 import { httpError, readJson, isJson, writeJson, hasControlChars, containsNul } from './http.js'
+import { renameStoredActivity } from './strava-db.js'
 
 const ACTIVITY_URL = 'https://www.strava.com/api/v3/activities/'
 const FETCH_TIMEOUT_MS = 15_000
@@ -170,10 +171,7 @@ export function createActivityAnnotator ({ getAccessToken, pool = null, fetchImp
     await write.text().catch(() => '')
     if (fields.name && pool) {
       try {
-        await pool.query(
-          `UPDATE strava_activity SET name = $2, payload = jsonb_set(payload, '{name}', to_jsonb($2::text)) WHERE id = $1`,
-          [String(id), fields.name]
-        )
+        await renameStoredActivity(pool, id, fields.name)
       } catch (err) {
         // Strava already holds the new name; the next pull of this activity stores it anyway
         log(JSON.stringify({ event: 'strava_annotate_store_failed', message: err.message }))

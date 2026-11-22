@@ -143,23 +143,6 @@ export function classifyStravaError (err) {
   return 'strava_other'
 }
 
-/** Persistence for the rotated refresh token (single row, sql/003_sync.sql). */
-export function createTokenStore (pool) {
-  return {
-    async load () {
-      const { rows } = await pool.query('SELECT refresh_token FROM strava_token WHERE id = 1')
-      return rows[0]?.refresh_token ?? null
-    },
-    async save (token) {
-      await pool.query(
-        `INSERT INTO strava_token (id, refresh_token, updated_at) VALUES (1, $1, now())
-         ON CONFLICT (id) DO UPDATE SET refresh_token = EXCLUDED.refresh_token, updated_at = now()`,
-        [token]
-      )
-    }
-  }
-}
-
 /**
  * Walk /athlete/activities from `sinceEpochSeconds` (a unix timestamp; 0 when nothing is stored yet). With
  * `after` set Strava returns the activities ASCENDING, so every page is handed to `onPage` (awaited) before
@@ -204,47 +187,5 @@ export async function fetchActivitiesSince (getAccessToken, sinceEpochSeconds, f
   return collected
 }
 
-export async function upsertActivities (pool, activities) {
-  if (activities.length === 0) return 0
-
-  const client = await pool.connect()
-  let failure
-  try {
-    await client.query('BEGIN')
-    for (const activity of activities) {
-      await client.query(
-        `INSERT INTO strava_activity (id, start_local, sport_type, name, payload)
-         VALUES ($1, $2, $3, $4, $5)
-         ON CONFLICT (id) DO UPDATE
-           SET payload = EXCLUDED.payload,
-               name = EXCLUDED.name,
-               sport_type = EXCLUDED.sport_type,
-               synced_at = now()`,
-        [
-          activity.id,
-          activity.start_date_local,
-          activity.sport_type ?? activity.type ?? 'Unknown',
-          activity.name ?? null,
-          activity
-        ]
-      )
-    }
-    await client.query('UPDATE strava_sync_state SET last_synced_at = now() WHERE id = 1')
-    await client.query('COMMIT')
-  } catch (err) {
-    failure = err
-    // on a dead connection the ROLLBACK throws too: never let it hide the original error
-    await client.query('ROLLBACK').catch(() => {})
-    throw err
-  } finally {
-    // release(err) makes the pool discard a client that failed mid-transaction instead of reusing it
-    client.release(failure)
-  }
-
-  return activities.length
-}
-
-export async function lastSyncedStart (pool) {
-  const { rows } = await pool.query('SELECT MAX(start_local) AS newest FROM strava_activity')
-  return rows[0]?.newest ?? null
-}
+// the persistence moved to strava-db.js; its functions keep their historical import path
+export { createTokenStore, upsertActivities, lastSyncedStart } from './strava-db.js'
