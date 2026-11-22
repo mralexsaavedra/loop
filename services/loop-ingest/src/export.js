@@ -1,9 +1,12 @@
 import { createBearerCheck } from './auth.js'
 import { writeJson as send } from './http.js'
 import { listStravaActivities } from './strava-db.js'
+import { listRawPayloads } from './raw-payload-db.js'
 
 // the strava_activity read moved to strava-db.js; it keeps its historical import path
 export { listStravaActivities } from './strava-db.js'
+// the raw_payload page moved to raw-payload-db.js; it keeps its historical import path
+export { EXPORT_PAGE_BYTES, listRawPayloads } from './raw-payload-db.js'
 
 const DEFAULT_LIMIT = 500
 const MAX_LIMIT = 1000
@@ -38,41 +41,6 @@ export function parseExportQuery (searchParams) {
 
   const { sinceId, limit } = parsePaging(searchParams)
   return { automation, sinceId, limit }
-}
-
-/**
- * The byte budget of one /export/raw page: payloads are up to MAX_BODY_BYTES (8 MB) each, so 500 of them could
- * be gigabytes in the service's memory (512 MB limit). A page stops after the payload that takes the sum of
- * `byte_size` past it; it always holds at least one row, so the cursor always advances.
- */
-export const EXPORT_PAGE_BYTES = 32 * 1024 * 1024
-
-/**
- * One page of stored payloads, oldest first: { rows, more }. First the ids + sizes of up to `limit` rows (never
- * the payloads), then the payloads of the prefix that fits `maxBytes`. `more` = the budget, not the row limit,
- * cut the page: rows after it exist (GET /export/raw sends it as `X-Has-More`).
- */
-export async function listRawPayloads (pool, { automation, sinceId, limit, maxBytes = EXPORT_PAGE_BYTES }) {
-  const { rows: sizes } = await pool.query(
-    `SELECT id, byte_size
-       FROM raw_payload
-      WHERE automation = $1 AND id > $2
-      ORDER BY id ASC
-      LIMIT $3`,
-    [automation, sinceId, limit]
-  )
-  if (!sizes.length) return { rows: [], more: false }
-  let taken = 0
-  let bytes = 0
-  while (taken < sizes.length && (taken === 0 || bytes < maxBytes)) bytes += Number(sizes[taken++].byte_size) || 0
-  const { rows } = await pool.query(
-    `SELECT id, received_at, payload
-       FROM raw_payload
-      WHERE automation = $1 AND id > $2 AND id <= $3
-      ORDER BY id ASC`,
-    [automation, sinceId, String(sizes[taken - 1].id)]
-  )
-  return { rows, more: taken < sizes.length }
 }
 
 /**

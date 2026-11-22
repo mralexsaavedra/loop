@@ -10,6 +10,9 @@
  * MAX(received_at). The snapshot is cached for SNAPSHOT_TTL_MS so polling (or
  * a flood) costs at most one DB read per 5 s.
  */
+import { saveSyncStatus, loadSyncStatus } from './sync-status-db.js'
+import { lastRawPayloadAt } from './raw-payload-db.js'
+
 export const STRAVA_STALE_MS = 6 * 3_600_000
 export const SNAPSHOT_TTL_MS = 5000
 export const STATUS_CODES = new Set(['strava_auth', 'strava_network', 'strava_other', 'strava_token_save', 'trigger_write', 'build'])
@@ -52,15 +55,7 @@ export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, read
 
   async function persist () {
     try {
-      await pool.query(
-        `UPDATE sync_status
-            SET last_strava_ok_at = $1, last_strava_error = $2, last_strava_error_at = $3,
-                last_trigger_at = $4, trigger_seq = GREATEST(trigger_seq, $5),
-                last_trigger_error = $6, last_trigger_error_seq = $7, strava_token_save_failed = $8
-          WHERE id = 1`,
-        [state.stravaOkAt, state.stravaError, state.stravaErrorAt, state.triggerAt, state.triggerSeq,
-          state.triggerError, state.triggerErrorSeq, state.tokenSaveFailed]
-      )
+      await saveSyncStatus(pool, state)
     } catch (err) {
       // Freshness bookkeeping must never fail a sync or a request.
       log(JSON.stringify({ event: 'sync_status_persist_failed', message: err.message }))
@@ -71,14 +66,9 @@ export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, read
     const fileSeq = readTriggerSeq ? toSeq(await readTriggerSeq().catch(() => 0)) : 0
     state.triggerSeq = Math.max(state.triggerSeq, fileSeq)
     try {
-      const { rows } = await pool.query(
-        `SELECT last_strava_ok_at, last_strava_error, last_strava_error_at, last_trigger_at, trigger_seq,
-                last_trigger_error, last_trigger_error_seq, strava_token_save_failed
-           FROM sync_status WHERE id = 1`
-      )
+      const row = await loadSyncStatus(pool)
       loaded = true
       changed()
-      const row = rows[0]
       if (!row) return
       // in-memory values recorded before a (retried) load win over the DB copy
       state.stravaOkAt = state.stravaOkAt ?? toIso(row.last_strava_ok_at)
@@ -168,8 +158,7 @@ export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, read
       if (!loaded) await load()
       let lastShortcutAt = null
       try {
-        const { rows } = await pool.query('SELECT MAX(received_at) AS last FROM raw_payload')
-        lastShortcutAt = toIso(rows[0]?.last)
+        lastShortcutAt = toIso(await lastRawPayloadAt(pool))
       } catch (err) {
         log(JSON.stringify({ event: 'sync_status_read_failed', message: err.message }))
       }
