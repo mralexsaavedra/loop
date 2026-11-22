@@ -218,6 +218,7 @@ export function createSyncTrigger ({
      * and the host would never process it. Schedule ONE write of the current
      * seq after `delayMs`, and no earlier than lastWrittenAt + the min interval.
      * It is an ordinary deferred write: clicks meanwhile share its seq.
+     * @param {{ fileSeq?: number, delayMs?: number, lastWrittenAt?: number | null }} [opts]
      */
     recover ({ fileSeq, delayMs = BOOT_RECOVERY_DELAY_MS, lastWrittenAt: lastAt = null } = {}) {
       if (Number.isFinite(lastAt)) lastWrittenAt = Math.max(lastWrittenAt, lastAt)

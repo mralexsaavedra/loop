@@ -96,7 +96,7 @@ export function createTokenProvider ({
 
     if (!res.ok) throw new Error(`strava token refresh failed: ${res.status}`)
 
-    const body = await res.json()
+    const body = /** @type {{ access_token: string, expires_at: number, refresh_token?: string }} */ (await res.json())
     accessToken = body.access_token
     expiresAt = body.expires_at * 1000
 
@@ -164,13 +164,11 @@ export async function pullActivitiesSince (getAccessToken, sinceEpochSeconds, on
     const res = await fetchImpl(url, { headers: { authorization: `Bearer ${token}` }, signal: AbortSignal.timeout(FETCH_TIMEOUT_MS) })
 
     if (res.status === 429) {
-      const err = new Error('strava rate limit reached')
-      err.rateLimited = true
-      throw err
+      throw Object.assign(new Error('strava rate limit reached'), { rateLimited: true })
     }
     if (!res.ok) throw new Error(`strava activities failed: ${res.status}`)
 
-    const batch = await res.json()
+    const batch = /** @type {object[]} */ (await res.json())
     if (batch.length > 0) await onPage(batch)
     total += batch.length
     if (batch.length < PAGE_SIZE) return total
