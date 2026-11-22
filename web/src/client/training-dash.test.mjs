@@ -40,9 +40,11 @@ test('intensity only: one metric row per modality with HR (mean HR, the peak as 
   assert.equal(DASH.hasData, true);
   const html = render(DASH);
   assert.match(html, /^<section class="hs-sec" aria-labelledby="int-h"><div class="hs-head"><h3 class="hs-lbl" id="int-h">Intensity \(HR\)<\/h3><button type="button" class="hs-i" data-hs-info="int-info"/);
-  const rows = [...html.matchAll(/<li class="db-row"[^>]*>[\s\S]*?<span class="db-name">([^<]+)<\/span><span class="db-vals"><span class="db-val"><b>(\d+)<\/b><small>bpm<\/small><\/span><span class="db-base">([^<]*)<\/span>/g)].map((m) => [m[1], +m[2], m[3]]);
+  const rows = [...html.matchAll(/<li class="db-row"[^>]*>[\s\S]*?<span class="db-name">([^<]+)<\/span><span class="db-vals"><span class="db-val"><b>(\d+)<\/b><small>bpm<\/small><\/span><span class="sr-only">([^<]*)<\/span><span class="db-base" aria-hidden="true">([^<]*)<\/span>/g)].map((m) => [m[1], +m[2], m[3], m[4]]);
   const withHr = DASH.modality.filter((m) => m.avgHr).sort((a, b) => b.avgHr - a.avgHr);
-  assert.deepEqual(rows, withHr.map((m) => [enD.modalityLabels[m.key], m.avgHr, `peak ${m.peakHr}`]));
+  // named by its content, then "mean HR · peak …" in screen-reader words (the shown peak hidden from them)
+  assert.deepEqual(rows, withHr.map((m) => [enD.modalityLabels[m.key], m.avgHr, `mean HR · peak ${m.peakHr}`, `peak ${m.peakHr}`]));
+  assert.doesNotMatch(html, /db-row[^>]*aria-label/);
   assert.doesNotMatch(html, /dash-cards|wbar|class="mrow"|Weekly volume|Modality split/, 'the merged parts are not drawn twice');
   assert.doesNotMatch(html, /NaN|undefined|null|Infinity/);
   // each modality its own icon (not the same heart on every row): the same paths as HC.metricIcon

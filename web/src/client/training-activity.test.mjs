@@ -53,7 +53,7 @@ test('ONE Activity card: header + ⓘ, total time with the W / M / 6M switch, st
     '<div class="act-card">', 'class="act-sum"', 'class="dt-range act-range"', 'class="act-stats"', 'class="act-split"', 'class="act-cal"', 'class="cal-svg"'].map((n) => html.indexOf(n));
   assert.ok(order.every((v, i) => v !== -1 && (i === 0 || v > order[i - 1])), `card order ${order}`);
   assert.equal((html.match(/data-act-range="(\d+)"/g) || []).join(','), 'data-act-range="7",data-act-range="30",data-act-range="182"');
-  assert.match(html, /data-act-range="30" aria-pressed="true" aria-label="Last month">M</, 'M is the default window');
+  assert.match(html, /data-act-range="30" aria-pressed="true" aria-label="M, Last month">M</, 'M is the default window');
   assert.doesNotMatch(html, /cum-svg|cum-line|act-pair|class="dash-sec/, 'the cumulative chart and the old two-block layout are gone');
   for (const k of ['help', 'note', 'labelsNote']) assert.ok(html.includes(enT[k].slice(0, 40)), `${k} behind ⓘ`);
 });

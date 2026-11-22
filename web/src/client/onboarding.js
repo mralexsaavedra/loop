@@ -80,8 +80,9 @@
   }
 
   /* ---------- screens ---------- */
-  function q(text, hint) {
-    return '<h3 class="onb-q">' + esc(text) + '</h3>' + (hint ? '<p class="pf-note">' + esc(hint) + '</p>' : '');
+  // id: the question names the field under it (an input without a visible label of its own, input() opts.q)
+  function q(text, hint, id) {
+    return '<h3 class="onb-q"' + (id ? ' id="' + id + '"' : '') + '>' + esc(text) + '</h3>' + (hint ? '<p class="pf-note">' + esc(hint) + '</p>' : '');
   }
   // an inline error, with the id its field's aria-describedby points at
   function err(key) {
@@ -90,12 +91,15 @@
   function invalid(key) {
     return S.errors[key] ? ' aria-invalid="true" aria-describedby="onb-err-' + key + '"' : '';
   }
+  // opts.q: the id of the screen's question, which names a field with no label of its own (+ its unit), so the
+  // field always has a programmatic label (WCAG 1.3.1 / 4.1.2: "When were you born?" for the date field)
   function input(key, value, opts) {
     opts = opts || {};
     var id = 'onb-' + key;
+    var named = opts.q && !opts.label ? ' aria-labelledby="' + opts.q + (opts.suffix ? ' ' + id + '-unit' : '') + '"' : '';
     return '<label class="food-field' + (opts.big ? ' onb-big' : '') + '" for="' + id + '"><span class="food-lbl">' + esc(opts.label || '') + '</span><span class="food-in-wrap"><input class="food-in" id="' + id +
-      '" data-onb-field="' + key + '" type="' + (opts.type || 'text') + '"' + (opts.mode ? ' inputmode="' + opts.mode + '"' : '') + ' value="' + esc(value) + '"' +
-      invalid(opts.err || key) + '>' + (opts.suffix ? '<span class="food-suffix">' + esc(opts.suffix) + '</span>' : '') +
+      '" data-onb-field="' + key + '" type="' + (opts.type || 'text') + '"' + (opts.mode ? ' inputmode="' + opts.mode + '"' : '') + ' value="' + esc(value) + '"' + named +
+      invalid(opts.err || key) + '>' + (opts.suffix ? '<span class="food-suffix"' + (named ? ' id="' + id + '-unit"' : '') + '>' + esc(opts.suffix) + '</span>' : '') +
       '</span>' + err(opts.err || key) + '</label>';
   }
   // big option cards: radios (one) or checkboxes (several); `o` = [{value, name, desc?, on}]. A refused
@@ -194,9 +198,9 @@
     }
     if (id === 'name') return q(T.name.q) + input('name', a.name, { label: T.optional });
     if (id === 'sex') return q(T.sex.q, T.sex.hint) + cards('sex', 'radio', ['female', 'male'].map(function (v) { return { value: v, name: T.sex[v], on: a.sex === v }; }), T.sex.q);
-    if (id === 'birth') return q(T.birth.q) + input('birthdate', a.birthdate, { type: 'date', err: 'age', big: true });
-    if (id === 'height') return q(T.height.q) + input('heightCm', a.heightCm, { mode: 'decimal', suffix: 'cm', big: true });
-    if (id === 'weight') return q(T.weight.q, P.weight && P.weight.kg != null ? T.weight.hint : '') + input('weightKg', a.weightKg, { mode: 'decimal', suffix: 'kg', big: true });
+    if (id === 'birth') return q(T.birth.q, '', 'onb-q-birth') + input('birthdate', a.birthdate, { type: 'date', err: 'age', big: true, q: 'onb-q-birth' });
+    if (id === 'height') return q(T.height.q, '', 'onb-q-height') + input('heightCm', a.heightCm, { mode: 'decimal', suffix: 'cm', big: true, q: 'onb-q-height' });
+    if (id === 'weight') return q(T.weight.q, P.weight && P.weight.kg != null ? T.weight.hint : '', 'onb-q-weight') + input('weightKg', a.weightKg, { mode: 'decimal', suffix: 'kg', big: true, q: 'onb-q-weight' });
     if (id === 'activity') {
       var A = T.activity.options;
       return q(T.activity.q) + cards('activity', 'radio', ['sedentary', 'light', 'active'].map(function (v) { return { value: v, name: A[v].name, desc: A[v].desc, on: a.activity === v }; }), T.activity.q);

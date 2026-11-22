@@ -1310,11 +1310,11 @@
   "|||.eat-macros|||gap": "var(--sp-3)",
   "|||.eat-macros|||grid-template-columns": "repeat(3, 1fr)",
   "|||.eat-macros|||margin-top": "var(--sp-5)",
-  "|||.fa-item-brand, .fa-item-sub|||color": "var(--faint)",
+  "|||.fa-item-brand, .fa-item-sub|||color": "var(--muted)",
   "|||.fa-item-brand, .fa-item-sub|||font-size": "var(--fs-xs)",
   "|||.fa-item-name|||font-size": "var(--fs-md)",
   "|||.fa-item-name|||overflow-wrap": "anywhere",
-  "|||.fa-item-sub b|||color": "var(--muted)",
+  "|||.fa-item-sub b|||color": "var(--ink)",
   "|||.fa-item-sub b|||font-family": "var(--num)",
   "|||.fa-item[disabled]|||color": "var(--faint)",
   "|||.fa-item[disabled]|||cursor": "default",
@@ -1541,7 +1541,7 @@
   "|||.food-row|||gap": "0 var(--sp-4)",
   "|||.food-row|||grid-template-columns": "repeat(auto-fit, minmax(min(100%, 130px), 1fr))",
   "|||.food-suffix:empty|||display": "none",
-  "|||.food-suffix|||color": "var(--faint)",
+  "|||.food-suffix|||color": "var(--muted)",
   "|||.food-suffix|||font-size": "var(--fs-sm)",
   "|||.food-suffix|||pointer-events": "none",
   "|||.food-suffix|||position": "absolute",
@@ -4356,5 +4356,6 @@
   "|||.db-bad.db-bad, .dd-worse.dd-worse, .dt-pill-bad.dt-pill-bad, .ld-bad.ld-bad, .wp-down.wp-down, .hb-off.hb-off|||color": "var(--down)",
   "|||.hb-sum|||margin": "0 0 var(--sp-3)",
   "|||.hb-sum|||color": "var(--muted)",
-  "|||.hb-sum|||font-size": "var(--fs-small)"
+  "|||.hb-sum|||font-size": "var(--fs-small)",
+  "|||.dt-day.dt-s-l3, .dt-day.dt-s-l4|||color": "var(--on-strain)"
 }

@@ -17,7 +17,10 @@ import { NSCORE, NSCORE_CASES, nutritionScore, scoreSeries } from '../../../lib/
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'nutri-score.js'), 'utf8');
 const TODAY = '2030-01-28';
-const text = (html) => String(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+// the text a sighted reader sees (screen-reader-only words left out); `said` = the card's accessible name, from its
+// content (no aria-label: WCAG 2.5.3 Label in Name), screen-reader words included
+const text = (html) => String(html).replace(/<span class="sr-only">[^<]*<\/span>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+const said = (html) => String(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 const G3 = { breakfast: 1, lunch: 1, dinner: 1 };
 const day = (date, k, p, f, o = {}) => ({ date, k, p, f, n: 3, missing: { p: false, f: false }, groups: G3, ...o });
 const TG = { k: 2000, p: 150, g: 70 };
@@ -159,10 +162,11 @@ test('Inicio card (the user\'s real case: today logged, yesterday closed at 56):
   assert.match(h, /class="sc-card tn en ns" data-detail="nutrition" role="button"/, 'no red band on today\'s card');
   assert.match(text(h), /^Nutrition · in progress 22 % Kcal today Kcal 433 \/ 2,000 kcal/);
   assert.match(text(h), new RegExp(`Yesterday ${y}% · 7-day average ${y}%$`), 'yesterday\'s score in the footer line');
-  assert.match(h, new RegExp(`aria-label="Nutrition today: in progress, 22% of the kcal target, no score yet · Yesterday: nutrition score ${y}%"`));
+  assert.doesNotMatch(h, /aria-label/);
+  assert.match(said(h), new RegExp(`^Nutrition · in progress no score yet 22 % Kcal today Kcal 433 / 2,000 kcal .* Yesterday ${y}% · 7-day average ${y}%$`));
   const es = setup({ locale: 'es', nutri: false, log: [day('2030-01-27', 2600, 105, 95), day(TODAY, 433, 30, 17)] });
   assert.match(text(es.els.home.innerHTML), new RegExp(`Ayer ${y}% · Media de 7 días ${y}%$`));
-  assert.match(es.els.home.innerHTML, new RegExp(`aria-label="Nutrición hoy: en curso, 22% de las kcal objetivo, aún sin puntuación · Ayer: puntuación de nutrición ${y}%"`));
+  assert.match(said(es.els.home.innerHTML), new RegExp(`^Nutrición · en curso aún sin puntuación 22 % Kcal hoy .* Ayer ${y}% · Media de 7 días ${y}%$`));
   assert.doesNotMatch(es.els.home.innerHTML, / el Ayer/, 'never "56% el Ayer"');
 });
 
@@ -172,6 +176,7 @@ test('Inicio card: nothing logged today -> the newest scored day while fresh, wi
   assert.match(y.els.home.innerHTML, /data-date="2030-01-26"/);
   assert.doesNotMatch(text(y.els.home.innerHTML), /in progress/);
   assert.match(text(y.els.home.innerHTML), /Kcal · 100 pts/, 'a closed day\'s rows carry their points');
+  assert.match(said(y.els.home.innerHTML), /^Nutrition 100 % score Sat 26 Jan Kcal · 100 pts/, 'named by its content: the % said as the score');
   const stale = setup({ nutri: false, log: [day('2030-01-10', 2000, 150, 70)] });
   assert.equal(stale.els.home.hidden, true);
   assert.equal(stale.els.home.innerHTML, '');
@@ -221,11 +226,11 @@ test('today in progress only: no score, no red %, no "· N" points — the progr
   assert.doesNotMatch(h, /de-lo|de-mid|de-hi/, 'no score, no band colour');
   assert.doesNotMatch(text(h), /· 0|pts|0 %/, 'no bare "· 0" that reads like 0 kcal');
   assert.match(text(h), /22 % Kcal today Kcal 433 \/ 2,000 kcal Protein 30 \/ 150 g Fat 17 \/ 70 g/);
-  assert.match(h, /aria-label="Nutrition today: in progress, 22% of the kcal target, no score yet"/);
+  assert.equal(said(h), 'Nutrition · in progress no score yet 22 % Kcal today Kcal 433 / 2,000 kcal Protein 30 / 150 g Fat 17 / 70 g');
   // kcal not logged today: no headline number, the old words
   const nk = setup({ log: [day(TODAY, null, 30, 17)] });
   assert.doesNotMatch(nk.els.home.innerHTML, /ns-now/);
-  assert.match(nk.els.home.innerHTML, /aria-label="Nutrition today: in progress, no score yet"/);
+  assert.match(said(nk.els.home.innerHTML), /^Nutrition · in progress no score yet Kcal not logged Protein 30/);
   const es = setup({ locale: 'es', log: [day(TODAY, 433, 30, 17)] });
   assert.match(es.els.home.innerHTML, /<h3 class="tn-h">Nutrición · en curso<\/h3>/);
 });

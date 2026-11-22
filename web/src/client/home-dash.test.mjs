@@ -282,7 +282,8 @@ test('render: one row per shown metric (full name, value, unit, baseline, arrow,
   assert.deepEqual(keys, ['rhr', 'hrv', 'sleep', 'weight', 'steps']);
   assert.match(html, /<span class="db-name">Heart rate variability<\/span>/, 'the full name, not the sheet\'s short title');
   assert.match(html, /<span class="db-name">Hours of sleep<\/span>/);
-  assert.match(html, /Resting heart rate<\/span><span class="db-vals"><span class="db-val"><b>50<\/b><small>bpm<\/small><span class="db-arr db-good" aria-hidden="true">▼<\/span><\/span><span class="db-base">54<\/span>/);
+  assert.match(html, /Resting heart rate<\/span><span class="db-vals"><span class="db-val"><b>50<\/b><small>bpm<\/small><span class="db-arr db-good" aria-hidden="true">▼<\/span><\/span><span class="sr-only">\w{3} \d+ \w{3} · 30-day average 54 bpm · below the average<\/span><span class="db-base" aria-hidden="true">54<\/span>/);
+  assert.doesNotMatch(html, /db-row[^>]*aria-label/, 'named by its content (WCAG 2.5.3), the rest in words');
   assert.match(html, /<b>7:30<\/b>/);
   assert.match(html, /<b>12,000<\/b>/);
 });
@@ -297,6 +298,9 @@ test('stress monitor card (the reference dashboard\'s chart card): the newest da
   assert.match(card, /data-detail="stress" data-date="2026-09-29" role="button"/, 'the day with a latest hour, not the newer one without');
   assert.match(card, new RegExp(`<span class="db-card-t">${enT.home.dash.names.stress}</span></div>`), 'the chevron = the shared opener\'s :after');
   assert.match(card, /<span class="ds-band">High<\/span><b class="db-card-v">2\.3<\/b>/);
+  // named by its content (no aria-label, the line under the title not hidden): WCAG 2.5.3 Label in Name
+  assert.match(card, /role="button" tabindex="0" aria-haspopup="dialog"><div class="db-card-head">/);
+  assert.match(card, /<div class="db-card-sub"><span class="db-card-when">/);
   assert.ok(card.includes(enD.deep.stress.updated.replace('{time}', '18:00')), 'its hour');
   assert.equal((card.match(/<circle class="ds-pt /g) || []).length, 4, 'one point per scored hour');
   assert.match(card, /<svg class="ds-chart"[^>]*aria-hidden="true"/, 'the card\'s name carries it; the chart is decoration');
@@ -370,7 +374,7 @@ test('fitness age: an optional row (off by default), whole years, lower = better
   assert.ok(!ctx.HCDash.DEFAULT_ON.includes('fitnessAge'));
   const html = els['home-dash'].innerHTML;
   assert.match(html, /data-detail="fitnessAge"/);
-  assert.match(html, /Fitness age<\/span><span class="db-vals"><span class="db-val"><b>≤ 25<\/b><small>years<\/small><span class="db-arr db-good" aria-hidden="true">▼<\/span><\/span><span class="db-base">31<\/span>/);
+  assert.match(html, /Fitness age<\/span><span class="db-vals"><span class="db-val"><b>≤ 25<\/b><small>years<\/small><span class="db-arr db-good" aria-hidden="true">▼<\/span><\/span><span class="sr-only">[^<]* · 30-day average 31 years · below the average<\/span><span class="db-base" aria-hidden="true">31<\/span>/);
   D.metrics.fitnessAge.v[39] = 75;
   assert.match(load({ DETAIL: D, ls, locale: 'es' }).els['home-dash'].innerHTML, /Edad física<\/span>[\s\S]*<b>≥ 75<\/b><small>años<\/small>/);
   D.metrics.fitnessAge.v[39] = 40.6;
@@ -473,7 +477,7 @@ test('weekly metrics (HR zones 1-3 / 4-5, gym time): in the catalogue, hidden by
   }
   assert.deepEqual(plain(ctx.HCDash.rowValue(D.metrics.zones13, NOW)), { value: 140, date: '2026-09-29', base: 70, arrow: 'up', tone: 'good' });
   const html = els['home-dash'].innerHTML;
-  assert.match(html, /<span class="db-name">Heart rate zones 1–3 · last 7 days<\/span><span class="db-vals"><span class="db-val"><b>2:20<\/b><span class="db-arr db-good" aria-hidden="true">▲<\/span><\/span><span class="db-base">1:10<\/span>/);
+  assert.match(html, /<span class="db-name">Heart rate zones 1–3 · last 7 days<\/span><span class="db-vals"><span class="db-val"><b>2:20<\/b><span class="db-arr db-good" aria-hidden="true">▲<\/span><\/span><span class="sr-only">[^<]* · 30-day average 1:10 · above the average<\/span><span class="db-base" aria-hidden="true">1:10<\/span>/);
   assert.match(html, /<span class="db-name">Gym time · last 7 days<\/span>/);
   // fewer than 2 earlier weeks with 5+ days of data: no baseline, no arrow
   const thin = { ...wk(), v: wk().v.map((x, i) => (i < 25 ? null : x)) };

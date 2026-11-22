@@ -119,7 +119,7 @@ the date and drops the dim class). Surfaces:
 | Salud recovery card (`score.js`) | the headline night | above the number ("Thu 8 Oct"); the number + band word dim |
 
 Kept as they are: Salud's monitor list and metric rows ("latest per metric" lists; each row already
-names its own date or keeps it in its accessible name), My dashboard (the latest value per metric, dimmed only when stale), Tonight (a forecast) and the
+names its own date or keeps it in its screen-reader words), My dashboard (the latest value per metric, dimmed only when stale), Tonight (a forecast) and the
 nutrition card (its closed day is labelled "Yesterday" by design). Not carried by design: the load dial and the load / strain / stress / energy bank deep-dives (they read
 the shown day only: "No data", rest or no session, never an earlier day's value).
 
@@ -260,7 +260,8 @@ the trend sheet's window, its calendar month (formerly 44 px filled circles) and
   own trough and pressed style). Dark 28 px squares (`--rail`, `--r-xs`, min 32 px wide), caps at
   `--fs-label`; the pressed one `--track` with `--ink` text; each button keeps a 44 × 44 px hit area
   (`::after`, 8 px above / below and 6 px each side) and the 12 px gap keeps neighbours' areas apart
-  (guard: `design-system.test.mjs`).
+  (guard: `design-system.test.mjs`). A short label's accessible name starts with what it shows ("6M, 6 months":
+  WCAG 2.5.3 Label in Name).
 - **Chip** `.chip` (`base.css`): a compact 30 px caps pill (1 px `--line` outline) to pick one of a few
   — Nutrición's day type and Constancia window (radios: `.seg-opt` + `.chip.seg-in`), the load
   sheet's modality switch (`.chip.dial-mod`, at least 44 px wide) and the onboarding's buttons. Every
@@ -305,7 +306,17 @@ modality, bed, wake, target …), a neutral one when none fits; never the same i
 A row that opens a sheet (`attrs` with `HC.detailAttrs`) is `<li><div class="db-row" role="button" …>`: the
 button role sits on the inner `<div>` so the `<li>` stays a list item (a button role on the `<li>` itself drops
 it); a row that opens nothing stays `<li class="db-row">`. Same for My dashboard's stress card
-(`<li><div class="db-card db-stress">`) and the weekly plan's rows (`<li><div class="wp-row">`).
+(`<li><div class="db-card db-stress">`), the weekly plan's rows (`<li><div class="wp-row">`) and "My day"'s
+timeline rows (`<li><div class="tl-row">`).
+
+**Accessible names of openers.** A row or card that opens a sheet is named by its own content, never by an
+`aria-label` that replaces what it shows (WCAG 2.5.3 Label in Name: a voice-control user says what they see;
+axe's `label-content-name-mismatch`, `e2e/a11y.mjs`). Context the eye gets from position or a glyph goes in
+screen-reader-only words (`.sr-only`, `layout.css`) inside the element: `HC.metricRow`'s `sr` (the date, what a
+bare small number is, the trend the ▲ / ▼ shows; the shown `base` lines are then `aria-hidden`, since `sr`
+says them), a load card's "load. last session …", the stress tile's "estimate", the energy bank's "of 100,
+latest hour". Purely decorative glyphs (› ▲ ▼ •, the chevrons) stay `aria-hidden`. Where content naming
+cannot work (initials, "6M"), the `aria-label` starts with the visible text.
 
 ### Stale-data marker
 

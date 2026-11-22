@@ -28,7 +28,7 @@
       .map(function (m) {
         var name = LBL[m.key] || m.key, peak = m.peakHr ? format(I18N_DASH.peakTpl, { value: m.peakHr }) : '';
         return HC.metricRow({ key: ICON[m.key] || 'exercise', name: name, value: String(m.avgHr), unit: I18N_DASH.bpmLabel, base: peak,
-          aria: format(I18N_DASH.rowAria, { name: name, value: m.avgHr }) + (peak ? ' · ' + peak : '') });
+          sr: [I18N_DASH.rowSr, peak].filter(Boolean).join(' · ') });
       });
     var q = D.intensity, title = I18N_DASH.intensityHeading;
     return '<section class="hs-sec" aria-labelledby="int-h"><div class="hs-head"><h3 class="hs-lbl" id="int-h">' + esc(title) + '</h3>' +

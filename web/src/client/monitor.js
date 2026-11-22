@@ -48,14 +48,14 @@
   var TONE = { good: 'good', bad: 'bad', watch: 'watch' };
   function row(key, o) {
     var lbl = T.labels[key] || key;
-    return HC.metricRow({ key: key, cls: 'hm-row ' + o.cls, attrs: ' data-hm="' + esc(key) + '"' + linkAttrs(key), aria: [lbl, o.aria].filter(Boolean).join(' · '),
+    return HC.metricRow({ key: key, cls: 'hm-row ' + o.cls, attrs: ' data-hm="' + esc(key) + '"' + linkAttrs(key), sr: o.sr,
       name: lbl, value: o.value, unit: o.unit, numCls: o.numCls, arrow: o.arrow, tone: o.tone, base: o.base });
   }
   // `unrec`: the series has no reading at all (state 'none'): its device does not record it; a card
   // that failed to render stays a plain "No data"
   function emptyCard(key, unrec) {
     var word = unrec && TD && TD.unrecorded ? TD.unrecorded : T.status.none;
-    return row(key, { cls: 'hm-none', value: '—', base: word, aria: word });
+    return row(key, { cls: 'hm-none', value: '—', base: word });
   }
   function card(c) {
     if (c.state !== 'ok') return emptyCard(c.key, c.state === 'none');
@@ -83,7 +83,8 @@
     return row(c.key, {
       cls: old ? 'hm-stale' : 'hm-tone-' + esc(c.tone || 'normal'), value: value, unit: unit, numCls: 'hm-num',
       arrow: marked ? ARROW[c.status] : null, tone: marked ? TONE[c.tone] || 'flat' : null, base: base,
-      aria: [value + (unit ? ' ' + unit : ''), status, rangeAria, when].filter(Boolean).join(' · '),
+      // the small line in words (the status, "Normal range …", the date), read after the value
+      sr: (range ? [status, rangeAria, when] : when ? [status, when] : []).filter(Boolean).join(' · '),
     });
   }
   function safeCard(c) {
@@ -173,12 +174,12 @@
     var ST = T.stress, n = d.now, band = ST.bands[n.band] ? n.band : 'low';
     var time = String(n.t).slice(0, 2) + ':00';
     var c = carry(d.date, day), old = c.carried;
-    var when = old ? c.label + ' · ' + time : time;
     // an earlier day's reading opens the stress page ON that day (tile and sheet agree), never on an
     // empty today
     var opens = day || (old ? d.date : null);
-    return '<div class="hmt hmt-stress hmt-sb-' + esc(band) + c.cls + '"' + (opens ? HC.detailAttrs('stress', opens) : linkAttrs('stress')) +
-      ' aria-label="' + esc(format(ST.aria, { value: num(n.v, 1), band: ST.bands[band], time: when })) + '">' + lbl(ST.label) +
+    // named by its content (WCAG 2.5.3): "Stress monitor estimate 0.4 Low 23:00", the carried date included
+    return '<div class="hmt hmt-stress hmt-sb-' + esc(band) + c.cls + '"' + (opens ? HC.detailAttrs('stress', opens) : linkAttrs('stress')) + '>' + lbl(ST.label) +
+      '<span class="sr-only">' + esc(ST.sr) + '</span>' +
       '<span class="hmt-body"><span class="hmt-srow"><span class="hmt-sv">' + esc(num(n.v, 1)) + '</span>' +
       '<span class="hmt-band">' + esc(ST.bands[band]) + '</span></span>' +
       '<span class="hmt-sub">' + (old ? c.html + ' · ' : '') + esc(time) + '</span></span></div><!--/hmt-->';

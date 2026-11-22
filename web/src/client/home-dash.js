@@ -122,9 +122,9 @@
     function rowHtml(key, m, r) {
       var unit = key === 'sleep' || m.week ? '' : unitOf(key);
       var stale = HC.daysOld(r.date) > HC.STALE_DAYS;
-      var aria = format(TS.rowAria, { metric: titleOf(key), value: fmt(key, m, r.value) + (unit ? ' ' + unit : ''), date: HC.fmtDate(r.date) }) +
-        (r.base != null ? ' · ' + format(TS.baseAria, { base: fmt(key, m, r.base) + (unit ? ' ' + unit : '') }) + ' · ' + TS.dirs[r.arrow] : '');
-      return HC.metricRow({ key: key, cls: stale ? 'db-stale' : '', attrs: HC.detailAttrs(key), aria: aria, name: titleOf(key), value: fmt(key, m, r.value), unit: unit,
+      // named by its content (name + value); the date, the 30-day average and the trend in words after them
+      var sr = [HC.fmtDate(r.date)].concat(r.base != null ? [format(TS.baseAria, { base: fmt(key, m, r.base) + (unit ? ' ' + unit : '') }), TS.dirs[r.arrow]] : []).join(' · ');
+      return HC.metricRow({ key: key, cls: stale ? 'db-stale' : '', attrs: HC.detailAttrs(key), sr: sr, name: titleOf(key), value: fmt(key, m, r.value), unit: unit,
         arrow: r.arrow, tone: r.tone, base: r.base != null ? fmt(key, m, r.base) : null });
     }
     // the stress card's day: the newest with a latest scored hour (as Inicio's stress tile, client/monitor.js)
@@ -137,12 +137,12 @@
     function stressCard(d) {
       var P = TD.deep.stress, n = d.now, band = HC.stressBand(n.v), time = String(n.t).slice(0, 2) + ':00';
       var value = HC.num(n.v, 1), when = format(P.updated, { time: time }) + (d.date !== HC.todayIso() ? ' · ' + HC.fmtDate(d.date) : '');
-      var aria = titleOf('stress') + ': ' + value + ' · ' + P.bands[band] + ' · ' + when;
-      // the button role on an inner <div>: the <li> stays a list item of the dashboard list
-      return '<li><div class="db-card db-stress ds-' + band + '"' + HC.detailAttrs('stress', d.date) + ' aria-label="' + esc(aria) + '">' +
+      // the button role on an inner <div>: the <li> stays a list item of the dashboard list; named by its content
+      // (WCAG 2.5.3 Label in Name): "Stress monitor Latest hour 23:00 Low 0.4" (the chart is decorative)
+      return '<li><div class="db-card db-stress ds-' + band + '"' + HC.detailAttrs('stress', d.date) + '>' +
         // the chevron is the shared opener's (base.css [data-detail][role=button]:after)
         '<div class="db-card-head"><span class="db-card-t">' + esc(titleOf('stress')) + '</span></div>' +
-        '<div class="db-card-sub" aria-hidden="true"><span class="db-card-when">' + esc(when) + '</span><span><span class="ds-band">' + esc(P.bands[band]) + '</span><b class="db-card-v">' + esc(value) + '</b></span></div>' +
+        '<div class="db-card-sub"><span class="db-card-when">' + esc(when) + '</span><span><span class="ds-band">' + esc(P.bands[band]) + '</span><b class="db-card-v">' + esc(value) + '</b></span></div>' +
         HC.stressChart(d.hours, P, function (v, dec) { return HC.num(v, dec); }, true) + '</div></li>';
     }
     function available() {

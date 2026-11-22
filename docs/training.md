@@ -122,6 +122,7 @@ calendar.
 
 - The shared segmented control `.dt-range` (as in the trend sheets): W / M / 6M = 7 / 30 / 182 days, the
   detail sheet's ranges.
+- Each button's name starts with what it shows ("6M, Last 6 months"; WCAG 2.5.3).
 - M by default; the choice is kept per viewer in `localStorage` `hc-act-range` (optional); the pressed
   button keeps focus.
 - Only the last 367 data days are baked (`BAKE_DAYS`: 6M twice + 3 days of viewer slack), one entry per

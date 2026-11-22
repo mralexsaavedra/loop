@@ -484,6 +484,10 @@ html.dt-lock body {
 .dt-sw.dt-s-watch { background: rgba(var(--mid-rgb), 0.16); box-shadow: inset 0 0 0 1px rgba(var(--mid-rgb), 0.4); }
 .dt-day.dt-s-bad,
 .dt-sw.dt-s-bad { background: rgba(var(--low-rgb), 0.16); box-shadow: inset 0 0 0 1px rgba(var(--low-rgb), 0.4); }
+/* the strain heat levels' two strongest fills take dark ink: white small text is 3.3:1 on --strain (WCAG AA
+   needs 4.5); --on-strain reaches 6.3 on --strain and 4.8 on the 80 % level */
+.dt-day.dt-s-l3,
+.dt-day.dt-s-l4 { color: var(--on-strain); }
 .dt-c-good { color: var(--good); }
 .dt-c-bad { color: var(--low-ink); }
 .dt-c-mid,

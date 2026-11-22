@@ -43,7 +43,8 @@ function render(timeline, { locale = 'en', now = ASOF, at, healthNav = false, en
   vm.runInContext(source, ctx);
   return host.innerHTML;
 }
-const rows = (html) => [...html.matchAll(/<li class="tl-row ([^"]+)"[^>]*>([\s\S]*?)<\/li>/g)].map((m) => ({ cls: m[1], text: m[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() }));
+// the visible text of each row (its screen-reader-only words left out: asserted on their own)
+const rows = (html) => [...html.matchAll(/<li><div class="tl-row ([^"]+)"[^>]*>([\s\S]*?)<\/div><\/li>/g)].map((m) => ({ cls: m[1], text: m[2].replace(/<span class="sr-only">[^<]*<\/span>/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() }));
 
 test('viewer today: "Today\'s activities" heading, last night\'s sleep first, then each workout: a coloured chip (icon + RE, else minutes), the name, the minutes stacked on the right', () => {
   const html = render(TL);
@@ -54,10 +55,13 @@ test('viewer today: "Today\'s activities" heading, last night\'s sleep first, th
     { cls: 'tl-run', text: '94 Run 0:45' },
     { cls: 'tl-bike', text: '0:30 Bike' },
   ]);
-  const sleep = html.match(/<li class="tl-row tl-sleep"[\s\S]*?<\/li>/)[0];
+  const sleep = html.match(/<li><div class="tl-row tl-sleep"[\s\S]*?<\/li>/)[0];
   assert.match(sleep, /<span class="tl-chip"><svg class="tl-ico"[^>]*aria-hidden="true">[\s\S]*?<\/svg><b>6:52<\/b><\/span><span class="tl-name">Sleep<\/span>/);
-  assert.match(html, /<li class="tl-row tl-run" aria-label="Run · RE 94 · 0:45"><span class="tl-chip">[\s\S]*?<b>94<\/b><\/span><span class="tl-name">Run<\/span><span class="tl-side tl-times"><span>0:45<\/span><\/span>/);
-  assert.match(html, /<li class="tl-row tl-bike" aria-label="Bike · 0:30"><span class="tl-chip">[\s\S]*?<b>0:30<\/b><\/span><span class="tl-name">Bike<\/span><\/li>/, 'no RE: the duration stays in the chip, nothing on the right');
+  // named by its content (no aria-label): the chip hidden from the name and read in words after it, "Run RE 94 0:45"
+  assert.match(html, /<li><div class="tl-row tl-run"><span class="tl-chip" aria-hidden="true">[\s\S]*?<b>94<\/b><\/span><span class="tl-name">Run<\/span><span class="sr-only">RE 94<\/span><span class="tl-side tl-times"><span>0:45<\/span><\/span><\/div><\/li>/);
+  assert.match(html, /<li><div class="tl-row tl-bike"><span class="tl-chip" aria-hidden="true">[\s\S]*?<b>0:30<\/b><\/span><span class="tl-name">Bike<\/span><span class="sr-only">0:30<\/span><\/div><\/li>/, 'no RE: the duration stays in the chip, nothing on the right');
+  assert.doesNotMatch(html, /tl-row[^>]*aria-label/, 'no row label replaces what it shows');
+  assert.doesNotMatch(html, /<ul class="tl-list">(?!<li>)|<\/li>(?!<li>|<\/ul>)/, 'the list holds only <li> children');
   assert.doesNotMatch(html, /NaN|undefined|<script|src=|href=/);
 });
 
@@ -118,11 +122,11 @@ test('es: h:mm, Spanish labels, merged parts counted', () => {
 
 test('rows open the detail sheet on that day: sleep -> the sleep view, a scored modality -> its load view, other -> training time', () => {
   const linked = render(TL, { detail: true });
-  assert.match(linked, /<li class="tl-row tl-sleep" data-detail="sleep" data-date="2026-09-29" role="button" tabindex="0" aria-haspopup="dialog">/);
-  assert.match(linked, /<li class="tl-row tl-run" data-detail="load-run" data-date="2026-09-29" role="button"/);
-  assert.match(linked, /<li class="tl-row tl-bike" data-detail="load-bike" data-date="2026-09-29" role="button"/);
+  assert.match(linked, /<li><div class="tl-row tl-sleep" data-detail="sleep" data-date="2026-09-29" role="button" tabindex="0" aria-haspopup="dialog">/);
+  assert.match(linked, /<li><div class="tl-row tl-run" data-detail="load-run" data-date="2026-09-29" role="button"/);
+  assert.match(linked, /<li><div class="tl-row tl-bike" data-detail="load-bike" data-date="2026-09-29" role="button"/);
   const other = render(timelineFromInputs([w('2026-09-29', 'Walking', 40)], []), { detail: true });
-  assert.match(other, /<li class="tl-row tl-other" data-detail="workouts" data-date="2026-09-29"/);
+  assert.match(other, /<li><div class="tl-row tl-other" data-detail="workouts" data-date="2026-09-29"/);
   assert.doesNotMatch(linked, /jumpOr|onclick/);
   assert.doesNotMatch(render(TL), /data-detail/, 'no detail sheet baked: plain rows');
 });
@@ -152,7 +156,7 @@ test('programmed session (window.HCProgram, client/training-today.js): a "progra
   const r = rows(html);
   assert.equal(r.length, 4);
   assert.deepEqual(r[3], { cls: 'tl-prog tl-prog-run', text: `${enT.timeline.programmedChip} Tempo &lt;6x1k&gt; ${enT.timeline.programmed}` });
-  assert.match(html, /<li class="tl-row tl-prog tl-prog-run" data-detail="hoy-session" role="button"/);
+  assert.match(html, /<li><div class="tl-row tl-prog tl-prog-run" data-detail="hoy-session" role="button"/);
   assert.doesNotMatch(html, /<6x1k>/, 'untrusted focus text is escaped');
   // another day's program, or the viewer looking at an older day: no row
   assert.equal(rows(render(TL, { program: { ...prog, date: '2026-09-28' } })).length, 3);
@@ -173,11 +177,13 @@ test('text diet: the same-day merge note lives in the card\'s ⓘ block (hidden,
   assert.doesNotMatch(sleepOnly, /tl-info/);
 });
 
-test('the programmed row keeps its long focus whole for assistive tech (aria-label) while the name ellipsises', () => {
+test('the programmed row keeps its long focus whole for assistive tech (named by its content, the whole text) while the name ellipsises', () => {
   const focus = 'Lower body strength + threshold intervals on the bike, then core';
   const html = render(TL, { program: { date: ASOF, kind: 'gym', focus }, detail: true });
-  const row = html.match(/<li class="tl-row tl-prog[^>]*>/)[0];
-  assert.ok(row.includes(` aria-label="${enT.timeline.programmedChip}: ${focus} · ${enT.timeline.programmed}"`), row);
+  const row = html.match(/<li><div class="tl-row tl-prog[\s\S]*?<\/li>/)[0];
+  assert.doesNotMatch(row, /aria-label/);
+  assert.ok(row.includes(`<span class="tl-name">${focus}</span>`), row);
+  assert.equal(rows(row)[0].text, `${enT.timeline.programmedChip} ${focus} ${enT.timeline.programmed}`);
 });
 
 /* ---- day stepping (the top bar's ‹ TODAY ›): "My day" lists the selected day from DETAIL ---- */
@@ -209,7 +215,7 @@ test('day stepping: a past day lists THAT day from DETAIL — the same rows SCOR
   assert.deepEqual(rows(html), rows(ref));
   assert.deepEqual(rows(html).map((r) => r.cls), ['tl-sleep', 'tl-gym', 'tl-run']);
   assert.match(rows(html)[1].text, /^40 Gym 0:55 2 parts$/);
-  assert.match(html, /aria-label="Gym · RE 40 · 0:55 · 2 parts"/);
+  assert.match(html, /<span class="tl-name">Gym<\/span><span class="sr-only">RE 40<\/span><span class="tl-side tl-times"><span>0:55<\/span><span>2 parts<\/span><\/span>/, 'named "Gym RE 40 0:55 2 parts"');
   assert.match(html, /data-detail="load-run" data-date="2026-09-28"/);
   assert.doesNotMatch(html, /sc-stale|tl-prog|Nothing logged yet today/);
 });

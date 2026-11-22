@@ -77,17 +77,17 @@ test('status word + tone class: respiratory out of band is watch (not bad), rest
   const html = render(monitor());
   const resp = cardOf(html, 'respiratory');
   assert.match(resp, /hm-tone-watch/);
-  assert.match(resp, /aria-label="[^"]*High/, 'the status word is in the row label');
+  assert.match(resp, /class="sr-only">[^<]*High/, 'the status word is in the row\'s screen-reader words');
   assert.match(resp, /<span class="db-arr db-watch" aria-hidden="true">▲<\/span>/, 'above the range: ▲, watch colour');
   const rhr = cardOf(html, 'rhr');
   assert.match(rhr, /hm-tone-normal/);
-  assert.match(rhr, /aria-label="[^"]*Normal/);
+  assert.match(rhr, /class="sr-only">[^<]*Normal/);
   assert.match(rhr, /<span class="db-arr db-flat" aria-hidden="true">•<\/span>/, 'inside the range: a grey dot');
   assert.ok(rhr.includes('<b class="hm-num">50</b>'));
   assert.ok(rhr.includes(enT.monitor.units.rhr));
   const sleep = cardOf(html, 'sleep');
   assert.match(sleep, /hm-tone-bad/);
-  assert.match(sleep, /aria-label="[^"]*Low/);
+  assert.match(sleep, /class="sr-only">[^<]*Low/);
   assert.match(sleep, /<span class="db-arr db-bad" aria-hidden="true">▼<\/span>/);
 });
 
@@ -97,7 +97,7 @@ test('the normal range is the small line under the value, written one decimal fi
   const c = monitor().cards.find((x) => x.key === 'rhr');
   const lo = c.band.lo.toFixed(1), hi = c.band.hi.toFixed(1);
   // short enough for one line next to a long name at 390 px: the bare range, the word lives in the label
-  assert.ok(rhr.includes(`<span class="db-base">${lo}–${hi}</span>`), rhr);
+  assert.ok(rhr.includes(`<span class="db-base" aria-hidden="true">${lo}–${hi}</span>`), rhr);
   assert.equal(enT.monitor.rangeLbl, '{lo}–{hi}');
   assert.ok(rhr.includes(enT.monitor.rangeAria.replace('{lo}', lo).replace('{hi}', hi)), 'the screen reader still hears "Normal range"');
   assert.match(enT.monitor.rangeAria, /^Normal range /);
@@ -112,8 +112,10 @@ test('sleep reads h:mm with no unit: the value and both band bounds (minutes rou
   const hm = (h) => { const m = Math.round(h * 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
   assert.match(sleep, /<b class="hm-num">5:00<\/b>/, 'value 5 h -> 5:00');
   assert.doesNotMatch(sleep, /<small>h<\/small>|\d h\b/, 'no "h" unit');
-  assert.ok(sleep.includes(`<span class="db-base">${hm(c.band.lo)}–${hm(c.band.hi)}</span>`), sleep);
-  assert.match(sleep, /aria-label="Sleep · 5:00 · Low · Normal range \d+:\d\d–\d+:\d\d"/);
+  assert.ok(sleep.includes(`<span class="db-base" aria-hidden="true">${hm(c.band.lo)}–${hm(c.band.hi)}</span>`), sleep);
+  // named by its content: "Sleep 5:00", then the small line in words
+  assert.match(sleep, /<span class="db-name">Sleep<\/span><span class="db-vals"><span class="db-val"><b class="hm-num">5:00<\/b>[\s\S]*?<span class="sr-only">Low · Normal range \d+:\d\d–\d+:\d\d<\/span>/);
+  assert.doesNotMatch(sleep, /aria-label/);
 });
 
 test('the monitor note is behind an ⓘ toggle (collapsed), never lost', () => {
@@ -137,16 +139,16 @@ test('building baseline: value shown, status "building", no bar; missing series:
 test('a value from last night carries no date; an older one shows its date', () => {
   const html = render(monitor());
   assert.doesNotMatch(cardOf(html, 'rhr'), /Sep</);
-  assert.match(cardOf(html, 'sleep'), /<span class="db-base">[^<]* · 26 Sep<\/span>/, 'the shared display date (no weekday), never ISO');
+  assert.match(cardOf(html, 'sleep'), /(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>[^<]* · 26 Sep<\/span>/, 'the shared display date (no weekday), never ISO');
   assert.match(cardOf(render(monitor(), { locale: 'es' }), 'sleep'), / · 26 sept<\/span>/);
   assert.match(cardOf(render(monitor(), { now: addDays(ASOF, 1) }), 'rhr'), / · 29 Sep<\/span>/, 'yesterday-dated reading is not last night');
 });
 
 test('es: Alto / Bajo / Normal, decimal comma, Spanish units', () => {
   const html = render(monitor(), { locale: 'es' });
-  assert.match(cardOf(html, 'respiratory'), /aria-label="[^"]*Alto/);
-  assert.match(cardOf(html, 'sleep'), /aria-label="[^"]*Bajo/);
-  assert.match(cardOf(html, 'rhr'), /aria-label="[^"]*Normal/);
+  assert.match(cardOf(html, 'respiratory'), /class="sr-only">[^<]*Alto/);
+  assert.match(cardOf(html, 'sleep'), /class="sr-only">[^<]*Bajo/);
+  assert.match(cardOf(html, 'rhr'), /class="sr-only">[^<]*Normal/);
   assert.ok(cardOf(html, 'respiratory').includes('18,0'));
   assert.ok(cardOf(html, 'rhr').includes(esT.monitor.units.rhr));
 });
@@ -167,7 +169,8 @@ test('per-card staleness: a card whose own date is > 3 days old loses its tone a
   const sleep = cardOf(html, 'sleep');
   assert.match(sleep, /hm-stale/);
   assert.doesNotMatch(sleep, /hm-tone-|db-arr/);
-  assert.ok(sleep.includes(`<span class="db-base">${enT.monitor.status.stale}</span>`));
+  assert.ok(sleep.includes(`<span class="db-base" aria-hidden="true">${enT.monitor.status.stale}</span>`));
+  assert.match(sleep, new RegExp(`<span class="sr-only">${enT.monitor.status.stale} · \\d+ \\w+<\\/span>`), 'its date in words');
   assert.doesNotMatch(sleep, /Low/, 'no Low for an old reading');
   assert.match(cardOf(html, 'respiratory'), /hm-tone-watch/, 'fresh cards keep their tone');
 });

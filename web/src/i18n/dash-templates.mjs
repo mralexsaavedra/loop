@@ -14,7 +14,8 @@ export const es = {
   modalityLabels: { strength: 'Fuerza', hiit: 'Gimnasio', run: 'Carrera', bike: 'Ciclismo', other: 'Otro cardio' },
   intensityHeading: 'Intensidad (FC)',
   infoLbl: 'Sobre {section}',
-  rowAria: '{name}: FC media {value} ppm',
+  // a row's words after its name and value, screen readers only (the row is named by its content)
+  rowSr: 'FC media',
   peakTpl: 'pico {value}',
   intensityHint: 'FC media por modalidad, ponderada por minutos · {withHr}/{total} sesiones con pulso · últimas {weeks} semanas.',
   bpmLabel: 'ppm',
@@ -26,7 +27,7 @@ export const en = {
   modalityLabels: { strength: 'Strength', hiit: 'Gym', run: 'Running', bike: 'Cycling', other: 'Other cardio' },
   intensityHeading: 'Intensity (HR)',
   infoLbl: 'About {section}',
-  rowAria: '{name}: mean HR {value} bpm',
+  rowSr: 'mean HR',
   peakTpl: 'peak {value}',
   intensityHint: 'Mean HR per modality, minute-weighted · {withHr}/{total} sessions with HR · last {weeks} weeks.',
   bpmLabel: 'bpm',

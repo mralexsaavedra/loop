@@ -293,7 +293,8 @@
   right: var(--sp-4);
   transform: translateY(-50%);
   font-size: var(--fs-sm);
-  color: var(--faint);
+  /* --muted, not --faint: small text on the field fill needs 4.5:1 (--faint is 4.11 on --surface-2) */
+  color: var(--muted);
   pointer-events: none;
 }
 .food-suffix:empty {
@@ -397,11 +398,12 @@
 .fa-item-brand,
 .fa-item-sub {
   font-size: var(--fs-xs);
-  color: var(--faint);
+  /* --muted, not --faint: small text on the hovered / active row (--surface-2) needs 4.5:1 (--faint is 4.11) */
+  color: var(--muted);
 }
 .fa-item-sub b {
   font-family: var(--num);
-  color: var(--muted);
+  color: var(--ink);
 }
 .fa-pick-top {
   display: flex;

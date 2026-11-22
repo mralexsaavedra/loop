@@ -148,6 +148,21 @@ test('height, weight and the target are large centred numbers; the date is a lar
   assert.match(s.html(), /class="food-field onb-big"[^>]*>[\s\S]*data-onb-field="weightKg"/);
 });
 
+test('a field with no label of its own is named by the screen\'s question (+ its unit): the date, height and weight', () => {
+  const s = setup();
+  s.act('next'); s.act('next'); s.choose('sex', 'female'); s.act('next');
+  assert.match(s.html(), /<h3 class="onb-q" id="onb-q-birth">When were you born\?<\/h3>/);
+  assert.match(s.html(), /<input class="food-in" id="onb-birthdate" data-onb-field="birthdate" type="date" value="" aria-labelledby="onb-q-birth">/);
+  s.field('birthdate', '1997-05-20'); s.act('next');
+  assert.match(s.html(), /<h3 class="onb-q" id="onb-q-height">[^<]+<\/h3>/);
+  assert.match(s.html(), /id="onb-heightCm"[^>]* aria-labelledby="onb-q-height onb-heightCm-unit">[\s\S]*<span class="food-suffix" id="onb-heightCm-unit">cm<\/span>/);
+  s.field('heightCm', '165'); s.act('next');
+  assert.match(s.html(), /id="onb-weightKg"[^>]* aria-labelledby="onb-q-weight onb-weightKg-unit">[\s\S]*<span class="food-suffix" id="onb-weightKg-unit">kg<\/span>/);
+  s.field('weightKg', '60'); s.act('back'); s.act('back'); s.act('back'); s.act('back');
+  assert.match(s.html(), /id="onb-name"/);
+  assert.doesNotMatch(s.html(), /aria-labelledby/, 'a field with its own label keeps it');
+});
+
 test('each screen refuses a missing / out-of-range answer and stays (inline error)', () => {
   const s = setup();
   s.act('next'); s.act('next'); // welcome, name (optional)
