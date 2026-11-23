@@ -15,12 +15,12 @@
 export const CLIENT_SCRIPTS = [
   { file: 'util.js', provides: ['HC', 'HCViews'], requires: ['HC_CONST', 'HC_FMT'] },
   {
-    file: 'core.js',
+    file: 'core.ts',
     provides: ['setTab', 'jump', 'jumpOr', 'currentTab', 'HCNav'],
     requires: ['HC', 'NAV'],
     probes: ['HCDay'],
   },
-  { file: 'today-date.js', provides: ['HCDay'], requires: ['HC', 'I18N_DATE', 'NAV', 'SCORES'] },
+  { file: 'today-date.ts', provides: ['HCDay'], requires: ['HC', 'I18N_DATE', 'NAV', 'SCORES'] },
   {
     file: 'nutri-day.js',
     provides: ['nutriTarget', 'HCNutri'],
@@ -104,13 +104,13 @@ export const CLIENT_SCRIPTS = [
   { file: 'home-order.ts', provides: ['HCHomeOrder'], requires: ['HC', 'HCViews', 'I18N_SCORE'] },
   // before detail.ts: the "?" help sheet is a registered view when detail.ts reads a #shortcuts deep link
   { file: 'shortcuts.ts', provides: [], requires: ['HC', 'HCViews', 'I18N_DETAIL', 'NAV'] },
-  { file: 'deepdive.js', provides: ['HCDeep'], requires: ['HC'] },
+  { file: 'deepdive.ts', provides: ['HCDeep'], requires: ['HC'] },
   // factories: loading them only assigns window.HCDetailState / HCDetailChart and reads nothing, so they
   // require nothing (the trace proves it, and still runs clean with both moved to the very front). What
   // they read (HC, HC_BAND, SCORES, HCNutriScore, HCSettings, I18N_DATE) is read when detail.ts calls
   // them: at its load (traced and declared on detail.ts) or later in handlers, which do not count.
-  { file: 'detail-state.js', provides: ['HCDetailState'], requires: [] },
-  { file: 'detail-chart.js', provides: ['HCDetailChart'], requires: [] },
+  { file: 'detail-state.ts', provides: ['HCDetailState'], requires: [] },
+  { file: 'detail-chart.ts', provides: ['HCDetailChart'], requires: [] },
   {
     file: 'detail.ts',
     provides: ['HCDetail'],

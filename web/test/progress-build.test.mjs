@@ -19,7 +19,7 @@ const htmlPath = path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.html');
 const html = fs.existsSync(htmlPath) ? fs.readFileSync(htmlPath, 'utf8') : '';
 // the bytes the page inlines: a classic script as is, a module script (*.ts) bundled
 const src = (name) => clientScriptSource(name);
-const NAMES = ['food-core.js', 'food-sheet.ts', 'food-catalog.ts', 'food-log.js', 'settings.ts', 'progress.ts', 'adherence.ts', 'intake.ts', 'profile.ts', 'detail-state.js', 'detail-chart.js', 'detail.ts'];
+const NAMES = ['food-core.js', 'food-sheet.ts', 'food-catalog.ts', 'food-log.js', 'settings.ts', 'progress.ts', 'adherence.ts', 'intake.ts', 'profile.ts', 'detail-state.ts', 'detail-chart.ts', 'detail.ts'];
 const at = (name) => {
   const i = html.indexOf(slimScript(src(name)));
   assert.ok(i > 0, `${name} is not inlined whole (as slimScript emits it) in ${htmlPath}`);

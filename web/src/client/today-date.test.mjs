@@ -1,19 +1,16 @@
-/* web/src/client/today-date.js — the top bar's "‹ TODAY ›" pill: the viewer's local today written with
+/* web/src/client/today-date.ts — the top bar's "‹ TODAY ›" pill: the viewer's local today written with
  * the one date formatter (HC.fmtDate, nothing baked), and Inicio's day stepping (window.HCDay): the
  * bounds from the baked history (SCORES.days), the #d=YYYY-MM-DD hash, the listeners, the keyboard. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { es as esDate, en as enDate } from '../i18n/date-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { DAY_HASH } from '../../../lib/nav/tabs.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'today-date.js'), 'utf8');
+const source = clientScriptSource('today-date.ts');
 
 const HIST = { from: '2026-09-15', to: '2026-09-28', days: [] };
 

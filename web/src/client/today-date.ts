@@ -1,5 +1,5 @@
-/* Top bar "‹ TODAY ›" pill + Inicio's day stepping (window.HCDay). Classic script (is:inline), run
- * right after core.js, so every Inicio renderer (score.ts, monitor.ts, timeline.ts, nutri-day.js,
+/* Top bar "‹ TODAY ›" pill + Inicio's day stepping (window.HCDay). Module script (bundled into the page, docs/plan-page.md →
+ * Module scripts), run right after core.ts, so every Inicio renderer (score.ts, monitor.ts, timeline.ts, nutri-day.js,
  * home-week.ts) can read the selected day at its first render and subscribe to changes.
  *
  * The date line: the viewer's local today ("mar 30 sept" / "Tue 30 Sep") written with the one date
@@ -11,10 +11,22 @@
  * more than NAV.day.maxDays before today. With no history in reach (no data, or data far behind the
  * clock) both chevrons stay hidden: no dead control. A past day shows its date as the pill's label
  * (uppercase in CSS) and the label becomes "back to today". The day lives in the hash as
- * #d=YYYY-MM-DD (lib/nav/tabs.mjs DAY_HASH; core.js shows Inicio for it and keeps it), replaced —
+ * #d=YYYY-MM-DD (lib/nav/tabs.mjs DAY_HASH; core.ts shows Inicio for it and keeps it), replaced —
  * never pushed — and only while Inicio is shown and the detail sheet is closed; today writes #home.
  * Keyboard: ← / → while focus is inside the pill. HCDay.on(fn) listeners get the selected day (null
  * = today), each in its own try/catch. */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads by bare name (baked by components/Bake.astro or an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+declare const NAV: PageGlobals['NAV'];
+declare const SCORES: PageGlobals['SCORES'];
+// core.ts's window.currentTab, probed with typeof (not in PageGlobals)
+declare const currentTab: (() => string | null) | undefined;
+
+/** An HCDay.on listener: gets the selected day (null = today). */
+type DayListener = (day: string | null) => void;
+
 (function () {
   var el = document.getElementById('today-date');
   if (!el) return;
@@ -22,16 +34,16 @@
   var HIST = typeof SCORES !== 'undefined' && SCORES && SCORES.days && HC.isoDate(SCORES.days.from) ? SCORES.days : null;
   var DAY_RE = new RegExp('^#' + DAY.prefix + '(\\d{4}-\\d{2}-\\d{2})$');
   var pill = document.getElementById('date-pill');
-  var prev = document.getElementById('day-prev');
-  var next = document.getElementById('day-next');
+  var prev = document.getElementById('day-prev') as HTMLButtonElement | null;
+  var next = document.getElementById('day-next') as HTMLButtonElement | null;
   var lbl = document.getElementById('day-lbl');
   var word = document.getElementById('day-word');
   // the day change is announced by this sr-only status, not by the label button (a live button reads
   // its name twice); empty on the first paint, so a load announces nothing
   var live = document.getElementById('day-live');
   var todayWord = word ? word.textContent : '';
-  var sel = null;
-  var subs = [];
+  var sel = null as string | null;
+  var subs: DayListener[] = [];
 
   function today() {
     return HC.todayIso();
@@ -44,13 +56,13 @@
     return lo > yest || HIST.to < lo ? null : lo;
   }
   // iso -> the past day it names (null = today), or undefined when it is out of reach
-  function normal(iso) {
+  function normal(iso: string | null): string | null | undefined {
     if (iso == null || iso === today()) return null;
     var d = HC.isoDate(iso), lo = oldest();
     return d && lo && d >= lo && d < today() ? d : undefined;
   }
   // '#d=2026-09-24' -> '2026-09-24' (a real calendar day only), else null
-  function parse(hash) {
+  function parse(hash: string): string | null {
     var m = DAY_RE.exec(String(hash || ''));
     return m && HC.isoDate(m[1]) && HC.shiftIso(m[1], 0) === m[1] ? m[1] : null;
   }
@@ -61,7 +73,7 @@
       return '';
     }
   }
-  function writeHash(h) {
+  function writeHash(h: string) {
     var sheet = document.getElementById('detail');
     if (sheet && !sheet.hidden) return;
     if (typeof currentTab === 'function' && currentTab() !== DAY.tab) return;
@@ -71,11 +83,11 @@
     } catch (e) { /* a frame that refuses history writes: the day still changes */ }
   }
 
-  function paint(announce) {
+  function paint(announce?: boolean) {
     var iso = sel || today();
     if (announce && live) live.textContent = sel ? HC.fmtDate(sel) : todayWord + ' · ' + HC.fmtDate(iso);
-    el.textContent = HC.fmtDate(iso);
-    el.setAttribute('datetime', iso);
+    el!.textContent = HC.fmtDate(iso);
+    el!.setAttribute('datetime', iso);
     if (word) word.textContent = sel ? HC.fmtDate(sel) : todayWord;
     var lo = oldest();
     [prev, next].forEach(function (b) { if (b) b.hidden = !lo; });
@@ -93,7 +105,7 @@
     }
   }
   // opts.hash === false: the change came from the URL (do not write it back)
-  function set(iso, opts) {
+  function set(iso: string | null, opts?: { hash?: boolean }) {
     var d = normal(iso);
     if (d === undefined) return false;
     if (d === sel) return true;
@@ -105,7 +117,7 @@
     });
     return true;
   }
-  function step(n) {
+  function step(n: number) {
     var iso = HC.shiftIso(sel || today(), n);
     var lo = oldest();
     if (!lo || iso < lo) return false;
@@ -130,7 +142,7 @@
       if (e.preventDefault) e.preventDefault();
       step(n);
       var a = document.activeElement;
-      if (a && a.disabled && lbl && typeof lbl.focus === 'function') lbl.focus();
+      if (a && (a as HTMLButtonElement).disabled && lbl && typeof lbl.focus === 'function') lbl.focus();
     });
   }
   if (typeof window !== 'undefined' && typeof window.addEventListener === 'function') {
@@ -149,6 +161,6 @@
     set: set,
     step: step,
     hash: function () { return sel ? '#' + DAY.prefix + sel : ''; },
-    on: function (fn) { if (typeof fn === 'function') subs.push(fn); },
+    on: function (fn: DayListener) { if (typeof fn === 'function') subs.push(fn); },
   };
 })();

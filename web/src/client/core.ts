@@ -1,7 +1,6 @@
 /* Tab navigation for the page: setTab / jump, the URL hash routing and the midnight rollover.
  *
- * This is a CLASSIC script (Astro emits it via is:inline set:html — never a module-typed script tag,
- * per spec: Single self-contained output), wrapped in ONE function scope: its helpers stay private and
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts), wrapped in ONE function scope: its helpers stay private and
  * the public contract is the explicit list of window writes at the end (setTab, jump, jumpOr, currentTab,
  * HCNav).
  *
@@ -11,6 +10,15 @@
  * default tab: the wordmark) and `data-jump="<id>"` (in-page links, the personal notes' links too).
  * web/src/client/core.test.mjs covers this contract.
  */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads by bare name (baked by components/Bake.astro or an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+declare const NAV: PageGlobals['NAV'];
+
+/** hashRoute's answer: a sheet deep link (deep), a past day of Inicio (day) or an anchor deep link (anchor). */
+type Route = { deep: boolean; tab: string | null; day?: boolean; anchor?: string };
+
 (function () {
   /* Four top-level tabs (Inicio / Entreno / Salud / Nutrición), nav buttons `#t-<key>`. The former
    * tab keys now name sections (`#sec-<key>`) inside one of them, so an old `setTab('tablas')` still
@@ -31,10 +39,10 @@
    * walk through tabs, it keeps closing the detail sheet), only for a tab with a nav button
    * (page.hideTabs never gets written) and never while the sheet is open (its #detail/… owns the URL).
    * Every history / location access is wrapped: a sandboxed frame that refuses them still switches. */
-  function hasOwn(o, k) {
+  function hasOwn(o: object, k: string) {
     return Object.prototype.hasOwnProperty.call(o, k);
   }
-  function tabVisible(key) {
+  function tabVisible(key: string | null) {
     return NAV_TABS.indexOf(key) !== -1 && !!document.getElementById('t-' + key);
   }
   function defaultTab() {
@@ -42,7 +50,7 @@
     return null;
   }
   function currentTab() {
-    var panels = document.querySelectorAll('.tab-panel');
+    var panels = document.querySelectorAll<HTMLElement>('.tab-panel');
     for (var i = 0; i < panels.length; i++) if (!panels[i].hidden) return panels[i].getAttribute('data-tab');
     return null;
   }
@@ -53,13 +61,13 @@
       return '';
     }
   }
-  // the hash a tab is named by: Inicio with a past day selected (client/today-date.js HCDay) keeps
+  // the hash a tab is named by: Inicio with a past day selected (client/today-date.ts HCDay) keeps
   // that day's #d=YYYY-MM-DD, so leaving Inicio and coming back does not drop the day
-  function tabHash(key) {
+  function tabHash(key: string | null) {
     var d = DAY && key === DAY.tab && typeof window !== 'undefined' && window.HCDay ? window.HCDay.hash() : '';
     return d || '#' + key;
   }
-  function writeTabHash(key) {
+  function writeTabHash(key: string | null) {
     if (!tabVisible(key) || readHash() === tabHash(key)) return;
     var sheet = document.getElementById('detail');
     if (sheet && !sheet.hidden) return;
@@ -68,7 +76,7 @@
     } catch (e) { /* a frame that refuses history writes: the tab still switches */ }
   }
 
-  function setTab(name, scrollTop) {
+  function setTab(name: string, scrollTop?: boolean) {
     if (SECTION_TAB[name]) {
       jump('sec-' + name);
       return;
@@ -80,11 +88,11 @@
 
   // switches the visible panel + the nav state only (no history, no scroll)
   // the shown tab's nav button carries aria-current="page" (a nav of buttons, not a tablist)
-  function showTab(name) {
-    document.querySelectorAll('.tab-panel').forEach(function (p) {
+  function showTab(name: string | null) {
+    document.querySelectorAll<HTMLElement>('.tab-panel').forEach(function (p) {
       p.hidden = p.getAttribute('data-tab') !== name;
     });
-    NAV_TABS.forEach(function (key) {
+    NAV_TABS.forEach(function (key: string) {
       var b = document.getElementById('t-' + key);
       if (!b) return;
       if (key === name) b.setAttribute('aria-current', 'page');
@@ -92,25 +100,25 @@
     });
   }
 
-  function jump(id) {
+  function jump(id: string) {
     var el = document.getElementById(id);
     if (!el) return;
     // a section hidden by page.hideTabs stays unreachable
-    var section = el.closest && el.closest('.tab-section');
+    var section = el.closest && el.closest<HTMLElement>('.tab-section');
     if (section && section.hidden) return;
     var panel = el.closest && el.closest('.tab-panel');
-    if (panel) setTab(panel.getAttribute('data-tab'), false);
-    el.open = true;
+    if (panel) setTab(panel.getAttribute('data-tab') as string, false);
+    (el as HTMLDetailsElement).open = true;
     // open every enclosing <details> (e.g. a table inside the collapsed Tablas fold)
     var up = el.parentElement;
     while (up && up.closest) {
       up = up.closest('details');
       if (!up) break;
-      up.open = true;
+      (up as HTMLDetailsElement).open = true;
       up = up.parentElement;
     }
     setTimeout(function () {
-      el.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
+      el!.scrollIntoView({ behavior: reducedMotion() ? 'auto' : 'smooth', block: 'start' });
     }, 30);
   }
   // the viewer asked the system for less motion: jumps land instantly (read per jump, the setting can change)
@@ -124,9 +132,9 @@
 
   /** jump(id) when the target exists and is not in a hidden section; otherwise open `tab`. Used by
    * Inicio's score cards to land on their Salud detail even when that detail has no data yet. */
-  function jumpOr(id, tab) {
+  function jumpOr(id: string, tab: string) {
     var el = document.getElementById(id);
-    var section = el && el.closest && el.closest('.tab-section');
+    var section = el && el.closest && el.closest<HTMLElement>('.tab-section');
     if (el && !(section && section.hidden)) jump(id);
     else setTab(tab);
   }
@@ -142,9 +150,9 @@
   var KEY_HASH_RE = /^#([a-z][a-z-]*)$/;
   // null = no hash; {deep: true, tab} = a sheet deep link (tab = its host, or null); {deep: false, tab}
   // = anything else (tab = the tab it names, or null when it names none)
-  function hashRoute(hash) {
+  function hashRoute(hash: string): Route | null {
     if (!hash) return null;
-    // a past day of Inicio (#d=YYYY-MM-DD): its tab, the hash kept; today-date.js validates the day
+    // a past day of Inicio (#d=YYYY-MM-DD): its tab, the hash kept; today-date.ts validates the day
     if (DAY && hash.indexOf('#' + DAY.prefix) === 0) return { deep: false, tab: DAY.tab, day: true };
     var m = DETAIL_HASH_RE.exec(hash);
     if (m) return { deep: true, tab: hasOwn(DETAIL_TAB, m[1]) ? DETAIL_TAB[m[1]] : null };
@@ -154,10 +162,10 @@
     return { deep: false, tab: m && NAV_TABS.indexOf(m[1]) !== -1 ? m[1] : null };
   }
   // an anchor deep link: its tab without touching the hash (#monitor stays), then scroll to the block
-  function showAnchor(r) {
+  function showAnchor(r: Route) {
     showTab(r.tab);
-    var el = document.getElementById(r.anchor);
-    if (el) setTimeout(function () { el.scrollIntoView({ behavior: 'auto', block: 'start' }); }, 30);
+    var el = document.getElementById(r.anchor as string);
+    if (el) setTimeout(function () { el!.scrollIntoView({ behavior: 'auto', block: 'start' }); }, 30);
   }
   (function () {
     var r = hashRoute(readHash());
@@ -198,20 +206,20 @@
   (function () {
     if (typeof HC === 'undefined' || !HC.rolloverAction || typeof document.addEventListener !== 'function') return;
     var loadDay = HC.todayIso();
-    var watch = null;
+    var watch = null as ReturnType<typeof setInterval> | null;
     var reloading = false;
-    var loadPublished = null;
-    var latestPublished = null;
+    var loadPublished = null as string | null;
+    var latestPublished = null as string | null;
     var EDITOR_HOSTS = ['fp-body', 'fr-body'];
     var FIELDS = 'input, select, textarea';
     function stopWatch() {
       if (watch != null) clearInterval(watch);
       watch = null;
     }
-    function isTextField(el) {
+    function isTextField(el: Element | null) {
       var tag = el && el.tagName ? String(el.tagName).toUpperCase() : '';
       if (tag === 'SELECT' || tag === 'TEXTAREA') return true;
-      return tag === 'INPUT' && !/^(radio|checkbox|button|submit|reset)$/i.test(el.type || '');
+      return tag === 'INPUT' && !/^(radio|checkbox|button|submit|reset)$/i.test((el as HTMLInputElement).type || '');
     }
     function busy() {
       var d = document.getElementById('detail');
@@ -240,7 +248,7 @@
     }
     function readPublished() {
       if (document.hidden || !HC.lan()) return;
-      HC.fetchJson('/status.json', { cache: 'no-store' }, 15000).then(function (s) {
+      HC.fetchJson('/status.json', { cache: 'no-store' }, 15000).then(function (s: { publishedAt?: unknown } | null) {
         var at = s && typeof s.publishedAt === 'string' ? s.publishedAt : null;
         if (!at) return;
         if (loadPublished == null) loadPublished = at;
@@ -262,16 +270,16 @@
    * new panel's first visible heading, made script-focusable (tabindex=-1) and focused without scrolling
    * (setTab already scrolled to the top), so a screen reader lands on the new content instead of staying
    * on the nav button; a panel without a heading takes the focus itself. */
-  function focusPanel(key) {
-    var panels = document.querySelectorAll('.tab-panel'), panel = null;
+  function focusPanel(key: string) {
+    var panels = document.querySelectorAll<HTMLElement>('.tab-panel'), panel = null as HTMLElement | null;
     for (var i = 0; i < panels.length; i++) if (panels[i].getAttribute('data-tab') === key) panel = panels[i];
     if (!panel || panel.hidden) return;
-    var hs = typeof panel.querySelectorAll === 'function' ? panel.querySelectorAll('h1, h2, h3') : [];
+    var hs = typeof panel.querySelectorAll === 'function' ? panel.querySelectorAll<HTMLElement>('h1, h2, h3') : [];
     var target = panel;
     for (var j = 0; j < hs.length; j++) {
       var h = hs[j];
       var shown = !(typeof h.getClientRects === 'function' && !h.getClientRects().length);
-      for (var up = h; shown && up && up !== panel; up = up.parentElement) if (up.hidden) shown = false;
+      for (var up: HTMLElement | null = h; shown && up && up !== panel; up = up.parentElement) if (up.hidden) shown = false;
       if (shown) { target = h; break; }
     }
     if (target.getAttribute('tabindex') == null) target.setAttribute('tabindex', '-1');
@@ -283,7 +291,7 @@
    * wordmark); one on a [data-jump] element jumps to that id (opens its tab and folds, scrolls to it). */
   if (typeof document.addEventListener === 'function') {
     document.addEventListener('click', function (e) {
-      var t = e && e.target;
+      var t = e && (e.target as Element | null);
       if (!t || typeof t.closest !== 'function') return;
       var go = t.closest('[data-tab-go]');
       if (go) {
@@ -298,7 +306,7 @@
       var to = t.closest('[data-jump]');
       if (to) {
         if (e.preventDefault) e.preventDefault();
-        jump(to.getAttribute('data-jump'));
+        jump(to.getAttribute('data-jump') as string);
       }
     });
   }
@@ -306,7 +314,7 @@
   window.setTab = setTab;
   window.jump = jump;
   window.jumpOr = jumpOr;
-  // client/today-date.js: is Inicio the shown tab
+  // client/today-date.ts: is Inicio the shown tab
   window.currentTab = currentTab;
   // detail.ts: the hash a closed sheet returns to ('' when no visible tab is shown)
   window.HCNav = {

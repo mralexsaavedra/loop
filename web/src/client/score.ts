@@ -18,7 +18,7 @@
  * (per-modality Relative Effort stays in Entreno's load cards and the load deep-dives). Without a
  * calibrated strain the third dial is the per-modality load dial with its pills, exactly as before.
  *
- * Day stepping (the top bar's "‹ TODAY ›", client/today-date.js window.HCDay): on a PAST day the dials
+ * Day stepping (the top bar's "‹ TODAY ›", client/today-date.ts window.HCDay): on a PAST day the dials
  * and the collapsed row show that day — sleep + recovery from DIALS.days (lib/score/days.mjs, scored
  * on that day), load from the modality's baked recent `days` — open their deep-dive on that day
  * (data-date), are never greyed as stale, and the advice (it reads the current 7-day trend) is hidden.
@@ -45,10 +45,10 @@ type LoadToday = { kind: 'trained' | 'noEffort'; day: LoadDay } | { kind: 'rest'
 /** The baked dial arc pieces dialSvg joins: the fill path and the baseline / typical-day tick. */
 type DialParts = { fill?: string | null; mid?: { x: number; y: number } | null };
 // Load dial modality switch: shows the chosen modality's dial on Inicio, hides the others. The gym /
-// run / bike pills live in the load deep-dive (client/deepdive.js modSwitch: each opens that
+// run / bike pills live in the load deep-dive (client/deepdive.ts modSwitch: each opens that
 // modality's page and, through data-mod, sets this dial), not under the dials; the collapsed dial row (#home-mini) carries
 // the same data-dmod items, so it follows too. A missing host is skipped. No bare page global: the setter is
-// window.HCScore.setMod (deepdive.js feature-detects it), and the load pages' pills carry data-mod="<modality>"
+// window.HCScore.setMod (deepdive.ts feature-detects it), and the load pages' pills carry data-mod="<modality>"
 // (no inline onclick: the page's CSP blocks them); a click on one follows Inicio's dial through the delegated
 // listener below, the pill's own data-detail still opens its page (detail.ts)
 (function () {
@@ -624,7 +624,7 @@ type DialParts = { fill?: string | null; mid?: { x: number; y: number } | null }
   var OUTLOOK_ICO = '<svg class="outlook-ico" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="4"/>' +
     '<path d="M12 2.5v2.5M12 19v2.5M2.5 12H5M19 12h2.5M5.3 5.3l1.8 1.8M16.9 16.9l1.8 1.8M5.3 18.7l1.8-1.8M16.9 7.1l1.8-1.8"/></svg>';
   // the advice sentence for the viewer's today, '' when there is none (a past day, stale data, no rule).
-  // Also window.HCAdvice: the recovery deep-dive (client/deepdive.js) leads its insight card with it,
+  // Also window.HCAdvice: the recovery deep-dive (client/deepdive.ts) leads its insight card with it,
   // the full text behind the one-line outlook bar.
   function currentAdvice() {
     if (VIEW) return '';

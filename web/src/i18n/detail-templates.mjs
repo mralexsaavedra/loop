@@ -109,7 +109,7 @@ export const en = {
     bands: enS.load.bands,
     unscoredNote: enS.load.unscoredNote,
   },
-  // dial deep-dive pages (sleep / recovery / load-<m>, client/deepdive.js): the header, the hero ring's
+  // dial deep-dive pages (sleep / recovery / load-<m>, client/deepdive.ts): the header, the hero ring's
   // label + its off-state words (the dial's own copy), the insight CTA, the contributors card and the
   // weekly bars
   deep: {
@@ -122,7 +122,7 @@ export const en = {
     cta: 'View trend',
     // the insight card's CTA per page (it scrolls to the trend chart)
     ctas: { recovery: 'See my recovery trend', sleep: 'See my sleep trend', load: 'See my load trend', strain: 'See my strain trend' },
-    // the insight card's prose (deepdive.js *Lines): 2–3 plain sentences built from the numbers the page
+    // the insight card's prose (deepdive.ts *Lines): 2–3 plain sentences built from the numbers the page
     // already shows, no new metric
     prose: {
       lastNight: 'Last night',
@@ -135,7 +135,7 @@ export const en = {
       dirs: { up: 'rising', steady: 'steady', down: 'falling' },
       noSleep: 'There is no sleep data for that night.',
       sleep: '{when} you slept {value}, {delta} vs your {target} target.',
-      // the measured sleep debt (client/deepdive.js sleepDebt): the net shortfall vs the same fixed target
+      // the measured sleep debt (client/deepdive.ts sleepDebt): the net shortfall vs the same fixed target
       debt: 'Over the last {n} nights you are {value} short of your target.',
       debtNone: 'Over the last {n} nights you are not short of sleep ({value} above your target).',
       worse1: '{names} was worse than your usual.',
@@ -148,13 +148,13 @@ export const en = {
       loadRestLast: 'No session yet today. Your last one, on {date}, scored {re} (typical day ~{typical}).',
       loadTrend: 'Over the last 7 days your load has been {band} ({pct} vs your 42-day average).',
       strainUsual: 'Your usual day is {value} (median of the prior 30 days).',
-      // the usual day strain on days with the same recovery day band (client/deepdive.js strainByRec):
+      // the usual day strain on days with the same recovery day band (client/deepdive.ts strainByRec):
       // the middle half of the last 90 days, described, never a target
       strainByRec: 'On days when your recovery was {band}, your day strain was usually {lo}–{hi} ({n} of the last 90 days).',
       strainByRecOne: 'On days when your recovery was {band}, your day strain was usually about {lo} ({n} of the last 90 days).',
       recBand: { above: 'above your usual', at: 'around your usual', below: 'below your usual' },
     },
-    // the gym / run / bike pills on a load page (deepdive.js modSwitch; they also set Inicio's load dial)
+    // the gym / run / bike pills on a load page (deepdive.ts modSwitch; they also set Inicio's load dial)
     modSwitch: 'Load modality',
     contrib: {
       aria: 'What makes up today\'s value',
@@ -522,7 +522,7 @@ export const es = {
       dirs: { up: 'al alza', steady: 'estable', down: 'a la baja' },
       noSleep: 'No hay datos de sueño de esa noche.',
       sleep: '{when} dormiste {value}, {delta} frente a tu objetivo de {target}.',
-      // la deuda de sueño medida (client/deepdive.js sleepDebt): lo que falta, neto, frente al mismo objetivo fijo
+      // la deuda de sueño medida (client/deepdive.ts sleepDebt): lo que falta, neto, frente al mismo objetivo fijo
       debt: 'En las últimas {n} noches te faltan {value} respecto a tu objetivo.',
       debtNone: 'En las últimas {n} noches no acumulas deuda de sueño ({value} por encima de tu objetivo).',
       worse1: '{names} estuvo peor que lo habitual.',
@@ -535,13 +535,13 @@ export const es = {
       loadRestLast: 'Aún no hay sesión hoy. La última, el {date}, marcó {re} (día típico ~{typical}).',
       loadTrend: 'En los últimos 7 días tu carga ha estado {band} ({pct} frente a tu media de 42 días).',
       strainUsual: 'Tu día habitual es {value} (mediana de los 30 días anteriores).',
-      // la carga del día habitual en días con la misma banda de recuperación (client/deepdive.js strainByRec):
+      // la carga del día habitual en días con la misma banda de recuperación (client/deepdive.ts strainByRec):
       // la mitad central de los últimos 90 días, descrita, nunca un objetivo
       strainByRec: 'En los días con la recuperación {band}, tu carga del día suele estar entre {lo} y {hi} ({n} de los últimos 90 días).',
       strainByRecOne: 'En los días con la recuperación {band}, tu carga del día suele rondar {lo} ({n} de los últimos 90 días).',
       recBand: { above: 'por encima de lo habitual', at: 'en lo habitual', below: 'por debajo de lo habitual' },
     },
-    // las pastillas gimnasio / carrera / bici de una página de carga (deepdive.js modSwitch; también cambian el dial de carga de Inicio)
+    // las pastillas gimnasio / carrera / bici de una página de carga (deepdive.ts modSwitch; también cambian el dial de carga de Inicio)
     modSwitch: 'Modalidad de carga',
     contrib: {
       aria: 'Qué compone el valor de hoy',

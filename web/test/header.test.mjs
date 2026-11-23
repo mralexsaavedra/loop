@@ -1,7 +1,7 @@
 /* Page header (web/layouts/Plan.astro): page.h1 / page.sub are optional. Without them the page opens
  * straight onto the dials: no visible header, a visually hidden <h1> from page.title keeps one h1 in
  * the document. The top bar always carries the date line host (filled client-side by
- * client/today-date.js, so nothing time-based is baked) next to the freshness line / Sync button.
+ * client/today-date.ts, so nothing time-based is baked) next to the freshness line / Sync button.
  * Since the navigation shell (2026-10), no build draws a hero header: page.h1 (else page.title) is the
  * visually hidden h1, and page.kicker / page.sub are accepted but not drawn. */
 import { test } from 'node:test';

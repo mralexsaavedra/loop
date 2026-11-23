@@ -20,16 +20,16 @@ No new score: the sheet only shows the card's own series.
 
 ## Files
 
-Classic scripts inlined in this order right after `deepdive.js` (`web/src/client/manifest.mjs`):
+Classic scripts inlined in this order right after `deepdive.ts` (`web/src/client/manifest.mjs`):
 
 | File | Role |
 | --- | --- |
-| `detail-state.js` | `window.HCDetailState(T, D)`: data / state helpers, no DOM — series access, the view end, the W / M / 6M / 1Y windows + `periodStats`, the cached 7-day line, value formatting, `dayState` + the legend's states (`detail-state.test.mjs`) |
-| `detail-chart.js` | `window.HCDetailChart(T, DS)`: the trend chart's SVG + key, `selX` from the geometry it records in the sheet state's `geo`, and the window's breakdown bar (`detail-chart.test.mjs`) |
+| `detail-state.ts` | `window.HCDetailState(T, D)`: data / state helpers, no DOM — series access, the view end, the W / M / 6M / 1Y windows + `periodStats`, the cached 7-day line, value formatting, `dayState` + the legend's states (`detail-state.test.mjs`) |
+| `detail-chart.ts` | `window.HCDetailChart(T, DS)`: the trend chart's SVG + key, `selX` from the geometry it records in the sheet state's `geo`, and the window's breakdown bar (`detail-chart.test.mjs`) |
 | `detail.ts` | the shell: header, period, calendar and day panel markup, open / close, focus, history, deep links and the public `window.HCDetail` |
 
 - `detail.ts` builds one `HCDetailState` + one `HCDetailChart` per page and hands the state helpers to
-  `deepdive.js` (`X`).
+  `deepdive.ts` (`X`).
 - Tests load the set through `DETAIL_SOURCE` (`web/test/client-util.mjs`).
 
 ## Registered views
@@ -89,7 +89,7 @@ Same readers and rules as the cards.
 
 ### Metrics outside `DETAIL`
 
-detail-state.js `metric('stress')` / `metric('energy-bank')` / `metric('nutrition')` reads these when `DETAIL`
+detail-state.ts `metric('stress')` / `metric('energy-bank')` / `metric('nutrition')` reads these when `DETAIL`
 has no such key. None has a host tab except
 `nutrition`.
 
@@ -156,12 +156,12 @@ has no such key. None has a host tab except
 
 - client/home-week.ts, client/home-dash.ts and client/home-order.ts run in the end-of-body list BEFORE `detail.ts`, so the views
   exist when it reads the hash. `#tonight` / `#dash-edit` / `#home-edit` deep-link like `#hoy-session` (all `VIEW_TAB` →
-  `home` in lib/nav/tabs.mjs, baked as `NAV.viewTab`, so core.js shows Home underneath instead of
+  `home` in lib/nav/tabs.mjs, baked as `NAV.viewTab`, so core.ts shows Home underneath instead of
   rewriting a hash it does not know).
 
 ## Dial deep-dive pages
 
-`web/src/client/deepdive.js`, inlined right before `detail.ts`, which calls
+`web/src/client/deepdive.ts`, inlined right before `detail.ts`, which calls
 `window.HCDeep.render(key, m, end, X)` with its own helpers `X`, so both files read one set of rules and
 copy. The copy is the dial's own (`score-templates.mjs` via `I18N_DETAIL.rec` / `load` / `deep`).
 
@@ -308,7 +308,7 @@ bottom: header → ⓘ block → hero ring → contributors → insight → week
 
 All three follow the day they were opened on (strain: `X.sel`, else the view end).
 
-**Strain** (key `strain`, client/deepdive.js):
+**Strain** (key `strain`, client/deepdive.ts):
 
 - Hero ring = the day's strain with the Home dial's own arc.
 - Contributors = the day's activities + "all day (outside workouts)", each with its share of the strain
@@ -317,7 +317,7 @@ All three follow the day they were opened on (strain: `X.sel`, else the view end
 - ⓘ = the formula, the sources, this user's K / p95 / full days / max HR and "our estimate".
 - Then the 7-day strain bars and "Relative Effort by modality" links to the `load-<m>` pages.
 
-**Stress** (key `stress`, client/deepdive.js `stressPage`):
+**Stress** (key `stress`, client/deepdive.ts `stressPage`):
 
 - Hero = a 0–3 half gauge in the three band colours with a marker at the latest scored hour, its value, band
   word and "Latest hour 14:00" (no value → an empty gauge + "No data").
@@ -329,7 +329,7 @@ All three follow the day they were opened on (strain: `X.sel`, else the view end
 - ⓘ = the formula, how hours are scored, that day's resting HR / max HR / minimum hours, the limits (no HRV,
   no hourly steps, so movement raises it) and "not a medical measure".
 
-**Energy bank** (client/deepdive.js `energyPage`):
+**Energy bank** (client/deepdive.ts `energyPage`):
 
 - Hero = a 0–100 half gauge filled to the latest level in its third's colour, the band word and "Latest hour
   23:00".
@@ -488,7 +488,7 @@ All three follow the day they were opened on (strain: `X.sel`, else the view end
   and lands on the tab hash entry underneath (`#nutricion`, see [`plan-page.md`](plan-page.md) → URL hash
   & navigation).
 - Closing a deep-linked sheet (no entry of ours) replaces the URL with the current tab hash
-  (`window.HCNav.hash()` from core.js; '' without it). core.js has already shown the deep link's host tab
+  (`window.HCNav.hash()` from core.ts; '' without it). core.ts has already shown the deep link's host tab
   underneath (`#detail/sleep` → Health), so it closes onto `#health`.
 - A page opened with that hash opens the view — only for an OWN key of both `DETAIL.metrics` and the copy
   (no `constructor`), and a date must round-trip (`HC.isoDate` rejects 2026-02-31). A bad or out-of-range

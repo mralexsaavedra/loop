@@ -1,5 +1,5 @@
-/* Tests for the detail sheet's trend chart (web/src/client/detail-chart.js, window.HCDetailChart): the
- * classic script runs in a vm after util.js and detail-state.js, over small hand-made series and a fixed
+/* Tests for the detail sheet's trend chart (web/src/client/detail-chart.ts, window.HCDetailChart): the
+ * classic script runs in a vm after util.js and detail-state.ts, over small hand-made series and a fixed
  * clock, so the slot geometry (selX + the caller's state.geo), the round Y ticks, the long-window
  * "out of range only" dots and the breakdown counts are checked without the sheet. The rendered sheet
  * (every metric's view, gaps, the key, the breakdown's placement and copy) is covered by detail.test.mjs.
@@ -7,17 +7,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { en as enT } from '../i18n/detail-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const stateSource = fs.readFileSync(path.join(here, 'detail-state.js'), 'utf8');
-const source = fs.readFileSync(path.join(here, 'detail-chart.js'), 'utf8');
+const stateSource = clientScriptSource('detail-state.ts');
+const source = clientScriptSource('detail-chart.ts');
 const TODAY = '2026-10-10';
-// the chart's SVG geometry (detail-chart.js): width 320, inner padding 8
+// the chart's SVG geometry (detail-chart.ts): width 320, inner padding 8
 const CW = 320, CPAD = 8;
 
 function load({ now = TODAY } = {}) {
@@ -39,7 +36,7 @@ const series = (v, extra = {}) => ({ start: '2026-10-01', v, dec: 0, kind: 'sign
 const yLabels = (html) => [...html.split('<div class="dt-yax"')[1].split('</div>')[0].matchAll(/>([^<]+)<\/span>/g)].map((m) => m[1]);
 const dots = (html) => [...html.matchAll(/<circle class="dt-pt dt-s-(\w+)"/g)].map((m) => m[1]);
 
-test('detail-chart.js defines only window.HCDetailChart, and reads nothing else at load', () => {
+test('detail-chart.ts defines only window.HCDetailChart, and reads nothing else at load', () => {
   const ctx = vm.createContext({ window: {} });
   vm.runInContext(source, ctx);
   assert.equal(typeof ctx.window.HCDetailChart, 'function');

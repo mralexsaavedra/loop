@@ -47,6 +47,6 @@ export const FOOD_SOURCE = FOOD_SOURCES.join('\n');
  * sheet shell, window.HCDetail).
  * DETAIL_SOURCE = them joined: each is self-contained, so running the joined text equals running them
  * one after another. */
-const DETAIL_SCRIPTS = ['detail-state.js', 'detail-chart.js', 'detail.ts'];
+const DETAIL_SCRIPTS = ['detail-state.ts', 'detail-chart.ts', 'detail.ts'];
 const DETAIL_SOURCES = DETAIL_SCRIPTS.map((f) => clientScriptSource(f));
 export const DETAIL_SOURCE = DETAIL_SOURCES.join('\n');

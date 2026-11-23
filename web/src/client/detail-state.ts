@@ -1,17 +1,34 @@
-/* Detail sheet, the data and state helpers (no DOM). detail-state.js (this file) -> detail-chart.js
+/* Detail sheet, the data and state helpers (no DOM). detail-state.ts (this file) -> detail-chart.ts
  * (the trend chart) -> detail.ts (the sheet shell: header, period, calendar, day panel, open / close,
- * history, deep links, the public window.HCDetail). Classic scripts (is:inline), inlined in that order
- * right after deepdive.js (web/src/client/manifest.mjs).
+ * history, deep links, the public window.HCDetail). Module scripts (bundled into the page, docs/plan-page.md → Module scripts), inlined in that order
+ * right after deepdive.ts (web/src/client/manifest.mjs).
  *
  * window.HCDetailState(T, D) builds one set of helpers over the sheet's copy (I18N_DETAIL) and data
  * (DETAIL, or detail.ts's empty stand-in): the series access (a missing day is null, never 0), the
  * view's end day, the W / M / 6M / 1Y windows and their averages + delta (periodStats), the 7-day line
  * per view (cached per instance), the value formatting (no NaN is ever printed: a dash) and the colour
  * state of a day (dayState, the legend's items). detail.ts calls it once and hands the result on to
- * detail-chart.js and client/deepdive.js; detail-state.test.mjs runs the helpers in a vm. Reads
+ * detail-chart.ts and client/deepdive.ts; detail-state.test.mjs runs the helpers in a vm. Reads
  * window.HC (util.js), HC_BAND (lib/score/recovery.mjs) and, at call time, SCORES / window.HCNutriScore
  * / window.HCSettings for the metrics they own. */
-window.HCDetailState = function (T, D) {
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads (baked by the build or provided by an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+declare const HC_BAND: PageGlobals['HC_BAND'];
+declare const SCORES: PageGlobals['SCORES'];
+
+/** A baked DETAIL / SCORES piece or an I18N_DETAIL copy block (lib/detail/detail.mjs): untyped until those shapes get their own types. */
+type Baked = any;
+/** One DETAIL metric (or the stress / energy / nutrition stand-in in the same shape). */
+type Metric = Baked;
+/** periodStats' result: one trend window's mean and the delta vs the previous window. */
+type PeriodStats = {
+  from: string; to: string; clamped: boolean; avg: number | null; n: number;
+  prev: number | null; delta: number | null; pct: number | null; flat: boolean; tone: string;
+};
+
+window.HCDetailState = function (T: Baked, D: Baked) {
   var isoDate = HC.isoDate, parseIso = HC.parseIso, shiftIso = HC.shiftIso;
   // W / M / 6M / 1Y (days); a range longer than the data is clamped to the metric's first day
   var RANGES = [7, 30, 182, 365];
@@ -23,62 +40,62 @@ window.HCDetailState = function (T, D) {
   // daily totals whose newest day fills up during the day (the extract's "so far" value)
   var PARTIAL_KINDS = ['total', 'nscore'];
   // the 7-day line per (metric, range): computed once, reused by every re-render of that view
-  var lineCache = {};
+  var lineCache: Record<string, Array<number | null>> = {};
 
   /* ---------- data access ---------- */
   var dayDiff = HC.dayDiff;
-  function own(o, k) {
+  function own(o: unknown, k: string): boolean {
     return !!o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, k);
   }
   // views registered by other scripts before detail.ts: {<key>: {title(): string, render(): {head, body}}}
-  function viewOf(key) {
+  function viewOf(key: string) {
     var v = HC.view(key);
     return v && typeof v.render === 'function' ? v : null;
   }
-  function metric(key) {
+  function metric(key: string): Metric | null {
     var m = own(D.metrics, key) ? D.metrics[key] : key === 'stress' ? stressMetric() : key === 'energy-bank' ? energyMetric() : key === 'nutrition' ? nutritionMetric() : null;
     return m && isoDate(m.start) ? m : null;
   }
   // the stress page's trend series is not in DETAIL: SCORES.stress.metric (lib/score/stress.mjs, the
   // day averages from the first scored day, in the DETAIL metric shape) is its only bake
-  function stressMetric() {
+  function stressMetric(): Metric | null {
     var S = typeof SCORES !== 'undefined' && SCORES ? SCORES.stress : null;
     return S && S.ok && S.metric && Array.isArray(S.metric.v) ? S.metric : null;
   }
   // the energy page's trend (each day's latest level): SCORES.energy.metric (lib/score/energy-bank.mjs)
-  function energyMetric() {
+  function energyMetric(): Metric | null {
     var S = typeof SCORES !== 'undefined' && SCORES ? SCORES.energy : null;
     return S && S.ok && S.metric && Array.isArray(S.metric.v) ? S.metric : null;
   }
   // the nutrition score is scored at VIEW time (the current goal × each day's type): client/nutri-score.ts
-  function nutritionMetric() {
+  function nutritionMetric(): Metric | null {
     var S = typeof window !== 'undefined' ? window.HCNutriScore : null;
     var m = S && typeof S.metric === 'function' ? S.metric() : null;
     return m && Array.isArray(m.v) ? m : null;
   }
-  function at(arr, m, iso) {
+  function at(arr: unknown, m: Metric, iso: string): number | null {
     if (!arr || !Array.isArray(arr)) return null;
     var i = dayDiff(m.start, iso);
     var v = i >= 0 && i < arr.length ? arr[i] : null;
     return typeof v === 'number' && isFinite(v) ? v : null;
   }
-  function valueOf(m, iso) {
+  function valueOf(m: Metric, iso: string) {
     if (!Array.isArray(m.v)) throw new Error('bad series');
     return at(m.v, m, iso);
   }
   // newest day <= end with a value (for training time a rest day, 0, counts: it is a known day)
-  function lastDataDate(m, end) {
+  function lastDataDate(m: Metric, end: string): string | null {
     for (var i = Math.min(m.v.length - 1, dayDiff(m.start, end)); i >= 0; i--) {
       if (typeof m.v[i] === 'number' && isFinite(m.v[i])) return shiftIso(m.start, i);
     }
     return null;
   }
   // a daily total's day that is the viewer's today: still filling up
-  function isPartial(m, iso) {
+  function isPartial(m: Metric, iso: string): boolean {
     return PARTIAL_KINDS.indexOf(m.kind) !== -1 && !!iso && iso === HC.todayIso();
   }
   // the colour state of a day, with today's partial total neutral
-  function stateOn(m, iso, v) {
+  function stateOn(m: Metric, iso: string, v: number | null): string {
     return v != null && isPartial(m, iso) ? 'partial' : dayState(m, v);
   }
   // the view's last day: the viewer's today, or the data's asOf when stale / ahead of the clock
@@ -91,14 +108,14 @@ window.HCDetailState = function (T, D) {
   }
   // the dashed target line: a baked target (sleep), else the user's target weight on the weight view
   // (client/settings.ts, LAN page only; nothing without it)
-  function targetOf(key, m) {
+  function targetOf(key: string, m: Metric): number | null {
     if (m.target != null) return m.target;
     if (key !== 'weight') return null;
     var S = typeof window !== 'undefined' ? window.HCSettings : null;
     var v = S && typeof S.ready === 'function' && S.ready() && typeof S.targetWeight === 'function' ? S.targetWeight() : null;
     return typeof v === 'number' && isFinite(v) ? v : null;
   }
-  function roll7(m, iso) {
+  function roll7(m: Metric, iso: string): number | null {
     var s = 0, n = 0;
     for (var k = 0; k < ROLL_DAYS; k++) {
       var v = at(m.v, m, shiftIso(iso, -k));
@@ -106,31 +123,31 @@ window.HCDetailState = function (T, D) {
     }
     return n >= ROLL_MIN ? s / n : null;
   }
-  function sessionsOn(iso, mod) {
-    return (D.sessions || []).filter(function (x) { return x.d === iso && (!mod || x.m === mod); });
+  function sessionsOn(iso: string, mod?: string | null) {
+    return (D.sessions || []).filter(function (x: Baked) { return x.d === iso && (!mod || x.m === mod); });
   }
-  function modOf(key) {
+  function modOf(key: string): string | null {
     return key.indexOf('load-') === 0 ? key.slice(5) : null;
   }
 
   /* ---------- formatting ---------- */
-  function fmt(v, dec) {
+  function fmt(v: number | null | undefined, dec?: number): string {
     return v == null || !isFinite(v) ? '—' : HC.num(v, dec, false);
   }
-  function signed(v, dec) {
+  function signed(v: number | null | undefined, dec?: number): string {
     return v == null || !isFinite(v) ? '—' : HC.num(v, dec, true);
   }
-  function pct(v) {
+  function pct(v: number | null): string {
     return HC.pct(v, true);
   }
   // a value of metric m: sleep hours as h:mm (no unit), anything else fixed decimals
-  function fmtM(m, v, dec) {
+  function fmtM(m: Metric, v: number | null, dec?: number): string {
     return m && m.kind === 'sleep' ? HC.hours(v) : fmt(v, dec);
   }
-  function signedM(m, v, dec) {
+  function signedM(m: Metric, v: number | null, dec?: number): string {
     return m && m.kind === 'sleep' ? HC.hours(v, true) : signed(v, dec);
   }
-  function clock(h) {
+  function clock(h: number | null | undefined): string {
     if (h == null || !isFinite(h)) return '—';
     h = ((h % 24) + 24) % 24;
     var H = Math.floor(h), M = Math.round((h - H) * 60);
@@ -138,36 +155,36 @@ window.HCDetailState = function (T, D) {
     return String(H).padStart(2, '0') + ':' + String(M).padStart(2, '0');
   }
   // the unit shown next to a value; hours (sleep) read as h:mm and carry none
-  function unitOf(key) {
+  function unitOf(key: string): string {
     var u = (own(T.metrics, key) && T.metrics[key].unit) || '';
     return u === 'h' ? '' : u;
   }
-  function titleOf(key) {
+  function titleOf(key: string): string {
     var vw = viewOf(key);
     if (vw) return (typeof vw.title === 'function' && vw.title()) || key;
     return (own(T.metrics, key) && T.metrics[key].title) || key;
   }
-  function valUnit(v, dec, unit) {
+  function valUnit(v: number | null, dec?: number, unit?: string): string {
     return v == null ? '—' : fmt(v, dec) + (unit ? ' ' + unit : '');
   }
 
   /* ---------- state colours (tokens via .dt-s-<state>) ---------- */
-  function level(v, cuts) {
+  function level(v: number, cuts: number[] | null | undefined): number {
     var l = 0;
-    (cuts || []).forEach(function (c) { if (v >= c) l++; });
+    (cuts || []).forEach(function (c: number) { if (v >= c) l++; });
     return l;
   }
   // value -> state word: good / bad / watch / normal (vs the personal band, by the signal's good
   // direction), hi / lo (a neutral total), good / mid / bad (sleep vs target and band), l1..l4 / rest
   // (training volume), measured (a sparse reading), none (no data)
-  function dayState(m, v) {
+  function dayState(m: Metric, v: number | null): string {
     if (v == null || !isFinite(v)) return 'none';
     if (m.kind === 'workouts' || m.kind === 'load' || m.kind === 'strain') return v > 0 ? 'l' + Math.max(1, level(v, m.levels)) : 'rest';
     if (m.kind === 'sparse') return 'measured';
     // stress (0-3): its own three bands, low < 1, medium 1-2, high >= 2 (lib/score/stress.mjs)
     if (m.kind === 'stress') return v >= 2 ? 'shigh' : v >= 1 ? 'smedium' : 'slow';
     // energy bank (0-100): the recovery dial's thirds (HC_BAND.pctBand, lib/score/recovery.mjs)
-    if (m.kind === 'bank') return { good: 'good', mid: 'mid', low: 'bad' }[HC_BAND.pctBand(v)] || 'bad';
+    if (m.kind === 'bank') return { good: 'good', mid: 'mid', low: 'bad' }[HC_BAND.pctBand(v) as 'good' | 'mid' | 'low'] || 'bad';
     // nutrition score (0-100): its own bands (m.bands, lib/nutrition/nutri-score.mjs NSCORE.bands)
     if (m.kind === 'nscore') return v >= m.bands.good ? 'good' : v >= m.bands.mid ? 'mid' : 'bad';
     if (m.kind === 'recovery') return v >= m.cut ? 'good' : v <= -m.cut ? 'bad' : 'normal';
@@ -183,8 +200,8 @@ window.HCDetailState = function (T, D) {
     return side === m.dir ? 'good' : 'bad';
   }
   // [state, label] per calendar state of a metric (the legend's order), without "no data"
-  function legendItems(m) {
-    var L = T.legend, items;
+  function legendItems(m: Metric): Array<[string, string]> {
+    var L = T.legend, items: Array<[string, string]>;
     if (m.kind === 'workouts' || m.kind === 'load' || m.kind === 'strain') items = [['l1', ''], ['l2', ''], ['l3', ''], ['l4', L.levels]];
     else if (m.kind === 'sparse') items = [['measured', L.measured]];
     else if (m.kind === 'stress') items = [['slow', L.stressLow], ['smedium', L.stressMedium], ['shigh', L.stressHigh]];
@@ -201,11 +218,11 @@ window.HCDetailState = function (T, D) {
 
   /* ---------- the trend windows and their average ---------- */
   // the first day of a `days`-long window ending at `end`, clamped to the metric's first day
-  function windowFrom(m, end, days) {
+  function windowFrom(m: Metric, end: string, days: number): string {
     var from = shiftIso(end, -(days - 1));
     return from < m.start ? m.start : from;
   }
-  function meanOf(m, from, to) {
+  function meanOf(m: Metric, from: string, to: string): { avg: number | null; n: number } {
     var s = 0, n = 0;
     for (var d = from; d <= to; d = shiftIso(d, 1)) {
       var v = at(m.v, m, d);
@@ -220,10 +237,10 @@ window.HCDetailState = function (T, D) {
   // window of the same length lies wholly inside the data and holds data, the delta vs its mean —
   // absolute for recovery (sd units around 0), else a percentage. tone: good / bad by the metric's
   // good direction, normal when about the same or the metric has none.
-  function periodStats(m, end, days) {
+  function periodStats(m: Metric, end: string, days: number) {
     var from = windowFrom(m, end, days), clamped = from !== shiftIso(end, -(days - 1));
     var cur = meanOf(m, from, end);
-    var out = { from: from, to: end, clamped: clamped, avg: cur.avg, n: cur.n, prev: null, delta: null, pct: null, flat: true, tone: 'normal' };
+    var out: PeriodStats = { from: from, to: end, clamped: clamped, avg: cur.avg, n: cur.n, prev: null, delta: null, pct: null, flat: true, tone: 'normal' };
     var pFrom = shiftIso(from, -days), pTo = shiftIso(from, -1);
     if (cur.avg == null || clamped || pTo < m.start) return out;
     // a previous window that starts before the data still compares when at least half its days hold
@@ -244,16 +261,16 @@ window.HCDetailState = function (T, D) {
     return out;
   }
   // the trend window: `shift` whole windows back from the view end (‹ › stepping; 0 = ends today)
-  function windowEnd(m, end, range, shift) {
+  function windowEnd(m: Metric, end: string, range: number, shift?: number): string {
     return shiftIso(end, -(shift || 0) * range);
   }
   // the 7-day line of one view: recovery = each day's baked trend, weight / energy = the card's baked
   // rolling average, other dense series = roll7; sparse readings without a baked line have none.
   // Cached per (metric, range): a re-render of the same view never recomputes it.
-  function lineFor(key, m, from, n) {
+  function lineFor(key: string, m: Metric, from: string, n: number): Array<number | null> {
     var ck = key + '|' + from + '|' + n;
     if (own(lineCache, ck)) return lineCache[ck];
-    var line = [];
+    var line: Array<number | null> = [];
     for (var i = 0; i < n; i++) {
       var iso = shiftIso(from, i);
       if (m.kind === 'recovery') line.push(at(m.t7, m, iso));
@@ -266,10 +283,10 @@ window.HCDetailState = function (T, D) {
   }
 
   /* ---------- month calendar ---------- */
-  function monthOf(iso) {
+  function monthOf(iso: string): string {
     return iso.slice(0, 8) + '01';
   }
-  function addMonths(first, k) {
+  function addMonths(first: string, k: number): string {
     var d = parseIso(first);
     d.setMonth(d.getMonth() + k, 1);
     return HC.isoOf(d);

@@ -8,12 +8,34 @@
  * here, only read from DETAIL / DIALS and laid out (the sleep page only adds REM + deep and stage
  * shares of the baked stage hours).
  *
- * Classic script (is:inline), inlined right BEFORE client/detail.ts, which calls it: window.HCDeep =
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts), inlined right BEFORE client/detail.ts, which calls it: window.HCDeep =
  * {isDial(key), render(key, m, end, X) -> {head, top}}. X = the sheet's own helpers (copy, series
  * access, number formatting, the band notes), injected so both files read one set of rules. The
  * header's back button is the sheet's close button (data-dt-act="close"); ⓘ (data-dt-act="info") and
  * the CTA (data-dt-act="trend") are handled by detail.ts's one delegated listener.
  */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads by bare name (baked by components/Bake.astro or an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+declare const SCORES: PageGlobals['SCORES'];
+declare const DIALS: PageGlobals['DIALS'];
+declare const HC_BAND: PageGlobals['HC_BAND'];
+declare const I18N_DATE: PageGlobals['I18N_DATE'];
+
+/** A baked SCORES / DIALS / DETAIL piece or the sheet's injected helpers X (detail.ts): untyped until those shapes get their own types. */
+type Baked = any;
+/** The hero ring's spec (heroHtml). */
+type Hero = { cls: string; label: string; num?: string; unit?: string; word?: string; fill?: string | null; tick?: Baked; stale?: boolean; carried?: boolean };
+/** One insight-card paragraph. */
+type Line = { text: string; cls?: string };
+/** compare(): the value vs the prior days' middle half. */
+type Cmp = { v: number; side: null; tone: null } | { v: number; side: number; tone: string; lo: number; hi: number };
+/** One contributor row (contribHtml). */
+type Row = { k: string; val: string | null; cmp?: Cmp | null };
+/** One weekly trend card (weeklyCard). */
+type Card = { title: string; get: (iso: string) => unknown; text: (v: number) => string; cls: (v: number) => string; frac?: (v: number) => number; tone?: boolean; open?: string };
+
 (function () {
   var esc = HC.esc, format = HC.format, isoDate = HC.isoDate, shiftIso = HC.shiftIso;
   // contributors: today vs the middle half (p25–p75) of the PRIOR_DAYS before it — the same "usual
@@ -32,36 +54,36 @@
   var STAGES = ['awake', 'rem', 'core', 'deep', 'unspec'];
   // the hero ring's track when no DIALS geometry is baked: the dial's own circle (view/dial.mjs DIAL)
   var RING = { c: 60, r: 54 };
-  var BAND_CLS = { above: 'good', at: 'mid', below: 'low' };
+  var BAND_CLS: Record<string, string> = { above: 'good', at: 'mid', below: 'low' };
 
-  function isDial(key) {
+  function isDial(key: string): boolean {
     return key === 'sleep' || key === 'recovery' || key === 'strain' || key === 'stress' || key === 'energy-bank' || /^load-[a-z]+$/.test(String(key));
   }
   // SCORES.strain (lib/score/strain.mjs): K, the 95th-percentile day, and the recent days with each
   // contributor's share of the strain; DIALS.strain: the same days' ring arcs
-  function strainBake() {
+  function strainBake(): Baked {
     var S = typeof SCORES !== 'undefined' && SCORES ? SCORES.strain : null;
     return S && S.ok ? S : null;
   }
-  function strainDayOf(list, iso) {
-    var out = null;
-    (list || []).forEach(function (x) { if (x && x.date === iso) out = x; });
+  function strainDayOf(list: Baked[] | null | undefined, iso: string): Baked {
+    var out: Baked = null;
+    (list || []).forEach(function (x: Baked) { if (x && x.date === iso) out = x; });
     return out;
   }
-  function dials() {
+  function dials(): Baked {
     return typeof DIALS !== 'undefined' && DIALS ? DIALS : null;
   }
-  function loadDialOf(mod) {
-    var D = dials(), out = null;
+  function loadDialOf(mod: string): Baked {
+    var D = dials(), out: Baked = null;
     var list = D && D.load && Array.isArray(D.load.modalities) ? D.load.modalities : [];
-    list.forEach(function (x) { if (x && x.key === mod) out = x; });
+    list.forEach(function (x: Baked) { if (x && x.key === mod) out = x; });
     return out;
   }
-  function stale(iso) {
+  function stale(iso: string | null | undefined): boolean {
     var d = isoDate(iso);
     return !!d && HC.daysOld(d) > HC.STALE_DAYS;
   }
-  function isNum(v) {
+  function isNum(v: unknown): v is number {
     return typeof v === 'number' && isFinite(v);
   }
 
@@ -70,7 +92,7 @@
   // lives in the ring's label (and stays the dialog's label for screen readers): strain = the day it
   // was opened on (Inicio's day stepping), the others = the view end (the viewer's today, or the
   // stale data's last day), the day their hero and insight describe
-  function headDay(key, end, X, m) {
+  function headDay(key: string, end: string, X: Baked, m?: Baked): string {
     if (key === 'recovery' || key === 'sleep') return carriedNight(key, m, end, X) || end;
     return key === 'strain' || key === 'stress' || key === 'energy-bank' ? strainIso(end, X) : end;
   }
@@ -79,12 +101,12 @@
   // is not complete yet; lib/score/recovery.mjs falls back up to 2 days) — the page is titled with that
   // night's date (weekday kept), the legend names it and the hero is dimmed. Stale data (end = the
   // data's last day) is the stronger state, never carried.
-  function carriedNight(key, m, end, X) {
+  function carriedNight(key: string, m: Baked, end: string, X: Baked): string | null {
     var h = m && m.head;
     var n = key === 'sleep' ? sleepNight(m, end, X) : h && h.mode === 'today' ? h.date : null;
     return end === HC.todayIso() && HC.carried(n, end).carried ? n : null;
   }
-  function headHtml(key, end, X, m) {
+  function headHtml(key: string, end: string, X: Baked, m?: Baked): string {
     var P = X.T.deep, iso = headDay(key, end, X, m);
     var title = iso === HC.todayIso() ? P.today : HC.fmtDate(iso);
     return HC.sheetHead({ title: title, sr: X.titleOf(key), back: P.back, info: { controls: 'dd-info', label: P.info } });
@@ -93,7 +115,7 @@
   /* ---------- hero ring ---------- */
   // h: {cls (colour), fill (baked path | null), tick (load: typical day), num + unit | word, label, stale,
   // carried (a night from an earlier day: the one dim, HC.carried; stale = the stronger grey wins)}
-  function heroHtml(h, X) {
+  function heroHtml(h: Hero, X: Baked): string {
     var D = dials();
     var track = D && D.track ? '<path class="dd-track" d="' + esc(D.track) + '"/>' : '<circle class="dd-track" cx="' + RING.c + '" cy="' + RING.c + '" r="' + RING.r + '"/>';
     var svg = '<svg class="dd-svg" viewBox="0 0 120 120" aria-hidden="true">' + track +
@@ -109,13 +131,13 @@
       '<div class="dd-centre" aria-hidden="true">' + centre + '<span class="dd-lbl">' + esc(h.label) + '</span></div></div></section>';
   }
   // the dial's % when it scores the SAME night as the sheet's headline (DETAIL head), else null
-  function pctOf(h) {
+  function pctOf(h: Baked): number | null {
     var d = dials() && dials().recovery;
     return h && h.mode === 'today' && d && d.state === 'ok' && d.mode === 'today' && d.date === h.date && isNum(d.pct) ? d.pct : null;
   }
   // recovery: exactly the dial (view/dial.mjs recoveryDial + score.ts recDial): last night's composite,
   // its band as the ONE colour of the whole fill; gated / none = an empty ring with the dial's word
-  function recoveryHero(m, end, X) {
+  function recoveryHero(m: Baked, end: string, X: Baked): Hero {
     var P = X.T.deep, h = m.head, d = dials() && dials().recovery;
     var label = P.label.recovery;
     if (!h || !isNum(h.value)) return { cls: 'off', label: label, word: d && d.state === 'none' ? P.words.none : P.words.gated, stale: false };
@@ -130,7 +152,7 @@
   }
   // sleep: last night's sleep performance % (DIALS pct = asleep / need, the dial's fill); without a
   // baked % (no DIALS) the night's hours; the night's date sets staleness
-  function sleepHero(m, end, X) {
+  function sleepHero(m: Baked, end: string, X: Baked): Hero {
     var P = X.T.deep, d = dials() && dials().sleep;
     var date = d && d.state === 'ok' ? d.date : X.lastDataDate(m, end);
     var v = d && d.state === 'ok' ? d.hours : date ? X.valueOf(m, date) : null;
@@ -139,22 +161,22 @@
     return { cls: 'sleep', label: P.label.sleep, num: HC.hours(v), unit: '', fill: d && d.state === 'ok' ? d.fill : null, stale: stale(date) };
   }
   // the night the sleep page describes: the dial's night, else the metric's newest day
-  function sleepNight(m, end, X) {
+  function sleepNight(m: Baked, end: string, X: Baked): string | null {
     var d = dials() && dials().sleep;
     return d && d.state === 'ok' && isoDate(d.date) ? d.date : X.lastDataDate(m, end);
   }
   // load: the dial's today logic (score.ts loadToday): today's RE fills to its baked arc, the typical
   // day is the white tick at the ring's midpoint; no RE today = the dial's word, an empty ring
-  function loadHero(key, m, X) {
+  function loadHero(key: string, m: Baked, X: Baked): Hero {
     var P = X.T.deep, D = dials(), dm = loadDialOf(X.modOf(key));
     var tick = D && D.load && D.load.tick ? D.load.tick : null;
-    var base = { label: P.label.load, tick: tick, stale: stale((D && D.load && D.load.asOf) || X.D.asOf) };
-    var hero = function (o) { for (var k in base) if (!(k in o)) o[k] = base[k]; return o; };
+    var base: Baked = { label: P.label.load, tick: tick, stale: stale((D && D.load && D.load.asOf) || X.D.asOf) };
+    var hero = function (o: Baked): Hero { for (var k in base) if (!(k in o)) o[k] = base[k]; return o; };
     if (m.gate || (dm && dm.state !== 'ok')) return hero({ cls: 'off', word: P.words.loadGated });
     var t = HC.todayIso(), v = X.at(m.v, m, t), i = X.dayDiff(m.start, t);
     if (v != null && v > 0) {
       var fill = null;
-      (dm && dm.days || []).forEach(function (x) { if (x.date === t && x.fill) fill = x.fill; });
+      (dm && dm.days || []).forEach(function (x: Baked) { if (x.date === t && x.fill) fill = x.fill; });
       return hero({ cls: 'strain', num: X.fmt(v, 0), unit: X.unitOf(key), fill: fill });
     }
     if (i >= 0 && i < m.v.length && m.v[i] === null) return hero({ cls: 'off', word: P.words.noEffort });
@@ -164,18 +186,18 @@
   /* ---------- insight card: 2–3 plain sentences from the numbers the page already shows ---------- */
   // lines: [{text, cls?}] — each a <p>; the dial pages write ONE paragraph of 2–3 sentences, the
   // long notes go under ⓘ (infoHtml)
-  function prose(parts) {
+  function prose(parts: string[]): Line[] {
     var t = parts.filter(function (x) { return !!x; }).join(' ');
     return t ? [{ text: t }] : [];
   }
   // "Last night" when the night is the viewer's today, else "On Mon 28 Sep"
-  function whenOf(iso, X, last) {
+  function whenOf(iso: string, X: Baked, last?: boolean): string {
     var W = X.T.deep.prose;
     return HC.daysOld(iso) === 0 && last !== false ? W.lastNight : format(W.on, { date: HC.fmtDate(iso) });
   }
   // the contributors that were worse than the prior 30 days' middle half, in one sentence (no worse
   // one: "every contributor at or better than usual", only when some carry a marker)
-  function contribSentence(rows, X) {
+  function contribSentence(rows: Row[], X: Baked): string {
     var W = X.T.deep.prose, P = X.T.deep.contrib.rows;
     var shown = rows.filter(function (r) { return r.val != null; }).slice(0, 4);
     if (!shown.some(function (r) { return r.cmp && r.cmp.side != null; })) return '';
@@ -190,7 +212,7 @@
   }
   // recovery: Inicio's outlook sentence (score.ts window.HCAdvice, '' on a past day or stale data:
   // the bar's full text) leads, then the night in words; without it, the 7-day trend in words
-  function recoveryLines(m, X) {
+  function recoveryLines(m: Baked, X: Baked): Line[] {
     var R = X.T.rec, W = X.T.deep.prose, h = m.head;
     if (!h || !isNum(h.value)) return [{ text: R.gated }];
     var tr = h.trend || {};
@@ -207,7 +229,7 @@
   // nights with data (a surplus night offsets a short one; a night without data counts as nothing, never
   // as debt) -> null | {h (> 0 = short), n (nights with data)}; null under DEBT_MIN nights. The need
   // stays the fixed target (lib/score/sleep.mjs): no adaptive need is invented.
-  function sleepDebt(m, iso, X) {
+  function sleepDebt(m: Baked, iso: string | null, X: Baked): { h: number; n: number } | null {
     if (!iso || !isNum(m.target)) return null;
     var h = 0, n = 0;
     for (var k = 0; k < DEBT_NIGHTS; k++) {
@@ -218,7 +240,7 @@
   }
   // sleep: last night vs the target, the measured debt of the last nights, then the contributors that
   // were worse than usual
-  function sleepLines(m, end, X) {
+  function sleepLines(m: Baked, end: string, X: Baked): Line[] {
     var W = X.T.deep.prose, d = X.lastDataDate(m, end);
     if (!d) return [{ text: X.T.noData }];
     var v = X.valueOf(m, d);
@@ -231,7 +253,7 @@
   }
   // load: the day (today's RE, or the last session) next to the typical day, then the 7-day vs 42-day
   // context (baked DIALS); the ring scale lives under ⓘ
-  function loadLines(key, m, X) {
+  function loadLines(key: string, m: Baked, X: Baked): Line[] {
     var L = X.T.load, W = X.T.deep.prose;
     if (m.gate) return [{ text: L.gated[m.gate] || L.gated.baselineBuilding }];
     var t = HC.todayIso(), i = X.dayDiff(m.start, t), v = X.at(m.v, m, t), typ = X.fmt(m.typical, 0);
@@ -248,10 +270,10 @@
   }
   // the notes that are not essential: the band / cut rules (detail.ts bandText) and, for load, the
   // sessions-without-effort count
-  function infoHtml(key, m, X) {
+  function infoHtml(key: string, m: Baked, X: Baked): string {
     var extra = '';
     var dm = m.kind === 'load' ? loadDialOf(X.modOf(key)) : null;
-    var txt = function (t) { return '<div class="dt-band-txt">' + esc(t) + '</div>'; };
+    var txt = function (t: string) { return '<div class="dt-band-txt">' + esc(t) + '</div>'; };
     // load: the ring scale (the dial's former caption) and the sessions-without-effort count
     if (m.kind === 'load' && X.T.load.scale) extra = txt(X.T.load.scale);
     if (dm && dm.state === 'ok' && dm.unscored > 0) extra += txt(format(X.T.load.unscoredNote, { n: dm.unscored }));
@@ -267,16 +289,16 @@
     return '<div class="dd-info" id="dd-info" hidden>' + X.bandText(key, m) + extra + '</div>';
   }
   // cta: the page's own CTA key (deep.ctas: "See my recovery trend"), else the generic "View trend"
-  function insightHtml(lines, X, cta) {
+  function insightHtml(lines: Line[], X: Baked, cta?: string): string {
     var C = X.T.deep.ctas;
     return '<div class="dd-insight">' + lines.map(function (l) {
       return '<p class="dd-ln' + (l.cls ? ' ' + esc(l.cls) : '') + '">' + esc(l.text) + '</p>';
     }).join('') +
-      HC.cta((C && C[cta]) || X.T.deep.cta, ' data-dt-act="trend"') + '</div>';
+      HC.cta((C && C[cta!]) || X.T.deep.cta, ' data-dt-act="trend"') + '</div>';
   }
 
   /* ---------- contributors: today vs the prior 30 days ---------- */
-  function quart(sorted, p) {
+  function quart(sorted: number[], p: number): number {
     var i = (sorted.length - 1) * p, lo = Math.floor(i), hi = Math.ceil(i);
     return sorted[lo] + (sorted[hi] - sorted[lo]) * (i - lo);
   }
@@ -285,10 +307,10 @@
   // better / worse by the metric's good direction (dir 1 = higher is better, -1 = lower), neutral for
   // a metric without one (dir 0: bedtime, load), typical inside the band. `keep` filters the prior
   // values (load: training days only).
-  function compare(get, iso, dir, keep) {
+  function compare(get: (iso: string) => unknown, iso: string, dir: number, keep?: (x: number) => boolean): Cmp | null {
     var v = get(iso);
     if (!isNum(v)) return null;
-    var prior = [];
+    var prior: number[] = [];
     for (var k = 1; k <= PRIOR_DAYS; k++) {
       var x = get(shiftIso(iso, -k));
       if (isNum(x) && (!keep || keep(x))) prior.push(x);
@@ -300,14 +322,14 @@
     var tone = side === 0 ? 'typical' : !dir ? 'neutral' : side === dir ? 'better' : 'worse';
     return { v: v, side: side, tone: tone, lo: lo, hi: hi };
   }
-  function seriesGet(X, mk, arr) {
-    return function (iso) { return mk ? X.at(arr || mk.v, mk, iso) : null; };
+  function seriesGet(X: Baked, mk: Baked, arr?: Baked): (iso: string) => Baked {
+    return function (iso: string) { return mk ? X.at(arr || mk.v, mk, iso) : null; };
   }
   // a bedtime after midnight (00:30) continues the evening (24.5), so 23:50 vs 00:10 compares right
-  function wrapBed(v) {
+  function wrapBed(v: unknown): unknown {
     return isNum(v) && v < 12 ? v + 24 : v;
   }
-  function markOf(c, X) {
+  function markOf(c: Cmp | null | undefined, X: Baked): Baked {
     if (!c || c.side == null) return null;
     var C = X.T.deep.contrib.cmp;
     var glyph = c.side > 0 ? '▲' : c.side < 0 ? '▼' : '•';
@@ -315,7 +337,7 @@
   }
   // rows: [{k (icon + label key), val (string) | null = hidden, cmp}]; at most 4. `day` names a
   // carried recovery night in the legend instead of "Today"
-  function contribHtml(rows, X, day) {
+  function contribHtml(rows: Row[], X: Baked, day?: string | null): string {
     var P = X.T.deep.contrib;
     var shown = rows.filter(function (r) { return r.val != null; }).slice(0, 4);
     if (!shown.length) return '';
@@ -328,10 +350,10 @@
         esc(day || P.legendToday) + '</b> ' + esc(P.legendRest) + '</p>' : '') + '</section>';
   }
   // the night the dial scores: recovery = its headline night, else each input's own newest day
-  function nightOf(X, mk, end, ref) {
+  function nightOf(X: Baked, mk: Baked, end: string, ref?: string | null): string | null {
     return ref || (mk ? X.lastDataDate(mk, end) : null);
   }
-  function valRow(k, X, mk, iso, dec, unit, dir, arr, keep) {
+  function valRow(k: string, X: Baked, mk: Baked, iso: string | null | undefined, dec: number, unit: string, dir: number, arr?: Baked, keep?: (x: number) => boolean): Row {
     if (!mk || !iso) return { k: k, val: null };
     var get = seriesGet(X, mk, arr);
     var c = compare(get, iso, dir, keep);
@@ -341,10 +363,10 @@
   // respiratory rate (context, NOT a composite input; dir 0 = no good direction, so a neutral ▲▼
   // outside the usual range and a grey dot inside) and the night's sleep performance % (lib/score/
   // sleep.mjs perf, baked on the sleep metric). Each on the scored night; a missing value hides its row.
-  function recoveryRows(m, end, X) {
+  function recoveryRows(m: Baked, end: string, X: Baked): Row[] {
     var h = m.head, ref = h && h.mode === 'today' ? isoDate(h.date) : null;
     var hrv = X.metric('hrv'), rhr = X.metric('rhr'), rsp = X.metric('respiratory'), sl = X.metric('sleep');
-    var perf = sl && Array.isArray(sl.perf) ? valRow('perf', X, sl, nightOf(X, sl, end, ref), 0, '%', 1, sl.perf) : { k: 'perf', val: null };
+    var perf: Row = sl && Array.isArray(sl.perf) ? valRow('perf', X, sl, nightOf(X, sl, end, ref), 0, '%', 1, sl.perf) : { k: 'perf', val: null };
     return [
       valRow('hrv', X, hrv, nightOf(X, hrv, end, ref), hrv ? hrv.dec : 0, X.unitOf('hrv'), hrv ? hrv.dir : 0),
       valRow('rhr', X, rhr, nightOf(X, rhr, end, ref), rhr ? rhr.dec : 0, X.unitOf('rhr'), rhr ? rhr.dir : 0),
@@ -353,23 +375,23 @@
     ];
   }
   // REM + deep hours of a night (DETAIL stage arrays), null when the night has no stages
-  function restorOf(X, m, iso) {
+  function restorOf(X: Baked, m: Baked, iso: string): number | null {
     var r = Array.isArray(m.rem) ? X.at(m.rem, m, iso) : null, dp = Array.isArray(m.deep) ? X.at(m.deep, m, iso) : null;
     return isNum(r) && isNum(dp) ? r + dp : null;
   }
   // sleep: hours vs need (the target), efficiency, consistency (minutes, lower = better), REM + deep
   // (hours · % of asleep); a row without data that night is hidden and bedtime / wake time fill in
-  function sleepRows(m, end, X) {
+  function sleepRows(m: Baked, end: string, X: Baked): Row[] {
     var iso = sleepNight(m, end, X);
     var hours = valRow('need', X, m, iso, 1, '', m.dir || 1);
-    if (hours.val != null) hours.val = HC.hours(hours.cmp.v) + (isNum(m.target) ? ' / ' + HC.hours(m.target) : '');
-    var eff = Array.isArray(m.eff) ? valRow('eff', X, m, iso, 0, '%', 1, m.eff) : { k: 'eff', val: null };
-    var cons = Array.isArray(m.cons) ? valRow('cons', X, m, iso, 0, 'min', -1, m.cons) : { k: 'cons', val: null };
-    var restor = { k: 'restor', val: null };
+    if (hours.val != null) hours.val = HC.hours(hours.cmp!.v) + (isNum(m.target) ? ' / ' + HC.hours(m.target) : '');
+    var eff: Row = Array.isArray(m.eff) ? valRow('eff', X, m, iso, 0, '%', 1, m.eff) : { k: 'eff', val: null };
+    var cons: Row = Array.isArray(m.cons) ? valRow('cons', X, m, iso, 0, 'min', -1, m.cons) : { k: 'cons', val: null };
+    var restor: Row = { k: 'restor', val: null };
     var rc = iso ? compare(function (x) { return restorOf(X, m, x); }, iso, 1) : null;
     var asleep = iso ? X.valueOf(m, iso) : null;
     if (rc) restor = { k: 'restor', val: HC.hours(rc.v) + (isNum(asleep) && asleep > 0 ? ' · ' + HC.pct((100 * rc.v) / asleep) : ''), cmp: rc };
-    var clockRow = function (k, arr, wrap) {
+    var clockRow = function (k: string, arr: Baked, wrap: boolean): Row {
       if (!iso || !Array.isArray(arr)) return { k: k, val: null };
       var c = compare(function (x) { var b = X.at(arr, m, x); return wrap ? wrapBed(b) : b; }, iso, 0);
       return { k: k, val: c ? X.clock(c.v) : null, cmp: c };
@@ -378,11 +400,11 @@
   }
   // the night's stages as one stacked horizontal bar (awake / REM / core / deep, by hours) + a legend
   // with the hours and, for the asleep stages, their % of the time asleep; no stages = nothing
-  function stagesHtml(m, end, X) {
+  function stagesHtml(m: Baked, end: string, X: Baked): string {
     var iso = sleepNight(m, end, X), P = X.T.deep.stages;
     if (!iso || !Array.isArray(m.rem)) return '';
     var asleep = X.valueOf(m, iso), core = Array.isArray(m.core) ? X.at(m.core, m, iso) : null;
-    var h = { awake: Array.isArray(m.awake) ? X.at(m.awake, m, iso) : null, rem: X.at(m.rem, m, iso), core: core, deep: Array.isArray(m.deep) ? X.at(m.deep, m, iso) : null };
+    var h: Record<string, Baked> = { awake: Array.isArray(m.awake) ? X.at(m.awake, m, iso) : null, rem: X.at(m.rem, m, iso), core: core, deep: Array.isArray(m.deep) ? X.at(m.deep, m, iso) : null };
     if (!isNum(h.rem) || !isNum(h.deep) || !isNum(h.core)) return '';
     // the asleep remainder no stage covers (Asleep-unspecified segments), shown only when it is real
     var rest = isNum(asleep) ? asleep - h.rem - h.deep - h.core : 0;
@@ -400,31 +422,31 @@
     return '<section class="dd-stages"><h3 class="dd-sec">' + esc(P.aria) + '</h3><div class="dd-stbar" aria-hidden="true">' + bar + '</div>' +
       '<ul class="dd-stleg">' + legend + '</ul></section>';
   }
-  function sessionsIn(X, mod, from, to) {
-    return (X.D.sessions || []).filter(function (x) { return x.m === mod && x.d >= from && x.d <= to; });
+  function sessionsIn(X: Baked, mod: string, from: string, to: string): Baked[] {
+    return (X.D.sessions || []).filter(function (x: Baked) { return x.m === mod && x.d >= from && x.d <= to; });
   }
   // load: today's RE (vs the prior 30 days' training days), the 7-day vs 42-day trend (DIALS), the
   // sessions of the last 7 days, the typical training day
-  function loadRows(key, m, end, X) {
+  function loadRows(key: string, m: Baked, end: string, X: Baked): Row[] {
     var t = HC.todayIso(), mod = X.modOf(key), dm = loadDialOf(mod);
     var re = valRow('re', X, m, t, 0, X.unitOf(key), 0, null, function (x) { return x > 0; });
     if (!(re.cmp && re.cmp.v > 0)) re = { k: 're', val: null };
-    var acute = { k: 'acute', val: dm && dm.state === 'ok' && isNum(dm.trendPct) ? X.pct(dm.trendPct) : null };
+    var acute: Row = { k: 'acute', val: dm && dm.state === 'ok' && isNum(dm.trendPct) ? X.pct(dm.trendPct) : null };
     var sessions = { k: 'sessions', val: Array.isArray(X.D.sessions) && !m.gate ? String(sessionsIn(X, mod, shiftIso(end, -(WEEK - 1)), end).length) : null };
     var typical = { k: 'typical', val: isNum(m.typical) ? X.fmt(m.typical, 0) + ' ' + X.unitOf(key) : null };
     return [re, acute, sessions, typical];
   }
 
   /* ---------- weekly trends: one card per input, the 7 days ending at the page's day ---------- */
-  function weekOf(end) {
-    var out = [];
+  function weekOf(end: string): string[] {
+    var out: string[] = [];
     for (var k = WEEK - 1; k >= 0; k--) out.push(shiftIso(end, -k));
     return out;
   }
   // the day the week ends on and highlights: the day the page describes — recovery = its headline
   // night, sleep = the dial's night (when within the last week), strain = the day it was opened on —
   // else the view end; so the highlighted column carries the hero's value instead of an empty today
-  function weekEnd(key, m, end, X) {
+  function weekEnd(key: string, m: Baked, end: string, X: Baked): string {
     var h = m.head;
     var d = key === 'recovery' ? (h && h.mode === 'today' ? isoDate(h.date) : null)
       : key === 'sleep' ? sleepNight(m, end, X) : key === 'strain' ? strainIso(end, X) : null;
@@ -432,10 +454,10 @@
   }
   // a night's recovery % (DIALS.days: the dial as it read THAT morning, lib/score/days.mjs; the newest
   // night from DIALS.recovery), null when that night has no % (no complete night, too few prior nights)
-  function recPctOn(iso) {
-    var D = dials(), out = null;
+  function recPctOn(iso: string): number | null {
+    var D = dials(), out: number | null = null;
     if (!D) return null;
-    (D.days || []).forEach(function (x) {
+    (D.days || []).forEach(function (x: Baked) {
       var r = x && x.recovery;
       if (x.date === iso && r && r.state === 'ok' && r.mode === 'today' && r.date === iso && isNum(r.pct)) out = r.pct;
     });
@@ -444,14 +466,14 @@
     return out;
   }
   // the % band (lib/score/recovery.mjs pctBand, baked as HC_BAND), the dial's colours
-  function pctCls(v) {
+  function pctCls(v: number): string {
     return HC_BAND.pctBand(v) || 'mid';
   }
   // card: {title, get(iso) -> number|null, text(v), cls(v) -> colour class, frac(v, max) -> 0..1,
   // tone (the value is printed in its bar's colour), open (the title button's attributes: another
   // metric's trend view; default = this page's own trend chart)}; the LAST day is the page's day
   // (highlighted); under each bar the weekday and the day of the month (the reference's "Thu 9")
-  function weeklyCard(card, days, X) {
+  function weeklyCard(card: Card, days: string[], X: Baked): string {
     var vals = days.map(card.get);
     if (!vals.some(isNum)) return '';
     var max = Math.max.apply(null, vals.map(function (v) { return isNum(v) ? Math.abs(v) : 0; })) || 1;
@@ -469,12 +491,12 @@
       '<span class="chev" aria-hidden="true">›</span></button></h4>' +
       '<ol class="dd-cols" aria-label="' + esc(format(X.T.deep.weekly.aria, { title: card.title })) + '">' + cols + '</ol></section>';
   }
-  function plain(cls) {
+  function plain(cls: string): () => string {
     return function () { return cls; };
   }
-  function weeklyCards(key, m, X, days) {
-    var cards = [];
-    var simple = function (k, cls) {
+  function weeklyCards(key: string, m: Baked, X: Baked, days: string[]): Card[] {
+    var cards: Card[] = [];
+    var simple = function (k: string, cls: string) {
       var mk = X.metric(k);
       if (!mk) return;
       // another metric's card opens that metric's trend view; the page's own one scrolls to its chart
@@ -524,7 +546,7 @@
     }
     return cards;
   }
-  function weeklyHtml(key, m, end, X) {
+  function weeklyHtml(key: string, m: Baked, end: string, X: Baked): string {
     var days = weekOf(weekEnd(key, m, end, X));
     var html = weeklyCards(key, m, X, days).map(function (c) { return weeklyCard(c, days, X); }).join('');
     return html ? '<section class="dd-weekly"><h3 class="dd-sec">' + esc(X.T.deep.weekly.title) + '</h3>' + html + '</section>' : '';
@@ -533,14 +555,14 @@
   /* ---------- day strain (key 'strain') ---------- */
   var STRAIN_MAX = 21;
   // the reference's bands on our 0-21 scale (DETAIL strain levels: 10 / 14 / 18)
-  function strainBand(v) {
+  function strainBand(v: number): string {
     return v >= 18 ? 'allOut' : v >= 14 ? 'high' : v >= 10 ? 'moderate' : 'light';
   }
   // the day the page describes: the day it was opened on (a stepped-to Inicio day, a day tap), else the view end
-  function strainIso(end, X) {
+  function strainIso(end: string, X: Baked): string {
     return X.sel && isoDate(X.sel) ? X.sel : end;
   }
-  function strainHero(m, end, X) {
+  function strainHero(m: Baked, end: string, X: Baked): Hero {
     var P = X.T.deep, iso = strainIso(end, X), v = X.at(m.v, m, iso);
     var D = dials(), dd = D && D.strain ? strainDayOf(D.strain.days, iso) : null;
     if (!isNum(v)) return { cls: 'off', label: P.label.strain, word: P.words.none };
@@ -548,19 +570,19 @@
   }
   // a recovery day value (SD units, DETAIL recovery) -> its day band at the metric's own cut, as the
   // recovery chart's daily points: 'above' / 'at' / 'below'
-  function recDayBand(v, cut) {
+  function recDayBand(v: number, cut: number): string {
     return v >= cut ? 'above' : v <= -cut ? 'below' : 'at';
   }
   // the usual day strain on days whose recovery fell in the same day band as `iso`'s: the p25–p75 of
   // the strain of those days among the BYREC_DAYS before `iso` (each day's strain with the recovery of
   // the night before it, the same date) -> null | {band, lo, hi, n}; null without a recovery that day
   // or with fewer than BYREC_MIN such days. Describes the history; never a target for today.
-  function strainByRec(m, iso, X) {
+  function strainByRec(m: Baked, iso: string, X: Baked): { band: string; lo: number; hi: number; n: number } | null {
     var r = X.metric('recovery');
     if (!r || !Array.isArray(r.v) || !isNum(r.cut)) return null;
     var rv = X.at(r.v, r, iso);
     if (!isNum(rv)) return null;
-    var band = recDayBand(rv, r.cut), vals = [];
+    var band = recDayBand(rv, r.cut), vals: number[] = [];
     for (var k = 1; k <= BYREC_DAYS; k++) {
       var d = shiftIso(iso, -k), x = X.at(r.v, r, d), s = X.at(m.v, m, d);
       if (isNum(x) && isNum(s) && recDayBand(x, r.cut) === band) vals.push(s);
@@ -572,13 +594,13 @@
   // the band sentence, then the usual day (the median of the 30 days before, when 7+ of them have a
   // strain), then the usual strain on days with a similar recovery; the 0-21 scale's calibration lives
   // under ⓘ (strainNotes)
-  function strainLines(m, end, X) {
+  function strainLines(m: Baked, end: string, X: Baked): Line[] {
     var P = X.T.deep.strain, iso = strainIso(end, X), v = X.at(m.v, m, iso);
     if (!isNum(v)) return [{ text: format(P.noDay, { date: HC.fmtDate(iso) }) }];
     var usual = '';
     var c = compare(function (x) { return X.at(m.v, m, x); }, iso, 0);
     if (c && c.side != null) {
-      var prior = [];
+      var prior: number[] = [];
       for (var k = 1; k <= PRIOR_DAYS; k++) { var x = X.at(m.v, m, shiftIso(iso, -k)); if (isNum(x)) prior.push(x); }
       prior.sort(function (a, z) { return a - z; });
       usual = format(X.T.deep.prose.strainUsual, { value: X.fmt(quart(prior, 0.5), 1) });
@@ -591,27 +613,27 @@
     return prose([P.bands[strainBand(v)], usual, byRec]);
   }
   // contributors: the day's activities (strain share, minutes x zone load) + the all-day remainder
-  function strainContribHtml(m, end, X) {
+  function strainContribHtml(m: Baked, end: string, X: Baked): string {
     var P = X.T.deep.strain, S = strainBake(), d = S ? strainDayOf(S.days, strainIso(end, X)) : null;
     if (!d) return '';
-    var rows = d.acts.map(function (a) {
+    var rows = d.acts.map(function (a: Baked) {
       return { icon: 're', lbl: P.mods[a.m] || a.t, val: X.fmt(a.s, 1), sub: format(P.loadLbl, { load: X.fmt(a.load, 0) }) };
     });
     rows.push({ icon: 'acute', lbl: P.allDay, val: X.fmt(d.alls, 1), sub: format(P.loadLbl, { load: X.fmt(d.all, 0) }) });
-    return '<section class="dd-contrib"><ul class="dd-rows" aria-label="' + esc(P.contribAria) + '">' + rows.map(function (r) {
+    return '<section class="dd-contrib"><ul class="dd-rows" aria-label="' + esc(P.contribAria) + '">' + rows.map(function (r: Baked) {
       return HC.contribRow({ icon: r.icon, label: r.lbl, sub: r.sub, value: r.val });
     }).join('') + '</ul><p class="dd-legend">' + esc(P.shareNote) + '</p></section>';
   }
   // the long notes (ⓘ): the formula, this user's K and 95th-percentile day, the max HR, the coverage
-  function strainNotes(X) {
+  function strainNotes(X: Baked): string {
     var P = X.T.deep.strain, S = strainBake();
-    var txt = function (t) { return '<div class="dt-band-txt">' + esc(t) + '</div>'; };
+    var txt = function (t: string) { return '<div class="dt-band-txt">' + esc(t) + '</div>'; };
     var out = txt(P.notes.formula) + txt(P.notes.sources);
     if (S) out += txt(format(P.notes.calib, { p95: X.fmt(S.p95, 0), k: X.fmt(S.K, 1), n: S.n, days: S.windowDays, max: X.fmt(S.maxHr, 0) }));
     return out + txt(P.notes.estimate);
   }
   // Relative Effort per modality stays one tap away: the Entreno load deep-dives
-  function reLinksHtml(X) {
+  function reLinksHtml(X: Baked): string {
     var P = X.T.deep.strain, mods = ['gym', 'run', 'bike'].filter(function (k) { return !!X.metric('load-' + k); });
     if (!mods.length) return '';
     return '<section class="dd-re"><h3 class="dd-sec">' + esc(P.reTitle) + '</h3><div class="dd-re-links">' + mods.map(function (k) {
@@ -622,18 +644,18 @@
   // load pages: the gym / run / bike pills: each opens that
   // modality's page and sets Inicio's load dial to it (data-mod: score.ts's delegated listener, when window.HCScore is loaded); the page's own
   // modality is the pressed one. Fewer than two modalities with a load series: no pills.
-  function modSwitch(key, X) {
+  function modSwitch(key: string, X: Baked): string {
     var cur = X.modOf(key);
     var mods = ['gym', 'run', 'bike'].filter(function (k) { return !!X.metric('load-' + k); });
     if (mods.length < 2) return '';
-    var set = typeof window !== 'undefined' && !!window.HCScore && typeof window.HCScore.setMod === 'function';
+    var set = typeof window !== 'undefined' && !!window.HCScore && typeof (window.HCScore as { setMod?: unknown }).setMod === 'function';
     return '<div class="dial-switch" role="group" aria-label="' + esc(X.T.deep.modSwitch) + '">' + mods.map(function (k) {
       return '<button type="button" class="chip dial-mod" data-detail="load-' + k + '" aria-pressed="' + (k === cur) + '"' +
         (set ? ' data-mod="' + k + '"' : '') + '>' + esc(X.T.modalities[k] || k) + '</button>';
     }).join('') + '</div>';
   }
 
-  function render(key, m, end, X) {
+  function render(key: string, m: Baked, end: string, X: Baked): { head: string; top: string } {
     if (key === 'stress') return stressPage(key, m, end, X);
     if (key === 'energy-bank') return energyPage(key, m, end, X);
     if (key === 'strain') {
@@ -662,27 +684,27 @@
   // A heart-rate-only ESTIMATE per waking hour, 0-3. Nothing is scored here: the hours, the latest
   // hour, the average and the minutes per band are baked; this only lays them out.
   var SB = ['low', 'medium', 'high'];
-  function stressBake() {
+  function stressBake(): Baked {
     var S = typeof SCORES !== 'undefined' && SCORES ? SCORES.stress : null;
     return S && S.ok && Array.isArray(S.days) ? S : null;
   }
-  function stressBand(v) {
+  function stressBand(v: number): string {
     return v >= 2 ? 'high' : v >= 1 ? 'medium' : 'low';
   }
-  function hhmm(t) {
+  function hhmm(t: unknown): string {
     return String(t).slice(0, 2) + ':00';
   }
   // the hero: a 0-3 half gauge in the three band colours, a marker at the latest scored hour's value,
   // the value, its band word and the hour (an empty gauge + the dial's "no data" word without one)
   var GC = { x: 60, y: 60, r: 50 };
-  function gaugePt(f, r) {
+  function gaugePt(f: number, r: number): string {
     var a = Math.PI * (1 - f);
     return (GC.x + r * Math.cos(a)).toFixed(1) + ' ' + (GC.y - r * Math.sin(a)).toFixed(1);
   }
-  function gaugeArc(f0, f1) {
+  function gaugeArc(f0: number, f1: number): string {
     return 'M' + gaugePt(f0, GC.r) + ' A' + GC.r + ' ' + GC.r + ' 0 0 1 ' + gaugePt(f1, GC.r);
   }
-  function stressHero(d, X) {
+  function stressHero(d: Baked, X: Baked): string {
     var P = X.T.deep.stress, n = d && d.now;
     var segs = SB.map(function (b, i) {
       return '<path class="ds-arc ds-' + b + '" d="' + gaugeArc(i / 3 + (i ? 0.01 : 0), (i + 1) / 3 - (i < 2 ? 0.01 : 0)) + '"/>';
@@ -692,23 +714,23 @@
     var svg = '<svg class="ds-gauge" viewBox="0 0 120 74" aria-hidden="true">' + segs + mark + ends + '</svg>';
     var band = n ? stressBand(n.v) : null;
     var centre = n
-      ? '<b class="dd-num">' + esc(X.fmt(n.v, 1)) + '</b><span class="ds-band">' + esc(P.bands[band]) + '</span>' +
+      ? '<b class="dd-num">' + esc(X.fmt(n.v, 1)) + '</b><span class="ds-band">' + esc(P.bands[band!]) + '</span>' +
         '<span class="ds-upd">' + esc(format(P.updated, { time: hhmm(n.t) })) + '</span>'
       : '<span class="dd-word">' + esc(X.T.deep.words.none) + '</span>';
-    var aria = n ? format(P.heroAria, { value: X.fmt(n.v, 1), band: P.bands[band], time: hhmm(n.t) }) : X.T.deep.words.none;
+    var aria = n ? format(P.heroAria, { value: X.fmt(n.v, 1), band: P.bands[band!], time: hhmm(n.t) }) : X.T.deep.words.none;
     return '<section class="dd-hero dd-stress ds-' + (band || 'none') + '"><div class="ds-gwrap" role="img" aria-label="' + esc(aria) + '">' + svg +
       '<div class="ds-centre" aria-hidden="true">' + centre + '</div></div></section>';
   }
   // the curves' frame (the energy curve below; the stress curve's is HC.stressChart's, the same numbers)
   var CV = { w: 320, h: 150, l: 22, r: 6, t: 8, b: 20 };
   // the day's curve (HC.stressChart, shared with Mi panel's stress card). Gaps = sleep, workouts or no data.
-  function stressCurve(d, X) {
+  function stressCurve(d: Baked, X: Baked): string {
     var P = X.T.deep.stress, hours = (d && d.hours) || [];
     return '<section class="ds-curve"><h3 class="dd-sec">' + esc(P.curveTitle) + '</h3>' +
       HC.stressChart(hours, P, X.fmt) + '<p class="dd-legend">' + esc(P.gapNote) + '</p></section>';
   }
   // time in each band: one stacked bar + a row per band (minutes outside workouts, <= 60 per hour)
-  function stressBands(d, X) {
+  function stressBands(d: Baked, X: Baked): string {
     var P = X.T.deep.stress;
     if (!d || !d.mins) return '';
     var tot = SB.reduce(function (a, b) { return a + (d.mins[b] || 0); }, 0);
@@ -724,11 +746,11 @@
     return '<section class="ds-bands"><h3 class="dd-sec">' + esc(P.bandsTitle) + '</h3>' +
       '<div class="ds-bar" aria-hidden="true">' + bar + '</div><ul class="ds-blist">' + rows + '</ul></section>';
   }
-  function stressLines(d, iso, S, X) {
+  function stressLines(d: Baked, iso: string, S: Baked, X: Baked): Line[] {
     var P = X.T.deep.stress;
     if (!d) return [{ text: format(P.noDay, { date: HC.fmtDate(iso) }) }];
     if (d.avg == null) return [{ text: format(P.few, { n: d.n, min: S.minHours }) }];
-    var out = [{ text: format(P.avg, { value: X.fmt(d.avg, 1), band: P.bands[d.band].toLowerCase() }) }];
+    var out: Line[] = [{ text: format(P.avg, { value: X.fmt(d.avg, 1), band: P.bands[d.band].toLowerCase() }) }];
     if (d.mins) {
       var top = SB.reduce(function (a, b) { return d.mins[b] > d.mins[a] ? b : a; }, 'low');
       out.push({ text: P.most[top] });
@@ -736,13 +758,13 @@
     out.push({ cls: 'dt-scale', text: P.estimateLine });
     return out;
   }
-  function stressNotes(d, S, X) {
-    var P = X.T.deep.stress, txt = function (t) { return '<div class="dt-band-txt">' + esc(t) + '</div>'; };
+  function stressNotes(d: Baked, S: Baked, X: Baked): string {
+    var P = X.T.deep.stress, txt = function (t: string) { return '<div class="dt-band-txt">' + esc(t) + '</div>'; };
     var out = txt(P.notes.formula) + txt(P.notes.hours);
     if (d && d.rhr != null) out += txt(format(P.notes.inputs, { rhr: X.fmt(d.rhr, 1), max: X.fmt(S.maxHr, 0), min: S.minHours }));
     return out + txt(P.notes.limits) + txt(P.notes.estimate);
   }
-  function stressPage(key, m, end, X) {
+  function stressPage(key: string, m: Baked, end: string, X: Baked): { head: string; top: string } {
     var S = stressBake(), iso = strainIso(end, X);
     var d = S ? strainDayOf(S.days, iso) : null;
     return {
@@ -755,43 +777,43 @@
   /* ---------- energy bank (key 'energy-bank', SCORES.energy: lib/score/energy-bank.mjs) ---------- */
   // OUR intraday 0-100 estimate: wake at the morning's recovery %, then per awake hour a baseline,
   // stress and heart-rate-load drain and a calm-hour recharge. Everything is baked; this lays it out.
-  function energyBake() {
+  function energyBake(): Baked {
     var S = typeof SCORES !== 'undefined' && SCORES ? SCORES.energy : null;
     return S && S.ok && Array.isArray(S.days) ? S : null;
   }
   // the recovery dial's thirds (HC_BAND, lib/score/recovery.mjs) in the energy palette
-  function energyBand(v) {
-    return { good: 'hi', mid: 'mid', low: 'lo' }[HC_BAND.pctBand(v)] || 'mid';
+  function energyBand(v: number): string {
+    return ({ good: 'hi', mid: 'mid', low: 'lo' } as Record<string, string>)[HC_BAND.pctBand(v)] || 'mid';
   }
-  function wakeOf(d) {
+  function wakeOf(d: Baked): number | null {
     var m = /^(\d{2}):(\d{2})$/.exec(String(d.wake || ''));
-    return m ? +m[1] + m[2] / 60 : null;
+    return m ? +m[1] + (m[2] as unknown as number) / 60 : null;
   }
-  function nowTime(d) {
+  function nowTime(d: Baked): string {
     return d.now.h != null ? hhmm(d.now.h) : d.wake;
   }
   // the hero: the 0-100 half gauge filled to the latest level in its band colour
-  function energyHero(d, X) {
+  function energyHero(d: Baked, X: Baked): string {
     var P = X.T.deep.energy, v = d && d.now ? d.now.lv : null;
     var b = v != null ? energyBand(v) : null;
     var svg = '<svg class="ds-gauge" viewBox="0 0 120 74" aria-hidden="true"><g class="ds-none"><path class="ds-arc" d="' + gaugeArc(0, 1) + '"/></g>' +
       (v > 0 ? '<path class="ds-arc" d="' + gaugeArc(0, Math.min(1, v / 100)) + '"/>' : '') +
       '<text class="ds-ylbl" x="10" y="72" text-anchor="middle">0</text><text class="ds-ylbl" x="110" y="72" text-anchor="middle">100</text></svg>';
     var centre = v != null
-      ? '<b class="dd-num">' + esc(String(v)) + '</b><span class="ds-band">' + esc(P.bands[b]) + '</span><span class="ds-upd">' + esc(format(P.updated, { time: nowTime(d) })) + '</span>'
+      ? '<b class="dd-num">' + esc(String(v)) + '</b><span class="ds-band">' + esc(P.bands[b!]) + '</span><span class="ds-upd">' + esc(format(P.updated, { time: nowTime(d) })) + '</span>'
       : '<span class="dd-word">' + esc(X.T.deep.words.none) + '</span>';
-    var aria = v != null ? format(P.heroAria, { value: v, band: P.bands[b], time: nowTime(d) }) : X.T.deep.words.none;
+    var aria = v != null ? format(P.heroAria, { value: v, band: P.bands[b!], time: nowTime(d) }) : X.T.deep.words.none;
     return '<section class="dd-hero dd-stress de-' + (b || 'none') + '"><div class="ds-gwrap" role="img" aria-label="' + esc(aria) + '">' + svg +
       '<div class="ds-centre" aria-hidden="true">' + centre + '</div></div></section>';
   }
   // the day's curve: 24 h across, 0-100 up, the three level bands shaded; the line starts at the wake
   // level and steps at each hour's end. Dots: workout / heart-rate load hours (blue), high-stress hours (orange).
-  function energyCurve(d, X) {
+  function energyCurve(d: Baked, X: Baked): string {
     var P = X.T.deep.energy, iw = CV.w - CV.l - CV.r, ih = CV.h - CV.t - CV.b, w0 = d ? wakeOf(d) : null;
     if (!d || !d.now || w0 == null) return '';
-    var x = function (h) { return (CV.l + (iw * h) / 24).toFixed(1); };
-    var y = function (v) { return (CV.t + ih * (1 - v / 100)).toFixed(1); };
-    var out = [['lo', 0, 34], ['mid', 34, 67], ['hi', 67, 100]].map(function (z) {
+    var x = function (h: number) { return (CV.l + (iw * h) / 24).toFixed(1); };
+    var y = function (v: number) { return (CV.t + ih * (1 - v / 100)).toFixed(1); };
+    var out = ([['lo', 0, 34], ['mid', 34, 67], ['hi', 67, 100]] as [string, number, number][]).map(function (z) {
       return '<rect class="ds-zone de-' + z[0] + '" x="' + CV.l + '" y="' + y(z[2]) + '" width="' + iw + '" height="' + ((ih * (z[2] - z[1])) / 100).toFixed(1) + '"/>';
     }).join('');
     [0, 50, 100].forEach(function (k) {
@@ -801,7 +823,7 @@
       out += '<text class="ds-xlbl" x="' + x(h) + '" y="' + (CV.h - 5) + '" text-anchor="' + (h === 0 ? 'start' : h === 24 ? 'end' : 'middle') + '">' + (h < 10 ? '0' : '') + h + ':00</text>';
     }
     var hrs = d.hours || [], path = 'M' + x(w0) + ' ' + y(d.start), dots = '';
-    hrs.forEach(function (p) {
+    hrs.forEach(function (p: Baked) {
       path += ' L' + x(p.h + 1) + ' ' + y(p.lv);
       var cls = p.wo || p.ld >= 5 ? 'ds-low' : isNum(p.st) && p.st >= 2 ? 'ds-high' : '';
       if (cls) {
@@ -815,10 +837,10 @@
       '<p class="dd-legend">' + esc(P.dotNote) + '</p></section>';
   }
   // start, what drained it, what recharged it, the low: the contributor rows' look
-  function energyParts(d, X) {
+  function energyParts(d: Baked, X: Baked): string {
     var P = X.T.deep.energy, R = P.rows;
     if (!d || !d.now) return '';
-    var neg = function (v) { return v > 0 ? '−' + X.fmt(v, 1) : X.fmt(0, 0); };
+    var neg = function (v: number) { return v > 0 ? '−' + X.fmt(v, 1) : X.fmt(0, 0); };
     var rows = [
       ['wake', R.start, format(R.startSub, { wake: d.wake }), String(d.start)],
       ['clock', R.base, R.baseSub, neg(d.sum.base)],
@@ -831,25 +853,25 @@
       return HC.contribRow({ icon: r[0], label: r[1], sub: r[2], value: r[3] });
     }).join('') + '</ul><p class="dd-legend">' + esc(P.clampNote) + '</p></section>';
   }
-  function energyLines(d, iso, X) {
+  function energyLines(d: Baked, iso: string, X: Baked): Line[] {
     var P = X.T.deep.energy;
     if (!d) return [{ text: format(P.noDay, { date: HC.fmtDate(iso) }) }];
     if (!d.now) return [{ text: P.reasons[d.reason] || P.reasons.noRecovery }];
-    var out = [{ text: format(P.line, { start: d.start, wake: d.wake, value: d.now.lv, time: nowTime(d) }) }];
+    var out: Line[] = [{ text: format(P.line, { start: d.start, wake: d.wake, value: d.now.lv, time: nowTime(d) }) }];
     var top = ['base', 'stress', 'load'].reduce(function (a, k) { return d.sum[k] > d.sum[a] ? k : a; }, 'base');
     if (d.sum[top] > 0) out.push({ text: P.most[top] });
     out.push({ cls: 'dt-scale', text: P.estimateLine });
     return out;
   }
-  function energyNotes(d, S, X) {
-    var P = X.T.deep.energy, C = S.C || {}, txt = function (t) { return '<div class="dt-band-txt">' + esc(t) + '</div>'; };
+  function energyNotes(d: Baked, S: Baked, X: Baked): string {
+    var P = X.T.deep.energy, C = S.C || {}, txt = function (t: string) { return '<div class="dt-band-txt">' + esc(t) + '</div>'; };
     var out = txt(P.notes.model) + txt(format(P.notes.formula, {
       base: X.fmt(C.BASE_DRAIN, 1), stress: X.fmt(C.STRESS_DRAIN, 1), load: X.fmt(C.LOAD_DRAIN, 0), calm: X.fmt(C.CALM_STRESS, 1), charge: X.fmt(C.RECHARGE, 0),
     })) + txt(P.notes.hours);
     out += txt(format(P.notes.inputs, { k: X.fmt(S.K, 1), max: S.maxHr != null ? X.fmt(S.maxHr, 0) : '—' }));
     return out + txt(P.notes.limits);
   }
-  function energyPage(key, m, end, X) {
+  function energyPage(key: string, m: Baked, end: string, X: Baked): { head: string; top: string } {
     var S = energyBake(), iso = strainIso(end, X);
     var d = S ? strainDayOf(S.days, iso) : null;
     return {

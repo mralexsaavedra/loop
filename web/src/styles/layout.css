@@ -209,7 +209,7 @@ details.sec-fold > summary:hover > h2 {
   }
 }
 /* the date pill: "TODAY" in letter-spaced caps (a past day: its date, same caps); the viewer's full
- * date is the <time> inside, written by client/today-date.js and read by assistive tech only. With a
+ * date is the <time> inside, written by client/today-date.ts and read by assistive tech only. With a
  * past day in reach the script adds .has-steps and shows the ‹ › chevrons (44 px targets that overhang
  * the 32 px pill, so its height does not change); the label's own hit area is a 44 px band (::before)
  * the same way. Phone: its own row under the header row, centred */

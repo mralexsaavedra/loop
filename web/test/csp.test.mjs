@@ -48,7 +48,7 @@ for (const fixture of ['en-example', 'es-personal']) {
   });
 }
 
-test('en-example: every former onclick action is a delegated data attribute (client/core.js listens)', () => {
+test('en-example: every former onclick action is a delegated data attribute (client/core.ts listens)', () => {
   const html = fs.readFileSync(path.join(DIST, 'en-example', 'index.html'), 'utf8');
   assert.match(html, /<button type="button" class="wordmark" data-tab-go=""/, 'the wordmark: the default tab');
   assert.equal([...html.matchAll(/<button type="button" id="t-[a-z]+" data-tab-go="[a-z]+"/g)].length, 4, 'the dock tabs');

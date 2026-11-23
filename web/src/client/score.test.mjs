@@ -70,7 +70,7 @@ function render(scores, { locale = 'en', now = ASOF, T, healthNav = false, entre
     SCORES: scores, DIALS: dials, I18N_SCORE: T || (locale === 'es' ? esT : enT), LOCALE: locale, Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite,
   };
   if (detail) ctx.DETAIL = { metrics: {} };
-  // the top bar's day stepping (client/today-date.js window.HCDay), when the test selects a day
+  // the top bar's day stepping (client/today-date.ts window.HCDay), when the test selects a day
   if (day) ctx.HCDay = day;
   if (ctxExtra) Object.assign(ctx, ctxExtra);
   vm.createContext(ctx);

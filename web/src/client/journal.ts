@@ -27,7 +27,7 @@
  * survives a re-render of the open sheet and is dropped when another day is picked or the sheet closes
  * (the next fresh open starts from the saved day). Errors are one line from the coarse codes.
  *
- * Module script (bundled into the page, docs/plan-page.md → Module scripts) in layouts/Plan.astro's end-of-body list, after home-dash.ts and before deepdive.js /
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts) in layouts/Plan.astro's end-of-body list, after home-dash.ts and before deepdive.ts /
  * detail.ts. Each render runs in its own try/catch; a throw hides the card. */
 import type { PageGlobals } from './page-globals';
 

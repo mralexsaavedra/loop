@@ -60,7 +60,7 @@ Order, top to bottom (`web/src/tabs/Home.astro`, which also renders `components/
 - Little text on the tab: each block's explanation lives in the detail sheet it opens.
 - The full health monitor list is NOT on Home: it leads Salud ([below](#health-monitor-on-salud)).
 - `client/home-week.ts` and `client/home-dash.ts` load in `layouts/Plan.astro`'s end-of-body script
-  list (after `HC`, the baked globals and `adherence.ts`, right before `deepdive.js` / `detail.ts`).
+  list (after `HC`, the baked globals and `adherence.ts`, right before `deepdive.ts` / `detail.ts`).
   They render at once and register their sheets (`tonight`, `dash-edit`) before `detail.ts` runs;
   `#tonight` / `#dash-edit` deep-link to them (`NAV.viewTab` → `home`). Without their hosts they
   render nothing.
@@ -163,9 +163,9 @@ values; no new metric (the recovery % is a rank of the same composite).
 ### Load dial (fallback third dial)
 
 - ONE dial per modality, one shown, NO pills under the dials. The gym / run / bike pills live in the
-  `load-<m>` deep-dive, between its contributors and the insight card (`deepdive.js` `modSwitch`, the
+  `load-<m>` deep-dive, between its contributors and the insight card (`deepdive.ts` `modSwitch`, the
   page's modality pressed, only with two or more load series); a pill opens that modality's page and,
-  through its `data-mod` attribute (`score.ts`'s delegated listener), calls `window.HCScore.setMod(key)` (no bare page global; `deepdive.js` feature-detects it), which shows that modality's dial on Home and in the collapsed row.
+  through its `data-mod` attribute (`score.ts`'s delegated listener), calls `window.HCScore.setMod(key)` (no bare page global; `deepdive.ts` feature-detects it), which shows that modality's dial on Home and in the collapsed row.
 - Which modality it opens on (client-side, from the VIEWER's today, picked from the baked `recent`
   days, each with its pre-computed fill):
   1. the modality with a session today, GATED OR NOT (a gated one opens greyed, no number; gated
@@ -204,8 +204,8 @@ What it shows: two 96 px tiles under the dials (`#home-tiles`, `client/monitor.t
   Low; a check `--up` when at least one fresh card is Normal; none without fresh data.
 - Right of it, a status chip — "N out of range", else "Within range", else "No data" — over "n/5
   metrics" (fresh cards in range / all cards). A card counts only when its own date is ≤ 3 days old.
-- It is a button with `data-jump="monitor"` (`core.js`'s delegated `jump('monitor')`): switches to Salud and scrolls to the monitor list at its
-  top. `#monitor` deep-links there too (`ANCHOR_TAB` in `lib/nav/tabs.mjs`: `core.js` shows Salud and
+- It is a button with `data-jump="monitor"` (`core.ts`'s delegated `jump('monitor')`): switches to Salud and scrolls to the monitor list at its
+  top. `#monitor` deep-links there too (`ANCHOR_TAB` in `lib/nav/tabs.mjs`: `core.ts` shows Salud and
   keeps the hash).
 
 ### Tile 2 — `STRESS MONITOR ›`, else HRV
@@ -242,7 +242,7 @@ the nutrition score and today's activities.
   line — the short title `home.outlook` "Your daily outlook" / "Tu panorama del día" — and a chevron);
   opens the recovery sheet (every rule reads the recovery trend).
 - The sentence is the bar's accessible name and leads the recovery deep-dive's insight card
-  (`score.ts` exposes it as `window.HCAdvice`, '' on a past day or stale data; `deepdive.js`
+  (`score.ts` exposes it as `window.HCAdvice`, '' on a past day or stale data; `deepdive.ts`
   `recoveryLines` prepends it).
 - Without a detail sheet (nothing to tap) the bar shows the sentence itself, ellipsised.
 - The rules read the 7-day trend, and every sentence names that window ("Over the last 7 days recovery
@@ -723,7 +723,7 @@ value names that date and is dimmed (`HC.carried`, `docs/design-system.md` → C
 
 ## Day stepping
 
-What it shows: Home for a PAST day (`#d=YYYY-MM-DD`) via the top bar's "‹ HOY ›" (`client/today-date.js`
+What it shows: Home for a PAST day (`#d=YYYY-MM-DD`) via the top bar's "‹ HOY ›" (`client/today-date.ts`
 `window.HCDay`, `docs/plan-page.md` → Top bar).
 
 - The blocks below re-render on every change (`HCDay.on`); everything else keeps its own scope.

@@ -31,7 +31,10 @@ test('no client script hardcodes a recovery band threshold (67 / 33 / 34 compari
 
 /** One band function out of a client script, run in a vm with the page's HC_BAND / HC. */
 function bandFn(file, name) {
-  const m = new RegExp(`function ${name}\\(\\w+\\) \\{[\\s\\S]*?\\n  \\}`).exec(read(file));
+  // a module script (*.ts) is read as its bundle (types stripped, re-indented by esbuild): the function runs from
+  // its declaration to the closing brace at the declaration's own indentation
+  const src = file.endsWith('.ts') ? clientScriptSource(file) : read(file);
+  const m = new RegExp(`\\n([ \\t]*)function ${name}\\(\\w+\\) \\{[\\s\\S]*?\\n\\1\\}`).exec(src);
   assert.ok(m, `${file}: function ${name}`);
   const ctx = vm.createContext({ LOCALE: 'en', Math, String, Number, Array, Object, JSON });
   loadUtil(ctx);
@@ -39,9 +42,9 @@ function bandFn(file, name) {
   return ctx[name];
 }
 
-test('deepdive.js: the recovery % colour and the energy gauge band like lib pctBand at the edges', () => {
-  const pct = bandFn('deepdive.js', 'pctCls');
-  const energy = bandFn('deepdive.js', 'energyBand');
+test('deepdive.ts: the recovery % colour and the energy gauge band like lib pctBand at the edges', () => {
+  const pct = bandFn('deepdive.ts', 'pctCls');
+  const energy = bandFn('deepdive.ts', 'energyBand');
   const map = { good: 'hi', mid: 'mid', low: 'lo' };
   for (const v of EDGES) {
     assert.equal(pct(v), pctBand(v), `pctCls(${v})`);
@@ -71,9 +74,9 @@ test('energy.ts: the Inicio energy bank card colours its level like lib pctBand 
   }
 });
 
-test('detail-state.js: the energy bank history colours its days like lib pctBand (bad = low)', () => {
-  const src = read('detail-state.js');
-  const m = /if \(m\.kind === 'bank'\) return ([^;]+);/.exec(src);
+test('detail-state.ts: the energy bank history colours its days like lib pctBand (bad = low)', () => {
+  const src = clientScriptSource('detail-state.ts'); // a module script: the bundle the page inlines
+  const m = /if \(m\.kind === ["']bank["']\) return ([^;]+);/.exec(src);
   assert.ok(m, 'the bank branch of dayState');
   const ctx = vm.createContext({ LOCALE: 'en', Math, String, Number, Array, Object, JSON });
   loadUtil(ctx);
