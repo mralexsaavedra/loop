@@ -59,7 +59,7 @@ export const en = {
       sr: 'of 100, latest hour',
       from: 'From {start} at {wake} · low {min}',
     },
-    // "My journal" card + the journal sheet (client/journal.js, LAN page only for writing)
+    // "My journal" card + the journal sheet (client/journal.ts, LAN page only for writing)
     journal: {
       heading: 'My journal',
       open: 'Open my journal',
@@ -141,7 +141,7 @@ export const en = {
       helps: 'Helps',
       pct: '% impact',
       need: 'Need more data',
-      // the rows without enough days share one card (client/journal.js insightsHtml)
+      // the rows without enough days share one card (client/journal.ts insightsHtml)
       needAll: 'Each behavior needs at least {min} days with it and {min} without, each followed by a morning with a recovery score. Days that count so far: {n}.',
       needSome: 'At least {min} days with and {min} without each:',
       needItem: '{name} · {yes} yes · {no} no',
@@ -408,7 +408,7 @@ export const es = {
       sr: 'de 100, última hora',
       from: 'Desde {start} a las {wake} · mínimo {min}',
     },
-    // tarjeta "Mi diario" + la hoja del diario (client/journal.js, escribir solo en la página LAN)
+    // tarjeta "Mi diario" + la hoja del diario (client/journal.ts, escribir solo en la página LAN)
     journal: {
       heading: 'Mi diario',
       open: 'Abrir mi diario',

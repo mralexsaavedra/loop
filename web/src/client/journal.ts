@@ -27,8 +27,33 @@
  * survives a re-render of the open sheet and is dropped when another day is picked or the sheet closes
  * (the next fresh open starts from the saved day). Errors are one line from the coarse codes.
  *
- * Classic script in layouts/Plan.astro's end-of-body list, after home-dash.js and before deepdive.js /
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts) in layouts/Plan.astro's end-of-body list, after home-dash.js and before deepdive.js /
  * detail.js. Each render runs in its own try/catch; a throw hides the card. */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads (baked by the build or provided by an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+declare const I18N_DATE: PageGlobals['I18N_DATE'];
+declare const I18N_SCORE: PageGlobals['I18N_SCORE'];
+declare const SCORES: PageGlobals['SCORES'];
+
+/** A day's answers: a yes / no behaviour → boolean, a drinks count → number; absent = not answered. */
+type Answers = Record<string, number | boolean>;
+/** A journaled day as the journal API returns it (GET /summary, PUT /day). */
+type JournalDay = { date: string; answers?: Answers | null; notes?: string | null };
+/** One baked behaviour (SCORES.journal.behaviors). */
+type Behavior = { key: string; group: string; kind: string };
+/** The sheet's unsaved edit of one day. */
+type Draft = { date: string; answers: Answers; notes: string };
+/** One baked insight row (SCORES.journal.insights.rows, lib/journal/journal.mjs behaviorInsights). */
+type OkInsight = { key: string; status: 'ok'; yesDays: number; noDays: number; yesMean: number; noMean: number; diff: number };
+type NeedInsight = { key: string; status: 'need_data'; yesDays: number; noDays: number; yesMean: null; noMean: null; diff: null };
+type InsightRow = OkInsight | NeedInsight;
+type JournalState = {
+  ready: boolean; on: Record<string, boolean>; days: Record<string, JournalDay>; draft: Draft | null; saving: boolean;
+  msg: string; err: boolean; manage: boolean; inSheet: boolean; session: number;
+};
+
 (function () {
   function boot() {
     var T = typeof I18N_SCORE !== 'undefined' && I18N_SCORE && I18N_SCORE.home ? I18N_SCORE.home.journal : null;
@@ -42,41 +67,41 @@
     // ready: the API answered; on: {key: bool}; days: {iso: {date, answers, notes}} of the strip window
     // inSheet: the next render is a re-render of the open sheet (reopen), not a fresh open; session counts
     // fresh opens, so a save that answers after the sheet was closed and opened again never closes it
-    var S = { ready: false, on: {}, days: {}, draft: null, saving: false, msg: '', err: false, manage: false, inSheet: false, session: 0 };
+    var S: JournalState = { ready: false, on: {}, days: {}, draft: null, saving: false, msg: '', err: false, manage: false, inSheet: false, session: 0 };
 
-    function own(o, k) {
+    function own(o: unknown, k: string): boolean {
       return !!o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, k);
     }
-    function byKey(k) {
+    function byKey(k: string | null): Behavior | null {
       for (var i = 0; i < J.behaviors.length; i++) if (J.behaviors[i].key === k) return J.behaviors[i];
       return null;
     }
 
     /* ---------- pure ---------- */
     // the 7 ISO days ending on `today`, oldest first
-    function weekDays(today) {
-      var out = [];
+    function weekDays(today: string): string[] {
+      var out: string[] = [];
       for (var i = WEEK - 1; i >= 0; i--) out.push(HC.shiftIso(today, -i));
       return out;
     }
     // true / false = answered, null = not answered (a count > 0 is a yes)
-    function did(answers, key) {
+    function did(answers: Answers | null | undefined, key: string): boolean | null {
       var b = byKey(key), v = answers && own(answers, key) ? answers[key] : null;
       if (!b || v == null) return null;
       if (b.kind === 'count') return typeof v === 'number' && isFinite(v) ? v > 0 : null;
       return typeof v === 'boolean' ? v : null;
     }
-    function journaled(day) {
+    function journaled(day: JournalDay | null | undefined): boolean {
       if (!day || !day.answers) return false;
-      return J.behaviors.some(function (b) { return did(day.answers, b.key) !== null; });
+      return J.behaviors.some(function (b: Behavior) { return did(day.answers, b.key) !== null; });
     }
     // a ✕ / ✓ / stepper press on the draft answers (pure): returns the new answers
-    function press(answers, key, act) {
-      var b = byKey(key), out = {};
-      Object.keys(answers || {}).forEach(function (k) { out[k] = answers[k]; });
+    function press(answers: Answers | null | undefined, key: string, act: string | null): Answers {
+      var b = byKey(key), out: Answers = {};
+      Object.keys(answers || {}).forEach(function (k) { out[k] = (answers as Answers)[k]; });
       if (!b) return out;
-      var cur = own(out, key) ? out[key] : null;
-      var next = cur;
+      var cur: number | boolean | null = own(out, key) ? out[key] : null;
+      var next: number | boolean | null = cur;
       if (b.kind === 'count') {
         var n = typeof cur === 'number' ? cur : null;
         if (act === 'no') next = n === 0 ? null : 0;
@@ -96,14 +121,14 @@
     var api = HC.jsonApi(API, 'X-HC-Journal', TIMEOUT_MS);
 
     /* ---------- card ---------- */
-    function dayLabel(iso) {
+    function dayLabel(iso: string): string {
       var N = typeof I18N_DATE !== 'undefined' && I18N_DATE ? I18N_DATE : null;
       return N ? N.weekdays[HC.weekdayIndex(iso)] : iso.slice(5);
     }
     // the baked journaled dates (SCORES.journal.recent): the card's checks when there is no API
-    var BAKED = {};
-    (Array.isArray(J.recent) ? J.recent : []).forEach(function (d) { if (HC.isoDate(d)) BAKED[d] = true; });
-    function isDone(d) {
+    var BAKED: Record<string, boolean> = {};
+    (Array.isArray(J.recent) ? J.recent : []).forEach(function (d: string) { if (HC.isoDate(d)) BAKED[d] = true; });
+    function isDone(d: string): boolean {
       return S.ready ? journaled(S.days[d]) : own(BAKED, d);
     }
     function hasInsights() {
@@ -111,17 +136,17 @@
     }
     // the card's last day: the viewer's today, except a baked (no API) journal whose newest day is older
     // than the 7-day window: then that journal's own last week (a stale bake never reads as empty)
-    function cardEnd(today) {
+    function cardEnd(today: string): string {
       if (S.ready) return today;
       var dates = Object.keys(BAKED);
       if (J.insights && HC.isoDate(J.insights.asOf)) dates.push(J.insights.asOf);
       var newest = dates.sort().pop();
       return newest && newest < HC.shiftIso(today, -(WEEK - 1)) ? newest : today;
     }
-    function cardHtml(today) {
+    function cardHtml(today: string): string {
       var live = S.ready;
       today = cardEnd(today);
-      var cols = weekDays(today).map(function (d) {
+      var cols = weekDays(today).map(function (d: string) {
         var on = isDone(d);
         var aria = format(on ? T.dayDone : T.dayOpen, { day: HC.fmtDate(d) });
         var inner = '<span class="jr-wd">' + esc(dayLabel(d)) + '</span><span class="jr-dot' + (on ? ' jr-on' : '') + '">' + (on ? CHECK : '') + '</span>';
@@ -153,27 +178,27 @@
 
     /* ---------- behaviour insights (baked, every build with a journal) ---------- */
     var INFO = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>';
-    function signed(v) {
+    function signed(v: number): string {
       var n = HC.num(Math.abs(v), 0);
       return (v > 0 ? '+' : v < 0 ? '−' : '') + n + '%';
     }
     // ok rows by impact (best first), then the rows that need more data, in the list order
-    function insightRows(rows) {
-      var ok = rows.filter(function (r) { return r.status === 'ok' && typeof r.diff === 'number'; });
+    function insightRows(rows: InsightRow[]): InsightRow[] {
+      var ok = rows.filter(function (r): r is OkInsight { return r.status === 'ok' && typeof r.diff === 'number'; });
       ok.sort(function (a, b) { return b.diff - a.diff; });
-      return ok.concat(rows.filter(function (r) { return ok.indexOf(r) === -1; }));
+      return (ok as InsightRow[]).concat(rows.filter(function (r) { return ok.indexOf(r as OkInsight) === -1; }));
     }
     // the bar: a centre dot, the fill to the right (better) or left (worse); scale = the largest
     // |difference| shown, at least 20 points, = half the bar
-    function barStyle(diff, scale) {
+    function barStyle(diff: number, scale: number): string {
       var half = Math.min(50, (Math.abs(diff) / scale) * 50);
       return 'left:' + (diff >= 0 ? 50 : 50 - half).toFixed(1) + '%;width:' + half.toFixed(1) + '%';
     }
     function insightsHtml() {
       var I = J.insights, min = (J.limits && J.limits.insightMinDays) || 5;
-      var rows = insightRows(I.rows);
+      var rows: InsightRow[] = insightRows(I.rows);
       var scale = Math.max(20, Math.max.apply(null, rows.map(function (r) { return typeof r.diff === 'number' ? Math.abs(r.diff) : 0; })));
-      var ok = rows.filter(function (r) { return r.status === 'ok'; });
+      var ok = rows.filter(function (r): r is OkInsight { return r.status === 'ok'; });
       var need = rows.filter(function (r) { return r.status !== 'ok'; });
       var list = ok.map(function (r) {
         var name = T.names[r.key] || r.key;
@@ -218,16 +243,16 @@
       var today = HC.todayIso(), d = st && st.key === 'journal' && HC.isoDate(st.date) ? st.date : today;
       return d > today || d < HC.shiftIso(today, -(WEEK - 1)) ? today : d;
     }
-    function draftFor(date) {
+    function draftFor(date: string): Draft {
       if (S.draft && S.draft.date === date) return S.draft;
-      var day = S.days[date] || {};
-      var answers = {};
-      Object.keys(day.answers || {}).forEach(function (k) { answers[k] = day.answers[k]; });
+      var day: Partial<JournalDay> = S.days[date] || {};
+      var answers: Answers = {};
+      Object.keys(day.answers || {}).forEach(function (k) { answers[k] = (day.answers as Answers)[k]; });
       S.draft = { date: date, answers: answers, notes: day.notes || '' };
       S.msg = '';
       return S.draft;
     }
-    function pair(b, v, q) {
+    function pair(b: Behavior, v: number | boolean | null, q: string): string {
       var no = b.kind === 'count' ? v === 0 : v === false;
       var html = '<button type="button" class="jr-x" id="jr-no-' + b.key + '" data-jr="no" data-key="' + b.key + '" aria-pressed="' + no + '" aria-label="' + esc(format(T.no, { q: q })) + '">' + CROSS + '</button>';
       if (b.kind === 'count') {
@@ -241,12 +266,12 @@
       }
       return html + '<button type="button" class="jr-x jr-y" id="jr-yes-' + b.key + '" data-jr="yes" data-key="' + b.key + '" aria-pressed="' + (v === true) + '" aria-label="' + esc(format(T.yes, { q: q })) + '">' + CHECK + '</button>';
     }
-    function countText(n) {
+    function countText(n: number | null): string {
       return format(T.count, { n: n == null ? '—' : n });
     }
-    function stripHtml(sel, today) {
+    function stripHtml(sel: string, today: string): string {
       var week = weekDays(today);
-      return '<div class="jr-strip" role="group" aria-label="' + esc(format(T.week, { from: HC.fmtDate(week[0]), to: HC.fmtDate(week[week.length - 1]) })) + '">' + week.map(function (d) {
+      return '<div class="jr-strip" role="group" aria-label="' + esc(format(T.week, { from: HC.fmtDate(week[0]), to: HC.fmtDate(week[week.length - 1]) })) + '">' + week.map(function (d: string) {
         var on = journaled(S.days[d]);
         return '<button type="button" class="jr-sd" data-jr="day" data-date="' + d + '" aria-pressed="' + (d === sel) + '" aria-label="' + esc(format(on ? T.dayDone : T.dayOpen, { day: HC.fmtDate(d) })) + '">' +
           '<span class="jr-wd">' + HC.parseIso(d).getDate() + '</span><span class="jr-dot' + (on ? ' jr-on' : '') + '">' + (on ? CHECK : '') + '</span></button>';
@@ -254,16 +279,16 @@
     }
     function sheetHtml() {
       var today = HC.todayIso(), date = sheetDate(), d = draftFor(date);
-      var rows = J.groups.map(function (g) {
-        var list = J.behaviors.filter(function (b) { return b.group === g && S.on[b.key] !== false; });
+      var rows = J.groups.map(function (g: string) {
+        var list = J.behaviors.filter(function (b: Behavior) { return b.group === g && S.on[b.key] !== false; });
         if (!list.length) return '';
-        return '<p class="jr-g">' + esc(T.groups[g]) + '</p><ul class="jr-rows">' + list.map(function (b) {
+        return '<p class="jr-g">' + esc(T.groups[g]) + '</p><ul class="jr-rows">' + list.map(function (b: Behavior) {
           var q = T.q[b.key] || b.key, v = own(d.answers, b.key) ? d.answers[b.key] : null;
           return '<li class="jr-row"><span class="jr-txt">' + esc(q) + '</span><span class="jr-ctl">' + pair(b, v, q) + '</span></li>';
         }).join('') + '</ul>';
       }).join('');
       var manage = '<details class="jr-man"' + (S.manage ? ' open' : '') + '><summary class="jr-g" data-jr="man">' + esc(T.manage) + ' <span class="chev" aria-hidden="true">›</span></summary>' +
-        '<p class="dt-note">' + esc(T.manageNote) + '</p><ul class="jr-rows">' + J.behaviors.map(function (b) {
+        '<p class="dt-note">' + esc(T.manageNote) + '</p><ul class="jr-rows">' + J.behaviors.map(function (b: Behavior) {
           var on = S.on[b.key] !== false, name = T.names[b.key] || b.key;
           return '<li class="jr-row"><span class="jr-txt">' + esc(name) + '</span>' + HC.switchBtn(on, format(T.toggle, { name: name }), ' data-jr="tog" data-key="' + b.key + '"') + '</li>';
         }).join('') + '</ul></details>';
@@ -279,18 +304,19 @@
           '<div class="jr-save"><button type="button" class="save-btn" id="jr-save" data-jr="save"' + (S.saving ? ' disabled' : '') + '>' + esc(S.saving ? T.saving : T.save) + '</button></div>',
       };
     }
-    function reopen(focus) {
+    function reopen(focus: string) {
       var H = window.HCDetail;
       if (!H || typeof H.open !== 'function' || !S.draft) return;
+      var draft: Draft = S.draft;
       S.inSheet = true;
-      try { H.open('journal', S.draft.date, { focus: focus }); } finally { S.inSheet = false; }
+      try { H.open('journal', draft.date, { focus: focus }); } finally { S.inSheet = false; }
     }
-    function byId(id) {
+    function byId(id: string): HTMLElement | null {
       return typeof document !== 'undefined' && document.getElementById ? document.getElementById(id) : null;
     }
     // a status message set into the live region already in the DOM, so screen readers announce it (a
     // region re-rendered together with its text is not); without the sheet's node, render first, then set
-    function showMsg(msg, err, focus) {
+    function showMsg(msg: string, err: boolean, focus: string) {
       S.msg = '';
       S.err = !!err;
       if (!byId('jr-status')) reopen(focus);
@@ -302,26 +328,27 @@
     }
     // a ✕ / ✓ / stepper press repaints its own row in place (the count is a live region that must stay
     // in the DOM); false when the row is not mounted, and the caller re-renders the sheet instead
-    function paintRow(b, act) {
-      var key = b.key, no = byId('jr-no-' + key), v = own(S.draft.answers, key) ? S.draft.answers[key] : null;
-      var yes = byId('jr-yes-' + key), dec = byId('jr-dec-' + key), inc = byId('jr-inc-' + key);
+    function paintRow(b: Behavior, act: string | null): boolean {
+      var draft = S.draft as Draft; // the caller checked S.draft
+      var key = b.key, no = byId('jr-no-' + key), v = own(draft.answers, key) ? draft.answers[key] : null;
+      var yes = byId('jr-yes-' + key), dec = byId('jr-dec-' + key) as HTMLButtonElement | null, inc = byId('jr-inc-' + key) as HTMLButtonElement | null;
       var box = byId('jr-n-' + key), shown = byId('jr-nv-' + key), said = byId('jr-ns-' + key);
       if (!no || (b.kind === 'count' ? !(dec && inc && box && shown && said) : !yes)) return false;
       if (b.kind !== 'count') {
         no.setAttribute('aria-pressed', String(v === false));
-        yes.setAttribute('aria-pressed', String(v === true));
+        yes!.setAttribute('aria-pressed', String(v === true));
         return true;
       }
       var n = typeof v === 'number' ? v : null;
       no.setAttribute('aria-pressed', String(n === 0));
-      dec.disabled = !n;
-      inc.disabled = n != null && n >= LIM.countMax;
-      if (box.classList) box.classList.toggle('jr-n-none', n == null);
-      shown.textContent = String(n == null ? 0 : n);
-      said.textContent = countText(n);
+      dec!.disabled = !n;
+      inc!.disabled = n != null && n >= LIM.countMax;
+      if (box!.classList) box!.classList.toggle('jr-n-none', n == null);
+      shown!.textContent = String(n == null ? 0 : n);
+      said!.textContent = countText(n);
       // a press that disabled its own button hands focus to the other step, never out of the sheet
-      if (act === 'dec' && dec.disabled && typeof inc.focus === 'function') inc.focus();
-      if (act === 'inc' && inc.disabled && typeof dec.focus === 'function') dec.focus();
+      if (act === 'dec' && dec!.disabled && typeof inc!.focus === 'function') inc!.focus();
+      if (act === 'inc' && inc!.disabled && typeof dec!.focus === 'function') dec!.focus();
       return true;
     }
     // the view's render: a fresh open (from the card, the "+", a deep link) starts from the SAVED day,
@@ -346,23 +373,23 @@
       S.err = false;
       reopen('[data-jr="save"]');
       var notes = String(d.notes || '').trim();
-      api('PUT', '/day', { date: d.date, answers: d.answers, notes: notes || null }).then(function (r) {
+      api('PUT', '/day', { date: d.date, answers: d.answers, notes: notes || null }).then(function (r: any) {
         S.saving = false;
         var day = r && r.day;
-        if (day && journaled(day)) S.days[d.date] = day;
-        else if (day && day.notes) S.days[d.date] = day;
-        else delete S.days[d.date];
+        if (day && journaled(day)) S.days[(d as Draft).date] = day;
+        else if (day && day.notes) S.days[(d as Draft).date] = day;
+        else delete S.days[(d as Draft).date];
         S.draft = null;
         renderCard();
         // close the sheet this save came from, never one opened again meanwhile
         var st = window.HCDetail && typeof window.HCDetail.state === 'function' ? window.HCDetail.state() : null;
         if (session === S.session && st && st.key === 'journal' && typeof window.HCDetail.close === 'function') window.HCDetail.close();
-      }, function (err) {
+      }, function (err: { code?: string } | null) {
         S.saving = false;
         S.err = true;
         if (session !== S.session) return; // the sheet was closed: its draft is gone anyway
         // the sheet stays as it is: the pill and the note are unlocked in place, then the message is set
-        var btn = byId('jr-save'), notes = byId('jr-notes');
+        var btn = byId('jr-save') as HTMLButtonElement | null, notes = byId('jr-notes') as HTMLTextAreaElement | null;
         if (btn && notes) {
           btn.disabled = false;
           btn.textContent = T.save;
@@ -375,33 +402,34 @@
         showMsg(failMsg(err), true, '[data-jr="save"]');
       });
     }
-    function failMsg(err) {
+    function failMsg(err: { code?: string } | null | undefined): string {
       return err && err.code === 'offline' ? T.offline : format(T.failed, { code: (err && err.code) || 'generic' });
     }
-    function toggle(key) {
-      var patch = {};
+    function toggle(key: string) {
+      var patch: Record<string, boolean> = {};
       patch[key] = S.on[key] === false;
       S.manage = true;
-      api('PUT', '/settings', { behaviors: patch }).then(function (r) {
+      api('PUT', '/settings', { behaviors: patch }).then(function (r: any) {
         if (r && r.behaviors) S.on = r.behaviors;
         S.err = false;
         S.msg = '';
         reopen('[data-jr="tog"][data-key="' + key + '"]');
-      }, function (err) {
+      }, function (err: { code?: string } | null) {
         showMsg(failMsg(err), true, '[data-jr="tog"][data-key="' + key + '"]');
       });
     }
 
     document.addEventListener('click', function (e) {
-      var b = e && e.target && e.target.closest ? e.target.closest('[data-jr]') : null;
+      var target = e && (e.target as Element | null);
+      var b = target && target.closest ? target.closest('[data-jr]') : null;
       if (!b || !S.ready) return;
       var act = b.getAttribute('data-jr'), key = b.getAttribute('data-key');
-      if (act === 'man') { S.manage = !(b.parentElement && b.parentElement.open); return; }
+      if (act === 'man') { S.manage = !(b.parentElement && (b.parentElement as HTMLDetailsElement).open); return; }
       if (S.saving) return; // the request in flight carries the draft as it was: no edit may slip in
       if (act === 'save') { save(); return; }
-      if (act === 'tog') { toggle(key); return; }
+      if (act === 'tog') { toggle(key as string); return; }
       if (act === 'day') {
-        var date = HC.isoDate(b.getAttribute('data-date'));
+        var date: string | null = HC.isoDate(b.getAttribute('data-date'));
         if (!date) return;
         if (!S.draft || S.draft.date !== date) S.draft = null;
         draftFor(date);
@@ -409,14 +437,14 @@
         return;
       }
       if (!S.draft || !byKey(key)) return;
-      S.draft.answers = press(S.draft.answers, key, act);
+      S.draft.answers = press(S.draft.answers, key as string, act);
       S.msg = '';
       var st = byId('jr-status');
       if (st) st.textContent = '';
-      if (!paintRow(byKey(key), act)) reopen('[data-jr="' + act + '"][data-key="' + key + '"]');
+      if (!paintRow(byKey(key) as Behavior, act)) reopen('[data-jr="' + act + '"][data-key="' + key + '"]');
     });
     document.addEventListener('input', function (e) {
-      var t = e && e.target;
+      var t = e && (e.target as HTMLTextAreaElement | null);
       if (t && t.id === 'jr-notes' && S.draft && !S.saving) S.draft.notes = String(t.value || '').slice(0, LIM.notesMax);
     });
 
@@ -428,12 +456,12 @@
     }
 
     function load() {
-      return api('GET', '/settings').then(function (r) {
+      return api('GET', '/settings').then(function (r: any) {
         S.on = r && r.behaviors && typeof r.behaviors === 'object' ? r.behaviors : {};
         var today = HC.todayIso();
-        return api('GET', '/summary?from=' + HC.shiftIso(today, -(WEEK - 1)) + '&to=' + today).then(function (s) {
+        return api('GET', '/summary?from=' + HC.shiftIso(today, -(WEEK - 1)) + '&to=' + today).then(function (s: any) {
           S.days = {};
-          (s && Array.isArray(s.days) ? s.days : []).forEach(function (d) { if (d && HC.isoDate(d.date)) S.days[d.date] = d; });
+          (s && Array.isArray(s.days) ? s.days : []).forEach(function (d: JournalDay) { if (d && HC.isoDate(d.date)) S.days[d.date] = d; });
         }, function () { S.days = {}; }).then(function () {
           S.ready = true;
           register();

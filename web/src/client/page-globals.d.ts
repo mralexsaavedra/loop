@@ -12,6 +12,10 @@ export type PageGlobals = {
   I18N_DASH: any;
   I18N_DETAIL: any;
   NAV: any;
+  I18N_DATE: any;
+  I18N_PROFILE: any;
+  LOCALE: any;
+  PROFILE: any;
 };
 
 // the window.* namespaces other scripts hand this one (and the one it hands back)
@@ -24,6 +28,10 @@ declare global {
     HCDetail?: any;
     HCActions?: { refresh: () => void; open: () => void; close: (restore: boolean) => void; run: (name: string) => boolean };
     HCHomeOrder?: unknown;
+    HCJournal?: unknown;
+    HCProfile?: unknown;
+    HCProgress?: any;
+    HCSettings?: any;
   }
   var HCDay: any;
 }

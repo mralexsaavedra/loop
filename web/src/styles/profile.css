@@ -1,4 +1,4 @@
-/* Avatar button (components/Avatar.astro) + the profile sheet (client/profile.js, rendered inside the
+/* Avatar button (components/Avatar.astro) + the profile sheet (client/profile.ts, rendered inside the
  * detail sheet, detail.css). Colour = meaning only: --accent for the action (the avatar's focus ring),
  * --mid for the gentle shoe-replacement hint and the missing-scope note, everything else neutral. */
 

@@ -1,5 +1,5 @@
 /* Nutrición "Progreso" (weight vs the goal) + its one-line summary in the profile sheet. Classic script
- * (is:inline), inlined after settings.js and before profile.js. Reads the baked DETAIL.metrics.weight
+ * (is:inline), inlined after settings.js and before profile.ts. Reads the baked DETAIL.metrics.weight
  * (the weight card's 7-day rolling average, `roll`), NUTRI.progress (the thresholds, from
  * lib/nutrition/progress.mjs) + I18N_NUTRI.progress, the goal from window.HCNutri and the target weight
  * from window.HCSettings (LAN page only; without it there is no target and no ETA).

@@ -232,7 +232,7 @@ test('example build: Inicio reads today top to bottom — dials, monitor tiles, 
   assert.match(html, /getElementById\(["']home-tiles["']\)/, 'monitor.js writes the tiles');
   // Tonight + My plan ship hidden; client/home-week.ts (an end-of-body script) reveals them
   assert.match(home, /<div id="home-tonight" hidden><\/div>/);
-  assert.match(home, /<div id="my-journal" hidden><\/div>/, 'My journal ships hidden (client/journal.js)');
+  assert.match(home, /<div id="my-journal" hidden><\/div>/, 'My journal ships hidden (client/journal.ts)');
   assert.match(home, /<section class="home-sec" id="my-plan" aria-labelledby="my-plan-h" hidden>\s*<h2 class="hs-lbl home-h" id="my-plan-h">My plan<\/h2>/);
   assert.doesNotMatch(home, /<script/, 'no script inside the Inicio panel');
   // home-week.ts + home-dash.js run in the end-of-body list, after their globals and before

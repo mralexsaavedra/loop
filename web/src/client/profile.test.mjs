@@ -1,20 +1,18 @@
-/* Tests for the profile sheet renderer (web/src/client/profile.js): runs the classic script in a vm with
+/* Tests for the profile sheet renderer (web/src/client/profile.ts): runs the classic script in a vm with
  * a baked PROFILE (lib/profile/profile.mjs, SYNTHETIC values) + I18N_PROFILE and a fixed clock, and
  * checks the view it registers for the detail sheet (window.HCViews.profile). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { buildProfile } from '../../../lib/profile/profile.mjs';
 import { es as esP, en as enP } from '../i18n/profile-templates.mjs';
 import { es as esDate, en as enDate } from '../i18n/date-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { es as esO, en as enO } from '../i18n/onboarding-templates.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'profile.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('profile.ts');
 const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(32, 3)]);
 
 const STRAVA = {

@@ -26,11 +26,34 @@
  *   Strava  — focus + the snapshot date.
  * Nothing known at all -> the onboarding hint.
  *
- * Classic script (is:inline), inlined BEFORE detail.js. Reads PROFILE (lib/profile/read.mjs
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts), inlined BEFORE detail.js. Reads PROFILE (lib/profile/read.mjs
  * loadProfile -> profile.mjs buildProfile, baked by Avatar.astro with `photo` as a flag: the data URI
  * is baked ONCE, in the button's <img id="avatar-img">, and copied from there) + I18N_PROFILE, and
  * window.HC (util.js). The age is computed here on the viewer's clock, so builds stay byte-identical.
  */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads (baked by the build or provided by an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+declare const I18N_PROFILE: PageGlobals['I18N_PROFILE'];
+declare const LOCALE: PageGlobals['LOCALE'];
+declare const PROFILE: PageGlobals['PROFILE'];
+// the onboarding copy (baked for client/onboarding.js; not in PageGlobals): only its `edit` label is read here
+declare const I18N_ONB: { edit: string } | undefined;
+
+/** A Strava bike or shoe (PROFILE.bikes / PROFILE.shoes, lib/profile/profile.mjs). */
+type Gear = { name: string; detail?: string; frame?: string; weightKg?: number; primary?: boolean; retired?: boolean; replace?: boolean; km?: number };
+/** A device (PROFILE.devices): manual or seen on Strava, with an optional manual PDF file name. */
+type Device = { name: string; type: string; since?: string; source?: string; count: number; lastUsed?: string; manual?: unknown };
+/** An event (PROFILE.events). */
+type ProfileEvent = { name: string; type: string; date: string; location?: string };
+/** A goal option (PROFILE.goals, lib/profile/goal.mjs): its kcal/day change vs maintain. */
+type GoalOption = { goal: string; kcal: number; bikeKept?: boolean };
+/** The last settings save (window.HCSettings, client/settings.js). */
+type SaveStatus = { status: string; what?: string; code: string };
+/** The settings state handed to the onChange listeners. */
+type SettingsState = { pending?: boolean; last?: SaveStatus | null } | null | undefined;
+
 (function () {
   var P = typeof PROFILE === 'undefined' || !PROFILE ? null : PROFILE;
   var T = typeof I18N_PROFILE === 'undefined' || !I18N_PROFILE ? null : I18N_PROFILE;
@@ -39,7 +62,7 @@
   var PHOTO_RE = /^data:image\/(?:jpeg|png);base64,[A-Za-z0-9+/=]+$/;
   var ICON = '<svg class="pf-icon" viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="8.5" r="4"/><path d="M4 20.5c1.4-4 4.4-6 8-6s6.6 2 8 6"/></svg>';
 
-  function list(v) {
+  function list(v: unknown): any[] {
     return Array.isArray(v) ? v : [];
   }
   var fin = HC.fin;
@@ -57,13 +80,13 @@
     if (P.initials) return '<span class="pf-ini" aria-hidden="true">' + esc(P.initials) + '</span>';
     return ICON;
   }
-  function section(heading, inner) {
+  function section(heading: string, inner: string) {
     return '<section class="pf-sec"><h3 class="pf-h">' + esc(heading) + '</h3>' + inner + '</section>';
   }
-  function note(text, cls) {
+  function note(text: string, cls?: string) {
     return '<p class="pf-note' + (cls ? ' ' + cls : '') + '">' + esc(text) + '</p>';
   }
-  function stat(label, value, unit, sub) {
+  function stat(label: string, value: string, unit?: string, sub?: string) {
     return '<div class="pf-stat"><span class="pf-lbl">' + esc(label) + '</span><span class="pf-num"><b class="pf-val">' + esc(value) + '</b>' +
       (unit ? '<small>' + esc(unit) + '</small>' : '') + '</span>' + (sub ? '<small class="pf-sub">' + esc(sub) + '</small>' : '') + '</div>';
   }
@@ -85,7 +108,7 @@
     return section(B.heading, out.length ? '<div class="pf-stats">' + out.join('') + '</div>' : note(B.empty));
   }
 
-  function gearItem(g, kind) {
+  function gearItem(g: Gear, kind: string) {
     var G = T.gear, bits = [];
     if (g.detail) bits.push(g.detail);
     if (kind === 'bike' && g.frame && G.frames[g.frame]) bits.push(G.frames[g.frame]);
@@ -96,11 +119,11 @@
       (g.replace ? '<small class="pf-hint">' + esc(G.replace) + '</small>' : '') + '</div>' +
       (fin(g.km) ? '<span class="pf-num"><b class="pf-km">' + esc(HC.num(g.km, 1)) + '</b><small>km</small></span>' : '') + '</li>';
   }
-  function gearGroup(title, items, kind) {
+  function gearGroup(title: string, items: Gear[], kind: string) {
     if (!items.length) return '';
     var active = items.filter(function (g) { return !g.retired; });
     var retired = items.filter(function (g) { return g.retired; });
-    var li = function (arr) { return arr.map(function (g) { return gearItem(g, kind); }).join(''); };
+    var li = function (arr: Gear[]) { return arr.map(function (g) { return gearItem(g, kind); }).join(''); };
     return '<h4 class="pf-sub-h">' + esc(title) + '</h4>' +
       (active.length ? '<ul class="pf-list">' + li(active) + '</ul>' : '') +
       (retired.length ? '<details class="pf-retired"><summary>' + esc(format(T.gear.retired, { n: retired.length })) + '</summary><ul class="pf-list">' + li(retired) + '</ul></details>' : '');
@@ -127,25 +150,25 @@
   // kept apart from the markup so the built page holds no literal root-relative href (output guard)
   var MANUAL_BASE = '/manuales/';
   var PROBE_MS = 10000; // the manual HEAD probe: a hung server counts as no manual
-  var manualState = {};
-  function manualFile(d) {
+  var manualState: Record<string, string> = {};
+  function manualFile(d: Device | null | undefined) {
     var f = d && d.manual;
     return typeof f === 'string' && MANUAL_RE.test(f) && f.indexOf('..') < 0 ? f : null;
   }
-  function revealManual(file) {
+  function revealManual(file: string) {
     var links = document.querySelectorAll ? document.querySelectorAll('a.pf-manual') : [];
     for (var i = 0; i < links.length; i++) {
       if (links[i].getAttribute('data-manual') === file) links[i].removeAttribute('hidden');
     }
   }
-  function probeManuals(devs) {
+  function probeManuals(devs: Device[]) {
     if (typeof fetch !== 'function' || !HC.lan()) return;
     devs.forEach(function (d) {
-      var file = manualFile(d);
+      const file = manualFile(d);
       if (!file || manualState[file]) return;
       manualState[file] = 'pending';
       try {
-        HC.fetchTimeout(MANUAL_BASE + encodeURIComponent(file), { method: 'HEAD', cache: 'no-store' }, PROBE_MS).then(function (res) {
+        HC.fetchTimeout(MANUAL_BASE + encodeURIComponent(file), { method: 'HEAD', cache: 'no-store' }, PROBE_MS).then(function (res: Response | null) {
           var type = res && res.headers && typeof res.headers.get === 'function' ? String(res.headers.get('content-type') || '') : '';
           manualState[file] = res && res.status === 200 && /^application\/pdf\b/i.test(type) ? 'ok' : 'no';
           if (manualState[file] === 'ok') revealManual(file);
@@ -155,13 +178,13 @@
       }
     });
   }
-  function manualHtml(d) {
+  function manualHtml(d: Device) {
     var file = manualFile(d);
     if (!file) return '';
     return '<a class="pf-manual" href="' + MANUAL_BASE + esc(encodeURIComponent(file)) + '" target="_blank" rel="noopener" data-manual="' + esc(file) + '"' +
       ' aria-label="' + esc(format(T.devices.manualLabel, { name: d.name })) + '"' + (manualState[file] === 'ok' ? '' : ' hidden') + '>' + esc(T.devices.manual) + '</a>';
   }
-  function deviceHtml(d) {
+  function deviceHtml(d: Device) {
     var D = T.devices, bits = [D.types[d.type] || D.types.other];
     if (d.since) bits.push(format(D.since, { month: HC.fmtMonth(d.since + '-01') }));
     if (d.source === 'strava') bits.push(D.fromStrava);
@@ -191,7 +214,7 @@
 
   // events (profile.json): upcoming soonest first with the days left on the viewer's clock (nothing
   // time-based is baked); past ones folded, newest first
-  function eventItem(e, when) {
+  function eventItem(e: ProfileEvent, when: string) {
     var E = T.events, bits = [E.types[e.type] || E.types.other, HC.fmtDate(e.date)];
     if (e.location) bits.push(e.location);
     return '<li class="pf-item"><div class="pf-item-main"><span class="pf-item-name">' + esc(e.name) + '</span>' +
@@ -199,15 +222,15 @@
       (when ? '<span class="pf-ev-left">' + esc(when) + '</span>' : '') + '</li>';
   }
   function eventsHtml() {
-    var E = T.events, items = list(P.events), up = [], past = [];
+    var E = T.events, items = list(P.events), up: { e: ProfileEvent; left: number }[] = [], past: ProfileEvent[] = [];
     if (!items.length) return '';
-    items.forEach(function (e) {
+    items.forEach(function (e: ProfileEvent) {
       var ago = HC.daysOld(e.date);
       if (ago == null) return;
       if (ago <= 0) up.push({ e: e, left: -ago });
       else past.push(e);
     });
-    var when = function (n) { return n === 0 ? E.today : n === 1 ? E.tomorrow : format(E.inDays, { n: n }); };
+    var when = function (n: number) { return n === 0 ? E.today : n === 1 ? E.tomorrow : format(E.inDays, { n: n }); };
     var inner = up.length
       ? '<ul class="pf-list">' + up.map(function (x) { return eventItem(x.e, when(x.left)); }).join('') + '</ul>'
       : note(E.none);
@@ -230,7 +253,7 @@
     var n = window.HCNutri;
     return n && typeof n.setGoal === 'function' && typeof n.state === 'function' ? n : null;
   }
-  function goalDesc(o) {
+  function goalDesc(o: GoalOption) {
     var G = T.goal;
     if (o.goal === 'maintain') return G.maintain;
     if (!fin(o.kcal) || o.kcal === 0) return G.same;
@@ -243,7 +266,7 @@
     var st = window.HCSettings;
     return st && typeof st.ready === 'function' && st.ready() ? st : null;
   }
-  function targetHtml(st) {
+  function targetHtml(st: NonNullable<Window['HCSettings']>) {
     var G = T.goal, L = st.limits(), v = st.targetWeight();
     return '<div class="food-field pf-target"><label class="food-lbl" for="pf-target">' + esc(G.target) + '</label>' +
       '<div class="food-in-wrap"><input class="food-in" id="pf-target" type="text" inputmode="decimal" autocomplete="off" value="' +
@@ -269,22 +292,22 @@
       (prog ? '<p class="pf-note pf-progress" id="pf-progress"><span class="pf-lbl">' + esc(G.progress) + '</span> <span id="pf-progress-txt">' + esc(prog) + '</span></p>' : '') +
       '</section>';
   }
-  function el(id) {
+  function el(id: string) {
     return document.getElementById ? document.getElementById(id) : null;
   }
-  function setText(id, text) {
+  function setText(id: string, text: string) {
     var x = el(id);
     if (x) x.textContent = text;
   }
   // the one status line of the goal section: the last goal / target save
-  function statusText(s) {
+  function statusText(s: SettingsState) {
     var G = T.goal, last = s && s.last, pend = s && s.pending ? ' ' + G.pending : '';
     if (!last) return s && s.pending ? G.pending : '';
     if (last.status === 'saving') return G.saving;
     if (last.status === 'saved') return (last.what === 'goal' ? G.savedGoal : G.saved) + pend;
     return format(G.failed, { reason: G.reasons[last.code] || G.reasons.generic }) + pend;
   }
-  function targetError(kind) {
+  function targetError(kind: string | null) {
     var input = el('pf-target'), G = T.goal, st = settings();
     var L = st ? st.limits() : { min: '', max: '' };
     setText('pf-target-err', kind ? format(G.targetErr[kind] || G.targetErr.number, { min: L.min, max: L.max }) : '');
@@ -295,7 +318,7 @@
   }
   if (document.addEventListener) {
     document.addEventListener('change', function (e) {
-      var t = e && e.target;
+      const t = (e && e.target) as HTMLInputElement | null;
       if (!t) return;
       if (t.id === 'pf-target') {
         var st = settings();
@@ -318,9 +341,9 @@
   // GET /settings answers, without the target field and the Language section; their arrival draws it again
   var drawnWithSettings = false;
   // a selector that finds the focused control again in the redrawn sheet: its id, or a radio's name + value
-  function focusSelector(a) {
+  function focusSelector(a: (Element & { id?: string; name?: string; value?: string | null }) | null) {
     if (!a || !a.closest || !a.closest('#detail')) return null;
-    var esc1 = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape : function (v) { return String(v).replace(/["\\]/g, '\\$&'); };
+    var esc1 = typeof CSS !== 'undefined' && CSS.escape ? CSS.escape : function (v: string) { return String(v).replace(/["\\]/g, '\\$&'); };
     if (a.id) return '#' + esc1(a.id);
     if (a.name && a.value != null) return 'input[name="' + esc1(a.name) + '"][value="' + esc1(a.value) + '"]';
     return null;
@@ -333,7 +356,7 @@
     D.open('profile', null, focus ? { focus: focus } : {});
   }
   if (ST && typeof ST.onChange === 'function') {
-    ST.onChange(function (s) {
+    ST.onChange(function (s: SettingsState) {
       // first draw it again if it was drawn without the settings; the status lines below then go to the new sheet
       redrawIfEarly();
       if (s && s.last && s.last.what === 'locale') { setText('pf-lang-msg', langStatusText(s.last)); return; }
@@ -348,7 +371,7 @@
   function pageLang() {
     return typeof LOCALE !== 'undefined' && LANGS.indexOf(LOCALE) >= 0 ? LOCALE : 'en';
   }
-  function currentLang(st) {
+  function currentLang(st: NonNullable<Window['HCSettings']>) {
     var l = st && typeof st.locale === 'function' ? st.locale() : null;
     return LANGS.indexOf(l) >= 0 ? l : pageLang();
   }
@@ -364,13 +387,13 @@
       '<small class="pf-goal-desc">' + esc(L.hint) + '</small>' +
       '<p class="pf-note pf-status" id="pf-lang-msg" role="status" aria-live="polite"></p></section>';
   }
-  function langStatusText(last) {
+  function langStatusText(last: SaveStatus) {
     var G = T.goal, L = T.language;
     if (last.status === 'saving') return G.saving;
     if (last.status === 'saved') return L.rebuilding;
     return format(G.failed, { reason: G.reasons[last.code] || G.reasons.generic });
   }
-  function saveLang(v) {
+  function saveLang(v: string) {
     var st = settings();
     if (!st || typeof st.saveLocale !== 'function' || LANGS.indexOf(v) < 0 || v === currentLang(st)) return;
     Promise.resolve(st.saveLocale(v)).then(function () {

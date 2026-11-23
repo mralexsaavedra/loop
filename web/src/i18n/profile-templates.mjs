@@ -1,4 +1,4 @@
-/* Profile sheet copy (web/src/client/profile.js + components/Avatar.astro), es/en, baked as
+/* Profile sheet copy (web/src/client/profile.ts + components/Avatar.astro), es/en, baked as
  * I18N_PROFILE. {name} placeholders are filled client-side. Neutral Spanish. */
 export const en = {
   title: 'Profile',

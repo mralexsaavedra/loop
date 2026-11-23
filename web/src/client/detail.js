@@ -31,7 +31,7 @@
  * printed (non-finite values render as a dash). A day tap re-renders only the calendar + day panel.
  *
  * Registered views: another script (inlined BEFORE this one) may call HC.registerView(<key>,
- * {title(), render() -> {head, body, info?, bare?}}) (client/profile.js adds `profile`; `bare` = no shared header,
+ * {title(), render() -> {head, body, info?, bare?}}) (client/profile.ts adds `profile`; `bare` = no shared header,
  * the view draws its own with id="dt-title"); this reads them through
  * HC.view(<key>). An opener with
  * data-detail="<key>" then opens that view in this same modal (focus, inert, Esc, Back), with the deep
@@ -48,9 +48,9 @@
   // overnight signals: their day detail is the whole night (sleep, bed / wake, the night's signals)
   var NIGHT_KEYS = ['sleep', 'recovery', 'hrv', 'rhr', 'respiratory', 'wristTemp'];
   var HASH_RE = /^#detail\/([A-Za-z-]+)(?:\/(\d{4}-\d{2}-\d{2}))?$/;
-  // a registered view (window.HCViews, e.g. the profile sheet of client/profile.js) deep-links as #<key>
+  // a registered view (window.HCViews, e.g. the profile sheet of client/profile.ts) deep-links as #<key>
   var VIEW_HASH_RE = /^#([a-z][a-z-]*)$/;
-  // registered after page load (client/food-*.js once GET /api/food/products answers, client/journal.js
+  // registered after page load (client/food-*.js once GET /api/food/products answers, client/journal.ts
   // once GET /api/journal/settings answers)
   var ASYNC_VIEWS = ['food-add', 'journal'];
   // kinds whose missing recent days mean stale data (a sparse reading or a rest day is not staleness)
