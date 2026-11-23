@@ -7,19 +7,27 @@
  * #home-cust; a block switched off gets `home-off` (display: none), never the `hidden` attribute its own
  * script manages (an empty block stays hidden whatever the user chose).
  *
- * Classic script in layouts/Plan.astro's end-of-body list, after journal.js (every block it moves has
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts) in layouts/Plan.astro's end-of-body list, after journal.js (every block it moves has
  * rendered) and before detail.js (its sheet is registered before detail.js reads a #home-edit deep
  * link); a throw keeps the built order. */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads (baked by the build or provided by an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+declare const I18N_SCORE: PageGlobals['I18N_SCORE'];
+
+type BlockKey = 'day' | 'eat' | 'tonight' | 'journal' | 'plan' | 'dash';
+
 (function () {
   function boot() {
     var T = typeof I18N_SCORE !== 'undefined' && I18N_SCORE && I18N_SCORE.home ? I18N_SCORE.home.order : null;
     if (!T || typeof HC === 'undefined' || typeof HC.orderList !== 'function') return;
     var PREFS_KEY = 'hc-home-v1';
-    var CATALOG = ['day', 'eat', 'tonight', 'journal', 'plan', 'dash'];
-    var BLOCKS = { day: '#my-day', eat: '.eat-card', tonight: '#home-tonight', journal: '#my-journal', plan: '#my-plan', dash: '#my-dash' };
+    var CATALOG: BlockKey[] = ['day', 'eat', 'tonight', 'journal', 'plan', 'dash'];
+    var BLOCKS: Record<BlockKey, string> = { day: '#my-day', eat: '.eat-card', tonight: '#home-tonight', journal: '#my-journal', plan: '#my-plan', dash: '#my-dash' };
     // the row icons, from the shared set (HC.metricIcon)
-    var ICONS = { day: 'clock', eat: 'food', tonight: 'sleep', journal: 'cons', plan: 'sessions', dash: 'eff' };
-    function el(key) {
+    var ICONS: Record<BlockKey, string> = { day: 'clock', eat: 'food', tonight: 'sleep', journal: 'cons', plan: 'sessions', dash: 'eff' };
+    function el(key: BlockKey) {
       return document.querySelector(BLOCKS[key]);
     }
     function available() {
@@ -28,17 +36,18 @@
     function apply() {
       var anchor = document.getElementById('home-cust');
       if (!anchor || !anchor.parentNode) return;
-      OL.current().forEach(function (p) {
+      var at: HTMLElement = anchor;
+      OL.current().forEach(function (p: { key: BlockKey; on: boolean }) {
         var n = el(p.key);
         if (!n) return;
-        anchor.parentNode.insertBefore(n, anchor);
+        (at.parentNode as ParentNode).insertBefore(n, at);
         n.classList.toggle('home-off', !p.on);
       });
     }
     var OL = HC.orderList({
       view: 'home-edit', attr: 'home', key: PREFS_KEY, catalog: CATALOG, defaultOn: CATALOG, available: available,
       title: function () { return T.editTitle; },
-      row: function (key) { return { icon: HC.metricIcon(ICONS[key]), name: T.names[key], full: T.names[key] }; },
+      row: function (key: BlockKey) { return { icon: HC.metricIcon(ICONS[key]), name: T.names[key], full: T.names[key] }; },
       aria: { show: T.showAria, up: T.upAria, down: T.downAria },
       changed: function () { try { apply(); } catch (e) { /* the page keeps its current order */ } },
     });

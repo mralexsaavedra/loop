@@ -1,19 +1,17 @@
-/* Tests for Entreno's Intensity (HR) block (web/src/client/training-dash.js): runs the classic
+/* Tests for Entreno's Intensity (HR) block (web/src/client/training-dash.ts): runs the classic
  * script in a vm with DASH baked by the real aggregator (lib/training/dashboard.mjs), I18N_DASH and
  * LOCALE, the shared HC helpers (loadUtil) and the escaping DOM stub. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { aggregateDashboard } from '../../../lib/training/dashboard.mjs';
 import { es as esD, en as enD } from '../i18n/dash-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { StubDocument } from '../../test/dom-stub.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'training-dash.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('training-dash.ts');
 
 const w = (date, type, dur, hrAvg = null, hrMax = null, src = 'Apple Watch') => ({ date, type, dur, hrAvg, hrMax, re: null, source: src });
 const ROWS = [

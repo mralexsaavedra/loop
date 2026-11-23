@@ -1,17 +1,15 @@
-/* web/src/client/shortcuts.js — the page's keyboard shortcuts (1-4 tabs, a add food, d journal, ? the help
+/* web/src/client/shortcuts.ts — the page's keyboard shortcuts (1-4 tabs, a add food, d journal, ? the help
  * sheet) and the help sheet view. Runs the classic script in a vm over the DOM stub, after util.js. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { en, es } from '../i18n/detail-templates.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'shortcuts.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('shortcuts.ts');
 const LABELS = { home: 'Inicio', entreno: 'Entreno', health: 'Salud', nutricion: 'Nutrición' };
 
 function page({ tabs = ['home', 'entreno', 'health', 'nutricion'], actions = ['food', 'journal'], sheetOpen = false, popOpen = false, locale = 'es' } = {}) {

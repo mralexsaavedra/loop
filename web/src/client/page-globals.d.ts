@@ -7,10 +7,23 @@ export type PageGlobals = {
   TRAINING: any;
   I18N_SCORE: any;
   I18N_SYNC: any;
+  HC_BAND: any;
+  DASH: any;
+  I18N_DASH: any;
+  I18N_DETAIL: any;
+  NAV: any;
 };
 
 // the window.* namespaces other scripts hand this one (and the one it hands back)
 declare global {
-  interface Window { HCAdherence?: any; HCNutri?: any; HCWeekPlan?: unknown; HCActions?: { refresh(): void } }
+  interface Window {
+    HCAdherence?: any;
+    HCNutri?: any;
+    HCWeekPlan?: unknown;
+    HCViews?: Record<string, unknown>;
+    HCDetail?: any;
+    HCActions?: { refresh: () => void; open: () => void; close: (restore: boolean) => void; run: (name: string) => boolean };
+    HCHomeOrder?: unknown;
+  }
   var HCDay: any;
 }

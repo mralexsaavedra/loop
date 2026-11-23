@@ -31,7 +31,7 @@ export const en = {
       history: 'See sleep history',
       none: 'Not enough nights with a wake time yet (7 needed in the last 14 days).',
     },
-    // "My day" energy bank card (client/energy.js, lib/score/energy-bank.mjs): our own intraday estimate
+    // "My day" energy bank card (client/energy.ts, lib/score/energy-bank.mjs): our own intraday estimate
     // "My day" nutrition card (client/nutri-score.js, lib/nutrition/nutri-score.mjs): adherence to your targets
     nscore: {
       heading: 'Nutrition',
@@ -175,7 +175,7 @@ export const en = {
       // full metric names on the rows (client/home-dash.js); the rest use the detail sheet's title
       names: { rhr: 'Resting heart rate', hrv: 'Heart rate variability', sleep: 'Hours of sleep', walkingHr: 'Walking heart rate', energy: 'Daily energy expenditure', wristTemp: 'Wrist temperature (sleep)', zones13: 'Heart rate zones 1–3 · last 7 days', zones45: 'Heart rate zones 4–5 · last 7 days', gymTime: 'Gym time · last 7 days', stress: 'Stress monitor' },
     },
-    // "Customize Home": the order and show / hide of the blocks under the tiles (client/home-order.js)
+    // "Customize Home": the order and show / hide of the blocks under the tiles (client/home-order.ts)
     order: {
       customize: 'Customize Home',
       editTitle: 'Customize Home',
@@ -385,7 +385,7 @@ export const es = {
       history: 'Ver historial de sueño',
       none: 'Aún no hay suficientes noches con hora de despertar (hacen falta 7 en los últimos 14 días).',
     },
-    // tarjeta "Banco de energía" de "Mi día" (client/energy.js, lib/score/energy-bank.mjs): estimación propia
+    // tarjeta "Banco de energía" de "Mi día" (client/energy.ts, lib/score/energy-bank.mjs): estimación propia
     // tarjeta "Nutrición" de "Mi día" (client/nutri-score.js, lib/nutrition/nutri-score.mjs): cumplimiento de tus objetivos
     nscore: {
       heading: 'Nutrición',
@@ -523,7 +523,7 @@ export const es = {
       // nombres completos en las filas (client/home-dash.js); el resto usa el título de la hoja de detalle
       names: { rhr: 'Frecuencia cardiaca en reposo', hrv: 'Variabilidad de la frecuencia cardiaca', sleep: 'Horas de sueño', walkingHr: 'Frecuencia cardiaca al caminar', energy: 'Gasto energético diario', wristTemp: 'Temperatura de muñeca (sueño)', zones13: 'Zonas de pulso 1–3 · últimos 7 días', zones45: 'Zonas de pulso 4–5 · últimos 7 días', gymTime: 'Tiempo de gimnasio · últimos 7 días', stress: 'Monitor de estrés' },
     },
-    // "Personalizar inicio": el orden y mostrar / ocultar de los bloques bajo las tarjetas (client/home-order.js)
+    // "Personalizar inicio": el orden y mostrar / ocultar de los bloques bajo las tarjetas (client/home-order.ts)
     order: {
       customize: 'Personalizar inicio',
       editTitle: 'Personalizar inicio',

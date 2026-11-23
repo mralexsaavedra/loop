@@ -12,20 +12,30 @@
  *
  * DASH is a fully precomputed snapshot: nothing here depends on `new Date()`.
  */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads (baked by the build or provided by an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+declare const DASH: PageGlobals['DASH'];
+declare const I18N_DASH: PageGlobals['I18N_DASH'];
+
+/** One modality of DASH.modality (lib/training/dashboard.mjs): mean and peak HR over the window. */
+type Modality = { key: string; avgHr?: number | null; peakHr?: number | null };
+
 (function () {
   var host = document.getElementById('train-dash');
   if (!host) return;
   var LBL = I18N_DASH.modalityLabels;
   // each modality its own icon (one set, util.js), not the same heart on every row; other = neutral
-  var ICON = { strength: 'gym', hiit: 're', run: 'run', bike: 'bike' };
+  var ICON: Record<string, string> = { strength: 'gym', hiit: 're', run: 'run', bike: 'bike' };
   var DASH_ = typeof DASH === 'undefined' ? null : DASH;
   var esc = HC.esc, format = HC.format;
 
-  function html() {
+  function html(): string {
     var D = DASH_;
     if (!D || !D.hasData || !D.intensity || !D.intensity.avgHr) return '';
-    var rows = D.modality.filter(function (m) { return m.avgHr; }).slice().sort(function (a, b) { return b.avgHr - a.avgHr; })
-      .map(function (m) {
+    var rows = D.modality.filter(function (m: Modality) { return m.avgHr; }).slice().sort(function (a: Modality, b: Modality) { return (b.avgHr as number) - (a.avgHr as number); })
+      .map(function (m: Modality) {
         var name = LBL[m.key] || m.key, peak = m.peakHr ? format(I18N_DASH.peakTpl, { value: m.peakHr }) : '';
         return HC.metricRow({ key: ICON[m.key] || 'exercise', name: name, value: String(m.avgHr), unit: I18N_DASH.bpmLabel, base: peak,
           sr: [I18N_DASH.rowSr, peak].filter(Boolean).join(' · ') });

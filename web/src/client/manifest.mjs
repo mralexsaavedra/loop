@@ -55,7 +55,7 @@ export const CLIENT_SCRIPTS = [
     probes: ['HCNutriScore'],
   },
   { file: 'training-today.js', provides: ['HCProgram'], requires: ['HC', 'I18N_DATE', 'I18N_HOY', 'TRAINING', 'TRAINING_META'] },
-  { file: 'training-dash.js', provides: [], requires: ['DASH', 'HC', 'I18N_DASH', 'I18N_DATE'] },
+  { file: 'training-dash.ts', provides: [], requires: ['DASH', 'HC', 'I18N_DASH', 'I18N_DATE'] },
   {
     file: 'training-activity.js',
     provides: ['HCActivity'],
@@ -72,7 +72,7 @@ export const CLIENT_SCRIPTS = [
     requires: ['DETAIL', 'DIALS', 'HC', 'HCDay', 'HC_FMT', 'I18N_DATE', 'I18N_SCORE', 'LOCALE', 'SCORES'],
   },
   { file: 'monitor.js', provides: [], requires: ['DETAIL', 'HC', 'HCDay', 'HC_FMT', 'I18N_DATE', 'I18N_DETAIL', 'I18N_SCORE', 'LOCALE', 'SCORES'] },
-  { file: 'energy.js', provides: [], requires: ['HC', 'HCDay', 'I18N_SCORE', 'SCORES'] },
+  { file: 'energy.ts', provides: [], requires: ['HC', 'HCDay', 'HC_BAND', 'I18N_SCORE', 'SCORES'] },
   {
     file: 'nutri-score.js',
     provides: ['HCNutriScore'],
@@ -88,7 +88,7 @@ export const CLIENT_SCRIPTS = [
   },
   { file: 'profile.js', provides: ['HCProfile'], requires: ['HC', 'HCSettings', 'HCViews', 'I18N_PROFILE', 'LOCALE', 'PROFILE'] },
   { file: 'onboarding.js', provides: ['HCOnboarding'], requires: ['HC', 'HCViews', 'HC_ENERGY', 'I18N_ONB', 'PROFILE'] },
-  { file: 'nav-actions.js', provides: ['HCActions'], requires: [] },
+  { file: 'nav-actions.ts', provides: ['HCActions'], requires: [] },
   {
     file: 'home-week.ts',
     provides: ['HCWeekPlan'],
@@ -101,9 +101,9 @@ export const CLIENT_SCRIPTS = [
   },
   { file: 'journal.js', provides: ['HCJournal'], requires: ['HC', 'HCViews', 'I18N_DATE', 'I18N_SCORE', 'SCORES'] },
   // after every Inicio block's script (it moves the rendered blocks), before detail.js (#home-edit)
-  { file: 'home-order.js', provides: ['HCHomeOrder'], requires: ['HC', 'HCViews', 'I18N_SCORE'] },
+  { file: 'home-order.ts', provides: ['HCHomeOrder'], requires: ['HC', 'HCViews', 'I18N_SCORE'] },
   // before detail.js: the "?" help sheet is a registered view when detail.js reads a #shortcuts deep link
-  { file: 'shortcuts.js', provides: [], requires: ['HC', 'HCViews', 'I18N_DETAIL', 'NAV'] },
+  { file: 'shortcuts.ts', provides: [], requires: ['HC', 'HCViews', 'I18N_DETAIL', 'NAV'] },
   { file: 'deepdive.js', provides: ['HCDeep'], requires: ['HC'] },
   // factories: loading them only assigns window.HCDetailState / HCDetailChart and reads nothing, so they
   // require nothing (the trace proves it, and still runs clean with both moved to the very front). What

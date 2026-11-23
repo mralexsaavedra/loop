@@ -1391,7 +1391,7 @@ button.dt-day {
   .ds-chart { max-height: 230px; }
 }
 
-/* ---------- the "?" keyboard shortcuts sheet (client/shortcuts.js) ---------- */
+/* ---------- the "?" keyboard shortcuts sheet (client/shortcuts.ts) ---------- */
 .kb-h {
   font-size: var(--fs-title);
   font-weight: var(--label-weight);

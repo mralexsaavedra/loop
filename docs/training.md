@@ -26,7 +26,7 @@ The single-file build carries two training data sets, same single-source pattern
 | Data | Lib | Baked as | Rendered by |
 | --- | --- | --- | --- |
 | Programmed sessions | `lib/training/program.mjs` | page-level JSON global | `web/src/tabs/Hoy.astro`, `client/training-today.js` |
-| Executed-workout aggregation | `lib/training/dashboard.mjs` (pure `dashboardFrom(inputs)`) | `DASH` | `web/src/tabs/Entrenos.astro`, `client/training-dash.js` |
+| Executed-workout aggregation | `lib/training/dashboard.mjs` (pure `dashboardFrom(inputs)`) | `DASH` | `web/src/tabs/Entrenos.astro`, `client/training-dash.ts` |
 | Activity card | `lib/training/activity.mjs` (pure `activityFrom(inputs)`) | `ACTIVITY` + `I18N_ACTIVITY` | `client/training-activity.js` |
 
 - Executed workouts come from `lib/extract/read.mjs` `readExtract`'s `trainingRows`, the build's one
@@ -45,7 +45,7 @@ Hosts live in `web/src/tabs/TrainingDetail.astro` (hosts only) and `Entrenos.ast
 | 2 | Load summary | `load` | `#score-load` | `score.js` `loadHtml` |
 | 3 | Activity card | `calendar` | `#train-activity` | `training-activity.js` |
 | 4 | Running, cycling, load vs recovery | `sessions` | `#health-train` | `health.js` |
-| 5 | Intensity (HR) | `dash` | `#train-dash` | `training-dash.js` |
+| 5 | Intensity (HR) | `dash` | `#train-dash` | `training-dash.ts` |
 
 ## Title and intro
 
@@ -172,7 +172,7 @@ Same rules as the dashboard:
 What it shows: per modality, the mean and peak HR over a fixed 12-week window — what is left of the
 executed-sessions dashboard.
 
-- Section `dash`, `tabs/Entrenos.astro`, `client/training-dash.js`.
+- Section `dash`, `tabs/Entrenos.astro`, `client/training-dash.ts`.
 - Source (OPTIONAL): `loop-data/extract/workouts.csv`.
 - `lib/training/dashboard.mjs` aggregates it into `DASH`: over 12 weeks (`WEEKS`), per modality the
   minutes + mean / peak HR, and how many sessions carry HR. Only what the page reads is baked (no weekly

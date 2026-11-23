@@ -114,7 +114,7 @@ the date and drops the dim class). Surfaces:
 | Sleep + recovery deep-dives (`deepdive.js`) | the headline night | the sheet title + contributor legend ("Wed 7 Oct"); the hero dims |
 | Monitor summary tile (`monitor.js`) | the newest night it counts | under "5/5 metrics" ("8 OCT") |
 | Stress + HRV tiles (`monitor.js`) | the reading | its sub line ("8 OCT · 23:00") |
-| Energy bank card (`energy.js`) | the latest level | under the number ("8 OCT · 21:00"); opens that day |
+| Energy bank card (`energy.ts`) | the latest level | under the number ("8 OCT · 21:00"); opens that day |
 | "My day" (`timeline.js`) | the newest day's activities | the heading ("Activities · Thu 8 Oct") |
 | Salud recovery card (`score.js`) | the headline night | above the number ("Thu 8 Oct"); the number + band word dim |
 
