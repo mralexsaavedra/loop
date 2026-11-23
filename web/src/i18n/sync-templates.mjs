@@ -1,4 +1,4 @@
-/* Client-side copy for the header freshness line + Sync button (web/src/client/freshness.js), baked
+/* Client-side copy for the header freshness line + Sync button (web/src/client/freshness.ts), baked
  * as I18N_SYNC by layouts/Plan.astro. JSON-safe only: `{n}` / `{reason}` placeholders, substituted
  * client-side. `errors` maps the coarse refresh/ingest failure codes (refresh.sh status.json `error`,
  * ingest `lastTriggerError`) to a short reason.

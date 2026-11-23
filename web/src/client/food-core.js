@@ -10,7 +10,7 @@
  * I18N_FOOD + FOOD_CONST (meal slots / stores / units from lib/nutrition/foodlog.mjs), baked by
  * web/src/tabs/Dia.astro, and window.HC (util.js).
  *
- * LAN only, decided at VIEW time like freshness.js: every host ships `hidden` and appears only when
+ * LAN only, decided at VIEW time like freshness.ts: every host ships `hidden` and appears only when
  * GET /api/food/products answers (loop-web proxies /api/food/ to the ingest service). The claude.ai
  * artifact, file:// and the example build never reach it, so they show nothing new and builds stay
  * byte-identical. Every request carries `X-HC-Food: 1` (the ingest service refuses anything else) and

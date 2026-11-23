@@ -87,7 +87,7 @@ test('jsonApi: rejects {code, field, status} on an error answer, {code: offline,
   assert.equal(fetched, false, 'never fetched from a file');
 });
 
-/* HC.fetchTimeout(url, init, ms): the ONE timed fetch (jsonApi, freshness.js, profile.js) */
+/* HC.fetchTimeout(url, init, ms): the ONE timed fetch (jsonApi, freshness.ts, profile.js) */
 test('fetchTimeout: passes the answer through; a request that never settles rejects after ms and is aborted', async () => {
   const seen = [];
   let HC = apiCtx({ fetch: (url, init) => { seen.push([url, init]); return Promise.resolve(res(200, {})); } });
@@ -150,14 +150,14 @@ test('fetchTimeout: a caller\'s signal is combined with the timeout (never overw
   }
 });
 
-test('freshness.js and profile.js fetch only through HC.fetchTimeout / HC.fetchJson (no request without a timeout)', () => {
-  for (const f of ['freshness.js', 'profile.js']) {
+test('freshness.ts and profile.js fetch only through HC.fetchTimeout / HC.fetchJson (no request without a timeout)', () => {
+  for (const f of ['freshness.ts', 'profile.js']) {
     const src = stripComments(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), f), 'utf8'));
     assert.doesNotMatch(src.replace(/HC\.fetch(Timeout|Json)\(/g, ''), /\bfetch\(/, f);
     assert.match(src, /HC\.fetch(Timeout|Json)\(/, f);
   }
   // freshness reads JSON bodies: through fetchJson, so the timeout covers the body too
-  const fr = stripComments(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'freshness.js'), 'utf8'));
+  const fr = stripComments(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), 'freshness.ts'), 'utf8'));
   assert.doesNotMatch(fr, /\.json\(\)/, 'no res.json() outside the timeout');
 });
 

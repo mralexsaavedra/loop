@@ -183,7 +183,7 @@ minification). `astro.config.mjs` exposes the result as the virtual module `virt
 `layouts/Plan.astro` inlines it at the module's place in the manifest, exactly like a classic script, so the page
 stays one file and the CSP hashes it like any other script. The tests run the same bytes
 (`clientScriptSource(file)`). The page globals a module reads are typed in `web/src/client/page-globals.d.ts`
-(`any` until each gets its own type). Only `home-week.ts` is a module so far.
+(`any` until each gets its own type). Modules so far: `home-week.ts`, `freshness.ts`.
 
 ### Script order: one manifest
 
@@ -219,8 +219,8 @@ read these instead of redefining them (a test guards it). Tests load it with `we
 | --- | --- |
 | `lan()` | false when the page is opened from `file://`: every LAN fetch — `/api/food/*`, `/api/journal/*`, `/api/sync/status` + Sync, `/status.json`, the `/manuales/` probe — is skipped there and the page degrades exactly as with the services down, with no console errors; read at call time, no location = served |
 | `jsonApi(base, header, timeoutMs)` | THE fetch wrapper of the LAN JSON APIs (`food-core.js`: `/api/food` + `X-HC-Food`, `journal.js`: `/api/journal` + `X-HC-Journal`): `api(method, path, body?)` resolves a 2xx's JSON (`{}` without one), rejects `{code, field, status}` (`offline` / status 0 with no answer, a timeout or `file://`); built on `fetchTimeout`, the body read inside its timeout |
-| `fetchTimeout(url, init, ms, read?)` | THE timed fetch (`jsonApi`, `freshness.js` via `fetchJson`, `profile.js`'s `/manuales/` probe at 10 s): rejects `{name: 'TimeoutError'}` after `ms` and aborts the request (`AbortController` when present), so a hung service never leaves the Sync button busy. `read(res)` reads the body inside the same timeout (a stalled body times out too) and its result resolves. The caller's `init` is copied, never mutated; a caller `init.signal` is combined with the timeout's (`AbortSignal.any`, else relayed by hand) and its abort rejects at once with `{name: 'AbortError'}` |
-| `fetchJson(url, init, ms)` | `fetchTimeout` + the JSON body of a 2xx (`null` otherwise), read inside the timeout: `freshness.js`'s status reads + Sync POST at 15 s |
+| `fetchTimeout(url, init, ms, read?)` | THE timed fetch (`jsonApi`, `freshness.ts` via `fetchJson`, `profile.js`'s `/manuales/` probe at 10 s): rejects `{name: 'TimeoutError'}` after `ms` and aborts the request (`AbortController` when present), so a hung service never leaves the Sync button busy. `read(res)` reads the body inside the same timeout (a stalled body times out too) and its result resolves. The caller's `init` is copied, never mutated; a caller `init.signal` is combined with the timeout's (`AbortSignal.any`, else relayed by hand) and its abort rejects at once with `{name: 'AbortError'}` |
+| `fetchJson(url, init, ms)` | `fetchTimeout` + the JSON body of a 2xx (`null` otherwise), read inside the timeout: `freshness.ts`'s status reads + Sync POST at 15 s |
 | `esc` (`null` / `undefined` → `''`), `format`, `isoDate`, `todayIso`, `daysOld`, `shiftIso`, `MS_PER_DAY`, `STALE_DAYS` | string / ISO date helpers, constants |
 | `nf`, `num`, `int`, `pct`, `hours`, `duration` (h:mm), `numInput` (an input's value, never grouped) | thin wrappers adding the page `LOCALE` to `HC_FMT` |
 | `fmtDate`, `fmtMonth`, `weekdayIndex` | the ONE display-date formatter (below) |
@@ -396,7 +396,7 @@ in tracked Astro/JS source, which stays fully generic.
 | **Completar el diario** | the journal sheet, `HCViews.journal` ([`journal.md`](journal.md)) | `/api/journal/settings` answered |
 | **Sincronizar** | clicks the top bar's Sync | the freshness group is shown, i.e. `/api/sync/status` answered |
 
-- They appear asynchronously (`food-log.js`, `journal.js`, `freshness.js` call `HCActions.refresh()`).
+- They appear asynchronously (`food-log.js`, `journal.js`, `freshness.ts` call `HCActions.refresh()`).
   The root and every row ship `hidden`: in the example build, `file://` or a static copy the "+" never
   shows (no dead control).
 

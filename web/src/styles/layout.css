@@ -321,7 +321,7 @@ details.sec-fold > summary:hover > h2 {
   border: 0;
 }
 
-/* freshness (client/freshness.js). Rendered hidden; shown only when the page's server answers
+/* freshness (client/freshness.ts). Rendered hidden; shown only when the page's server answers
  * /api/sync/status. The summary is a dot + the Shortcut age; the dot carries the worst source level
  * (tokens: fresh = --good, > 24 h --mid, > 72 h --low); the per-source line lives in #fresh-pop. */
 .fresh {

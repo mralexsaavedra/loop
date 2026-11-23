@@ -138,7 +138,7 @@ BREACH-style oracle; pinned by `scripts/loop-web-config.test.mjs`). The page is 
   Clicks coalesce (the service never refuses or drops one, only nginx's rate limit answers `429` to a runaway
   client). Service side (seq persistence, coalescing and deferred writes, shutdown and crash recovery,
   `/sync/status`): [`services/loop-ingest/README.md` → On-demand refresh](../services/loop-ingest/README.md).
-- **Freshness line** (`web/src/client/freshness.js`, copy `web/src/i18n/sync-templates.mjs`, markup
+- **Freshness line** (`web/src/client/freshness.ts`, copy `web/src/i18n/sync-templates.mjs`, markup
   in `layouts/Plan.astro` above the nav): at view time it reads `GET /api/sync/status` and
   `/status.json`; the top bar shows a dot + the Shortcut age ("hace 5 min"), and the per-source line
   "Atajo: hace 5 min · Strava: hace 2 h · Página: hace 1 min" (> 24 h `--mid` + a short hint, > 72 h

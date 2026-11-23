@@ -382,7 +382,7 @@ test('example build: the shared client helpers (util.js) are inlined FIRST, righ
   assert.ok(fmtIdx !== -1 && fmtIdx < utilIdx, 'the one number formatter (HC_FMT) is inlined before util.js');
 });
 
-test('example build: the detail sheet ships hidden OUTSIDE .wrap (so the page can go inert), with DETAIL baked for every demo metric and detail.js before freshness.js', () => {
+test('example build: the detail sheet ships hidden OUTSIDE .wrap (so the page can go inert), with DETAIL baked for every demo metric and detail.js before freshness.ts', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   const sheet = /<div id="detail" class="dt-sheet"[^>]*>/.exec(html);
   assert.ok(sheet, 'sheet host present');
@@ -404,21 +404,21 @@ test('example build: the detail sheet ships hidden OUTSIDE .wrap (so the page ca
   assert.ok(detail.sessions.length > 0);
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((x) => x[1]);
   const detailIdx = scripts.findIndex((s) => /window\.HCDetail\s*=/.test(s));
-  assert.ok(detailIdx !== -1 && detailIdx === scripts.length - 2, 'detail.js runs after every card renderer, right before freshness.js');
+  assert.ok(detailIdx !== -1 && detailIdx === scripts.length - 2, 'detail.js runs after every card renderer, right before freshness.ts');
 });
 
 test('example build: the freshness line + Sync button ship HIDDEN (shown only when /api/sync/status answers), copy baked, script last', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   const block = /<div class="fresh" id="freshness"[^>]*>/.exec(html);
   assert.ok(block, 'freshness block present');
-  assert.match(block[0], /\shidden(?=[\s>])/, 'hidden until freshness.js confirms the endpoint');
+  assert.match(block[0], /\shidden(?=[\s>])/, 'hidden until freshness.ts confirms the endpoint');
   assert.ok(html.indexOf('id="freshness"') < html.indexOf('class="tabnav"'), 'in the header area, above the tab nav');
   assert.match(html, /<button type="button" class="fresh-btn" id="sync-btn" aria-label="Sync" title="Sync"><svg class="fresh-ico"/, 'icon-only Sync, labelled');
   assert.match(html, /<button type="button" class="fresh-sum" id="fresh-sum" aria-expanded="false" aria-controls="fresh-pop">/);
   assert.match(html, /<div class="fresh-pop" id="fresh-pop" hidden><p class="fresh-line" id="fresh-line"><\/p><\/div>/, 'per-source detail in a popover');
   assert.match(html, /var I18N_SYNC = \{"ariaLabel":"Data freshness"/);
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
-  assert.match(scripts.at(-1), /\/api\/sync\/status/, 'freshness.js is the last script');
+  assert.match(scripts.at(-1), /\/api\/sync\/status/, 'freshness.ts is the last script');
   assert.doesNotMatch(html, /\/export\/|\/ingest\//, 'the page never names a data endpoint');
 });
 

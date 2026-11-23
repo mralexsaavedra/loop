@@ -268,7 +268,7 @@ test('score-templates.mjs timeline copy has the placeholders timeline.js relies 
   }
 });
 
-test('sync-templates.mjs (freshness line + Sync button) has identical key trees in es/en, no empty leaves, {n} where freshness.js substitutes it', () => {
+test('sync-templates.mjs (freshness line + Sync button) has identical key trees in es/en, no empty leaves, {n} where freshness.ts substitutes it', () => {
   assert.deepEqual(keyTree(esSync), keyTree(enSync));
   for (const [locale, dict] of [['es', esSync], ['en', enSync]]) {
     for (const [path, value] of leaves(dict)) {
