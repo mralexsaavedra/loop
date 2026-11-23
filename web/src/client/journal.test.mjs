@@ -1,17 +1,15 @@
-/* Tests for the journal card + sheet (web/src/client/journal.js), run as the classic script in a vm
+/* Tests for the journal card + sheet (web/src/client/journal.ts), run as the classic script in a vm
  * with a fixed clock and a stubbed fetch (the LAN API) — or none (the static / example build). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { es as esT, en as enT } from '../i18n/score-templates.mjs';
 import { journalFromInputs } from '../../../lib/journal/bake.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'journal.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('journal.ts');
 const TODAY = '2026-09-30';
 const plain = (x) => JSON.parse(JSON.stringify(x));
 

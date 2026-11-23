@@ -124,7 +124,7 @@ The food layers (`docs/nutrition-food-log.md` → Security), shared helpers in `
 
 ## Page
 
-`web/src/client/journal.js`; writing is LAN page only.
+`web/src/client/journal.ts`; writing is LAN page only.
 
 ### Bake and styles
 

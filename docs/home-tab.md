@@ -47,7 +47,7 @@ Order, top to bottom (`web/src/tabs/Home.astro`, which also renders `components/
 | 4d | Today's activities | `#timeline` | `timeline.js` |
 | 5 | Today you eat | `EatCard.astro` | `nutri-day.js` |
 | 6 | Tonight | `#home-tonight` | `home-week.ts` |
-| 7 | My journal | `#my-journal` | `journal.js` |
+| 7 | My journal | `#my-journal` | `journal.ts` |
 | 8 | My plan | `#my-plan` | `home-week.ts` |
 | 9 | My dashboard | `#my-dash` | `home-dash.js` |
 | 9a | "Customize Home ✎" | `#home-cust` | `home-order.ts` (moves blocks 4–9 right before it) |
@@ -348,7 +348,7 @@ What it shows: the recommended bedtime and the usual wake time (`#home-tonight`,
 
 ## My journal
 
-What it shows: the last 7 days' journaling (`#my-journal`, `client/journal.js`, design in
+What it shows: the last 7 days' journaling (`#my-journal`, `client/journal.ts`, design in
 `docs/journal.md`).
 
 - "MY JOURNAL" + a chevron; 7 day columns (the 7 days ending on the viewer's today: weekday + a check

@@ -44,7 +44,7 @@ test('esc: an absent value (null / undefined) renders as empty, never "null" / "
   assert.equal(HC.esc(false), 'false');
 });
 
-/* HC.jsonApi(base, header, timeoutMs): the ONE fetch wrapper of the LAN APIs (food-core.js, journal.js) */
+/* HC.jsonApi(base, header, timeoutMs): the ONE fetch wrapper of the LAN APIs (food-core.js, journal.ts) */
 function apiCtx({ fetch, protocol = 'http:', anySignal = true } = {}) {
   const ctx = { LOCALE: 'en', HC_CONST: HC_CONST_BAKE, I18N_DATE: enDate, Math, String, Number, Array, Object, JSON, Promise, setTimeout, clearTimeout, AbortController, fetch, location: { protocol } };
   // anySignal false: a browser without AbortSignal.any (the caller's signal is relayed by hand)
@@ -87,7 +87,7 @@ test('jsonApi: rejects {code, field, status} on an error answer, {code: offline,
   assert.equal(fetched, false, 'never fetched from a file');
 });
 
-/* HC.fetchTimeout(url, init, ms): the ONE timed fetch (jsonApi, freshness.ts, profile.js) */
+/* HC.fetchTimeout(url, init, ms): the ONE timed fetch (jsonApi, freshness.ts, profile.ts) */
 test('fetchTimeout: passes the answer through; a request that never settles rejects after ms and is aborted', async () => {
   const seen = [];
   let HC = apiCtx({ fetch: (url, init) => { seen.push([url, init]); return Promise.resolve(res(200, {})); } });
@@ -150,8 +150,8 @@ test('fetchTimeout: a caller\'s signal is combined with the timeout (never overw
   }
 });
 
-test('freshness.ts and profile.js fetch only through HC.fetchTimeout / HC.fetchJson (no request without a timeout)', () => {
-  for (const f of ['freshness.ts', 'profile.js']) {
+test('freshness.ts and profile.ts fetch only through HC.fetchTimeout / HC.fetchJson (no request without a timeout)', () => {
+  for (const f of ['freshness.ts', 'profile.ts']) {
     const src = stripComments(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), f), 'utf8'));
     assert.doesNotMatch(src.replace(/HC\.fetch(Timeout|Json)\(/g, ''), /\bfetch\(/, f);
     assert.match(src, /HC\.fetch(Timeout|Json)\(/, f);
@@ -161,8 +161,8 @@ test('freshness.ts and profile.js fetch only through HC.fetchTimeout / HC.fetchJ
   assert.doesNotMatch(fr, /\.json\(\)/, 'no res.json() outside the timeout');
 });
 
-test('food-core.js and journal.js share HC.jsonApi: no fetch of their own', () => {
-  for (const f of ['food-core.js', 'journal.js']) {
+test('food-core.js and journal.ts share HC.jsonApi: no fetch of their own', () => {
+  for (const f of ['food-core.js', 'journal.ts']) {
     const src = stripComments(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), f), 'utf8'));
     assert.doesNotMatch(src, /\bfetch\(/, f);
     assert.match(src, /HC\.jsonApi\(/, f);

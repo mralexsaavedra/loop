@@ -38,7 +38,7 @@ var HC = (function () {
       return vars && vars[k] != null ? vars[k] : '';
     });
   }
-  // The ONE fetch wrapper of the LAN JSON APIs (food-core.js: /api/food + X-HC-Food, journal.js:
+  // The ONE fetch wrapper of the LAN JSON APIs (food-core.js: /api/food + X-HC-Food, journal.ts:
   // /api/journal + X-HC-Journal — each API requires its own header, the CSRF guard of services/loop-ingest).
   // Returns api(method, path, body?) -> a promise of the JSON body of a 2xx ({} when it has none); it
   // rejects {code, field, status}: the server's coarse error code (else 'generic'), or 'offline' with
@@ -66,7 +66,7 @@ var HC = (function () {
       });
     };
   }
-  // The ONE timed fetch (jsonApi above, client/freshness.ts, client/profile.js): fetch(url, init) that rejects
+  // The ONE timed fetch (jsonApi above, client/freshness.ts, client/profile.ts): fetch(url, init) that rejects
   // with {name: 'TimeoutError'} once `ms` pass without an answer, aborting the request (AbortController,
   // when the browser has it). `read(res)` (optional) reads the body INSIDE the same timeout and its result
   // is what resolves, so a stalled body is covered too. The caller's init is copied, never mutated; a

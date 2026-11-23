@@ -24,11 +24,11 @@ A Strava / WHOOP-style profile, honest data only.
   phone, at the right end beside Sync from 900 px. Shows the photo, else the initials, else a generic person
   icon; ≥ 44px; NOT a tab. Its name is "Open profile", or with initials "SS, open profile" (`openIni`: the name
   starts with the text it shows, WCAG 2.5.3 Label in Name).
-- **The view**: `web/src/client/profile.js` (inlined before detail.js) registers `window.HCViews.profile`;
+- **The view**: `web/src/client/profile.ts` (inlined before detail.js) registers `window.HCViews.profile`;
   detail.js renders any registered view in the same modal (focus, inert, Esc, Back).
 - **Deep link**: `#profile` (instead of `#detail/<metric>`). The sheet it opens on load can render before the LAN
   settings answer (`HCSettings.ready()` still false), without the target weight field and the Language section;
-  when they arrive and the sheet is still open, profile.js draws it again (keeping the focused control), once.
+  when they arrive and the sheet is still open, profile.ts draws it again (keeping the focused control), once.
 - **Focus trap**: the Tab trap also cycles through `<summary>` and a checked radio.
 - **Focused open**: `HCDetail.open(key, date, { focus: '<selector>' })` opens a view focused (and scrolled) on
   one of its controls instead of the close button.
@@ -51,7 +51,7 @@ The FIRST section under the header (also on the onboarding sheet), heading `Obje
 - **The kcal**: `lib/profile/goal.mjs` `goalOptions(resolveTargets(plan))` — mean goal − maintain over rest +
   gym, rounded to 10; "bike days untouched" only when bike / bikeLong equal maintain. Baked as
   `PROFILE.goals` by `web/pages/index.astro`, never typed.
-- **Ownership**: the goal belongs to Nutrition (`client/nutri-day.js`, inlined before profile.js).
+- **Ownership**: the goal belongs to Nutrition (`client/nutri-day.js`, inlined before profile.ts).
   - The checked radio is `HCNutri.state().goal`.
   - A change calls `HCNutri.setGoal`, which writes the key `hc.nutri.goal` (fallback `page.goal`) and refreshes
     the summary, plan, fuelling, Home card, rings and the kcal chip at once.
@@ -254,7 +254,7 @@ accepted nutrition targets of a user without an AI coach).
 
 - `Avatar.astro` bakes `PROFILE` (the `photo` data URI replaced by a boolean) + `I18N_PROFILE`
   (`web/src/i18n/profile-templates.mjs`, es/en).
-- The image is inlined ONCE, in the button's `<img id="avatar-img">`; profile.js copies it from there only if it
+- The image is inlined ONCE, in the button's `<img id="avatar-img">`; profile.ts copies it from there only if it
   is a `data:image/jpeg;base64,` URI.
 - Example mode reads the synthetic `profile/profile.example.json` + `data/demo/strava-profile.json` and never a
   photo (initials).
@@ -286,7 +286,7 @@ there.
 
 - The sheet writes a "Manual" link (`.pf-manual`, ≥ 44 px, `target="_blank" rel="noopener"`, labelled
   `Manual de <device> (PDF, …)`) `hidden`.
-- profile.js reveals it only when `HEAD /manuales/<file>` answers 200 with an `application/pdf` type (one probe
+- profile.ts reveals it only when `HEAD /manuales/<file>` answers 200 with an `application/pdf` type (one probe
   per file per load), so a static copy (e.g. a claude.ai artifact), `file://` and the example build (whose
   synthetic device names a manual) never show it.
 - nginx side: see [`services/loop-web/README.md` → Security and exposure model](../services/loop-web/README.md#security-and-exposure-model).

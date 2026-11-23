@@ -2,7 +2,7 @@
  * (bundled into the page, docs/plan-page.md → Module scripts). It lists only REAL actions that already exist on this page, decided at view time:
  *   - food: the food log's add sheet (window.HCViews['food-add'], registered by food-log.js once
  *     GET /api/food/products answered — LAN only) opened through the detail sheet (window.HCDetail);
- *   - journal: the journal sheet (window.HCViews.journal, registered by client/journal.js once
+ *   - journal: the journal sheet (window.HCViews.journal, registered by client/journal.ts once
  *     GET /api/journal/settings answered — LAN only);
  *   - sync: the top bar's Sync button (#sync-btn, client/freshness.ts), available while the freshness
  *     group is shown (/api/sync/status answered — LAN only).

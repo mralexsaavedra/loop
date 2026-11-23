@@ -58,7 +58,7 @@ test('profile-templates.mjs has identical key trees in es/en and no empty string
   for (const dict of [esP, enP]) for (const k of keyTree(dict)) assert.notEqual(String(k.split('.').reduce((o, p) => o[p], dict)).trim(), '', k);
 });
 
-test('example build: ONE avatar button in the top bar (initials, no photo) opening the profile view; PROFILE baked, profile.js before detail.js', () => {
+test('example build: ONE avatar button in the top bar (initials, no photo) opening the profile view; PROFILE baked, profile.ts before detail.js', () => {
   const html = exampleHtml();
   const bar = topbar(html);
   assert.equal((html.match(/id="avatar-btn"/g) || []).length, 1);
@@ -76,14 +76,14 @@ test('example build: ONE avatar button in the top bar (initials, no photo) openi
   assert.ok(!p.devices.some((d) => d.name === 'Demo Phone App'));
   assert.equal(p.devices.find((d) => d.manual).manual, 'sample-bike-computer-manual.pdf', 'only the manual file name is baked');
   const reg = html.search(/HC\.registerView\(["']profile["']/), viewRe = html.indexOf('var VIEW_HASH_RE');
-  assert.ok(reg >= 0 && viewRe >= 0, 'profile.js registration and detail.js both inlined');
-  assert.ok(reg < viewRe, 'profile.js registers its view before detail.js runs');
+  assert.ok(reg >= 0 && viewRe >= 0, 'profile.ts registration and detail.js both inlined');
+  assert.ok(reg < viewRe, 'profile.ts registers its view before detail.js runs');
   const { plan } = loadInputs({ repoRoot: REPO_ROOT, dataMode: 'example' });
   assert.deepEqual(p.goals, goalOptions(resolveTargets(plan)), 'the goal setting\'s options are the lib\'s own');
   assert.equal(p.goals.length, 3);
   const nutri = html.search(/window\.HCNutri\s*=\s*\{/);
   assert.ok(nutri >= 0, 'nutri-day.js inlined');
-  assert.ok(nutri < reg, 'nutri-day.js (the goal\'s owner) runs before profile.js');
+  assert.ok(nutri < reg, 'nutri-day.js (the goal\'s owner) runs before profile.ts');
   const nav = (html.match(/<nav class="tabnav"[\s\S]*?<\/nav>/) || [''])[0];
   assert.ok(nav && !nav.includes('profile'), 'not a tab');
 });

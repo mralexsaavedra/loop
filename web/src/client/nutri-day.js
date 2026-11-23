@@ -13,7 +13,7 @@
  *   detected later that day (picked gym, then a long ride synced) is dropped with a one-line note; a
  *   more demanding one (planning a ride) stays. Storage is a per-viewer convenience: every access is
  *   wrapped and the page works without it.
- * - Goal: set in the profile sheet (client/profile.js, "Objetivo") through window.HCNutri.setGoal, kept
+ * - Goal: set in the profile sheet (client/profile.ts, "Objetivo") through window.HCNutri.setGoal, kept
  *   in localStorage (hc.nutri.goal, falling back to page.goal); on the LAN page also on the server
  *   (client/settings.js: the server copy wins on load via HCNutri.applyGoal, the local one is the cache). Resumen de hoy shows it only as a small
  *   chip next to today's kcal; a tap opens the profile sheet (#profile) focused on that setting.
@@ -546,7 +546,7 @@
     var el = $(id);
     if (el && el.addEventListener) el.addEventListener(evt, fn);
   }
-  // the goal is changed from the profile sheet (client/profile.js); false = not a known goal. With the
+  // the goal is changed from the profile sheet (client/profile.ts); false = not a known goal. With the
   // settings API (client/settings.js, LAN page) the server copy is the source of truth: the goal is
   // saved there too, and hc.nutri.goal stays the offline cache / fallback
   function applyGoal(v) {
