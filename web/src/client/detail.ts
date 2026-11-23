@@ -161,7 +161,7 @@ type Sub = { cls?: string; text: string };
   }
   // the metrics a trend view can switch to: every baked metric with copy, except the dial pages
   // (sleep, recovery, strain, load-<m>: their own deep-dive layout, reached from the dials), + the
-  // nutrition score the page scores (client/nutri-score.js) when it has a scored day
+  // nutrition score the page scores (client/nutri-score.ts) when it has a scored day
   function trendKeys() {
     return Object.keys(D.metrics).concat(['nutrition']).filter(function (k) { return own(T.metrics, k) && !!metric(k) && !deep(k); });
   }

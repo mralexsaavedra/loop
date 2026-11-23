@@ -20,7 +20,8 @@ const EDGES = [100, 67, 66.9, 34, 33.5, 33, 0];
 
 test('no client script hardcodes a recovery band threshold (67 / 33 / 34 comparisons)', () => {
   const hits = [];
-  for (const f of fs.readdirSync(clientDir).filter((n) => n.endsWith('.js'))) {
+  // classic *.js and module *.ts scripts (the source as written: the check reads the code's own literals)
+  for (const f of fs.readdirSync(clientDir).filter((n) => (n.endsWith('.js') || (n.endsWith('.ts') && !n.endsWith('.d.ts'))) && !n.includes('.test.'))) {
     read(f).split('\n').forEach((line, i) => {
       if (/[<>]=?\s*(67|33|34)\b/.test(line)) hits.push(`${f}:${i + 1}: ${line.trim()}`);
     });

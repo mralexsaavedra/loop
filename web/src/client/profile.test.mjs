@@ -351,7 +351,7 @@ test('goal setting is omitted without Nutrición (no HCNutri) or without options
   assert.match(b, /pf-onboard/);
 });
 
-// a stand-in for client/settings.js (the LAN settings API answered)
+// a stand-in for client/settings.ts (the LAN settings API answered)
 function settingsStub({ ready = true, target = null, locale = null, saveLocale } = {}) {
   const st = { saved: [], fns: [], target, locale, langs: [] };
   st.locale = () => st.lang;
@@ -441,7 +441,7 @@ test('the status line follows the settings saves (saving, saved, a coarse reason
   assert.equal(els['pf-goal-msg'].textContent, 'Goal pending save: it will be retried.');
 });
 
-test('the Progreso line (client/progress.js) sits in the goal section when there is one; nothing without weight data', () => {
+test('the Progreso line (client/progress.ts) sits in the goal section when there is one; nothing without weight data', () => {
   const b = setup({ profile: { ...FULL, goals: GOALS }, nutri: nutriStub(), progress: { line: () => '78.0 kg average · Too few data' } }).view.render().body;
   assert.match(b, /<p class="pf-note pf-progress" id="pf-progress"><span class="pf-lbl">Progress<\/span> <span id="pf-progress-txt">78.0 kg average · Too few data<\/span><\/p><\/section>/);
   assert.doesNotMatch(setup({ profile: { ...FULL, goals: GOALS }, nutri: nutriStub(), progress: { line: () => '' } }).view.render().body, /pf-progress/);

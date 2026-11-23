@@ -32,10 +32,10 @@ export const en = {
       none: 'Not enough nights with a wake time yet (7 needed in the last 14 days).',
     },
     // "My day" energy bank card (client/energy.ts, lib/score/energy-bank.mjs): our own intraday estimate
-    // "My day" nutrition card (client/nutri-score.js, lib/nutrition/nutri-score.mjs): adherence to your targets
+    // "My day" nutrition card (client/nutri-score.ts, lib/nutrition/nutri-score.mjs): adherence to your targets
     nscore: {
       heading: 'Nutrition',
-      // today is still filling up: no score, only its progress (client/nutri-score.js)
+      // today is still filling up: no score, only its progress (client/nutri-score.ts)
       inProgress: 'in progress',
       incomplete: 'incomplete',
       today: 'Today',
@@ -346,7 +346,7 @@ export const en = {
     modalities: { gym: 'Gym', run: 'Run', bike: 'Bike', other: 'Other' },
     re: 'RE {n}',
     parts: '{n} parts',
-    // the programmed session row (client/training-today.js -> window.HCProgram)
+    // the programmed session row (client/training-today.ts -> window.HCProgram)
     programmed: 'Programmed',
     programmedChip: 'Plan',
     // behind the card's ⓘ (only when the day has workouts)
@@ -386,7 +386,7 @@ export const es = {
       none: 'Aún no hay suficientes noches con hora de despertar (hacen falta 7 en los últimos 14 días).',
     },
     // tarjeta "Banco de energía" de "Mi día" (client/energy.ts, lib/score/energy-bank.mjs): estimación propia
-    // tarjeta "Nutrición" de "Mi día" (client/nutri-score.js, lib/nutrition/nutri-score.mjs): cumplimiento de tus objetivos
+    // tarjeta "Nutrición" de "Mi día" (client/nutri-score.ts, lib/nutrition/nutri-score.mjs): cumplimiento de tus objetivos
     nscore: {
       heading: 'Nutrición',
       inProgress: 'en curso',
@@ -689,7 +689,7 @@ export const es = {
     modalities: { gym: 'Gimnasio', run: 'Carrera', bike: 'Bici', other: 'Otro' },
     re: 'Esf. {n}',
     parts: '{n} partes',
-    // la fila de la sesión programada (client/training-today.js -> window.HCProgram)
+    // la fila de la sesión programada (client/training-today.ts -> window.HCProgram)
     programmed: 'Programado',
     programmedChip: 'Plan',
     // tras la ⓘ de la tarjeta (solo cuando el día tiene entrenos)

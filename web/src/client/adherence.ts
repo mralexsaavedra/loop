@@ -1,5 +1,5 @@
-/* Nutrición "Constancia" — food log adherence (LAN page only). Classic script (is:inline), inlined after
- * progress.js. Reads GET /api/food/log/summary (through window.HCFood.api, the food log's one client)
+/* Nutrición "Constancia" — food log adherence (LAN page only). Module script (bundled into the page, docs/plan-page.md → Module scripts),
+ * after progress.ts. Reads GET /api/food/log/summary (through window.HCFood.api, the food log's one client)
  * for the last NUTRI.adherence.stripDays days ending at the viewer's today, each day's MEALS target from
  * window.HCNutri.targetFor(date) (the CURRENT goal × that day's detected day type; null = unknown type)
  * and NUTRI.adherence + I18N_NUTRI.adherence.
@@ -15,32 +15,66 @@
  * after every add / delete (client/food-*.js calls HCAdherence.reload) and re-renders on a goal change
  * (HCNutri.refresh calls HCAdherence.render); each read also refreshes Inicio's weekly plan
  * (window.HCWeekPlan.refresh, client/home-week.ts) and the nutrition score (window.HCNutriScore.refresh). Its own try/catch: a one-line fallback, never a blank tab. */
+import type { PageGlobals } from './page-globals';
+
+declare const HC: PageGlobals['HC'];
+declare const HC_ADH: PageGlobals['HC_ADH'];
+declare const NUTRI: PageGlobals['NUTRI'];
+declare const I18N_NUTRI: PageGlobals['I18N_NUTRI'];
+
+// a day's MEALS target (null = unknown day type), mirroring lib/nutrition/adherence.mjs
+type DayTarget = { k: number; p: number | null; inferred: boolean } | null;
+// lib/nutrition/adherence.mjs adherence()'s result: only the fields read here
+type AdherenceResult = {
+  days: number;
+  logged: number;
+  complete: number;
+  compared: number;
+  meanK: number;
+  meanTarget: number;
+  proteinHit: number;
+  proteinMin: boolean;
+  proteinUnknown: number;
+  unknown: number;
+  assumed: number;
+  states: Array<{ date: string; state: string }>;
+};
+type AdherenceStore = {
+  win: number;
+  days: any[] | null;
+  from: string | null;
+  to: string | null;
+  failed: boolean;
+  seq: number;
+  timer: ReturnType<typeof setTimeout> | null;
+};
+
 (function () {
   var N = typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI;
   var TN = typeof I18N_NUTRI === 'undefined' || !I18N_NUTRI ? null : I18N_NUTRI;
   if (!N || !TN || !N.adherence || !TN.adherence) return;
   var A = N.adherence, T = TN.adherence;
   var esc = HC.esc, format = HC.format;
-  var MARK = { none: '', partial: '·', unknown: '?', assumed: '–', under: '↓', on: '✓', over: '↑' };
-  var S = { win: A.windows[0], days: null, from: null, to: null, failed: false, seq: 0, timer: null };
+  var MARK: Record<string, string> = { none: '', partial: '·', unknown: '?', assumed: '–', under: '↓', on: '✓', over: '↑' };
+  var S: AdherenceStore = { win: A.windows[0], days: null, from: null, to: null, failed: false, seq: 0, timer: null };
 
   // the lib's own functions (lib/nutrition/adherence.mjs clientSource, inlined before util.js)
   var fin = HC_ADH.fin, isComplete = HC_ADH.isComplete, dayState = HC_ADH.dayState, adherence = HC_ADH.adherence;
 
   /* ---------- data ---------- */
-  function $(id) { return document.getElementById ? document.getElementById(id) : null; }
+  function $(id: string) { return document.getElementById ? document.getElementById(id) : null; }
   function api() {
     var F = window.HCFood;
     return F && typeof F.api === 'function' ? F.api : null;
   }
   // the last n days ending at the viewer's today, oldest first
-  function lastDays(n) {
-    var today = HC.todayIso(), out = [];
+  function lastDays(n: number): string[] {
+    var today = HC.todayIso(), out: string[] = [];
     for (var i = n - 1; i >= 0; i--) out.push(HC.shiftIso(today, -i));
     return out;
   }
-  function targets(dates) {
-    var n = window.HCNutri, out = {};
+  function targets(dates: string[]) {
+    var n = window.HCNutri, out: Record<string, DayTarget> = {};
     dates.forEach(function (d) {
       var t;
       try { t = n && typeof n.targetFor === 'function' ? n.targetFor(d) : null; } catch (e) { t = null; }
@@ -58,7 +92,7 @@
     var call = api();
     if (!call) return null;
     var dates = lastDays(A.stripDays), mine = ++S.seq;
-    return call('GET', '/log/summary?from=' + dates[0] + '&to=' + dates[dates.length - 1]).then(function (d) {
+    return call('GET', '/log/summary?from=' + dates[0] + '&to=' + dates[dates.length - 1]).then(function (d: any) {
       if (mine !== S.seq) return;
       S.days = d && Array.isArray(d.days) ? d.days : [];
       S.from = dates[0];
@@ -76,9 +110,9 @@
   // Inicio's weekly plan (client/home-week.ts) counts this week's logged / on-target days from the
   // same summary: tell it a fresh one is here (it is absent when Inicio is hidden)
   function homePlan() {
-    var W = window.HCWeekPlan;
+    var W = window.HCWeekPlan as { refresh?: unknown } | undefined;
     try { if (W && typeof W.refresh === 'function') W.refresh(); } catch (e) { /* its own fallback */ }
-    // the nutrition score (client/nutri-score.js) takes each summary day in place of the baked one
+    // the nutrition score (client/nutri-score.ts) takes each summary day in place of the baked one
     var NS = window.HCNutriScore;
     try { if (NS && typeof NS.refresh === 'function') NS.refresh(); } catch (e) { /* its own fallback */ }
   }
@@ -88,17 +122,17 @@
   }
 
   /* ---------- render ---------- */
-  function k0(n) { return HC.num(n, 0); }
-  function pctOf(share) { return HC.num(share * 100, 0); }
-  function stateText(st) { return format(T.states[st] || '', { band: pctOf(A.onBand) }); }
+  function k0(n: number) { return HC.num(n, 0); }
+  function pctOf(share: number) { return HC.num(share * 100, 0); }
+  function stateText(st: string) { return format(T.states[st] || '', { band: pctOf(A.onBand) }); }
   // one tile: UPPERCASE label, the number big in --num, "of N" small; share = a thin bar under it
   // (days logged / complete days of the window), the shared card language's small bar
-  function stat(label, value, sub, share) {
+  function stat(label: string, value: string, sub: string, share?: number) {
     return '<div class="adh-stat"><span class="adh-lbl">' + esc(label) + '</span><b class="adh-val">' + esc(value) + '</b>' + (sub ? '<small class="adh-sub">' + esc(sub) + '</small>' : '') +
       (share != null ? '<span class="adh-bar" aria-hidden="true">' + (share > 0 ? '<i style="width:' + Math.round(Math.min(1, share) * 100) + '%"></i>' : '') + '</span>' : '') + '</div>';
   }
   // the tiles; the notes (no comparison, minimums, unknown / assumed days) go to the ⓘ block (notesOf)
-  function statsHtml(r) {
+  function statsHtml(r: AdherenceResult) {
     var out = [stat(T.logged, String(r.logged), format(T.ofDays, { n: r.days }), r.days ? r.logged / r.days : 0),
       stat(T.complete, String(r.complete), format(T.ofDays, { n: r.days }), r.days ? r.complete / r.days : 0)];
     if (r.compared) {
@@ -107,8 +141,8 @@
     }
     return '<div class="adh-stats">' + out.join('') + '</div>';
   }
-  function notesOf(r) {
-    var notes = [];
+  function notesOf(r: AdherenceResult) {
+    var notes: string[] = [];
     if (!r.compared) notes.push(T.noCompared);
     if (r.proteinMin) notes.push(T.proteinMin);
     if (r.proteinUnknown) notes.push(format(T.proteinUnknown, { n: r.proteinUnknown }));
@@ -117,7 +151,7 @@
     notes.push(T.rule, format(T.goalNote, { goal: goalName() }));
     return notes;
   }
-  function stripHtml(r) {
+  function stripHtml(r: AdherenceResult) {
     var today = HC.todayIso();
     var cells = r.states.map(function (s) {
       var label = format(T.cell, { date: HC.fmtDate(s.date), state: stateText(s.state) });
@@ -143,7 +177,7 @@
       '<div class="nutri-card adh-card">' + statsHtml(win) + '</div>' + stripHtml(strip);
   }
   function syncSwitch() {
-    (document.querySelectorAll ? document.querySelectorAll('[name="adh-win"]') : []).forEach(function (inp) {
+    (document.querySelectorAll ? document.querySelectorAll<HTMLInputElement>('[name="adh-win"]') : []).forEach(function (inp) {
       inp.checked = Number(inp.getAttribute('value')) === S.win;
     });
   }
@@ -159,18 +193,18 @@
   }
 
   /* ---------- events ---------- */
-  function on(id, evt, fn) {
+  function on(id: string, evt: string, fn: (e: Event) => void) {
     var el = $(id);
     if (el && el.addEventListener) el.addEventListener(evt, fn);
   }
-  on('adh-window', 'change', function (e) {
-    var v = Number(e && e.target && e.target.value);
+  on('adh-window', 'change', function (e: Event) {
+    var v = Number(e && e.target && (e.target as HTMLInputElement).value);
     if (A.windows.indexOf(v) < 0) return;
     S.win = v;
     render();
   });
-  on('food-adherence', 'click', function (e) {
-    var t = e && e.target;
+  on('food-adherence', 'click', function (e: Event) {
+    var t = e && (e.target as Element | null);
     if (t && t.closest && t.closest('[data-adh-retry]')) { load(); return; }
     var cell = t && t.closest ? t.closest('[data-adh-day]') : null;
     var F = window.HCFood;

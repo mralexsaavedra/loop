@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { slimScript } from './slim-script.mjs';
+import { clientScriptSource } from './client-bundle.mjs';
 
 const CLIENT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'client');
 
@@ -33,17 +34,18 @@ test('legal comments are dropped too', () => {
 });
 
 test('is deterministic: two runs over each client script give the same bytes', () => {
-  for (const f of fs.readdirSync(CLIENT).filter((n) => n.endsWith('.js') && !n.endsWith('.test.js'))) {
-    const src = fs.readFileSync(path.join(CLIENT, f), 'utf8');
+  for (const f of fs.readdirSync(CLIENT).filter((n) => (n.endsWith('.js') || (n.endsWith('.ts') && !n.endsWith('.d.ts'))) && !n.endsWith('.test.js'))) {
+    const src = f.endsWith('.ts') ? clientScriptSource(f) : fs.readFileSync(path.join(CLIENT, f), 'utf8');
     assert.equal(slimScript(src), slimScript(src), `${f}: slimScript is not deterministic`);
   }
 });
 
 test('every client script gets smaller and still parses', () => {
-  const files = fs.readdirSync(CLIENT).filter((n) => n.endsWith('.js') && !n.endsWith('.test.js'));
-  assert.ok(files.length > 10);
+  // classic scripts as written, module scripts (*.ts) as the bundle the page inlines
+  const files = fs.readdirSync(CLIENT).filter((n) => (n.endsWith('.js') || (n.endsWith('.ts') && !n.endsWith('.d.ts'))) && !n.endsWith('.test.js'));
+  assert.ok(files.length > 30);
   for (const f of files) {
-    const src = fs.readFileSync(path.join(CLIENT, f), 'utf8');
+    const src = f.endsWith('.ts') ? clientScriptSource(f) : fs.readFileSync(path.join(CLIENT, f), 'utf8');
     const a = slimScript(src);
     assert.ok(a.length < src.length, `${f}: not smaller`);
     assert.doesNotThrow(() => new vm.Script(a), `${f}: output does not parse`);

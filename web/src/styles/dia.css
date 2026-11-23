@@ -110,7 +110,7 @@ button.meal-name:focus-visible {
   font-size: var(--fs-sm);
   letter-spacing: 0;
 }
-/* intake rings (client/intake.js): logged intake vs the plan day total. One neutral data colour
+/* intake rings (client/intake.ts): logged intake vs the plan day total. One neutral data colour
  * for every ring (progress, not a grade); --mid only flags a ring that ran past 110 %. */
 .intake-card {
   margin: var(--sp-8) 0 0;

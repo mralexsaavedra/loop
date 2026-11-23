@@ -148,7 +148,7 @@ test('sleep row: bedtime and wake time stacked on the right (24 h clock), from t
   assert.match(early, /<span>00:30<\/span><span>08:00<\/span>/, 'past-midnight bedtimes wrap; minutes round');
 });
 
-test('programmed session (window.HCProgram, client/training-today.js): a "programmed" row after the done rows, opening the session view; only on the viewer\'s today', () => {
+test('programmed session (window.HCProgram, client/training-today.ts): a "programmed" row after the done rows, opening the session view; only on the viewer\'s today', () => {
   const prog = { date: ASOF, kind: 'run', focus: 'Tempo <6x1k>' };
   const html = render(TL, { program: prog, detail: true });
   const r = rows(html);

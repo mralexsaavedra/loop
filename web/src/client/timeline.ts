@@ -1,6 +1,6 @@
 /* Inicio "Today's activities" (honest version of a day-activities list): last night's sleep, the day's
  * workouts (modality, minutes, Relative Effort when the source recorded it) and, on the viewer's
- * today, the programmed session (window.HCProgram, client/training-today.js), rendered from
+ * today, the programmed session (window.HCProgram, client/training-today.ts), rendered from
  * SCORES.timeline (lib/score/timeline.mjs, baked by components/Bake.astro) + I18N_SCORE.timeline.
  * Each row = a coloured chip (icon + value: hours asleep; a workout's Relative Effort, else its
  * minutes), the uppercase name, and the details stacked on the right (bed / wake clock for sleep; the
@@ -86,7 +86,7 @@ type DetailSession = { d: string; m: string; min: number; re?: number | null; n?
   function card(inner: string, stale: boolean, cls?: string): string {
     return '<div class="sc-card tl' + (stale ? ' sc-stale' : cls || '') + '" role="group" aria-label="' + esc(T.ariaLabel) + '">' + inner + '</div>';
   }
-  // today's programmed session (client/training-today.js), only on the viewer's today
+  // today's programmed session (client/training-today.ts), only on the viewer's today
   function programRow(today: string): string {
     var P = typeof window !== 'undefined' && window.HCProgram ? window.HCProgram : null;
     if (!P || P.date !== today) return '';

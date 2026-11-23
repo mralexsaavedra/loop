@@ -740,7 +740,7 @@
   text-transform: uppercase;
 }
 
-/* the programmed session's section is a hidden source (client/training-today.js) */
+/* the programmed session's section is a hidden source (client/training-today.ts) */
 .hoy-src {
   display: none;
 }
@@ -1038,7 +1038,7 @@ details.rec-raw[open] > summary::after {
 }
 .en-a { fill: var(--ds); fill-opacity: 0.14; }
 .en-sub { max-width: none; margin-top: var(--sp-4); }
-/* the nutrition score card (client/nutri-score.js; Inicio + Nutrición): .en's number in its band colour,
+/* the nutrition score card (client/nutri-score.ts; Inicio + Nutrición): .en's number in its band colour,
    the "%" smaller, Resumen de hoy's macro rows beside it, each bar in its component's band colour */
 .ns .nt-macros { flex: 1; min-width: 0; margin: 0; }
 .ns .nt-mac-track i { background: var(--ds); }

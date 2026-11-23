@@ -1,4 +1,4 @@
-/* Tests for Inicio's programmed-session renderer (web/src/client/training-today.js): runs the classic
+/* Tests for Inicio's programmed-session renderer (web/src/client/training-today.ts): runs the classic
  * script in a vm with TRAINING / TRAINING_META baked like Bake.astro (training.days +
  * lib/training/program.mjs trainingMeta), I18N_HOY, the shared HC helpers and a fixed clock. */
 import { test } from 'node:test';
@@ -11,9 +11,11 @@ import { trainingMeta, validateProgram } from '../../../lib/training/program.mjs
 import { es as esH, en as enH } from '../i18n/hoy-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { StubDocument } from '../../test/dom-stub.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'training-today.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('training-today.ts');
 const EXAMPLE = JSON.parse(fs.readFileSync(path.join(here, '..', '..', '..', 'data', 'training', 'training-data.example.json'), 'utf8'));
 
 function render(training, now, { locale = 'en', host = true, section = 'shown', win = null } = {}) {

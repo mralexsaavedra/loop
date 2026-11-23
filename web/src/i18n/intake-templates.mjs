@@ -1,4 +1,4 @@
-/* Client-side (classic-script) copy for the Nutrición intake rings (web/src/client/intake.js),
+/* Client-side (classic-script) copy for the Nutrición intake rings (web/src/client/intake.ts),
  * baked as I18N_INTAKE by components/Bake.astro. JSON-safe only: `{placeholder}` strings,
  * substituted client-side. `...Html` entries are trusted, tracked, generic markup. */
 export const es = {

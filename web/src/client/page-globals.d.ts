@@ -34,6 +34,21 @@ export type PageGlobals = {
   HCProgress: any;
   HCSettings: any;
   HCViews: any;
+  FOOD_BASICS: any;
+  FOOD_CONST: any;
+  HCAdherence: any;
+  HCFood: any;
+  HC_ADH: any;
+  HC_NSCORE: any;
+  HC_PROG: any;
+  I18N_HOY: any;
+  I18N_INTAKE: any;
+  I18N_NUTRI: any;
+  INTAKE: any;
+  NUTRI: any;
+  NUTRI_ARC: any;
+  TRAINING_META: any;
+  nutriTarget: any;
 };
 
 // the window.* namespaces other scripts hand this one (and the one it hands back)
@@ -63,6 +78,11 @@ declare global {
     HCDetailState?: any;
     HCFoodInternal?: any;
     HCNav?: any;
+    HCNutriScore?: any;
+    foodTotals?: any;
+    intakeRefresh?: any;
+    intakeWaiting?: any;
+    nutriTarget?: any;
   }
   var HCDay: any;
 }

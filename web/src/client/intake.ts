@@ -4,7 +4,7 @@
  * hoy's nutriTarget; on bike days the MEALS target, with the ride fuel shown as its own line). A past
  * day whose type cannot be determined (targetFor -> null) renders NO rings: there is no honest target
  * to fill against. Without Nutrición (never in a normal build) the plan's training-day total
- * (INTAKE.target.train) is used. Classic script (is:inline): reads INTAKE / I18N_INTAKE / LOCALE baked
+ * (INTAKE.target.train) is used. Module script (bundled into the page, docs/plan-page.md → Module scripts): reads INTAKE / I18N_INTAKE / LOCALE baked
  * by components/Bake.astro. Freshness is decided HERE against the viewer's clock (the build bakes
  * no "now"), so the rings only show when intake exists for a date within INTAKE.freshDays days.
  *
@@ -20,6 +20,13 @@
  * INTAKE.bootGraceMs without an answer the Apple Health day renders, and a late answer still switches.
  * That wait is shared (window.intakeWaiting) with Resumen de hoy's dial + bars (nutri-day.js), which
  * this script re-renders at load and at the grace's end (HCNutri.refresh) — one timer for both. */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads by bare name (manifest.mjs); window.HCFood / HCNutri / foodTotals / nutriTarget are typed by the Window interface
+declare const I18N_INTAKE: PageGlobals['I18N_INTAKE'];
+declare const HC: PageGlobals['HC'];
+declare const INTAKE: PageGlobals['INTAKE'];
+
 (function () {
   var T = I18N_INTAKE;
   var RING_R = 18; // ring radius in the 44-unit viewBox (centre 22, 4 units of stroke room)
@@ -28,18 +35,18 @@
 
   // shared helpers (web/src/client/util.js)
   var format = HC.format, esc = HC.esc, nf = HC.nf;
-  function isFresh(date) {
+  function isFresh(date: string) {
     var age = HC.daysOld(date);
     return age != null && age >= 0 && age <= INTAKE.freshDays;
   }
   // min = some of today's food-log entries lack this macro: the logged sum is a minimum ("≥")
-  function ring(key, actual, target, min) {
+  function ring(key: string, actual: number | null, target: number, min?: boolean) {
     var has = actual != null && target > 0;
     var shown = has ? (min ? '≥ ' : '') + nf(actual) : null;
-    var frac = has ? actual / target : null;
-    var pct = has ? Math.round(frac * 100) : null;
-    var len = has ? Math.min(1, Math.max(0, frac)) * C : 0;
-    var cls = 'ring ring-' + key + (has ? (frac > OVER_TARGET_RATIO ? ' ring-over' : '') : ' ring-none');
+    var frac = has ? actual! / target : null;
+    var pct = has ? Math.round(frac! * 100) : null;
+    var len = has ? Math.min(1, Math.max(0, frac!)) * C : 0;
+    var cls = 'ring ring-' + key + (has ? (frac! > OVER_TARGET_RATIO ? ' ring-over' : '') : ' ring-none');
     var fill = has && len > 0
       ? '<circle class="ring-fill" cx="22" cy="22" r="' + RING_R + '" stroke-dasharray="' + len.toFixed(2) + ' ' + C.toFixed(2) + '" transform="rotate(-90 22 22)"/>'
       : '';

@@ -9,6 +9,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { slimScript } from '../src/slim-script.mjs';
+import { clientScriptSource } from '../src/client-bundle.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
@@ -19,10 +20,10 @@ const src = (name) => fs.readFileSync(path.join(WEB_ROOT, 'src', 'client', name)
 // [client file, the global it reads, the lib functions it must not re-define] (a file may read several;
 // old port names listed too; fuel.mjs `step` is left out: nutri-day.js has its own unrelated render helper step())
 const COPIES = [
-  ['adherence.js', 'HC_ADH', ['fin', 'isComplete', 'dayState', 'adherence']],
-  ['progress.js', 'HC_PROG', ['fin', 'round', 'dayNum', 'isoOf', 'rollPoints', 'weeklyRate', 'weightProgress', 'etaMonths']],
+  ['adherence.ts', 'HC_ADH', ['fin', 'isComplete', 'dayState', 'adherence']],
+  ['progress.ts', 'HC_PROG', ['fin', 'round', 'dayNum', 'isoOf', 'rollPoints', 'weeklyRate', 'weightProgress', 'etaMonths']],
   ['food-core.js', 'HC_FOODLOG', ['fin', 'roundEps', 'round1', 'roundKcal', 'round2', 'roundMacros', 'scaleMacros', 'times', 'productAmount', 'productEntry', 'knownMacros', 'ingredientBasis', 'recipeBasis', 'entryFromBasis', 'recipeEntry', 'dayTotals', 'atwaterOk', 'pieceWeight', 'basicModes', 'basicAmount', 'basicEntry', 'basicLabel', 'basicConvert', 'basicIngredient']],
-  ['nutri-score.js', 'HC_NSCORE', ['fin', 'clamp100', 'ratio', 'pts1', 'kcalPoints', 'proteinPoints', 'fatPoints', 'scoreBand', 'hasMeals', 'nutritionScore', 'scoreSeries']],
+  ['nutri-score.ts', 'HC_NSCORE', ['fin', 'clamp100', 'ratio', 'pts1', 'kcalPoints', 'proteinPoints', 'fatPoints', 'scoreBand', 'hasMeals', 'nutritionScore', 'scoreSeries']],
   ['nutri-day.js', 'HC_DAYTYPE', ['rideType', 'lengthType', 'itemType', 'dayTypeOfWorkouts', 'ofWorkouts', 'dayTypeOfProgram', 'ofProgram', 'detectDayType', 'hasValue', 'dayInputFor']],
   ['nutri-day.js', 'HC_FUEL', ['isBikeDay', 'fuelStep', 'range', 'pickItem', 'pickFuelItem', 'ownDuring', 'ownBefore', 'fuelPlan']],
   ['nutri-day.js', 'HC_SCALE', ['round2', 'stepAmount', 'lineUnit', 'lineAmt', 'lineStep', 'lineKey', 'lineCap', 'capFactor', 'floorToStep', 'capAmount', 'pieceOf', 'isDiscrete', 'fmtHalf', 'fmtPieces', 'fmtAmt', 'bound', 'waterFill', 'scaleFill', 'fmtFactor', 'solveScale', 'planFor']],
@@ -39,7 +40,8 @@ for (const [file, global, fns] of COPIES) {
   test(`the built page inlines var ${global} (clientSource) before ${file}`, () => {
     assert.ok(html, `missing ${htmlPath}: run npm run pretest`);
     const g = html.indexOf(`var ${global}=`) >= 0 ? html.indexOf(`var ${global}=`) : html.indexOf(`var ${global} =`);
-    const at = html.indexOf(slimScript(src(file)));
+    // a module script (*.ts) is inlined as its bundle (web/src/client-bundle.mjs), a classic one as is
+    const at = html.indexOf(slimScript(file.endsWith('.ts') ? clientScriptSource(file) : src(file)));
     assert.ok(g > 0, `var ${global} inlined`);
     assert.ok(at > 0, `${file} inlined whole`);
     assert.ok(g < at, `${global} before ${file}`);
@@ -49,7 +51,7 @@ for (const [file, global, fns] of COPIES) {
 test('the client scripts read the one HC.fin (client/util.js) instead of defining their own', () => {
   const dir = path.join(WEB_ROOT, 'src', 'client');
   const copies = fs.readdirSync(dir)
-    .filter((f) => f.endsWith('.js') && !f.endsWith('.test.js') && f !== 'util.js')
+    .filter((f) => (f.endsWith('.js') || (f.endsWith('.ts') && !f.endsWith('.d.ts'))) && !f.endsWith('.test.js') && f !== 'util.js')
     .filter((f) => /function fin\(/.test(src(f)));
   assert.deepEqual(copies, []);
   assert.match(src('util.js'), /\bfin: fin\b/, 'util.js exports HC.fin');
@@ -59,7 +61,7 @@ test('the client scripts count days with the one HC.dayDiff (client/util.js), ne
   const dir = path.join(WEB_ROOT, 'src', 'client');
   const HAND_ROLLED = /parseIso\([^)]*\)\s*-\s*(?:HC\.)?parseIso\(/;
   const copies = fs.readdirSync(dir)
-    .filter((f) => f.endsWith('.js') && !f.endsWith('.test.js') && f !== 'util.js')
+    .filter((f) => (f.endsWith('.js') || (f.endsWith('.ts') && !f.endsWith('.d.ts'))) && !f.endsWith('.test.js') && f !== 'util.js')
     .filter((f) => /function dayDiff\(/.test(src(f)) || HAND_ROLLED.test(src(f)));
   assert.deepEqual(copies, []);
   assert.match(src('util.js'), /\bdayDiff: dayDiff\b/, 'util.js exports HC.dayDiff');

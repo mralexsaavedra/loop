@@ -11,7 +11,7 @@ export const en = {
     surplus: 'Gentle surplus (~{kcal} kcal/day)',
     surplusBikeKept: 'Gentle surplus (~{kcal} kcal/day, bike days untouched)',
     same: 'Same targets as maintain',
-    // the target weight (LAN page only: stored on the server with the goal, client/settings.js)
+    // the target weight (LAN page only: stored on the server with the goal, client/settings.ts)
     target: 'Target weight',
     targetHint: 'Between {min} and {max} kg. Empty = no target.',
     targetErr: { number: 'Type a number, e.g. 72.5', range: 'Between {min} and {max} kg' },
@@ -23,7 +23,7 @@ export const en = {
     reasons: { offline: 'the server did not answer', rate_limited: 'too many changes, try again in a minute', invalid: 'the value was refused', generic: 'unknown error' },
     progress: 'Progress',
   },
-  // the page language (LAN page only: settings.locale on the server, client/settings.js; the next build uses it).
+  // the page language (LAN page only: settings.locale on the server, client/settings.ts; the next build uses it).
   // The option names stay in their own language, as language pickers do; saving / failed / reasons: goal's.
   language: {
     heading: 'Language',

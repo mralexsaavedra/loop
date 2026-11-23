@@ -2,7 +2,7 @@
  * Añadidos, inside the `dia` section; a ‹ date › navigator on top opens on today and walks to past days,
  * never persisted), the
  * add sheet (a view of the detail sheet modal), Mis productos and Mis recetas (folds before Tablas).
- * Four classic scripts (is:inline), inlined in this order after nutri-day.js and before intake.js:
+ * Four classic scripts (is:inline), inlined in this order after nutri-day.js and before intake.ts:
  * food-core.js (this file: the formula from HC_FOODLOG, parseNum, the API client, the shared state S and the
  * small helpers, handed to the others as window.HCFoodInternal), food-sheet.ts (the add sheet),
  * food-catalog.ts (Mis productos / Mis recetas) and food-log.js (Registrar + its day navigator, the
@@ -39,7 +39,7 @@
  * Wiring: window.foodTotals() = today's logged totals ({date, k, p, c, g, n, missing, src: 'log'}) when
  * the server answered and today has >= 1 entry, else null — TODAY only, whatever day Registrar shows
  * (today's log is kept apart from a viewed past day; adds / deletes on a past day never touch it). Resumen de hoy's dial + macro bars
- * (nutri-day.js) and the intake rings (intake.js) prefer it over the Apple Health intake; after every
+ * (nutri-day.js) and the intake rings (intake.ts) prefer it over the Apple Health intake; after every
  * add / delete this script calls HCNutri.refresh() (which also refreshes the rings),
  * and HCFood.recentDay(days) gives the rings a PAST food-log day when today has none (a lazy log summary read),
  * each hook in its own try/catch. Errors are one line from the server's coarse codes. */
@@ -238,7 +238,7 @@
   // when the rings ask and today has no entry; key = the window it covers (a new day = a new read),
   // days = the last answer (kept while a re-read is in flight, so the rings never flicker)
   var R = { key: null, days: null, seq: 0 };
-  // any add / delete, on any day: Constancia (client/adherence.js) re-reads its summary, and the rings'
+  // any add / delete, on any day: Constancia (client/adherence.ts) re-reads its summary, and the rings'
   // window is re-read when they had read it (a past-day change never refreshes Resumen de hoy)
   function logChanged() {
     if (R.key) {

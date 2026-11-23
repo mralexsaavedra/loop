@@ -15,7 +15,7 @@
  *   wrapped and the page works without it.
  * - Goal: set in the profile sheet (client/profile.ts, "Objetivo") through window.HCNutri.setGoal, kept
  *   in localStorage (hc.nutri.goal, falling back to page.goal); on the LAN page also on the server
- *   (client/settings.js: the server copy wins on load via HCNutri.applyGoal, the local one is the cache). Resumen de hoy shows it only as a small
+ *   (client/settings.ts: the server copy wins on load via HCNutri.applyGoal, the local one is the cache). Resumen de hoy shows it only as a small
  *   chip next to today's kcal; a tap opens the profile sheet (#profile) focused on that setting.
  * - Plan: planFor / solveScale = lib/nutrition/scale.mjs itself (HC_SCALE) over the baked models: the
  *   meals aim at target − ride fuel for the ride's minutes (a recorded ride's real minutes, else the
@@ -32,7 +32,7 @@
  *   ("Left today"; covered by the day at <= 10 % left), a "+" logs the example amount
  *   (window.HCFood.addGuide) and "Left today" closes the guide; without it, budgets only.
  * - Today's target is the ONE source for the rest of Nutrición: window.nutriTarget() hands the intake
- *   rings (client/intake.js) the MEALS target (on bike days the day target minus the ride fuel, with
+ *   rings (client/intake.ts) the MEALS target (on bike days the day target minus the ride fuel, with
  *   the fuel as its own figure), and every goal / day type / duration change refreshes them directly.
  *   HCNutri.targetFor(date) = the same for an earlier logged day: THAT day's detected type (timeline,
  *   else DETAIL.sessions, + programme; its recorded ride minutes) x the current goal, null when the
@@ -50,7 +50,7 @@
   var KEY_GOAL = 'hc.nutri.goal', KEY_DAY = 'hc.nutri.dayType', KEY_RIDE = 'hc.nutri.rideMin', KEY_GUIDE = 'hc.nutri.guide', KEY_PLAN_OPEN = 'hc.nutri.planOpen';
   // the removed choosable blocks kept their picks here; nothing reads it any more (cleared on load)
   var KEY_OLD_PICKS = 'hc.nutri.picks';
-  // a goal picked here and not yet confirmed by the settings server (client/settings.js retries it)
+  // a goal picked here and not yet confirmed by the settings server (client/settings.ts retries it)
   var KEY_GOAL_PENDING = 'hc.nutri.goalPending';
   var RANK = HC_DAYTYPE.RANK; // how demanding a day type is (the override rule below)
   // icons (inline SVG line icons, no emoji): the supplement pill of Plan de hoy
@@ -201,7 +201,7 @@
   // entries on the LAN page, src 'log'), else the Apple Health day (INTAKE, baked by
   // components/Bake.astro); the date is checked on the viewer's clock. Only then do the ring and the
   // macro rows fill. Never from the target.
-  // On the LAN page the food API boot decides, exactly as for the rings (client/intake.js): while it
+  // On the LAN page the food API boot decides, exactly as for the rings (client/intake.ts): while it
   // is in flight and INTAKE.bootGraceMs has not elapsed (window.intakeWaiting) nothing; once it
   // answered (HCFood.ready) the food log only, never the Apple Health day; a failure or the grace's end
   // -> the Apple Health day (a late answer still switches: food-log.js refreshes us).
@@ -533,8 +533,8 @@
     renderFuel(picker !== false);
     guard($('eat-body'), renderEat);
     refreshDependents();
-    // Progreso, Constancia and the nutrition score read the goal (client/progress.js, client/adherence.js,
-    // client/nutri-score.js; absent before load)
+    // Progreso, Constancia and the nutrition score read the goal (client/progress.ts, client/adherence.ts,
+    // client/nutri-score.ts; absent before load)
     ['HCProgress', 'HCAdherence', 'HCNutriScore'].forEach(function (k) {
       var v = window[k];
       if (v && typeof v.render === 'function') { try { v.render(); } catch (e) { /* each block guards its own host */ } }
@@ -547,7 +547,7 @@
     if (el && el.addEventListener) el.addEventListener(evt, fn);
   }
   // the goal is changed from the profile sheet (client/profile.ts); false = not a known goal. With the
-  // settings API (client/settings.js, LAN page) the server copy is the source of truth: the goal is
+  // settings API (client/settings.ts, LAN page) the server copy is the source of truth: the goal is
   // saved there too, and hc.nutri.goal stays the offline cache / fallback
   function applyGoal(v) {
     if (N.goals.indexOf(v) < 0) return false;
@@ -558,7 +558,7 @@
   }
   function setGoal(v) {
     if (!applyGoal(v)) return false;
-    // pending until the server confirms it: settings.js retries it on its next load / visibility and
+    // pending until the server confirms it: settings.ts retries it on its next load / visibility and
     // prefers it over the server's goal meanwhile
     save(KEY_GOAL_PENDING, v);
     var S = window.HCSettings;
@@ -566,7 +566,7 @@
       try {
         var p = S.saveGoal(v);
         if (p && typeof p.then === 'function') p.then(null, function () { /* stays pending; the profile says so */ });
-      } catch (e) { /* the local goal already applies; settings.js reports failures */ }
+      } catch (e) { /* the local goal already applies; settings.ts reports failures */ }
     }
     return true;
   }
@@ -578,7 +578,7 @@
   function clearPending(g) {
     if (pendingGoal() === g) save(KEY_GOAL_PENDING, null);
   }
-  // the goal this viewer stored (hc.nutri.goal), or null: settings.js pushes it once to a server that has none
+  // the goal this viewer stored (hc.nutri.goal), or null: settings.ts pushes it once to a server that has none
   function storedGoal() {
     var g = load(KEY_GOAL);
     return N.goals.indexOf(g) >= 0 ? g : null;
@@ -689,7 +689,7 @@
   }
   window.HCNutri = {
     setGoal: setGoal,
-    // the server's goal (client/settings.js): applied and cached locally, never sent back
+    // the server's goal (client/settings.ts): applied and cached locally, never sent back
     applyGoal: applyGoal,
     storedGoal: storedGoal,
     pendingGoal: pendingGoal,

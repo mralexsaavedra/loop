@@ -25,7 +25,7 @@ The single-file build carries two training data sets, same single-source pattern
 
 | Data | Lib | Baked as | Rendered by |
 | --- | --- | --- | --- |
-| Programmed sessions | `lib/training/program.mjs` | page-level JSON global | `web/src/tabs/Hoy.astro`, `client/training-today.js` |
+| Programmed sessions | `lib/training/program.mjs` | page-level JSON global | `web/src/tabs/Hoy.astro`, `client/training-today.ts` |
 | Executed-workout aggregation | `lib/training/dashboard.mjs` (pure `dashboardFrom(inputs)`) | `DASH` | `web/src/tabs/Entrenos.astro`, `client/training-dash.ts` |
 | Activity card | `lib/training/activity.mjs` (pure `activityFrom(inputs)`) | `ACTIVITY` + `I18N_ACTIVITY` | `client/training-activity.ts` |
 
@@ -235,7 +235,7 @@ What it shows: for one session, the time in each HR zone (session / day panel).
 
 What it shows: the programmed session for today, as a row of Home's "Today's activities" (not a block).
 
-- `client/training-today.js` renders the session into `#train-today` inside the `hoy` section
+- `client/training-today.ts` renders the session into `#train-today` inside the `hoy` section
   (`tabs/Hoy.astro`, a hidden source: `.hoy-src`).
 - It sets `window.HCProgram = {date, kind, focus}` for `client/timeline.ts` (the row) and registers the
   `hoy-session` detail view (the same markup in the sheet; deep link `#hoy-session`, `VIEW_TAB` → home).

@@ -1,7 +1,7 @@
 /* "Hoy / Today" tab — today's PROGRAMMED training session (a three-branch empty state: before the first
  * day, after the last, a rest day). Reads TRAINING / TRAINING_META / LOCALE from the globals baked by
- * web/src/components/Bake.astro and its copy from I18N_HOY (web/src/i18n/hoy-templates.mjs); a classic
- * script (is:inline, no ES modules) like every client script.
+ * web/src/components/Bake.astro and its copy from I18N_HOY (web/src/i18n/hoy-templates.mjs).
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts).
  *
  * `esc()` is the browser idiom `document.createElement('div');
  * d.textContent=s; return d.innerHTML;` — escapes `&`/`<`/`>` from
@@ -9,24 +9,37 @@
  * See web/test/dom-stub.mjs for the vm/test-time implementation of this
  * exact behavior.
  */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads (baked by the build or provided by an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+declare const I18N_HOY: PageGlobals['I18N_HOY'];
+declare const TRAINING: PageGlobals['TRAINING'];
+declare const TRAINING_META: PageGlobals['TRAINING_META'];
+
+/** One block of a programmed session (training-data.json). */
+type Block = { label?: string; title: string; lines: string[] };
+/** A programmed session (TRAINING[date]). */
+type Session = { kind?: string; focus: string; blocks: Block[] };
+
 (function () {
   var goalLineRe = new RegExp(I18N_HOY.goalLineRe, 'i');
 
-  function iso(d) {
+  function iso(d: Date): string {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
-  function esc(s) {
+  function esc(s: string): string {
     var d = document.createElement('div');
     d.textContent = s;
     return d.innerHTML;
   }
   // the ONE display-date formatter (util.js): "Tue 29 Sep" / "mar 29 sept"
-  function fmtLong(isoStr) {
+  function fmtLong(isoStr: string): string {
     return HC.fmtDate(isoStr);
   }
-  function blockHtml(b) {
+  function blockHtml(b: Block): string {
     var lines = b.lines
-      .map(function (l) {
+      .map(function (l: string) {
         return '<li' + (goalLineRe.test(l) ? ' class="goal"' : '') + '>' + esc(l) + '</li>';
       })
       .join('');
@@ -36,11 +49,11 @@
   // Inicio shows the programmed session as a row of "Today's activities" (client/timeline.ts reads
   // window.HCProgram) and opens this markup as a registered detail view ('hoy-session', client/detail.ts);
   // #sec-hoy is a hidden source, and page.hideTabs ["hoy"] (the section `hidden`) turns both off.
-  function expose(today, s, host) {
+  function expose(today: string, s: Session | undefined, host: HTMLElement) {
     if (typeof window === 'undefined') return;
     var sec = document.getElementById('sec-hoy');
     var on = !!(s && sec && !sec.hidden);
-    window.HCProgram = on ? { date: today, kind: s.kind || 'gym', focus: String(s.focus || '') } : null;
+    window.HCProgram = on ? { date: today, kind: (s as Session).kind || 'gym', focus: String((s as Session).focus || '') } : null;
     if (!on) return;
     HC.registerView('hoy-session', {
       title: function () { return I18N_HOY.viewTitle; },
@@ -51,7 +64,7 @@
     var host = document.getElementById('train-today');
     if (!host) return;
     var today = iso(new Date());
-    var s = TRAINING[today];
+    var s: Session | undefined = TRAINING[today];
     expose(today, s, host);
     var meta = TRAINING_META.program
       ? '<p class="train-meta">' + esc(TRAINING_META.program) + (TRAINING_META.coach ? ' · ' + esc(TRAINING_META.coach) : '') + '<br>' + I18N_HOY.sourceLabel + ' ' + esc(TRAINING_META.source) + '</p>'
@@ -72,8 +85,8 @@
       host.innerHTML = head + '<div class="train-empty">' + msg + '</div>' + meta;
     }
   }
-  function format(tpl, vars) {
-    return tpl.replace(/\{(\w+)\}/g, function (_, k) {
+  function format(tpl: string, vars: Record<string, string>): string {
+    return tpl.replace(/\{(\w+)\}/g, function (_: string, k: string) {
       return vars && vars[k] != null ? vars[k] : '';
     });
   }

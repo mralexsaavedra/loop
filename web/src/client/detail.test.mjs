@@ -1923,7 +1923,7 @@ test('es energy page: Spanish copy', () => {
   assert.equal(esT.metrics['energy-bank'].title, 'Banco de energía');
 });
 
-// the nutrition score: scored by the page at view time (client/nutri-score.js), read through
+// the nutrition score: scored by the page at view time (client/nutri-score.ts), read through
 // window.HCNutriScore.metric(); a SYNTHETIC series ending on the viewer's today (so far)
 function nscoreMetric() {
   const start = addDays(NOW, -89), v = Array(90).fill(null), days = {};
@@ -1967,7 +1967,7 @@ test('contributor rows use the short metric names the same sheet\'s weekly trend
   assert.doesNotMatch(s.host.innerHTML, /Heart rate variability/);
 });
 
-test('nutrition score calendar: today being logged (no score yet: v null, the day result partial, as nutri-score.js metric() bakes it) is a partial mark, not "No data"', () => {
+test('nutrition score calendar: today being logged (no score yet: v null, the day result partial, as nutri-score.ts metric() bakes it) is a partial mark, not "No data"', () => {
   const s = setup();
   s.ctx.window.HCNutriScore = {
     metric() {
