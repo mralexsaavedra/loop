@@ -26,9 +26,7 @@ window.HCDetailState = function (T, D) {
   var lineCache = {};
 
   /* ---------- data access ---------- */
-  function dayDiff(a, b) {
-    return Math.round((parseIso(b) - parseIso(a)) / HC.MS_PER_DAY);
-  }
+  var dayDiff = HC.dayDiff;
   function own(o, k) {
     return !!o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, k);
   }

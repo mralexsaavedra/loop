@@ -17,6 +17,7 @@ import { ADHERENCE, ADHERENCE_CASES, isComplete, dayState } from '../../lib/nutr
 import { PROGRESS, PROGRESS_CASES, rollPoints, weeklyRate, etaMonths } from '../../lib/nutrition/progress.mjs';
 import * as NS from '../../lib/nutrition/nutri-score.mjs';
 import * as FL from '../../lib/nutrition/foodlog.mjs';
+import { DAY_TYPES as DAY_TYPES_LIB } from '../../lib/nutrition/targets.mjs';
 import * as FLC from '../../lib/nutrition/foodlog.cases.mjs';
 import * as EN from '../../lib/nutrition/energy.mjs';
 import * as DT from '../../lib/nutrition/daytype.mjs';
@@ -56,7 +57,7 @@ const KEYS = {
     'isBikeDay', 'step', 'range', 'pickItem', 'ownDuring', 'ownBefore', 'fuelPlan', 'zero', 'r0', 'macroRow', 'fmtFactor', 'solveScale', 'planFor',
   ],
   HC_ENERGY: [
-    'NEAT', 'EXERCISE', 'SPORTS', 'round50', 'ageOn', 'bmi', 'referenceKg', 'bmrMifflin', 'dayTypeOfMinutes', 'isInt', 'validSports', 'exerciseFor',
+    'NEAT', 'EXERCISE', 'SPORTS', 'DAY_TYPES', 'round50', 'ageOn', 'bmi', 'referenceKg', 'bmrMifflin', 'dayTypeOfMinutes', 'isInt', 'validSports', 'exerciseFor',
     'usedDayTypes', 'maintenance', 'inRange', 'validatePerson', 'computeTargets', 'screenPerson',
     'checkTargetWeight', 'checkTargets', 'carbsOf',
   ],
@@ -166,6 +167,7 @@ for (const page of PAGES) {
   test(`${rel}: HC_ENERGY computes the onboarding targets, screen and bounds like lib/nutrition/energy.mjs`, () => {
     const { HC_ENERGY } = globalsOf(page);
     assert.deepEqual(js(HC_ENERGY.NEAT), js(EN.NEAT));
+    assert.deepEqual(js(HC_ENERGY.DAY_TYPES), js(DAY_TYPES_LIB), 'the wizard reads the lib day types');
     const people = [
       { sex: 'male', age: 30, heightCm: 175, weightKg: 70, activity: 'light' },
       { sex: 'female', age: 50, heightCm: 150, weightKg: 45, activity: 'sedentary' },

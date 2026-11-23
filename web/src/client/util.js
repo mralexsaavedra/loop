@@ -128,6 +128,11 @@ var HC = (function () {
     var p = s.split('-');
     return new Date(+p[0], +p[1] - 1, +p[2]);
   }
+  /** Whole days from ISO date a to ISO date b on the local calendar (the client twin of lib/date.mjs dayDiff,
+   * which counts UTC days): one copy for every client script. */
+  function dayDiff(a, b) {
+    return Math.round((parseIso(b) - parseIso(a)) / MS_PER_DAY);
+  }
   function todayIso() {
     return isoOf(new Date(Date.now()));
   }
@@ -150,7 +155,7 @@ var HC = (function () {
   function daysOld(iso) {
     iso = isoDate(iso);
     if (!iso) return null;
-    return Math.round((parseIso(todayIso()) - parseIso(iso)) / MS_PER_DAY);
+    return dayDiff(iso, todayIso());
   }
   // Numbers: the ONE formatter is HC_FMT (lib/format/numbers.mjs, inlined before this script); these
   // wrappers only add the page LOCALE. Grouping for every value >= 1000 ("2.500" / "2,500"), percent
@@ -653,6 +658,7 @@ var HC = (function () {
     isoDate: isoDate,
     isoOf: isoOf,
     parseIso: parseIso,
+    dayDiff: dayDiff,
     todayIso: todayIso,
     shiftIso: shiftIso,
     daysOld: daysOld,

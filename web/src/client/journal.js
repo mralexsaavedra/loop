@@ -194,7 +194,7 @@
           }).join('') + '</ul>'
           : '<p class="jr-msg">' + esc(format(T.needAll, { min: min, n: counted })) + '</p>') + '</li>';
       }
-      var days = Math.round((HC.parseIso(I.asOf) - HC.parseIso(I.from)) / HC.MS_PER_DAY) + 1;
+      var days = HC.dayDiff(I.from, I.asOf) + 1;
       return {
         head: '',
         body: '<div class="jr-top"><p class="jr-g">' + esc(format(T.window, { n: days, date: HC.fmtDate(I.asOf) })) + '</p>' +

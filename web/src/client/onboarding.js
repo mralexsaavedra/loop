@@ -16,7 +16,7 @@
   var esc = HC.esc, format = HC.format;
   var LATER_KEY = 'hc.onboarding.later';
   var SHORTCUT_URL = 'https://www.icloud.com/shortcuts/ceb66eea36fc434a9d2f910421dd18aa';
-  var DAYS = ['rest', 'gym', 'bike', 'bikeLong'];
+  var DAYS = E.DAY_TYPES; // lib/nutrition/targets.mjs DAY_TYPES, emitted with HC_ENERGY
   var MINUTES = [30, 45, 60, 90, 120, 180, 240];
   var TIMES = [1, 2, 3, 4, 5, 6, 7];
   // a new pick's session: an hour three times a week, a ride two hours twice

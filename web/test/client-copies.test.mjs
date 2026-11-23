@@ -54,3 +54,13 @@ test('the client scripts read the one HC.fin (client/util.js) instead of definin
   assert.deepEqual(copies, []);
   assert.match(src('util.js'), /\bfin: fin\b/, 'util.js exports HC.fin');
 });
+
+test('the client scripts count days with the one HC.dayDiff (client/util.js), never a hand-rolled parseIso difference', () => {
+  const dir = path.join(WEB_ROOT, 'src', 'client');
+  const HAND_ROLLED = /parseIso\([^)]*\)\s*-\s*(?:HC\.)?parseIso\(/;
+  const copies = fs.readdirSync(dir)
+    .filter((f) => f.endsWith('.js') && !f.endsWith('.test.js') && f !== 'util.js')
+    .filter((f) => /function dayDiff\(/.test(src(f)) || HAND_ROLLED.test(src(f)));
+  assert.deepEqual(copies, []);
+  assert.match(src('util.js'), /\bdayDiff: dayDiff\b/, 'util.js exports HC.dayDiff');
+});
