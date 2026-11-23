@@ -47,7 +47,7 @@
     }
     function valueAt(m, iso) {
       if (!m || !Array.isArray(m.v) || !HC.isoDate(m.start)) return null;
-      var i = Math.round((HC.parseIso(iso) - HC.parseIso(m.start)) / HC.MS_PER_DAY);
+      var i = HC.dayDiff(m.start, iso);
       var v = i >= 0 && i < m.v.length ? m.v[i] : null;
       return fin(v) ? v : null;
     }
@@ -67,7 +67,7 @@
       if (!today) return null;
       var wk = weekOf(today), goals = inp.goals || GOALS, rows = [];
       var asOf = HC.isoDate(inp.asOf);
-      var gap = asOf ? Math.round((HC.parseIso(today) - HC.parseIso(asOf)) / HC.MS_PER_DAY) : null;
+      var gap = asOf ? HC.dayDiff(asOf, today) : null;
       var fresh = gap != null && gap <= HC.STALE_DAYS;
       var days = [];
       for (var d = wk.start; d <= today; d = HC.shiftIso(d, 1)) days.push(d);

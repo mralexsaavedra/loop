@@ -40,7 +40,7 @@
 
     /* ---------- pure: one row's numbers ---------- */
     function at(m, iso) {
-      var i = Math.round((HC.parseIso(iso) - HC.parseIso(m.start)) / HC.MS_PER_DAY);
+      var i = HC.dayDiff(m.start, iso);
       var v = i >= 0 && i < m.v.length ? m.v[i] : null;
       return fin(v) ? v : null;
     }
