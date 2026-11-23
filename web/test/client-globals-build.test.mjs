@@ -15,7 +15,7 @@ import * as F from '../../lib/format/numbers.mjs';
 import { pctBand, PCT_GOOD, PCT_LOW } from '../../lib/score/recovery.mjs';
 import { ADHERENCE, ADHERENCE_CASES, isComplete, dayState } from '../../lib/nutrition/adherence.mjs';
 import { PROGRESS, PROGRESS_CASES, rollPoints, weeklyRate, etaMonths } from '../../lib/nutrition/progress.mjs';
-import * as NS from '../../lib/nutrition/score.mjs';
+import * as NS from '../../lib/nutrition/nutri-score.mjs';
 import * as FL from '../../lib/nutrition/foodlog.mjs';
 import * as FLC from '../../lib/nutrition/foodlog.cases.mjs';
 import * as EN from '../../lib/nutrition/energy.mjs';
@@ -131,7 +131,7 @@ for (const page of PAGES) {
     assert.equal(HC_PROG.round(1.25, 1), 1.3);
   });
 
-  test(`${rel}: HC_NSCORE scores what lib/nutrition/score.mjs scores`, () => {
+  test(`${rel}: HC_NSCORE scores what lib/nutrition/nutri-score.mjs scores`, () => {
     const { HC_NSCORE } = globalsOf(page);
     assert.deepEqual(js(HC_NSCORE.NSCORE), js(NS.NSCORE));
     for (const c of NS.NSCORE_CASES) {

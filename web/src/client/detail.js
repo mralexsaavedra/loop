@@ -568,7 +568,7 @@
     var R = typeof SCORES !== 'undefined' && SCORES ? SCORES.recovery : null;
     if (key === 'recovery' && R && R.gated && T.rec && T.rec.insufficient) return T.rec.insufficient;
     if (NIGHT_KEYS.indexOf(key) !== -1 && key !== 'recovery' && isoDate(D.asOf) && T.unrecordedSheet) return T.unrecordedSheet;
-    // a load sheet whose workouts never carry heart rate / effort: the cards' own sentence (lib/score/load.mjs)
+    // a load sheet whose workouts never carry heart rate / effort: the cards' own sentence (lib/score/training-load.mjs)
     var L = typeof SCORES !== 'undefined' && SCORES ? SCORES.load : null;
     if (/^load-/.test(key) && L && Array.isArray(L.modalities) && T.load && T.load.gated && T.load.gated.noEffortSource) {
       var mod = null;

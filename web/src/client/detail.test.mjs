@@ -1860,7 +1860,7 @@ test('fitness age: the headline reads "≤ 25" / "≥ 75" at a clamp bound of th
   clean(n.host.innerHTML);
 });
 
-/* ---------- energy bank page (key 'energy', SCORES.energy: lib/score/energy.mjs) ---------- */
+/* ---------- energy bank page (key 'energy', SCORES.energy: lib/score/energy-bank.mjs) ---------- */
 const partsOf = (html) => (html.split('<section class="dd-contrib"')[1] || '').split('</section>')[0];
 
 test('energy page: hero = the latest level on a 0-100 gauge with its band; the intraday curve from wake; what moved it; our-model notes + constants under ⓘ', () => {

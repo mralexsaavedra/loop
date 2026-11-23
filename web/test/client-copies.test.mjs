@@ -1,6 +1,6 @@
 /* The client scripts run the lib's OWN pure functions, emitted at build time (clientSource, inlined by
  * layouts/Plan.astro before util.js), never hand-kept copies: HC_ADH = lib/nutrition/adherence.mjs, HC_PROG = lib/nutrition/progress.mjs,
- * HC_NSCORE = lib/nutrition/score.mjs, HC_FOODLOG = lib/nutrition/foodlog.mjs (+ num.mjs fin / roundEps).
+ * HC_NSCORE = lib/nutrition/nutri-score.mjs, HC_FOODLOG = lib/nutrition/foodlog.mjs (+ num.mjs fin / roundEps).
  * Guard: the client files no longer define the copied functions, and the built page carries the
  * emitted source before the script that uses it. Reads the fixture built by `npm run pretest`. */
 import { test } from 'node:test';

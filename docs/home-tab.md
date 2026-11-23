@@ -250,7 +250,7 @@ the nutrition score and today's activities.
 
 ### Energy bank
 
-- `lib/score/energy.mjs`, baked as `SCORES.energy`; `#home-energy` + `client/energy.js`, between the
+- `lib/score/energy-bank.mjs`, baked as `SCORES.energy`; `#home-energy` + `client/energy.js`, between the
   outlook bar and "Today's activities".
 - OUR intraday 0–100 estimate, not a validated physiological measure (formula + constants in
   `analysis/methodology.md`): starts at the wake time at the morning's recovery %, drains per awake
@@ -266,7 +266,7 @@ the nutrition score and today's activities.
 
 ### Nutrition score
 
-- `lib/nutrition/score.mjs` = the reference, scored at view time by `client/nutri-score.js`;
+- `lib/nutrition/nutri-score.mjs` = the reference, scored at view time by `client/nutri-score.js`;
   `#home-nscore`, under the energy bank card.
 - The day's 0–100 adherence to its own targets from the food log (kcal 0.4, protein 0.4, fat 0.2;
   formula and rules in `docs/nutrition-food-log.md` → Nutrition score and `analysis/methodology.md` 5b).
@@ -633,7 +633,7 @@ What it shows: last night's recovery as a % rank (headline), with the 7-day tren
 ### Load
 
 What it shows: per-modality training load from Strava Relative Effort, today vs the typical day.
-`lib/score/load.mjs`.
+`lib/score/training-load.mjs`.
 
 - PER MODALITY (gym / run / bike; `other` is shown raw, never scored) and Relative-Effort-only (Strava
   `suffer_score`; Apple rows have no RE and are counted as `unscored`).

@@ -1,5 +1,5 @@
 /* Inicio "Energy bank" card (#home-energy, in "My day" under the outlook bar): OUR intraday 0-100
- * estimate (SCORES.energy, lib/score/energy.mjs: it starts at wake at the morning's recovery %, drains
+ * estimate (SCORES.energy, lib/score/energy-bank.mjs: it starts at wake at the morning's recovery %, drains
  * per awake hour by a baseline, the stress estimate and the heart-rate load, recharges in calm hours).
  * Nothing is scored here: the level, the start, the low and the hourly levels are baked; this lays
  * out the latest level big, a compact curve from wake to the latest hour, "estimate", and the start.

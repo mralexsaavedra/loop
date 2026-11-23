@@ -468,7 +468,7 @@ descriptor) `isComplete` / `dayState` / `adherence` as `HC_ADH` (inlined before 
 
 ## Nutrition score
 
-Every page. A day's 0–100 adherence to the viewer's own targets, from the food log. `lib/nutrition/score.mjs`
+Every page. A day's 0–100 adherence to the viewer's own targets, from the food log. `lib/nutrition/nutri-score.mjs`
 is the ONE implementation (`NSCORE`, baked as `NUTRI.score`): `lib/nutrition/client.mjs` emits the scoring
 functions (its `CLIENT` descriptor) as `HC_NSCORE` (inlined before util.js), which `client/nutri-score.js`
 runs (no copy). The client test and `web/test/client-globals-build.test.mjs` (the built page) run it over

@@ -531,7 +531,7 @@
     var sec = sectionId ? document.getElementById(sectionId) : null;
     return !(sec && sec.hidden);
   }
-  // every modality gated because no workout ever carried effort (lib/score/load.mjs): dial (state/reason)
+  // every modality gated because no workout ever carried effort (lib/score/training-load.mjs): dial (state/reason)
   // or SCORES (trend.reason) entries
   function noEffortSource(list) {
     return !!(list && list.length) && list.every(function (m) { return (m.reason || (m.trend && m.trend.reason)) === 'noEffortSource'; });
