@@ -8,7 +8,7 @@
  * food-catalog.ts (Mis productos / Mis recetas) and food-log.ts (Registrar + its day navigator, the
  * events, the boot and the public window.HCFood / window.foodTotals). Reads
  * I18N_FOOD + FOOD_CONST (meal slots / stores / units from lib/nutrition/foodlog.mjs), baked by
- * web/src/tabs/Dia.astro, and window.HC (util.js).
+ * web/src/tabs/Dia.astro, and window.HC (util.ts).
  *
  * LAN only, decided at VIEW time like freshness.ts: every host ships `hidden` and appears only when
  * GET /api/food/products answers (loop-web proxies /api/food/ to the ingest service). The claude.ai
@@ -18,7 +18,7 @@
  *
  * Data honesty: macros come from the user's products / recipes (per-100 values from the label or Open
  * Food Facts, confirmed by the user) and the live preview runs lib/nutrition/foodlog.mjs's own
- * functions, emitted at build time as HC_FOODLOG (its clientSource, inlined with HC_FMT before util.js;
+ * functions, emitted at build time as HC_FOODLOG (its clientSource, inlined with HC_FMT before util.ts;
  * window.HCFood; food.test.mjs runs them over the shared FOODLOG_CASES).
  * A quick entry without macros counts its kcal only; unknown macros are never filled in.
  *
@@ -253,7 +253,7 @@ type Act = (el: HTMLElement) => void;
   }
 
   /* ---------- API ---------- */
-  // HC.jsonApi (util.js): the JSON body of a 2xx; rejects {code, field?, status}: the server's coarse code,
+  // HC.jsonApi (util.ts): the JSON body of a 2xx; rejects {code, field?, status}: the server's coarse code,
   // or 'offline' (no answer / timed out, status 0). Every call carries the food API's X-HC-Food header.
   var api = HC.jsonApi(API, 'X-HC-Food', TIMEOUT_MS);
 

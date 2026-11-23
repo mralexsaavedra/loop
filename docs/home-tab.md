@@ -425,7 +425,7 @@ What it shows: user-chosen metric cards with the latest value vs a 30-day baseli
 - `stress` is the one CHART card (`stressCard`): available when `SCORES.stress` has a day with a latest
   scored hour (`now`); shows the newest such day (as the stress tile).
 - A caps title, "Latest hour HH:00" (+ the date when not today), the band word + value, then the hourly
-  chart (`HC.stressChart`, `client/util.js`, shared with the stress sheet). Opens the stress sheet on
+  chart (`HC.stressChart`, `client/util.ts`, shared with the stress sheet). Opens the stress sheet on
   that day.
 
 ### Customize sheet
@@ -450,7 +450,7 @@ What it shows: user-chosen metric cards with the latest value vs a 30-day baseli
     no `pointerup`) is stale and never blocks the next one;
   - no auto-scroll while dragging (the whole catalogue fits a phone screen).
 - The sheet, the switch, ↑ / ↓, the drag and the preferences are the shared `HC.orderList`
-  (`client/util.js`; the caller registers its returned `sheet` under its own literal key), also used by
+  (`client/util.ts`; the caller registers its returned `sheet` under its own literal key), also used by
   [Customize Home](#customize-home).
 - Both drag and ↑ / ↓ reorder through the pure `HCDash.move(list, from, to)`.
 - Preferences = `localStorage['hc-dash-v1']` `{order, hidden}`: every read / write is in a try/catch;

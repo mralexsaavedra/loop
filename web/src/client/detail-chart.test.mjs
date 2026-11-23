@@ -1,5 +1,5 @@
 /* Tests for the detail sheet's trend chart (web/src/client/detail-chart.ts, window.HCDetailChart): the
- * classic script runs in a vm after util.js and detail-state.ts, over small hand-made series and a fixed
+ * classic script runs in a vm after util.ts and detail-state.ts, over small hand-made series and a fixed
  * clock, so the slot geometry (selX + the caller's state.geo), the round Y ticks, the long-window
  * "out of range only" dots and the breakdown counts are checked without the sheet. The rendered sheet
  * (every metric's view, gaps, the key, the breakdown's placement and copy) is covered by detail.test.mjs.

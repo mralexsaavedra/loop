@@ -5,7 +5,7 @@
  * (web/src/i18n/health-templates.mjs) — same pattern as client/training-today.ts and
  * client/training-dash.ts.
  *
- * `esc()` / `format()` / `daysOld()` are the shared helpers of client/util.js (window.HC). `esc()` wraps
+ * `esc()` / `format()` / `daysOld()` are the shared helpers of client/util.ts (window.HC). `esc()` wraps
  * every data value (dates, source names, titles); the static I18N_HEALTH copy is generic, tracked text,
  * never user input, so it is NOT re-escaped.
  *
@@ -35,9 +35,9 @@ type RowFn = () => string;
 
 (function () {
   var T = I18N_HEALTH;
-  // shared helpers (web/src/client/util.js)
+  // shared helpers (web/src/client/util.ts)
   var esc = HC.esc, nf = HC.nf, format = HC.format, daysOld = HC.daysOld;
-  // the ONE display-date formatter (util.js), without the weekday: "22 Jun" / "22 jun"
+  // the ONE display-date formatter (util.ts), without the weekday: "22 Jun" / "22 jun"
   function fmtD(iso: string): string {
     return HC.fmtDate(iso, { weekday: false });
   }
@@ -148,7 +148,7 @@ type RowFn = () => string;
   function stageRows(st: any, SCd: any): RowFn[] {
     if (!st || !SCd.stages) return [];
     var L = SCd.stages, sh = st.shares || {};
-    // each row its own icon (one set, util.js): REM a wave, deep the moon, core the stages, awake a clock
+    // each row its own icon (one set, util.ts): REM a wave, deep the moon, core the stages, awake a clock
     var ICO: Record<string, string> = { rem: 'restor', deep: 'sleep', core: 'stages', awake: 'clock' };
     var hrow = function (k: string, dir: number): RowFn {
       return function () {

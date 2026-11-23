@@ -90,7 +90,7 @@ test('the public basics are baked once as FOOD_BASICS, localized, compact (lib/n
 
 test('the food scripts talk only to its own origin, with the X-HC-Food header, and never stores the log in the browser', () => {
   assert.match(food, /var API = (['"])\/api\/food\1;/);
-  assert.match(food, /HC\.jsonApi\(API, (["'])X-HC-Food\1, TIMEOUT_MS\)/, 'every call through the shared wrapper (util.js) with its own header');
+  assert.match(food, /HC\.jsonApi\(API, (["'])X-HC-Food\1, TIMEOUT_MS\)/, 'every call through the shared wrapper (util.ts) with its own header');
   assert.doesNotMatch(food, /https?:\/\//, 'no absolute URL (Open Food Facts is called by the server)');
   assert.doesNotMatch(food, /localStorage|sessionStorage|indexedDB/);
 });

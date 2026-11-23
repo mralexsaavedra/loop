@@ -1,5 +1,5 @@
 /* Header freshness line + Sync button. Module script (bundled into the page, docs/plan-page.md → Module scripts): reads I18N_SYNC baked by
- * layouts/Plan.astro and the shared HC helpers (util.js).
+ * layouts/Plan.astro and the shared HC helpers (util.ts).
  *
  * Everything is decided HERE, at view time: the build bakes no time and no URL state, so consecutive
  * builds stay byte-identical. On load it asks the page's own server for
@@ -22,7 +22,7 @@
  * Error codes are mapped through I18N_SYNC.errors; an unknown code shows the generic reason. */
 import type { PageGlobals } from './page-globals';
 
-// the page globals this script reads (util.js's HC; I18N_SYNC baked by layouts/Plan.astro)
+// the page globals this script reads (util.ts's HC; I18N_SYNC baked by layouts/Plan.astro)
 declare const HC: PageGlobals['HC'];
 declare const I18N_SYNC: PageGlobals['I18N_SYNC'];
 

@@ -94,7 +94,7 @@ const SYNC_ICON = '<path d="M20 12a8 8 0 0 1-14.3 4.9M4 12a8 8 0 0 1 14.3-4.9"/>
 // the journal row of the "+" popover: a notebook with a check
 const JOURNAL_ICON = '<path d="M6 3h12v18H6zM9 3v18"/><path d="m12 12 2 2 3-4"/>';
 // core.ts reads the tab keys and the legacy-section map (+ the deep-link host tabs) from this ONE baked copy of lib/nav/tabs.mjs
-// ...and util.js reads the page-level constants (lib/stale.mjs) from HC_CONST, never client literals,
+// ...and util.ts reads the page-level constants (lib/stale.mjs) from HC_CONST, never client literals,
 // and the names of its one date formatter (HC.fmtDate / HC.fmtMonth) from I18N_DATE
 const syncT = locale === 'es' ? esSync : enSync;
 const dateT = locale === 'es' ? esDate : enDate;

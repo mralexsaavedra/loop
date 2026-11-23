@@ -5,7 +5,7 @@
  * from window.HCSettings (LAN page only; without it there is no target and no ETA).
  *
  * rollPoints / weeklyRate / weightProgress / etaMonths are lib/nutrition/progress.mjs's own functions,
- * emitted at build time as HC_PROG (its clientSource, inlined before util.js; a test runs it over
+ * emitted at build time as HC_PROG (its clientSource, inlined before util.ts; a test runs it over
  * PROGRESS_CASES): the rate is the least-squares slope of the 7-day average over the
  * last windowDays (kg/week), the status is vs the goal's band (NUTRI.progress.bands, never more than
  * maxPctWeek of bodyweight a week), the ETA (only on pace) = remaining ÷ the observed rate ±etaSpread,
@@ -37,7 +37,7 @@ type Progress = {
   var esc = HC.esc, format = HC.format;
   var TONE: Record<string, string> = { onPace: 'good', steady: 'good', reached: 'good', slow: 'mid', drift: 'mid', fast: 'low', wrong: 'low', fewData: 'muted' };
 
-  // the lib's own functions (lib/nutrition/progress.mjs clientSource, inlined before util.js)
+  // the lib's own functions (lib/nutrition/progress.mjs clientSource, inlined before util.ts)
   var fin = HC_PROG.fin, weightProgress = HC_PROG.weightProgress, etaMonths = HC_PROG.etaMonths;
 
   /* ---------- inputs on the viewer's page ---------- */

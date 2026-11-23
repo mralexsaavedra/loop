@@ -53,7 +53,7 @@ type Summary = {
   var DELTA_FLAT = 0.01;
   var RANGE_KEY: Record<number, string> = { 7: 'w', 30: 'm', 182: 'm6' };
   var STORE = 'hc-act-range';
-  // shared helpers (web/src/client/util.js); windows and level cuts are baked in ACTIVITY
+  // shared helpers (web/src/client/util.ts); windows and level cuts are baked in ACTIVITY
   var esc = HC.esc, format = HC.format, shift = HC.shiftIso, parse = HC.parseIso;
   var PERIODS = A && Array.isArray(A.periods) ? A.periods : [7, 30, 182];
   var range = 30;

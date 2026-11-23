@@ -1,6 +1,6 @@
 /* Number-format guard (docs/design-system.md → "Numbers"): every user-visible number goes through
  * the ONE formatter, lib/format/numbers.mjs (HC_FMT in the page; HC.num / HC.int / HC.nf / HC.pct /
- * HC.hours / HC.duration wrap it in client/util.js). This test scans the display sources — the
+ * HC.hours / HC.duration wrap it in client/util.ts). This test scans the display sources — the
  * classic client scripts, the view helpers, the Astro tabs / components / layout, the i18n
  * templates and the build-time advice copy — with comments stripped, and fails when one builds a
  * number string by hand instead:
@@ -25,7 +25,7 @@ const hits = (files, re) =>
 // `.toFixed(` that only places SVG / CSS geometry (coordinates, widths, dash arrays) — never text
 const GEOMETRY_TOFIXED = {
   'web/src/client/deepdive.ts': 7, // energy-bank chart and the stress gauge: points, rects, label positions
-  'web/src/client/util.js': 8, // HC.stressChart (the stress sheet + Mi panel card): points, rects, label positions
+  'web/src/client/util.ts': 8, // HC.stressChart (the stress sheet + Mi panel card): points, rects, label positions
   'web/src/client/detail-chart.ts': 4, // trend chart: svg coordinates, % positions of the labels
   'web/src/client/detail.ts': 1, // the chart's selection rect, moved on a day tap
   'web/src/client/energy.ts': 2, // the energy-bank line's x / y

@@ -29,7 +29,7 @@
  * Module script (bundled into the page, docs/plan-page.md → Module scripts), inlined BEFORE detail.ts. Reads PROFILE (lib/profile/read.mjs
  * loadProfile -> profile.mjs buildProfile, baked by Avatar.astro with `photo` as a flag: the data URI
  * is baked ONCE, in the button's <img id="avatar-img">, and copied from there) + I18N_PROFILE, and
- * window.HC (util.js). The age is computed here on the viewer's clock, so builds stay byte-identical.
+ * window.HC (util.ts). The age is computed here on the viewer's clock, so builds stay byte-identical.
  */
 import type { PageGlobals } from './page-globals';
 
@@ -66,7 +66,7 @@ type SettingsState = { pending?: boolean; last?: SaveStatus | null } | null | un
     return Array.isArray(v) ? v : [];
   }
   var fin = HC.fin;
-  // whole years between an ISO birthdate and an ISO day (the shared HC.ageOn, client/util.js)
+  // whole years between an ISO birthdate and an ISO day (the shared HC.ageOn, client/util.ts)
   var ageOn = HC.ageOn;
   function photoSrc() {
     if (!P.photo) return null;

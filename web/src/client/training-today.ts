@@ -33,7 +33,7 @@ type Session = { kind?: string; focus: string; blocks: Block[] };
     d.textContent = s;
     return d.innerHTML;
   }
-  // the ONE display-date formatter (util.js): "Tue 29 Sep" / "mar 29 sept"
+  // the ONE display-date formatter (util.ts): "Tue 29 Sep" / "mar 29 sept"
   function fmtLong(isoStr: string): string {
     return HC.fmtDate(isoStr);
   }

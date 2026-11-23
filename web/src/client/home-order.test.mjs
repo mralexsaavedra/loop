@@ -1,6 +1,6 @@
 /* Tests for Inicio's block order (web/src/client/home-order.ts): the user's order and show / hide of the
  * blocks below the tiles (My day … My dashboard), kept in localStorage, applied to the page at load and
- * after every change in the "Customize Home" sheet (the shared HC.orderList, client/util.js). Runs the
+ * after every change in the "Customize Home" sheet (the shared HC.orderList, client/util.ts). Runs the
  * classic script in a vm over a tiny fake DOM (one panel whose children can be moved). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';

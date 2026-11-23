@@ -13,7 +13,7 @@
  *   so the reader falls back now and the later script calls back (intakeRefresh, HCNutri.render…).
  * Adding a script: add it here at its place; the test names any missing require or provide. */
 export const CLIENT_SCRIPTS = [
-  { file: 'util.js', provides: ['HC', 'HCViews'], requires: ['HC_CONST', 'HC_FMT'] },
+  { file: 'util.ts', provides: ['HC', 'HCViews'], requires: ['HC_CONST', 'HC_FMT'] },
   {
     file: 'core.ts',
     provides: ['setTab', 'jump', 'jumpOr', 'currentTab', 'HCNav'],

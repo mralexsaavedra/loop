@@ -33,7 +33,7 @@ declare const INTAKE: PageGlobals['INTAKE'];
   var C = 2 * Math.PI * RING_R;
   var OVER_TARGET_RATIO = 1.1; // beyond 110% of the target the ring is styled as over
 
-  // shared helpers (web/src/client/util.js)
+  // shared helpers (web/src/client/util.ts)
   var format = HC.format, esc = HC.esc, nf = HC.nf;
   function isFresh(date: string) {
     var age = HC.daysOld(date);

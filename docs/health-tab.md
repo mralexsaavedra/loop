@@ -73,7 +73,7 @@ What it shows: one row per metric — the newest value with its 30-day context. 
 
 - Row = the shared `HC.metricRow` (the same `.db-*` row as Home's "My dashboard"):
   icon · UPPERCASE name · the NEWEST value + unit · a marker · a small line under the value.
-- Icons: each row its own, from the one set in `util.js`. Sleep's rows: the moon for last night, a target
+- Icons: each row its own, from the one set in `util.ts`. Sleep's rows: the moon for last night, a target
   for nights ≥ target, the regularity lines for the spread, a bed, a sun for wake time, then REM a wave,
   deep the moon, core the stages steps, awake a clock, efficiency bars.
 

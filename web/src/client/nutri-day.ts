@@ -8,7 +8,7 @@
  * so builds stay byte-identical.
  *
  * - Day type: detectDayType = lib/nutrition/daytype.mjs itself (HC_DAYTYPE, emitted by lib/nutrition/client.mjs
- *   and inlined with HC_FMT before util.js; no copy). A manual override is kept in localStorage WITH its date (so it expires
+ *   and inlined with HC_FMT before util.ts; no copy). A manual override is kept in localStorage WITH its date (so it expires
  *   the next day) and the type detected when it was picked: an override LESS demanding than a type
  *   detected later that day (picked gym, then a long ride synced) is dropped with a one-line note; a
  *   more demanding one (planning a ride) stays. Storage is a per-viewer convenience: every access is
