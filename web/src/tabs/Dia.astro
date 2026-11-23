@@ -25,7 +25,7 @@
  *   4. Avituallamiento — before -> during -> after the ride as a 3-step timeline, bike day types only
  *                        (never collapsed);
  *   5. Balance         — intake vs expenditure (avg intake, avg burn, deficit / surplus a day) + the
- *                        average macro split over ONE baked window (client/health.js renderBalance,
+ *                        average macro split over ONE baked window (client/health.ts renderBalance,
  *                        HEALTH.energy);
  *   6. Progreso        — weight vs the goal (client/progress.js, from the baked DETAIL weight series;
  *                        the target weight on the LAN page), a tap opens the weight detail sheet;
@@ -129,7 +129,7 @@ const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForSc
     </div>
   </div>
 
-  {/* Balance (client/health.js renderBalance, HEALTH.energy from the shared Bake): intake vs
+  {/* Balance (client/health.ts renderBalance, HEALTH.energy from the shared Bake): intake vs
       expenditure + the macro split over the baked window; hidden when there is no expenditure data */}
   <div class="nutri-block" id="nutri-balance" hidden></div>
 

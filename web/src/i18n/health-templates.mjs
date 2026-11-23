@@ -1,15 +1,15 @@
 /* Client-side (browser, classic-script) format strings for the "Salud / Health" tab — same
- * rationale/constraint as hoy-templates.mjs / dash-templates.mjs: web/src/client/health.js is a
+ * rationale/constraint as hoy-templates.mjs / dash-templates.mjs: web/src/client/health.ts is a
  * classic script and cannot import an ES module, so it can only receive
  * plain JSON-safe data baked by Bake.astro (I18N_HEALTH). No functions or
  * RegExp allowed here — every dynamic fragment is a `{placeholder}` string
  * substituted client-side via the shared `format(tpl, vars)` helper (see
- * health.js), including two-level nesting for the notes that have optional
+ * health.ts), including two-level nesting for the notes that have optional
  * clauses (e.g. `sourcesClause`/`sourceClause` built from a sub-template,
  * then spliced into the note's `main` template), so a note keeps its
  * conditional clauses while staying JSON-safe.
  *
- * Decimal-comma display and the date locale are handled in health.js itself from the shared `LOCALE`
+ * Decimal-comma display and the date locale are handled in health.ts itself from the shared `LOCALE`
  * global.
  *
  * `runningNote` ends with a GENERIC closing line ("Improving pace at the same effort is the
@@ -24,7 +24,7 @@ export const es = {
   infoTpl: 'Sobre {section}',
   rowsHelp: 'Cada fila: el último valor a la derecha; debajo, en pequeño, tu media de 30 días (o el cambio Δ en las medidas sueltas) y ▲▼ frente a ella — verde azulado si va en la buena dirección, naranja si no, gris sin dirección buena o dentro de ±2%. Un total de hoy va en curso y no se compara. Toca una fila para ver su historial (S · M · 6M · 1A).',
   fitnessNoteHtml: '<b>↑ VO₂máx y ↓ FC al caminar</b> son las direcciones buenas. VO₂máx: Δ desde la primera lectura. FC al caminar: frente a su media de 30 días.',
-  // Fitness: the fitness-age block (client/health.js, SCORES.fitnessAge from lib/score/fitness-age.mjs)
+  // Fitness: the fitness-age block (client/health.ts, SCORES.fitnessAge from lib/score/fitness-age.mjs)
   fitnessAge: {
     label: 'Edad física',
     chrono: 'Edad cronológica',
@@ -50,7 +50,7 @@ export const es = {
   agoMonthTpl: 'hace {m} mes',
   agoMonthsTpl: 'hace {m} meses',
   agoYearsTpl: 'hace {y} años',
-  // Salud "Hábitos de longevidad" (client/health.js habitsSection, lib/score/healthspan.mjs)
+  // Salud "Hábitos de longevidad" (client/health.ts habitsSection, lib/score/healthspan.mjs)
   habits: {
     names: { sleep: 'Horas de sueño', activity: 'Actividad moderada o intensa', strength: 'Días de fuerza', steps: 'Pasos al día', fitness: 'Edad física', rhr: 'Pulso en reposo', cons: 'Regularidad del sueño' },
     units: { minWk: 'min/sem', daysWk: 'días/sem', years: 'años', bpm: 'lpm', min: 'min' },
@@ -137,7 +137,7 @@ export const es = {
     uncoveredDays: '<b>Sin corregir:</b> {n} de los últimos 30 días tienen una salida con potenciómetro que no se pudo corregir porque faltan los datos por horas del reloj (clave <code>active_energy_hourly</code> del Atajo); queda el valor del reloj, probablemente corto.',
     days: '<b>Salidas con potenciómetro:</b> {n} de los últimos 30 días usan la energía de la salida medida por potencia (kJ de Strava ≈ kcal) en vez de la del reloj durante esas horas, porque el reloj no la registró y se queda corto. Solo si sube el día, nunca lo baja.',
   },
-  // Nutrición → Balance (client/health.js renderBalance, host #nutri-balance)
+  // Nutrición → Balance (client/health.ts renderBalance, host #nutri-balance)
   balance: {
     heading: 'Balance',
     winTpl: '{from} – {to} · {days} días registrados',
@@ -181,7 +181,7 @@ export const en = {
   infoTpl: 'About {section}',
   rowsHelp: 'Each row: the latest value on the right; under it, small, your 30-day average (or the change Δ for sparse measurements) and ▲▼ against it — teal when it moves the good way, orange when not, grey without a good direction or within ±2%. Today’s running total is partial and not compared. Tap a row for its history (W · M · 6M · 1Y).',
   fitnessNoteHtml: '<b>↑ VO₂max and ↓ walking HR</b> are the good directions. VO₂max: Δ since the first reading. Walking HR: vs its 30-day average.',
-  // Fitness: the fitness-age block (client/health.js, SCORES.fitnessAge from lib/score/fitness-age.mjs)
+  // Fitness: the fitness-age block (client/health.ts, SCORES.fitnessAge from lib/score/fitness-age.mjs)
   fitnessAge: {
     label: 'Fitness age',
     chrono: 'Chronological age',
@@ -207,7 +207,7 @@ export const en = {
   agoMonthTpl: '{m} month ago',
   agoMonthsTpl: '{m} months ago',
   agoYearsTpl: '{y} yr ago',
-  // Salud "Healthspan habits" (client/health.js habitsSection, lib/score/healthspan.mjs)
+  // Salud "Healthspan habits" (client/health.ts habitsSection, lib/score/healthspan.mjs)
   habits: {
     names: { sleep: 'Hours of sleep', activity: 'Moderate or vigorous activity', strength: 'Strength days', steps: 'Steps per day', fitness: 'Fitness age', rhr: 'Resting heart rate', cons: 'Sleep regularity' },
     units: { minWk: 'min/wk', daysWk: 'days/wk', years: 'years', bpm: 'bpm', min: 'min' },
@@ -294,7 +294,7 @@ export const en = {
     uncoveredDays: '<b>Not corrected:</b> {n} of the last 30 days have a power-meter ride that could not be corrected because the watch\'s hourly data is missing (the Shortcut\'s <code>active_energy_hourly</code> key); the watch value stays, probably short.',
     days: '<b>Power-meter rides:</b> {n} of the last 30 days use the ride energy measured by power (Strava kJ ≈ kcal) instead of the watch during those hours, because the watch did not record the ride and under-counts it. Only when it raises the day, never lowers it.',
   },
-  // Nutrition → Balance (client/health.js renderBalance, host #nutri-balance)
+  // Nutrition → Balance (client/health.ts renderBalance, host #nutri-balance)
   balance: {
     heading: 'Balance',
     winTpl: '{from} – {to} · {days} days logged',

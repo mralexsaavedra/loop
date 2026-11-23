@@ -1,19 +1,17 @@
-/* Tests for the Inicio health monitor renderer (web/src/client/monitor.js): runs the classic script in
+/* Tests for the Inicio health monitor renderer (web/src/client/monitor.ts): runs the classic script in
  * a vm with baked SCORES/I18N_SCORE/LOCALE globals and a controllable clock. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { monitorFromInputs } from '../../../lib/score/monitor.mjs';
 import { es as esT, en as enT } from '../i18n/score-templates.mjs';
 import { es as esD, en as enD } from '../i18n/detail-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { addDays } from '../../../lib/date.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'monitor.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('monitor.ts');
 
 const ASOF = '2026-09-29';
 const wig = (i) => ((i * 7) % 5) - 2;
@@ -384,9 +382,9 @@ test('carried values (HC.carried): a tile whose value is from before the shown d
   assert.doesNotMatch(stressTile(tiles.innerHTML), /carried/);
 });
 
-test('monitor.js fills its templates with HC.format only (no ad-hoc .replace of {placeholders})', () => {
+test('monitor.ts fills its templates with HC.format only (no ad-hoc .replace of {placeholders})', () => {
   assert.doesNotMatch(source, /\.replace\(\s*['"]\{/);
-  assert.match(source, /format\(T\.rangeLbl, \{ lo: lo, hi: hi \}\)/);
+  assert.match(source, /format\(T\.rangeLbl, \{ lo(: lo)?, hi(: hi)? \}\)/);
 });
 
 // the second user's case (a band that writes resting HR + an estimated night, nothing else): fresh

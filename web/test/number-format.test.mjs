@@ -29,11 +29,11 @@ const GEOMETRY_TOFIXED = {
   'web/src/client/detail-chart.js': 4, // trend chart: svg coordinates, % positions of the labels
   'web/src/client/detail.js': 1, // the chart's selection rect, moved on a day tap
   'web/src/client/energy.ts': 2, // the energy-bank line's x / y
-  'web/src/client/health.js': 2, // the macro-split bar's rect x / width
+  'web/src/client/health.ts': 2, // the macro-split bar's rect x / width
   'web/src/client/intake.js': 2, // the ring's stroke-dasharray
   'web/src/client/journal.ts': 2, // an insight bar's left / width
   'web/src/client/nutri-score.js': 4, // the sparkline path + its area's two baseline corners
-  'web/src/client/score.js': 2, // the sparkline points
+  'web/src/client/score.ts': 2, // the sparkline points
   'web/src/client/training-activity.ts': 2, // the modality bar's rect x / width
 };
 // a hand-made decimal comma that is DATA, not display. None left in the display sources: the logged food

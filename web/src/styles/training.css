@@ -265,7 +265,7 @@
   }
 }
 
-/* Entreno "Load vs recovery": the weekly load bars sit in one card (client/health.js renderEntreno) */
+/* Entreno "Load vs recovery": the weekly load bars sit in one card (client/health.ts renderEntreno) */
 .lvr-card {
   margin-bottom: var(--sp-3);
   padding: var(--card-pad);

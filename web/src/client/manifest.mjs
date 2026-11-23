@@ -62,16 +62,16 @@ export const CLIENT_SCRIPTS = [
     requires: ['ACTIVITY', 'DETAIL', 'HC', 'HC_FMT', 'I18N_ACTIVITY', 'I18N_DATE', 'LOCALE'],
   },
   {
-    file: 'health.js',
+    file: 'health.ts',
     provides: [],
     requires: ['DETAIL', 'HC', 'HC_FMT', 'HEALTH', 'I18N_DATE', 'I18N_HEALTH', 'LOCALE', 'PROFILE', 'SCORES'],
   },
   {
-    file: 'score.js',
+    file: 'score.ts',
     provides: ['HCScore', 'HCAdvice'],
     requires: ['DETAIL', 'DIALS', 'HC', 'HCDay', 'HC_FMT', 'I18N_DATE', 'I18N_SCORE', 'LOCALE', 'SCORES'],
   },
-  { file: 'monitor.js', provides: [], requires: ['DETAIL', 'HC', 'HCDay', 'HC_FMT', 'I18N_DATE', 'I18N_DETAIL', 'I18N_SCORE', 'LOCALE', 'SCORES'] },
+  { file: 'monitor.ts', provides: [], requires: ['DETAIL', 'HC', 'HCDay', 'HC_FMT', 'I18N_DATE', 'I18N_DETAIL', 'I18N_SCORE', 'LOCALE', 'SCORES'] },
   { file: 'energy.ts', provides: [], requires: ['HC', 'HCDay', 'HC_BAND', 'I18N_SCORE', 'SCORES'] },
   {
     file: 'nutri-score.js',

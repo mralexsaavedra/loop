@@ -378,7 +378,7 @@ var HC = (function () {
       '<span class="sw-knob" aria-hidden="true"></span></button>';
   }
 
-  // ⓘ button of a Salud header: toggles the hidden block #<id> (client/health.js listens for
+  // ⓘ button of a Salud header: toggles the hidden block #<id> (client/health.ts listens for
   // [data-hs-info]); drawn as an SVG, the page fonts carry no ⓘ glyph
   var INFO_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>';
   function infoBtn(id, label) {

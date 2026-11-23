@@ -4,11 +4,11 @@
  * wrist temperature, sleep duration) against the user's own normal range, rendered from
  * SCORES.monitor (lib/score/monitor.mjs, baked by components/Bake.astro) + I18N_SCORE.monitor.
  *
- * Classic script (is:inline, no module scope). Everything numeric is baked: the band comes from the
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts). Everything numeric is baked: the band comes from the
  * lib; this file only formats numbers and joins markup. The list = an uppercase label + a status chip
  * (in range / n out of range / no data) + one shared metric row per signal (HC.metricRow: icon · NAME
  * · value · ▲ above / ▼ below / • inside the range, the range itself as the small line under the
- * value); the explanation sits behind an ⓘ toggle (client/health.js wires every [data-hs-info]).
+ * value); the explanation sits behind an ⓘ toggle (client/health.ts wires every [data-hs-info]).
  * "Last night" vs an older date and the staleness grey are decided here from Date.now(), never
  * baked, so consecutive builds stay byte-identical. Colour follows the baked tone (good / bad /
  * watch / normal), never the raw direction: respiratory rate and wrist temp only ever reach
@@ -24,6 +24,32 @@
  * cut at it) and that day's stress value or HRV card, which opens its sheet on that day. The Salud list stays the
  * latest. Today renders exactly as before.
  */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads (baked by the build or provided by an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+declare const SCORES: PageGlobals['SCORES'];
+declare const I18N_SCORE: PageGlobals['I18N_SCORE'];
+declare const I18N_DETAIL: PageGlobals['I18N_DETAIL'];
+
+// one SCORES.monitor card (lib/score/monitor.mjs)
+type MonitorCard = {
+  key: string; state: string; date: string; value: number; dec: number;
+  band?: { lo: number; hi: number } | null; status: string; tone?: string | null;
+};
+// what row() joins into HC.metricRow
+type RowOpts = {
+  cls: string; value: string; base: string; unit?: string; numCls?: string;
+  arrow?: string | null; tone?: string | null; sr?: string;
+};
+// the summary counts (counts(), or a SCORES.days entry's monitor, whose fallback has no `bld`)
+type Counts = { inR: number; out: number; bld?: number };
+type PastMonitor = Counts & { total: number; hrv: MonitorCard | null };
+// one SCORES.stress day (lib/score/stress.mjs) with its latest scored hour
+type StressDay = { date: string; now: { t: string; v: number; band: string } };
+// HC.carried's result (util.js), plus the date markup added here
+type Carried = { carried: boolean; label: string; cls: string; html: string };
+
 (function () {
   var host = document.getElementById('monitor');
   if (!host) return;
@@ -37,27 +63,27 @@
 
   // shared helpers (web/src/client/util.js)
   var esc = HC.esc, isoDate = HC.isoDate, daysOld = HC.daysOld, format = HC.format;
-  function num(x, dec) {
+  function num(x: number | null, dec: number): string {
     return HC.num(x, dec, false);
   }
   // every row opens its detail sheet (client/detail.js); the monitor keys are the detail metric keys
-  function linkAttrs(key) {
+  function linkAttrs(key: string): string {
     return HC.detailAttrs(key);
   }
-  var ARROW = { high: 'up', low: 'down', normal: 'flat' };
-  var TONE = { good: 'good', bad: 'bad', watch: 'watch' };
-  function row(key, o) {
+  var ARROW: Record<string, string> = { high: 'up', low: 'down', normal: 'flat' };
+  var TONE: Record<string, string> = { good: 'good', bad: 'bad', watch: 'watch' };
+  function row(key: string, o: RowOpts): string {
     var lbl = T.labels[key] || key;
     return HC.metricRow({ key: key, cls: 'hm-row ' + o.cls, attrs: ' data-hm="' + esc(key) + '"' + linkAttrs(key), sr: o.sr,
       name: lbl, value: o.value, unit: o.unit, numCls: o.numCls, arrow: o.arrow, tone: o.tone, base: o.base });
   }
   // `unrec`: the series has no reading at all (state 'none'): its device does not record it; a card
   // that failed to render stays a plain "No data"
-  function emptyCard(key, unrec) {
+  function emptyCard(key: string, unrec?: boolean): string {
     var word = unrec && TD && TD.unrecorded ? TD.unrecorded : T.status.none;
     return row(key, { cls: 'hm-none', value: '—', base: word });
   }
-  function card(c) {
+  function card(c: MonitorCard): string {
     if (c.state !== 'ok') return emptyCard(c.key, c.state === 'none');
     var age = daysOld(c.date);
     var old = age != null && age > STALE_DAYS;
@@ -69,7 +95,7 @@
     // the range is written one decimal finer than the value (max 2), so a value just past the edge
     // never reads as sitting on it (e.g. 15.1 vs "14.2–15.1" for a High); hours to the minute
     var rd = Math.min(c.dec + 1, 2);
-    var bound = function (v) { return hm ? HC.hours(v) : num(v, rd); };
+    var bound = function (v: number) { return hm ? HC.hours(v) : num(v, rd); };
     var lo = c.band && !old ? bound(c.band.lo) : '', hi = c.band && !old ? bound(c.band.hi) : '';
     var range = c.band && !old ? format(T.rangeLbl, { lo: lo, hi: hi }) : '';
     var rangeAria = range ? format(T.rangeAria || T.rangeLbl, { lo: lo, hi: hi }) : '';
@@ -82,12 +108,12 @@
     var marked = !!(range && ARROW[c.status]);
     return row(c.key, {
       cls: old ? 'hm-stale' : 'hm-tone-' + esc(c.tone || 'normal'), value: value, unit: unit, numCls: 'hm-num',
-      arrow: marked ? ARROW[c.status] : null, tone: marked ? TONE[c.tone] || 'flat' : null, base: base,
+      arrow: marked ? ARROW[c.status] : null, tone: marked ? TONE[c.tone as string] || 'flat' : null, base: base,
       // the small line in words (the status, "Normal range …", the date), read after the value
       sr: (range ? [status, rangeAria, when] : when ? [status, when] : []).filter(Boolean).join(' · '),
     });
   }
-  function safeCard(c) {
+  function safeCard(c: MonitorCard): string {
     try {
       return card(c);
     } catch (e) {
@@ -97,7 +123,7 @@
 
   /* ---- Inicio tiles (#home-tiles): the monitor's summary + the HRV signal, from the SAME cards ---- */
   // a card counts only with a fresh value (its own date <= STALE_DAYS old) and a status vs its band
-  function fresh(c) {
+  function fresh(c: MonitorCard | null): boolean {
     var a = c && c.state === 'ok' ? daysOld(c.date) : null;
     return a != null && a <= STALE_DAYS;
   }
@@ -105,12 +131,12 @@
   // THE carried-value rule (HC.carried, docs/design-system.md → Carried values): a tile whose value is
   // dated before the shown day (`day`, null = the viewer's today) is dimmed and names that date, short
   // (no weekday: a half-width tile)
-  function carry(iso, day) {
-    var c = HC.carried(iso, day, { weekday: false });
+  function carry(iso: string | null, day: string | null): Carried {
+    var c: Carried = HC.carried(iso, day, { weekday: false });
     c.html = c.carried ? '<span class="carried-date">' + esc(c.label) + '</span>' : '';
     return c;
   }
-  function lbl(text) {
+  function lbl(text: string): string {
     return '<span class="hmt-lbl">' + esc(text) + '<span class="chev" aria-hidden="true">›</span></span>';
   }
   // tile 1: out-of-range count (teal check "within range" when none), "n/total metrics" in range; a
@@ -119,9 +145,9 @@
   // "within range" when none, "building baseline" when the only fresh cards have no band yet, "no
   // data" when nothing is fresh; + the in-range count
   // `bld`: fresh cards still building their baseline (no band yet) are data too, never "no data"
-  function counts() {
+  function counts(): Counts {
     var inR = 0, out = 0, bld = 0;
-    M.cards.forEach(function (c) {
+    M.cards.forEach(function (c: MonitorCard) {
       if (!fresh(c)) return;
       if (c.status === 'normal') inR++;
       else if (c.status === 'high' || c.status === 'low') out++;
@@ -130,11 +156,11 @@
     return { inR: inR, out: out, bld: bld };
   }
   // bare: no check inside (the Inicio tile draws its status as a square icon beside the chip)
-  function chip(n, bare) {
+  function chip(n: Counts, bare?: boolean): string {
     var TT = T.tile;
     return n.out > 0 ? '<span class="hmt-chip hmt-out">' + esc(format(TT.out, { n: n.out })) + '</span>'
       : n.inR > 0 ? '<span class="hmt-chip hmt-in">' + (bare ? '' : CHECK) + esc(TT.inRange) + '</span>'
-      : n.bld > 0 ? '<span class="hmt-chip hmt-none hmt-building">' + esc(T.status.building) + '</span>'
+      : (n.bld as number) > 0 ? '<span class="hmt-chip hmt-none hmt-building">' + esc(T.status.building) + '</span>'
       : '<span class="hmt-chip hmt-none">' + esc(TT.none) + '</span>';
   }
   // tile 1: a square status icon (✓ teal: every fresh signal in range; ! orange: one or more out; none
@@ -142,7 +168,7 @@
   // list at the top of Salud (core.js jump: switches to the tab that holds #monitor and scrolls to it)
   // `asOf` = the newest night it counts (today only; a past day's summary is that day's): carried when
   // earlier than today, its date on a line of its own under the count (a ' · ' join wraps at 360 px)
-  function sumTile(n, total, asOf) {
+  function sumTile(n: Counts, total: number, asOf: string | null): string {
     var tone = n.out > 0 ? 'out' : n.inR > 0 ? 'in' : '';
     var sq = tone ? '<span class="hmt-sq hmt-' + tone + '" aria-hidden="true">' + (tone === 'in' ? CHECK : '!') + '</span>' : '';
     var c = carry(asOf, null);
@@ -151,26 +177,26 @@
       (c.html ? '<span class="hmt-sub">' + c.html + '</span>' : '') + '</span></span></button>';
   }
   // the newest night among the fresh cards (what the summary counts), null without one
-  function newestFresh() {
-    var out = null;
-    M.cards.forEach(function (c) { if (fresh(c) && isoDate(c.date) && (!out || c.date > out)) out = c.date; });
+  function newestFresh(): string | null {
+    var out = null as string | null;
+    M.cards.forEach(function (c: MonitorCard) { if (fresh(c) && isoDate(c.date) && (!out || c.date > out)) out = c.date; });
     return out;
   }
   // tile 2: the stress monitor (lib/score/stress.mjs, SCORES.stress: a heart-rate-only ESTIMATE per
   // waking hour) when the day has a value: the latest scored hour's value chip, its band word in the
   // band colour, the hour (+ the date when it is not today); it opens the stress page. `day` = the
   // past day shown (null = today: the newest day with a value, when <= STALE_DAYS old)
-  function stressDay(day) {
-    var St = S.stress, out = null;
+  function stressDay(day: string | null): StressDay | null {
+    var St = S.stress, out = null as StressDay | null;
     if (!St || !St.ok || !Array.isArray(St.days)) return null;
-    St.days.forEach(function (x) {
+    St.days.forEach(function (x: StressDay | null) {
       if (!x || !x.now || !isoDate(x.date)) return;
       if (day ? x.date === day : !out || x.date > out.date) out = x;
     });
     if (out && !day && !(daysOld(out.date) <= STALE_DAYS)) return null;
     return out;
   }
-  function stressTile(d, day) {
+  function stressTile(d: StressDay, day: string | null): string {
     var ST = T.stress, n = d.now, band = ST.bands[n.band] ? n.band : 'low';
     var time = String(n.t).slice(0, 2) + ':00';
     var c = carry(d.date, day), old = c.carried;
@@ -184,13 +210,13 @@
       '<span class="hmt-band">' + esc(ST.bands[band]) + '</span></span>' +
       '<span class="hmt-sub">' + (old ? c.html + ' · ' : '') + esc(time) + '</span></span></div><!--/hmt-->';
   }
-  function secondTile(day, hrv) {
+  function secondTile(day: string | null, hrv: MonitorCard | null): string {
     var d = T.stress ? stressDay(day) : null;
     return d ? stressTile(d, day) : hrvTile(hrv, day);
   }
   // HRV: a real baked value, the fallback of tile 2 without a stress value; left out without a fresh reading.
   // `day` = the past day shown (null = today): its date line and the sheet's opening day
-  function hrvTile(c, day) {
+  function hrvTile(c: MonitorCard | null, day: string | null): string {
     if (!c) return '';
     var k = carry(c.date, day);
     return '<div class="hmt hmt-hrv hm-tone-' + esc(c.tone || 'normal') + k.cls + '"' + (day ? HC.detailAttrs('hrv', day) : linkAttrs('hrv')) + '>' + lbl(T.labels.hrv || 'HRV') +
@@ -198,15 +224,15 @@
       '<span class="hmt-status">' + esc(T.status[c.status] || '') + '</span>' +
       (k.carried ? '<span class="hmt-sub">' + k.html + '</span>' : '') + '</span></div><!--/hmt-->';
   }
-  function todayHrv() {
-    var c = null;
-    M.cards.forEach(function (x) { if (x && x.key === 'hrv') c = x; });
+  function todayHrv(): MonitorCard | null {
+    var c = null as MonitorCard | null;
+    M.cards.forEach(function (x: MonitorCard | null) { if (x && x.key === 'hrv') c = x; });
     return fresh(c) ? c : null;
   }
   // a past day's summary (SCORES.days): its in / out-of-range counts and HRV card; none = no data
-  function pastEntry(day) {
-    var H = S.days && S.days.days ? S.days.days : [], out = null;
-    H.forEach(function (x) { if (x && x.date === day) out = x.monitor; });
+  function pastEntry(day: string): PastMonitor {
+    var H = S.days && S.days.days ? S.days.days : [], out = null as PastMonitor | null;
+    H.forEach(function (x: { date: string; monitor: PastMonitor } | null) { if (x && x.date === day) out = x.monitor; });
     return out || { inR: 0, out: 0, total: M.cards.length, hrv: null };
   }
   var DAY = typeof HCDay !== 'undefined' && HCDay ? HCDay : null;
@@ -217,9 +243,9 @@
       var p = day ? pastEntry(day) : null;
       var t2 = p ? secondTile(day, p.hrv) : secondTile(null, todayHrv());
       var t1 = p ? sumTile(p, p.total, null) : sumTile(counts(), M.cards.length, newestFresh());
-      tiles.innerHTML = '<div class="hm-tiles' + (t2 ? '' : ' hm-tiles-one') + '" role="group" aria-label="' + esc(T.tile.ariaLabel) + '">' + t1 + t2 + '</div>';
+      (tiles as HTMLElement).innerHTML = '<div class="hm-tiles' + (t2 ? '' : ' hm-tiles-one') + '" role="group" aria-label="' + esc(T.tile.ariaLabel) + '">' + t1 + t2 + '</div>';
     } catch (e) {
-      tiles.innerHTML = '';
+      (tiles as HTMLElement).innerHTML = '';
     }
   }
   if (tiles && T.tile) {

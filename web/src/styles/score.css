@@ -109,7 +109,7 @@
 .outlook-chev {
   flex: none;
 }
-/* Entreno load summary (score.js loadCard): three compact cards, one per modality — the last scored
+/* Entreno load summary (score.ts loadCard): three compact cards, one per modality — the last scored
    session's RE big in strain blue + a small ring (the dial's own arc), "LOAD · date", a trend pill */
 .ld-cards {
   display: grid;
@@ -207,7 +207,7 @@
   margin: 4px 0;
 }
 
-/* dials that open their detail in Salud / Entreno (score.js adds role="button" only when that tab
+/* dials that open their detail in Salud / Entreno (score.ts adds role="button" only when that tab
    is reachable) */
 .dial[role="button"] {
   cursor: pointer;
@@ -341,7 +341,7 @@
   line-height: 1.15;
   color: var(--muted);
 }
-/* a carried value's date under the dial number (score.js, HC.carried; the label itself is base.css) */
+/* a carried value's date under the dial number (score.ts, HC.carried; the label itself is base.css) */
 .dial-centre .carried-date {
   margin-top: 4px;
 }
@@ -443,7 +443,7 @@
   }
 }
 
-/* Health monitor (the list leading Salud, client/monitor.js): shared metric rows (.db-*), the value
+/* Health monitor (the list leading Salud, client/monitor.ts): shared metric rows (.db-*), the value
  * coloured by nothing; the marker by tone. --hm-c is the tone colour of Inicio's HRV tile:
  * good / bad (--low) / watch (--mid, change signals) / normal (--trend). */
 #home-dials,
@@ -850,7 +850,7 @@ details.rec-raw[open] > summary::after {
   transform: rotate(90deg);
 }
 
-/* Collapsed dial row (#home-mini, Home.astro; written by client/score.js): once the dials scroll
+/* Collapsed dial row (#home-mini, Home.astro; written by client/score.ts): once the dials scroll
  * above the viewport a strip fixed at the top shows the same three rings small (the dial's own svg,
  * its colour class, no markers, the grey track drawn in full even with no value) + their labels; a
  * tap opens the dial's detail. A SOLID fill (the page's top colour) behind the whole bar and a hairline

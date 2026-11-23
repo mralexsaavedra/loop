@@ -1,19 +1,17 @@
-/* web/src/client/health.js section anchors — each Salud sub-heading carries an `hl-<section>` id
+/* web/src/client/health.ts section anchors — each Salud sub-heading carries an `hl-<section>` id
  * so Inicio's score cards (and any jump()) can land on it. Runs the real classic script in node:vm
  * against web/test/dom-stub.mjs. */
 import { test } from 'node:test';
 import { HABIT_REF } from '../../../lib/score/healthspan.mjs';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { en as enHealth } from '../i18n/health-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'health.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('health.ts');
 
 test('each rendered section heading has a stable hl-<section> anchor id', () => {
   const html = renderWith({
@@ -594,7 +592,7 @@ test('fitness age: no number without sex, birthdate or VO₂max — the reason i
   assert.doesNotMatch(fitSec(out.health), /class="dial fa|NaN|undefined/);
 });
 
-test('the empty-state copy inserted raw with innerHTML is trusted markup: plain text + <code> only (health.js, training-activity.ts)', async () => {
+test('the empty-state copy inserted raw with innerHTML is trusted markup: plain text + <code> only (health.ts, training-activity.ts)', async () => {
   // these strings may carry <code>…</code>, so the scripts insert them unescaped;
   // anything else (another tag, an attribute, a stray < or &) must not sneak into them
   const { es: esHealth } = await import('../i18n/health-templates.mjs');

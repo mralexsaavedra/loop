@@ -22,6 +22,9 @@ export type PageGlobals = {
   I18N_ACTIVITY: any;
   I18N_ONB: any;
   HCProgram: any;
+  HEALTH: any;
+  I18N_HEALTH: any;
+  DIALS: any;
 };
 
 // the window.* namespaces other scripts hand this one (and the one it hands back)
@@ -44,6 +47,8 @@ declare global {
     HCFood?: any;
     HCOnboarding?: unknown;
     HCProgram?: any;
+    HCAdvice?: unknown;
+    HCScore?: unknown;
   }
   var HCDay: any;
 }

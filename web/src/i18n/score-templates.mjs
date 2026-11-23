@@ -1,4 +1,4 @@
-/* Home tab ("Inicio / Home") copy — es/en, baked as I18N_SCORE and read by client/score.js.
+/* Home tab ("Inicio / Home") copy — es/en, baked as I18N_SCORE and read by client/score.ts.
  * The advice sentences are NOT duplicated here: they come from lib/score/advice-copy.mjs, the
  * single source that the lib-level snapshot test pins. Keys are placeholder templates ({name})
  * filled client-side; the caveats below state the real limits of Relative Effort (it is HR-derived,
@@ -7,7 +7,7 @@ import { ADVICE_COPY, RECOVERY_UNIT } from '../../../lib/score/advice-copy.mjs';
 
 // The ONE unit of the recovery composite (and of each contributor's distance from its baseline),
 // defined next to the advice copy (lib/score/advice-copy.mjs): every recovery string here and in
-// detail-templates.mjs is built from it, and score.js reads it as `recovery.unit`, so the advice,
+// detail-templates.mjs is built from it, and score.ts reads it as `recovery.unit`, so the advice,
 // the dial, the Salud card and the sheet never disagree.
 export { RECOVERY_UNIT };
 const UE = RECOVERY_UNIT.en, US = RECOVERY_UNIT.es;
@@ -16,7 +16,7 @@ export const en = {
   // Inicio static headings (tabs/Home.astro)
   home: {
     myDay: 'My day',
-    // the one-line outlook bar's title (client/score.js); the advice sentence is behind the tap
+    // the one-line outlook bar's title (client/score.ts); the advice sentence is behind the tap
     outlook: 'Your daily outlook',
     // "Tonight" card (client/home-week.ts, SCORES.tonight from lib/score/tonight.mjs)
     tonight: {
@@ -370,7 +370,7 @@ export const es = {
   // títulos fijos de Inicio (tabs/Home.astro)
   home: {
     myDay: 'Mi día',
-    // título de la barra de una línea (client/score.js); la frase del consejo va tras el toque
+    // título de la barra de una línea (client/score.ts); la frase del consejo va tras el toque
     outlook: 'Tu panorama del día',
     // tarjeta "Esta noche" (client/home-week.ts, SCORES.tonight de lib/score/tonight.mjs)
     tonight: {

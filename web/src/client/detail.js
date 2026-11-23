@@ -450,7 +450,7 @@
     if (list.some(function (x) { return x.m === 'run'; })) out.push(runDynHtml(iso));
     return out.join('');
   }
-  // the watch running dynamics of that day (HEALTH.running, client/health.js's run rows, one merged
+  // the watch running dynamics of that day (HEALTH.running, client/health.ts's run rows, one merged
   // row per date): power, ground contact time, vertical oscillation, stride. The Entreno run row does
   // not print them (they wrapped to 2-3 lines at 390 px), so the day it opens is where they live.
   function runDynHtml(iso) {

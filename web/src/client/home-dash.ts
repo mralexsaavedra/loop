@@ -142,7 +142,7 @@ type RowValue = { value: number; date: string; base: number | null; arrow: Arrow
       return HC.metricRow({ key: key, cls: stale ? 'db-stale' : '', attrs: HC.detailAttrs(key), sr: sr, name: titleOf(key), value: fmt(key, m, r.value), unit: unit,
         arrow: r.arrow, tone: r.tone, base: r.base != null ? fmt(key, m, r.base) : null });
     }
-    // the stress card's day: the newest with a latest scored hour (as Inicio's stress tile, client/monitor.js)
+    // the stress card's day: the newest with a latest scored hour (as Inicio's stress tile, client/monitor.ts)
     function stressDay() {
       var S = typeof SCORES !== 'undefined' && SCORES && SCORES.stress && SCORES.stress.ok && Array.isArray(SCORES.stress.days) ? SCORES.stress : null;
       if (!S) return null;

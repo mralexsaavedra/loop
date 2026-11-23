@@ -120,7 +120,7 @@ test('health-templates.mjs (Salud tab client format strings) has identical key t
   }
 });
 
-test('health-templates.mjs note/card sub-dictionaries have the placeholders health.js relies on', () => {
+test('health-templates.mjs note/card sub-dictionaries have the placeholders health.ts relies on', () => {
   for (const [locale, dict] of [['es', esHealth], ['en', enHealth]]) {
     assert.match(dict.bodyNote.main, /\{sourcesClause\}/, `${locale} bodyNote.main must contain {sourcesClause}`);
     assert.match(dict.bodyNote.main, /\{sourceClause\}/, `${locale} bodyNote.main must contain {sourceClause}`);
@@ -172,7 +172,7 @@ test('score-templates.mjs carries the four accurate caveats, SDNN and the not-me
   assert.match(enScore.caveats.notMedical, /not medical advice/i);
 });
 
-test('score-templates.mjs placeholders that score.js fills are present', () => {
+test('score-templates.mjs placeholders that score.ts fills are present', () => {
   for (const dict of [esScore, enScore]) {
     assert.match(dict.asOfLbl, /\{date\}/);
     assert.match(dict.staleNote, /\{days\}/);

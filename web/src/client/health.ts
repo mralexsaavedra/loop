@@ -15,18 +15,35 @@
  *
  * `ago()` depends on `Date.now()` (real wall-clock time, not a baked value): HEALTH is a precomputed
  * snapshot, and `ago()` is only the relative-time label of the "last logged" caveat in the energy section.
+ *
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts).
  */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads (baked by the build or provided by an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+declare const DETAIL: PageGlobals['DETAIL'];
+declare const HEALTH: PageGlobals['HEALTH'];
+declare const I18N_HEALTH: PageGlobals['I18N_HEALTH'];
+declare const PROFILE: PageGlobals['PROFILE'];
+declare const SCORES: PageGlobals['SCORES'];
+
+// a fitness-age plural template pair (I18N_HEALTH.fitnessAge.younger / older)
+type Plural = { one: string; other: string };
+// a row builder: the row's HTML, '' = no row (safeRows skips it)
+type RowFn = () => string;
+
 (function () {
   var T = I18N_HEALTH;
   // shared helpers (web/src/client/util.js)
   var esc = HC.esc, nf = HC.nf, format = HC.format, daysOld = HC.daysOld;
   // the ONE display-date formatter (util.js), without the weekday: "22 Jun" / "22 jun"
-  function fmtD(iso) {
+  function fmtD(iso: string): string {
     return HC.fmtDate(iso, { weekday: false });
   }
-  function ago(iso) {
+  function ago(iso: string): string {
     if (!iso) return '';
-    var d = Math.round((Date.now() - new Date(iso + 'T00:00:00')) / HC.MS_PER_DAY);
+    var d = Math.round((Date.now() - (new Date(iso + 'T00:00:00') as unknown as number)) / HC.MS_PER_DAY);
     if (d < 45) return format(T.agoDaysTpl, { d: d });
     var m = Math.round(d / 30);
     if (m < 12) return format(m > 1 ? T.agoMonthsTpl : T.agoMonthTpl, { m: m });
@@ -34,10 +51,10 @@
   }
   var fin = HC.fin;
   // decimals of a baked value (1 at most): the baseline is shown at the value's own precision
-  function decOf(v) {
+  function decOf(v: number): number {
     return Math.round(v) === v ? 0 : 1;
   }
-  function round(v, dec) {
+  function round(v: number, dec: number): number {
     var f = Math.pow(10, dec);
     return Math.round(v * f) / f;
   }
@@ -50,7 +67,7 @@
   // is greyed with "no recent data" and no arrow (decided at view time; `o.noStale` for a sparse
   // manual measurement dated in its own line). `o.id` = an hl-<key> anchor, `o.detail` = the detail
   // sheet a tap opens. The date and the baseline are spelled out in the row's screen-reader words (HC.metricRow sr).
-  function mrow(key, title, unit, o) {
+  function mrow(key: string, title: string, unit: string, o: any): string {
     if (!fin(o.value)) throw new Error('no value');
     var age = o.date ? daysOld(o.date) : null;
     var stale = !o.noStale && age != null && age > HC.STALE_DAYS;
@@ -58,10 +75,10 @@
     // hours (sleep) read as h:mm and carry no unit; anything else = the baked value + its unit
     var hm = unit === 'h';
     if (hm) unit = '';
-    var show = function (v, signed) { return hm ? HC.hours(v, signed) : (signed && v > 0 ? '+' : '') + nf(v); };
+    var show = function (v: number, signed?: boolean) { return hm ? HC.hours(v, signed) : (signed && v > 0 ? '+' : '') + nf(v); };
     var value = o.text || show(o.value), u = unit ? ' ' + unit : '';
     // sr: the row's small line in words, read after the name and value (HC.metricRow: named by its content)
-    var base = '', arrow = null, sr = [o.date ? (partial ? T.soFar : fmtD(o.date)) : '', o.when || ''];
+    var base = '', arrow: string | null = null, sr = [o.date ? (partial ? T.soFar : fmtD(o.date)) : '', o.when || ''];
     if (fin(o.base)) {
       base = hm ? HC.hours(o.base) : nf(round(o.base, decOf(o.value)));
       sr.push(format(o.baseTpl || T.avg30Tpl, { value: base + u }));
@@ -94,13 +111,13 @@
   // reference curve's bounds) and how many years younger / older, coloured --up / --down; then the
   // chronological age and the fitness age's change over 90 (else 30) days as rows. Missing sex,
   // birthdate or VO2max -> no number, the reason. {before, rows, note}; null = no block (an old bake).
-  function fitnessAgeBlock(SC) {
+  function fitnessAgeBlock(SC: any): { before: string; rows: RowFn[]; note: string } | null {
     var F = SC && SC.fitnessAge, FT = T.fitnessAge, P = typeof PROFILE === 'undefined' || !PROFILE ? {} : PROFILE;
     if (!F || !FT) return null;
     if (!F.ok) return { before: note(F.reason === 'no-sex' ? FT.noSex : FT.noVo2), rows: [], note: FT.noteHtml };
     var ca = HC.ageOn(P.birthdate, HC.todayIso());
     if (ca == null) return { before: note(FT.noBirth), rows: [], note: FT.noteHtml };
-    var fa = Math.round(F.age), plural = function (o, n) { return format(n === 1 ? o.one : o.other, { n: n }); };
+    var fa = Math.round(F.age), plural = function (o: Plural, n: number) { return format(n === 1 ? o.one : o.other, { n: n }); };
     var num = F.bound === 'below' ? '< ' + fa : F.bound === 'above' ? '> ' + fa : String(fa);
     var diff = '', tone = 'flat';
     if (F.bound === 'below') { if (ca > fa) { diff = format(FT.atLeastYounger, { n: ca - fa }); tone = 'good'; } }
@@ -115,11 +132,11 @@
       '<svg class="dial-svg" viewBox="0 0 120 120" aria-hidden="true"><circle class="dial-track" cx="60" cy="60" r="55"/><circle class="dial-fill" pathLength="100" cx="60" cy="60" r="55"/></svg>' +
       '<div class="dial-centre" aria-hidden="true"><b class="dial-num">' + esc(num) + '</b><span class="dial-word">' + FT.label + '</span></div></div>' +
       '<figcaption class="dial-lbl">' + (diff ? '<b class="ld-' + tone + '">' + esc(diff) + '</b>' : '') + '<span>' + esc(basis) + '</span></figcaption></figure>';
-    var rows = [function () { return mrow('fitnessAge', FT.chrono, FT.unit, { value: ca, noStale: true }); }];
+    var rows: RowFn[] = [function () { return mrow('fitnessAge', FT.chrono, FT.unit, { value: ca, noStale: true }); }];
     var tr = F.trend || {}, prev = tr.d90 ? [tr.d90, 90] : tr.d30 ? [tr.d30, 30] : null;
     if (prev && !F.bound && !prev[0].bound && fin(prev[0].age)) {
       rows.push(function () {
-        return mrow('fitnessAge', format(FT.trend, { days: prev[1] }), FT.unit, { value: fa, delta: round(F.age - prev[0].age, 1), dir: -1, date: v.date, detail: 'fitnessAge' });
+        return mrow('fitnessAge', format(FT.trend, { days: prev![1] }), FT.unit, { value: fa, delta: round(F.age - prev![0].age, 1), dir: -1, date: v.date, detail: 'fitnessAge' });
       });
     }
     return { before: ring, rows: rows, note: FT.noteHtml };
@@ -128,12 +145,12 @@
   // the newest staged night (lib/health/aggregate.mjs sleep.stages): REM / deep / core / awake hours
   // (+ % of asleep) and efficiency, each vs the mean of the staged nights among the last 30; none
   // when the extract has no stages
-  function stageRows(st, SCd) {
+  function stageRows(st: any, SCd: any): RowFn[] {
     if (!st || !SCd.stages) return [];
     var L = SCd.stages, sh = st.shares || {};
     // each row its own icon (one set, util.js): REM a wave, deep the moon, core the stages, awake a clock
-    var ICO = { rem: 'restor', deep: 'sleep', core: 'stages', awake: 'clock' };
-    var hrow = function (k, dir) {
+    var ICO: Record<string, string> = { rem: 'restor', deep: 'sleep', core: 'stages', awake: 'clock' };
+    var hrow = function (k: string, dir: number): RowFn {
       return function () {
         return fin(st[k]) ? mrow('sleep', L[k], 'h', { icon: ICO[k], value: st[k], base: st.avg[k], baseTpl: T.avgNightsTpl, dir: dir, date: st.date, detail: 'sleep',
           when: fin(sh[k]) ? HC.pct(sh[k]) : '' }) : '';
@@ -143,7 +160,7 @@
       return fin(st.eff) ? mrow('sleep', L.eff, '%', { icon: 'eff', value: st.eff, base: st.avg.eff, baseTpl: T.avgNightsTpl, dir: 1, date: st.date, detail: 'sleep' }) : '';
     }];
   }
-  function note(html) {
+  function note(html: string): string {
     return '<div class="dash-note">' + html + '</div>';
   }
 
@@ -154,17 +171,17 @@
   // wrap to 2-3 lines at 390 px). A dash never stands in for a missing value: a field the source did not
   // record is left out (the ⓘ says which source records what). The row opens that day in its load view
   // (client/detail.js); without the detail sheet it is a plain row (no fake link).
-  function parts(list) {
+  function parts(list: Array<string | null | undefined>): string {
     return list.filter(function (x) { return x != null && x !== ''; }).join(' · ');
   }
   // note = the run's numbers kept off the row (screen-reader words only); base2 = the ride's second small line
-  function sessionRow(key, icon, r, base, note, base2) {
+  function sessionRow(key: string, icon: string, r: any, base: string, note: string, base2?: string): string {
     var name = HC.fmtDate(r.date);
     var value = r.dist != null ? nf(r.dist) : '—';
     return HC.metricRow({ key: icon, attrs: HC.detailAttrs(key, r.date), name: name, value: value, unit: r.dist != null ? 'km' : '', base: base, base2: base2 || '',
       sr: parts([base, note]) });
   }
-  function runRow(r) {
+  function runRow(r: any): string {
     var RT = T.runningTable, u = T.trend.rhr.unit;
     var base = parts([r.time, r.pace ? r.pace + '/km' : null]);
     var note = parts([r.hrAvg != null ? r.hrAvg + ' ' + u : null, r.re != null ? RT.reH + ' ' + r.re : null, r.elev != null ? '↑' + nf(r.elev) + ' m' : null,
@@ -172,7 +189,7 @@
       r.vosc != null ? RT.oscH + ' ' + nf(r.vosc) + ' cm' : null, r.stride != null ? RT.strideH + ' ' + nf(r.stride) + ' m' : null]);
     return sessionRow('load-run', 'run', r, base, note);
   }
-  function rideRow(r) {
+  function rideRow(r: any): string {
     var CT = T.cyclingTable, u = T.trend.rhr.unit;
     var base = parts([r.time, r.elev != null ? '↑' + nf(r.elev) + ' m' : null]);
     var note = parts([r.hrAvg != null ? r.hrAvg + ' ' + u : null, r.re != null ? CT.reH + ' ' + r.re : null, r.kj != null ? nf(r.kj) + ' kJ' : null]);
@@ -182,7 +199,7 @@
   // A Salud section: UPPERCASE label (the hl-<key> anchor is the section itself), an ⓘ toggle
   // holding its notes (collapsed, nothing lost), an optional block before the rows (the recovery
   // card host), then the rows.
-  function section(key, rows, notes, before) {
+  function section(key: string, rows: string[], notes?: string[], before?: string): string {
     var info = (notes || []).filter(Boolean), id = 'hs-info-' + key, name = T.sections[key];
     if (!rows.length && !before) return '';
     return '<section class="hs-sec hs-sec-' + key + '" id="hl-' + key + '" aria-labelledby="hs-h-' + key + '"><div class="hs-head"><h3 class="hs-lbl" id="hs-h-' + key + '">' + name + '</h3>' +
@@ -192,7 +209,7 @@
   }
 
   // One renderer, three hosts (four-tab layout, one question per tab):
-  //   #health-body (Salud: "how is my body")  recovery (+ #score-recovery, filled by score.js), sleep,
+  //   #health-body (Salud: "how is my body")  recovery (+ #score-recovery, filled by score.ts), sleep,
   //                                      body composition, activity, energy (expenditure only)
   //   #health-train (Entreno)            running, cycling, load vs recovery
   //   #nutri-balance (Nutrición)         Balance: intake vs expenditure + the macro split
@@ -226,11 +243,11 @@
       bal.hidden = !bal.innerHTML;
     }
   }
-  // Salud, top to bottom (under the health monitor list, client/monitor.js): Recovery (+ the recovery
-  // card host #score-recovery, filled by score.js), Fitness, Sleep, Body composition, Activity, Energy.
+  // Salud, top to bottom (under the health monitor list, client/monitor.ts): Recovery (+ the recovery
+  // card host #score-recovery, filled by score.ts), Fitness, Sleep, Body composition, Activity, Energy.
   // each row builder runs alone: one broken row is skipped, never the tab
-  function safeRows(list) {
-    var r = [];
+  function safeRows(list: RowFn[]): string[] {
+    var r: string[] = [];
     list.forEach(function (fn) {
       try {
         var h = fn();
@@ -242,7 +259,7 @@
     return r;
   }
   // a recovery signal's row builder: the newest value vs its 30-day mean
-  function signalRow(R, k, dir, id) {
+  function signalRow(R: any, k: string, dir: number, id: boolean): RowFn {
     var TR = T.trend;
     return function () {
       var m = R[k];
@@ -250,14 +267,14 @@
     };
   }
   /* recovery: the recovery dial's detail card lands in #score-recovery, right under the label; a
-     signal the health monitor at the top of Salud already lists (client/monitor.js) is not repeated
+     signal the health monitor at the top of Salud already lists (client/monitor.ts) is not repeated
      here, one it lacks keeps its row */
-  function recoverySection(R, SC) {
-    var inMonitor = {};
-    (SC && SC.monitor && Array.isArray(SC.monitor.cards) ? SC.monitor.cards : []).forEach(function (c) {
+  function recoverySection(R: any, SC: any): string {
+    var inMonitor: Record<string, boolean> = {};
+    (SC && SC.monitor && Array.isArray(SC.monitor.cards) ? SC.monitor.cards : []).forEach(function (c: any) {
       if (c && c.key) inMonitor[c.key] = true;
     });
-    var recSigs = [['rhr', -1], ['hrv', 1], ['respiratory', 0], ['wristTemp', 0]].filter(function (x) {
+    var recSigs = ([['rhr', -1], ['hrv', 1], ['respiratory', 0], ['wristTemp', 0]] as Array<[string, number]>).filter(function (x) {
       return !inMonitor[x[0]];
     }).map(function (x) {
       return signalRow(R, x[0], x[1], true);
@@ -270,13 +287,13 @@
      not met = hb-off; an own-baseline habit (resting HR, sleep regularity) without a baseline yet stays
      uncoloured and uncounted. A "met of n" line leads; the sources and the zone approximation sit under ⓘ.
      Never folded into an age (that needs weights nobody publishes). */
-  function habitsSection(SC) {
+  function habitsSection(SC: any): string {
     var H = typeof DETAIL !== 'undefined' && DETAIL && DETAIL.habits ? DETAIL.habits : null, TH = T.habits;
     if (!H || !H.ref || !TH) return '';
     var R = H.ref, U = TH.units, P = typeof PROFILE === 'undefined' || !PROFILE ? {} : PROFILE;
     var age = HC.ageOn(P.birthdate, HC.todayIso());
-    var rows = [], met = 0, n = 0;
-    function add(k, ok, o) {
+    var rows: string[] = [], met = 0, n = 0;
+    function add(k: string, ok: boolean | null, o: any) {
       if (ok != null) { n++; if (ok) met++; }
       var sr = parts([ok == null ? '' : ok ? TH.met : TH.notMet, o.base, o.base2]);
       rows.push(HC.metricRow({ key: o.icon, attrs: (o.detail ? HC.detailAttrs(o.detail) : '') + ' data-habit="' + k + '"', sr: sr,
@@ -310,7 +327,7 @@
   }
   /* fitness: the fitness-age ring (+ chronological age and its trend), VO2max (change since the
      first reading) and walking HR */
-  function fitnessSection(R, SC) {
+  function fitnessSection(R: any, SC: any): string {
     var TR = T.trend, fab;
     try { fab = fitnessAgeBlock(SC); } catch (e) { fab = null; /* a broken block never blanks the section */ }
     return section('fitness', safeRows((fab ? fab.rows : []).concat([
@@ -319,7 +336,7 @@
     ])), fab ? [fab.note, T.fitnessNoteHtml] : [T.fitnessNoteHtml], fab ? fab.before : '');
   }
   /* sleep: last night vs the 30-night mean, then the consistency rows; the section is hl-sleep */
-  function sleepSection(sl) {
+  function sleepSection(sl: any): string {
     var TR = T.trend, SCd = T.sleepCards;
     return section('sleep', safeRows([
       // an in-bed-only night (lib/health/aggregate.mjs latestEstimated) says so next to its value
@@ -332,16 +349,16 @@
       sl.estimatedNights ? [format(T.sleepEstimatedNoteHtml, { count: sl.estimatedNights })] : []));
   }
   /* body composition: weight Δ vs ~30 days ago, body fat / lean mass Δ in their scale window, waist */
-  function bodySection(B) {
+  function bodySection(B: any): string {
     var TB = T.trend;
-    var bcPts = function (k) { var m = B[k]; return m && m.windowPoints != null && m.windowDays != null ? '<b>' + TB[k].title + '</b>: ' + esc(format(T.bodyCompPointsTpl, { n: m.windowPoints, days: m.windowDays })) : ''; };
+    var bcPts = function (k: string) { var m = B[k]; return m && m.windowPoints != null && m.windowDays != null ? '<b>' + TB[k].title + '</b>: ' + esc(format(T.bodyCompPointsTpl, { n: m.windowPoints, days: m.windowDays })) : ''; };
     var wsrc = B.weight ? B.weight.source : '', bsrc = B.bodyfat ? B.bodyfat.source : '';
     var sourcesClause = B.weight ? format(T.bodyNote.sourcesClause, { n: B.weight.sources }) : '';
     var wsrcClause = wsrc ? format(T.bodyNote.sourceClause, { src: esc(wsrc) }) : '';
     var bsrcClause = bsrc ? format(T.bodyNote.sourceClause, { src: esc(bsrc) }) : '';
     var bodyNotes = [format(T.bodyNote.main, { sourcesClause: sourcesClause, sourceClause: wsrcClause, bfSourceClause: bsrcClause }), bcPts('bodyfat'), bcPts('lean'),
       B.waist ? format(T.waist.noteTpl, { n: B.waist.points, first: esc(fmtD(B.waist.firstDate)) }) : T.waist.emptyHtml];
-    var bc = function (k, dir) {
+    var bc = function (k: string, dir: number): RowFn {
       return function () { var m = B[k]; return m ? mrow(k, TB[k].title, TB[k].unit, { value: m.latest, delta: k === 'weight' ? m.d30 : m.delta, deltaUnit: TB[k].deltaUnit, dir: dir, date: m.latestDate, detail: k }) : ''; };
     };
     return section('body', safeRows([bc('weight', 0), bc('bodyfat', -1), bc('lean', 1),
@@ -349,15 +366,15 @@
     ]), bodyNotes);
   }
   /* activity / NEAT: the latest day vs its 30-day average (today = so far, no arrow) */
-  function activitySection(A) {
+  function activitySection(A: any): string {
     return section('activity', safeRows(['steps', 'exercise', 'distance', 'flights'].map(function (k) {
       return function () { var a = A[k], tt = T.trend[k]; return a ? mrow(k, tt.title, tt.unit, { value: a.latest, base: a.avg30, dir: 1, date: a.latestDate, soFar: true, detail: k }) : ''; };
     })), [T.activityNoteHtml]);
   }
   /* energy: expenditure (TDEE) only; the intake balance + macro split are Nutrición's Balance
      (renderBalance); every caveat sits behind ⓘ */
-  function energySection(E) {
-    var en = [];
+  function energySection(E: any): string {
+    var en: string[] = [];
     // a power-meter ride day (lib/health/ride-energy.mjs): the headline day's active energy was corrected
     if (T.energyRide && E.latestCorrected) en.push(esc(T.energyRide.latest));
     else if (T.energyRide && E.latestUncovered) en.push(esc(T.energyRide.uncovered));
@@ -369,7 +386,7 @@
     }]), en);
   }
 
-  function renderSalud(host) {
+  function renderSalud(host: HTMLElement): void {
     var B = HEALTH.body || {}, A = HEALTH.activity || {}, E = HEALTH.energy || {}, R = HEALTH.recovery || {};
     var SC = typeof SCORES === 'undefined' || !SCORES ? null : SCORES;
     var recScore = !!(SC && SC.recovery);
@@ -377,7 +394,7 @@
       host.innerHTML = '<div class="train-empty">' + T.emptyMsg + '</div>';
       return;
     }
-    var out = [];
+    var out: string[] = [];
     try { out.push(habitsSection(SC)); } catch (e) { /* a broken habits card never blanks the tab */ }
     if (R.hasData || recScore) out.push(recoverySection(R, SC));
     if (R.hasData) {
@@ -397,11 +414,11 @@
   // average macro split as one stacked bar (Entreno's modality bar) with a counted legend. The window
   // and "historical" caveat sit behind ⓘ. Too few logged days -> a short empty line, the why behind ⓘ.
   // No expenditure at all -> '' (the host hides).
-  var MACROS = [['p', 'p', 'proteinLbl'], ['c', 'c', 'carbsLbl'], ['f', 'g', 'fatLbl']];
-  function renderBalance() {
+  var MACROS: string[][] = [['p', 'p', 'proteinLbl'], ['c', 'c', 'carbsLbl'], ['f', 'g', 'fatLbl']];
+  function renderBalance(): string {
     var E = HEALTH.energy || {}, TB = T.balance;
     if (!E.hasData || !TB) return '';
-    var b = E.balance, m = b ? E.macros : null, notes = [], body;
+    var b = E.balance, m = b ? E.macros : null, notes: string[] = [], body;
     if (b) {
       notes.push(format(T.energyBalanceNote.main, { from: esc(fmtD(b.from)), to: esc(fmtD(b.to)), days: b.days, macroClause: m ? T.energyBalanceNote.macroClause : '' }));
       var u = T.trend.expenditure.unit;
@@ -422,11 +439,11 @@
   }
   // the average macro split: segment widths = each macro's share of the three (normalised, so the
   // rounded percentages never leave a gap); colour is never alone, the legend names each macro
-  function splitHtml(m) {
-    var TB = T.balance, pcts = { p: m.pPct, c: m.cPct, f: m.gPct };
+  function splitHtml(m: any): string {
+    var TB = T.balance, pcts: Record<string, number> = { p: m.pPct, c: m.cPct, f: m.gPct };
     var sum = pcts.p + pcts.c + pcts.f;
     if (!(sum > 0)) return '';
-    var x = 0, segs = [], items = [], aria = [];
+    var x = 0, segs: string[] = [], items: string[] = [], aria: string[] = [];
     MACROS.forEach(function (k) {
       var w = 100 * pcts[k[0]] / sum, name = TB[k[2]], g = m[k[1]];
       segs.push('<rect class="nb-m-' + k[0] + '" x="' + x.toFixed(2) + '" y="0" width="' + w.toFixed(2) + '" height="8"/>');
@@ -443,13 +460,13 @@
   // behind ⓘ (the shared section()); the weekly load bars (strain blue) and HRV / resting HR in the
   // higher-load vs the easy weeks as two metric rows (▲▼ = the higher-load weeks vs the easy ones,
   // coloured by the signal's good direction: ↑ HRV, ↓ resting HR).
-  function renderEntreno(train) {
+  function renderEntreno(train: HTMLElement): void {
     var Run = HEALTH.running || {}, LR = HEALTH.loadRecovery || {}, Cyc = HEALTH.cycling || {};
     if (!Run.hasData && !Cyc.hasData && !LR.hasData) {
       train.innerHTML = '<div class="train-empty">' + T.trainEmptyMsg + '</div>';
       return;
     }
-    var out = [];
+    var out: string[] = [];
     /* running + cycling: a pair with the same row style and budget, so run and bike carry equal
        weight; when only one has data the other states its empty case */
     if (Run.hasData || Cyc.hasData) {
@@ -460,9 +477,9 @@
     }
     /* load vs recovery (cross-tab) */
     if (LR.hasData) {
-      var s = LR.series, lmax = Math.max.apply(null, s.map(function (x) { return x.load; })) || 1;
+      var s = LR.series, lmax = Math.max.apply(null, s.map(function (x: any) { return x.load; })) || 1;
       var lbars = s
-        .map(function (x) {
+        .map(function (x: any) {
           var h = Math.round((100 * x.load) / lmax);
           // the reference's trend bars: the week's value on top, the bar in a fixed-height track
           return '<div class="wbar' + (x.load ? '' : ' zero') + '" title="' + esc(format(T.loadSec.barTitleTpl, { date: fmtD(x.w), load: x.load })) + '">' +
@@ -471,7 +488,7 @@
         .join('');
       var lax = '<div class="waxis"><span>' + esc(fmtD(s[0].w)) + '</span><span>' + esc(fmtD(s[s.length - 1].w)) + '</span></div>';
       var bars = '<div class="lvr-card"><span class="dt-trend-lbl">' + esc(T.loadSec.heading) + '</span><div class="wbars">' + lbars + '</div>' + lax + '</div>';
-      var rows = [];
+      var rows: string[] = [];
       var sp = LR.split || {};
       var C = T.loadCards;
       if (sp.hrvHigh != null && sp.hrvLow != null) rows.push(splitRow('hrv', C.hrvHighLbl, C.hrvLowLbl, sp.hrvHigh, sp.hrvLow, 'ms', 1));
@@ -481,7 +498,7 @@
     train.innerHTML = out.join('');
   }
   // one higher-load vs easy weeks row: the higher-load value, the easy one as the small line
-  function splitRow(icon, name, easyName, high, low, unit, dir) {
+  function splitRow(icon: string, name: string, easyName: string, high: number, low: number, unit: string, dir: number): string {
     var arrow = high === low ? 'flat' : high > low ? 'up' : 'down';
     var tone = arrow === 'flat' ? 'flat' : (arrow === 'up') === (dir > 0) ? 'good' : 'bad';
     var easy = format(T.loadCards.easyTpl, { value: nf(low) + ' ' + unit });
@@ -495,10 +512,10 @@
   var introSlot = document.getElementById('hs-intro-i');
   if (introSlot) introSlot.innerHTML = HC.infoBtn('hs-intro', introSlot.getAttribute('data-label') || '');
 
-  // ⓘ toggles of Salud (the monitor list, client/monitor.js, and each section): a button
+  // ⓘ toggles of Salud (the monitor list, client/monitor.ts, and each section): a button
   // [data-hs-info="<id>"] shows / hides the block #<id> in place and mirrors it in aria-expanded.
   // One delegated listener for the page; the block stays in the DOM (hidden), so its text is never lost.
-  function toggleInfo(btn) {
+  function toggleInfo(btn: Element): void {
     var id = btn.getAttribute('data-hs-info'), box = id && document.getElementById(id);
     if (!box) return;
     box.hidden = !box.hidden;
@@ -506,7 +523,7 @@
   }
   if (typeof document.addEventListener === 'function') {
     document.addEventListener('click', function (e) {
-      var t = e && e.target;
+      var t = e && (e.target as Element | null);
       var btn = t && typeof t.closest === 'function' ? t.closest('[data-hs-info]') : null;
       if (btn) toggleInfo(btn);
     });

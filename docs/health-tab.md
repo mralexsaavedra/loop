@@ -27,7 +27,7 @@ On this page:
 - Every CSV is OPTIONAL: an absent CSV renders an empty state, never fails the build.
 - The page bakes `HEALTH` with the pure `aggregate.mjs` `healthFrom(inputs)` over the build's one
   `lib/extract/read.mjs` `readExtract`.
-- `web/src/client/health.js` renders into TWO hosts, each with its own empty state and its own try/catch
+- `web/src/client/health.ts` renders into TWO hosts, each with its own empty state and its own try/catch
   (a throw in one half renders that half's empty state, never blanks the other). It also fills
   Nutrition's balance host:
 
@@ -41,19 +41,19 @@ On this page:
 
 What it shows: the tab title, the health monitor, then one section per body / recovery topic.
 
-Files: `web/src/tabs/Salud.astro` + `health.js`. Top to bottom:
+Files: `web/src/tabs/Salud.astro` + `health.ts`. Top to bottom:
 
 1. **Title**: centred UPPERCASE (`SALUD` / `HEALTH`) with its ⓘ toggle right beside it.
    - A `1fr | title | 1fr` grid, so the ⓘ never sits pinned at the far right over the monitor's own ⓘ.
    - `#hs-intro`: the tab intro + how to read a row; the button is `HC.infoBtn`'s markup written by
-     `health.js` into the `#hs-intro-i` slot.
+     `health.ts` into the `#hs-intro-i` slot.
    - The title's `text-indent` balances the tracking after its last letter, so the glyphs sit truly centred.
    - Same header on Training and Nutrition.
 2. **Glow**: a green glow at the top of the page (`.hs-glow`, a radial ellipse of `--up` at 24 % via
    `color-mix`, absolute behind the content, only while the panel shows).
 3. **Top bar**: Health, Training and Nutrition open on the title alone; the avatar and date pill show on
    Home only (`docs/plan-page.md`, top bar); the freshness / Sync controls stay.
-4. **Health monitor** list (`#monitor`, `client/monitor.js`, see `docs/home-tab.md` "Health monitor"); its
+4. **Health monitor** list (`#monitor`, `client/monitor.ts`, see `docs/home-tab.md` "Health monitor"); its
    header reads title → "n out of range" chip → ⓘ at the end. The chip counts only fresh cards: out of
    range, else "Within range", else "Building baseline" (fresh cards with no band yet, e.g. a new device),
    else "No data". A row whose signal has no reading at all says "Your device does not record it"
@@ -118,7 +118,7 @@ What it shows: one row per metric — the newest value with its 30-day context. 
 
 What it shows: the habits WHOOP folds into its "WHOOP age", kept apart and never folded into an age (that
 needs weights nobody publishes): each one over the last 28 full days against a cited reference or the
-user's own baseline (`#hl-habits`, first section; `client/health.js` `habitsSection`).
+user's own baseline (`#hl-habits`, first section; `client/health.ts` `habitsSection`).
 
 - Bake: `DETAIL.habits` (`lib/score/healthspan.mjs` `healthspanFrom`, called by `detailFromInputs`):
   `{from, to, ref, sleep, activity, strength, steps, rhr, cons}`; the window = the 28 days before the
@@ -150,7 +150,7 @@ user's own baseline (`#hl-habits`, first section; `client/health.js` `habitsSect
 
 What it shows: last night's recovery %, then any recovery signal the health monitor does not already list.
 
-- **Recovery card**: `#score-recovery`, filled by `score.js`, borderless and without a title of its own
+- **Recovery card**: `#score-recovery`, filled by `score.ts`, borderless and without a title of its own
   (the section heading names it); the card head keeps the as-of date, History and its ⓘ.
   - Headline: last night's recovery % (the unit attached to the number at ~55 % of its size, "99%") with
     the % band word, or the SD value under 21 prior nights.
@@ -200,7 +200,7 @@ What it shows: the fitness-age ring, chronological age and its 90-day change, th
   - Formula, table and limits: `analysis/methodology.md` §4.
   - Also bakes the day's value / date / source (several sources joined with " + "), and the fitness age of the newest reading on or before
     latest − 30 / − 90 days.
-- **Block**: `client/health.js` `fitnessAgeBlock` leads the Fitness section.
+- **Block**: `client/health.ts` `fitnessAgeBlock` leads the Fitness section.
   - A large full ring (the dial figure classes, `.fa` in `styles/health.css`): `--up` when younger than the
     chronological age, `--down` when older, grey when equal; the fitness age in whole years and
     "FITNESS AGE" inside.
@@ -301,7 +301,7 @@ What it shows: expenditure only (TDEE). The intake balance + macro split render 
 | `dietary-daily.csv` | intake AND the macro split (protein / carbs / fat, g + % kcal) |
 
 - Health shows the expenditure row alone.
-- Balance (deficit / surplus) and macro split: rendered by the same `client/health.js` in host
+- Balance (deficit / surplus) and macro split: rendered by the same `client/health.ts` in host
   `#nutri-balance` on Nutrition. Data honesty: intake logging is sparse and abandoned, so both are baked
   ONLY when intake was logged within the last 14 days (`INTAKE_MAX_AGE_DAYS`) of the newest expenditure
   day AND ≥ 7 logged days (`BALANCE_MIN_DAYS`) exist in the 90 days (`BALANCE_WINDOW`) ending at that day.
@@ -373,7 +373,7 @@ lost). The tab intro sits behind the title's ⓘ.
 
 ## Training tab cards
 
-`health.js` also renders `#health-train` on the Training tab, after the Activity card (`docs/training.md`).
+`health.ts` also renders `#health-train` on the Training tab, after the Activity card (`docs/training.md`).
 
 ### Running
 

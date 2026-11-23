@@ -1,8 +1,8 @@
 ---
 /* "Salud" — the Salud/Health tab, top to bottom: the centred uppercase title (an ⓘ toggle, written
- * into #hs-intro-i by client/health.js, holds the tab intro and how to read a row), the health monitor list (components/HealthMonitor.astro,
- * client/monitor.js), then the sections client-rendered by web/src/client/health.js from HEALTH baked
- * by <Bake> (see web/pages/index.astro, which hosts the shared Bake call): Recovery (score.js fills
+ * into #hs-intro-i by client/health.ts, holds the tab intro and how to read a row), the health monitor list (components/HealthMonitor.astro,
+ * client/monitor.ts), then the sections client-rendered by web/src/client/health.ts from HEALTH baked
+ * by <Bake> (see web/pages/index.astro, which hosts the shared Bake call): Recovery (score.ts fills
  * the recovery card into the #score-recovery host), Fitness, Sleep, Body composition, Activity,
  * Energy. `.hs-glow` = the soft green light at the top of the tab (behind the content, scrolls away,
  * shown only while this panel is). The tab KEY and host id are `health` (not "salud"); "Salud" is the nav
@@ -21,7 +21,7 @@ const infoLbl = t.infoTpl.replace('{section}', t.title);
 <div class="hs-glow" aria-hidden="true"></div>
 <div class="hs-top">
   <h2 class="hs-title">{t.title}</h2>
-  {/* the ⓘ toggle: HC.infoBtn's markup, written into this slot by client/health.js (one copy of the button) */}
+  {/* the ⓘ toggle: HC.infoBtn's markup, written into this slot by client/health.ts (one copy of the button) */}
   <span class="hs-i-slot" id="hs-intro-i" data-label={infoLbl}></span>
 </div>
 <div class="hs-info" id="hs-intro" hidden><p set:html={t.introMsg} /><p>{t.rowsHelp}</p></div>
