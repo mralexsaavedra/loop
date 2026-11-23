@@ -194,8 +194,8 @@ has the full table; `lib/paths.test.mjs` pins both layouts path by path.
   Dated history goes to [`CHANGELOG.md`](../CHANGELOG.md), never into the docs.
 - Style: [`.editorconfig`](../.editorconfig) (UTF-8, LF, 2 spaces, a final newline) and the style of the file you
   touch (some modules end statements without semicolons); no formatter rewrites the repo. The page's client
-  scripts (`web/src/client/*.js`) are classic scripts sharing one global scope: a new global another script or
-  the build provides goes into `BAKED` / `SHARED` in `eslint.config.mjs`, never an `eslint-disable`.
+  scripts (`web/src/client/*.ts`) are TypeScript module scripts checked by `npm run typecheck`, not ESLint: a new
+  page global another script or the build provides is declared in `web/src/client/page-globals.d.ts`, never cast away.
 - Shared helpers have one home: calendar dates (`dayDiff`, `addDays`, `weekStart`, `isIsoDate`, UTC math) are
   [`lib/date.mjs`](../lib/date.mjs), the series stats (`roundTo`, `meanOf`, `median`, `rollAvg`…)
   [`lib/stats.mjs`](../lib/stats.mjs); `lib/` never imports from `data/` (`lib/fs-boundary.test.mjs`). The views'
