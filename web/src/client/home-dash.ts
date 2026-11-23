@@ -11,7 +11,7 @@
  * of data (MIN_BASE_SPARSE (2) readings for a sparse series such as weight); no baseline → no arrow.
  *
  * "Customize ✎" opens a registered sheet ('dash-edit', client/detail.ts modal) to show / hide and move
- * rows: the shared HC.orderList (client/util.js) — the switch, ↑ / ↓ and the ≡ drag; preferences in
+ * rows: the shared HC.orderList (client/util.ts) — the switch, ↑ / ↓ and the ≡ drag; preferences in
  * localStorage (PREFS_KEY) as {order, hidden}, working the same without storage (in memory).
  *
  * Module script (bundled into the page, docs/plan-page.md → Module scripts) in layouts/Plan.astro's end-of-body list, right after client/home-week.ts and before
@@ -114,7 +114,7 @@ type RowValue = { value: number; date: string; base: number | null; arrow: Arrow
 
     /* ---------- render ---------- */
     function icon(key: string): string {
-      return HC.metricIcon(key); // the shared row icons (client/util.js)
+      return HC.metricIcon(key); // the shared row icons (client/util.ts)
     }
     // the row's full name (TS.names: "Resting heart rate"), else the detail sheet's title
     function titleOf(key: string): string {
@@ -186,7 +186,7 @@ type RowValue = { value: number; date: string; base: number | null; arrow: Arrow
       }
     }
 
-    // the customize sheet (HC.orderList, client/util.js): one row per available metric — show / hide, up,
+    // the customize sheet (HC.orderList, client/util.ts): one row per available metric — show / hide, up,
     // down, drag. The row shows the SHORT name (the trend sheet's title: "HRV", "Resting HR"), so it fits
     // 1-2 lines at 360 px beside its controls; the full name stays in the buttons' accessible names.
     function shortOf(key: string): string {

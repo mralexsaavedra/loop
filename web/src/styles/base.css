@@ -391,7 +391,7 @@ details.rec-raw > summary::after {
   outline-offset: 2px;
   border-radius: var(--r-xs);
 }
-/* THE carried-value treatment (docs/design-system.md → Carried values; HC.carried in client/util.js): a
+/* THE carried-value treatment (docs/design-system.md → Carried values; HC.carried in client/util.ts): a
    "today" display showing an EARLIER day's value is dimmed (colour kept) and names that date in small
    muted caps; the > 3-day stale grey (.sc-stale, grayscale) stays the stronger state */
 .carried {

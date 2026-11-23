@@ -47,7 +47,7 @@ type Counts = { inR: number; out: number; bld?: number };
 type PastMonitor = Counts & { total: number; hrv: MonitorCard | null };
 // one SCORES.stress day (lib/score/stress.mjs) with its latest scored hour
 type StressDay = { date: string; now: { t: string; v: number; band: string } };
-// HC.carried's result (util.js), plus the date markup added here
+// HC.carried's result (util.ts), plus the date markup added here
 type Carried = { carried: boolean; label: string; cls: string; html: string };
 
 (function () {
@@ -61,7 +61,7 @@ type Carried = { carried: boolean; label: string; cls: string; html: string };
   var TD = typeof I18N_DETAIL === 'undefined' || !I18N_DETAIL ? null : I18N_DETAIL;
   var STALE_DAYS = HC.STALE_DAYS; // a reading older than this is shown greyed, with no status (baked)
 
-  // shared helpers (web/src/client/util.js)
+  // shared helpers (web/src/client/util.ts)
   var esc = HC.esc, isoDate = HC.isoDate, daysOld = HC.daysOld, format = HC.format;
   function num(x: number | null, dec: number): string {
     return HC.num(x, dec, false);

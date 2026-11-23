@@ -1,4 +1,4 @@
-/* Tests for the shared client helpers (web/src/client/util.js, inlined FIRST so every other classic
+/* Tests for the shared client helpers (web/src/client/util.ts, inlined FIRST so every other classic
  * script reads window.HC): run in a vm with a controllable clock and the baked HC_CONST. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -439,7 +439,7 @@ function registerViewArgs(src) {
 }
 
 /** Every client script (classic *.js and module *.ts) under web/src/client, subdirectories included (tests, type
- * declarations and util.js excluded),
+ * declarations and util.ts excluded),
  * as paths relative to it. */
 function clientScripts() {
   const dir = path.dirname(fileURLToPath(import.meta.url));
@@ -448,7 +448,7 @@ function clientScripts() {
     return e.isDirectory() ? walk(p) : [p];
   });
   return walk(dir).map((p) => path.relative(dir, p).split(path.sep).join('/'))
-    .filter((f) => (f.endsWith('.js') || (f.endsWith('.ts') && !f.endsWith('.d.ts'))) && !/\.test\.m?js$/.test(f) && f !== 'util.js').sort()
+    .filter((f) => (f.endsWith('.js') || (f.endsWith('.ts') && !f.endsWith('.d.ts'))) && !/\.test\.m?js$/.test(f) && f !== 'util.ts').sort()
     .map((f) => ({ f, src: fs.readFileSync(path.join(dir, f), 'utf8') }));
 }
 
@@ -476,7 +476,7 @@ test('each registered view key belongs to ONE client script, always a string lit
   assert.deepEqual([...owner.keys()].sort(), ['dash-edit', 'food-add', 'home-edit', 'hoy-session', 'journal', 'journal-insights', 'onboarding', 'profile', 'shortcuts', 'tonight']);
 });
 
-test('only util.js writes window.HCViews: every other client script registers through HC.registerView', () => {
+test('only util.ts writes window.HCViews: every other client script registers through HC.registerView', () => {
   const writers = clientScripts().map(({ f, src }) => ({ f, code: stripComments(src) }))
     .filter(({ code }) => /\bHCViews\s*(\[[^\]]*\]|\.[\w$]+)?\s*=(?!=)|\bvar\s+\w+\s*=\s*window\.HCViews\b/.test(code)).map(({ f }) => f);
   assert.deepEqual(writers, []);

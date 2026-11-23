@@ -7,7 +7,44 @@
  * consecutive builds stay byte-identical. Numbers: LOCALE is read at call time ("es" = decimal comma).
  * Display dates: fmtDate / fmtMonth are the ONE date formatter ("lun 29 sept" / "Mon 29 Sep"), names
  * from I18N_DATE (web/src/i18n/date-templates.mjs, baked next to HC_CONST), read at call time.
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts).
  */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads by bare name (baked by components/Bake.astro or an earlier script; manifest.mjs)
+declare const HC_CONST: any; // not in page-globals.d.ts: the frozen lib/stale.mjs constants
+declare const LOCALE: PageGlobals['LOCALE'];
+declare const HC_FMT: PageGlobals['HC_FMT'];
+declare const I18N_DATE: PageGlobals['I18N_DATE'];
+declare const DETAIL: PageGlobals['DETAIL'];
+
+type DateOpts = { weekday?: boolean } | null;
+type View = { title: () => string; render: () => unknown };
+type MetricRowOpts = {
+  key: string; cls?: string; attrs?: string; sr?: string | null; name: string; value: string | number; unit?: string;
+  numCls?: string; arrow?: string; tone?: string; base?: string | null; base2?: string;
+};
+type ContribRowOpts = {
+  row?: string; icon: string; label: string; sub?: string; value: string | number;
+  mark?: { glyph: string; tone: string; said: string } | null;
+};
+type StressHour = { t: string; v: number | null; hr?: number | null };
+type StressCopy = { ptTitle: string; curveSr: string };
+type SheetHeadOpts = { back: string; title: string; sr?: string; info?: { controls: string; label: string } | null };
+type OrderRow = { icon: string; name: string; full: string };
+type OrderListOpts = {
+  view: string; attr: string; key: string; catalog: string[]; defaultOn: string[]; available: () => string[];
+  title: () => string; row: (key: string) => OrderRow; aria: { show: string; up: string; down: string }; changed: () => void;
+};
+type Pref = { key: string; on: boolean };
+type StoredPrefs = { order?: unknown; hidden?: unknown };
+// the global HC the last line sets (every other script reads it by bare name)
+declare global {
+  var HC: PageGlobals['HC'];
+}
+
+type Drag = { id: number; grip: Element; li: HTMLLIElement; ul: ParentNode; key: string | null; from: number; to: number };
+
 var HC = (function () {
   var MS_PER_DAY = 86400000;
   var C = typeof HC_CONST !== 'undefined' && HC_CONST ? HC_CONST : {};
@@ -26,14 +63,14 @@ var HC = (function () {
   }
   // markup-safe text AND attribute value (quotes too); an absent value (null / undefined) is ''
   /** A finite number (not NaN / Infinity, not a numeric string): the client scripts' one copy. */
-  function fin(v) {
+  function fin(v: unknown): v is number {
     return typeof v === 'number' && isFinite(v);
   }
-  function esc(s) {
+  function esc(s: unknown): string {
     return (s == null ? '' : String(s)).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
   }
   // "{key}" placeholders; a missing value renders as empty, never "undefined"
-  function format(tpl, vars) {
+  function format(tpl: string, vars?: { [k: string]: any } | null): string {
     return tpl.replace(/\{(\w+)\}/g, function (_, k) {
       return vars && vars[k] != null ? vars[k] : '';
     });
@@ -43,11 +80,11 @@ var HC = (function () {
   // Returns api(method, path, body?) -> a promise of the JSON body of a 2xx ({} when it has none); it
   // rejects {code, field, status}: the server's coarse error code (else 'generic'), or 'offline' with
   // status 0 when there is no answer, it timed out (timeoutMs) or the page runs from a file (lan()).
-  function jsonApi(base, header, timeoutMs) {
-    return function (method, path, body) {
-      var headers = {};
+  function jsonApi(base: string, header: string, timeoutMs: number) {
+    return function (method: string, path: string, body?: unknown) {
+      var headers: Record<string, string> = {};
       headers[header] = '1';
-      var init = { method: method, headers: headers, cache: 'no-store', credentials: 'same-origin' };
+      var init: RequestInit = { method: method, headers: headers, cache: 'no-store', credentials: 'same-origin' };
       if (body !== undefined) {
         headers['Content-Type'] = 'application/json';
         init.body = JSON.stringify(body);
@@ -72,25 +109,25 @@ var HC = (function () {
   // is what resolves, so a stalled body is covered too. The caller's init is copied, never mutated; a
   // caller's init.signal is combined with the timeout's (AbortSignal.any, else relayed by hand), and its
   // abort rejects at once with an AbortError. A hung LAN service never leaves a control busy.
-  function fetchTimeout(url, init, ms, read) {
-    var opts = {}, k, src = init || {};
-    for (k in src) if (Object.prototype.hasOwnProperty.call(src, k)) opts[k] = src[k];
+  function fetchTimeout<T = Response>(url: string, init: RequestInit | null | undefined, ms: number, read?: (res: Response) => T | PromiseLike<T>): Promise<T> {
+    var opts: RequestInit = {}, k: string, src: RequestInit = init || {};
+    for (k in src) if (Object.prototype.hasOwnProperty.call(src, k)) (opts as Record<string, unknown>)[k] = (src as Record<string, unknown>)[k];
     var caller = src.signal || null;
     var ctl = typeof AbortController === 'function' ? new AbortController() : null;
     if (ctl) {
       var hasAny = typeof AbortSignal !== 'undefined' && AbortSignal && typeof AbortSignal.any === 'function';
       opts.signal = caller && hasAny ? AbortSignal.any([caller, ctl.signal]) : ctl.signal;
     }
-    return new Promise(function (resolve, reject) {
-      var settled = false, timer = null;
+    return new Promise<T>(function (resolve, reject) {
+      var settled = false, timer = null as ReturnType<typeof setTimeout> | null;
       var onAbort = function () {
         if (ctl) ctl.abort();
         finish(reject, { name: 'AbortError' });
       };
-      var finish = function (fn, v) {
+      var finish = function (fn: (v: any) => void, v: unknown) {
         if (settled) return;
         settled = true;
-        if (typeof clearTimeout === 'function') clearTimeout(timer);
+        if (typeof clearTimeout === 'function') clearTimeout(timer!);
         if (caller && typeof caller.removeEventListener === 'function') caller.removeEventListener('abort', onAbort);
         fn(v);
       };
@@ -113,37 +150,37 @@ var HC = (function () {
   }
   // fetchTimeout + the JSON body of a 2xx answer (null for any other answer), the body read inside the
   // timeout (client/freshness.ts: the status and sync replies)
-  function fetchJson(url, init, ms) {
+  function fetchJson(url: string, init: RequestInit | null | undefined, ms: number) {
     return fetchTimeout(url, init, ms, function (r) { return r && r.ok ? r.json() : null; });
   }
   // baked dates are interpolated into markup: accept only a real ISO date (the shape AND a calendar
   // round trip, so 2026-02-31 is rejected), anything else is absent
-  function isoDate(s) {
+  function isoDate(s: unknown): string | null {
     return typeof s === 'string' && ISO_RE.test(s) && isoOf(parseIso(s)) === s ? s : null;
   }
-  function isoOf(d) {
+  function isoOf(d: Date): string {
     return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
   }
-  function parseIso(s) {
+  function parseIso(s: string): Date {
     var p = s.split('-');
     return new Date(+p[0], +p[1] - 1, +p[2]);
   }
   /** Whole days from ISO date a to ISO date b on the local calendar (the client twin of lib/date.mjs dayDiff,
    * which counts UTC days): one copy for every client script. */
-  function dayDiff(a, b) {
-    return Math.round((parseIso(b) - parseIso(a)) / MS_PER_DAY);
+  function dayDiff(a: string, b: string): number {
+    return Math.round(((parseIso(b) as unknown as number) - (parseIso(a) as unknown as number)) / MS_PER_DAY);
   }
   function todayIso() {
     return isoOf(new Date(Date.now()));
   }
-  function shiftIso(s, n) {
+  function shiftIso(s: string, n: number): string {
     var d = parseIso(s);
     d.setDate(d.getDate() + n);
     return isoOf(d);
   }
   // whole years between an ISO birthdate and an ISO day; null when either is not a date or birth > day
   // (the profile sheet's age and Salud's chronological age next to the fitness age)
-  function ageOn(birth, day) {
+  function ageOn(birth: string | null | undefined, day: string | null | undefined): number | null {
     birth = isoDate(birth);
     day = isoDate(day);
     if (!birth || !day || birth > day) return null;
@@ -152,7 +189,7 @@ var HC = (function () {
     return age;
   }
   // whole days between an ISO date and the viewer's today (negative = ahead of the clock); null if not ISO
-  function daysOld(iso) {
+  function daysOld(iso: string | null | undefined): number | null {
     iso = isoDate(iso);
     if (!iso) return null;
     return dayDiff(iso, todayIso());
@@ -164,40 +201,40 @@ var HC = (function () {
     return isEs() ? 'es' : 'en';
   }
   // the decimals the value carries ("1,25"), grouped
-  function nf(n) {
+  function nf(n: number | null | undefined): string {
     return HC_FMT.fmtRaw(n, loc());
   }
   // fixed decimals, optional leading "+"; a value that rounds to zero carries no sign
-  function num(x, dec, signed) {
+  function num(x: number | null | undefined, dec: number, signed?: boolean): string {
     return HC_FMT.fmtNumber(x, dec, loc(), signed);
   }
   // a whole number, grouped ("13.463")
-  function int(x, signed) {
+  function int(x: number | null | undefined, signed?: boolean): string {
     return HC_FMT.fmtInt(x, loc(), signed);
   }
   // "97%"
-  function pct(x, signed, dec) {
+  function pct(x: number | null | undefined, signed?: boolean, dec?: number): string {
     return HC_FMT.fmtPercent(x, loc(), signed, dec);
   }
   // decimal hours -> "7:30"
-  function hours(h, signed) {
+  function hours(h: number | null | undefined, signed?: boolean): string {
     return HC_FMT.fmtHours(h, signed);
   }
   // an input field's value: decimal comma in es, NEVER grouped (the field parses it back); `dec`
   // fixed decimals or (omitted) the decimals the value carries
-  function numInput(x, dec) {
+  function numInput(x: number | null | undefined, dec?: number): string {
     return HC_FMT.fmtPlain(x, dec, loc());
   }
   function dateNames() {
     return typeof I18N_DATE !== 'undefined' && I18N_DATE ? I18N_DATE : null;
   }
   // Monday = 0 … Sunday = 6
-  function weekdayIndex(iso) {
+  function weekdayIndex(iso: string): number {
     return (parseIso(iso).getDay() + 6) % 7;
   }
   // "lun 29 sept" / "Mon 29 Sep" (opts.weekday === false drops the weekday); '' for a non-ISO value,
   // the ISO date itself when the names are not baked
-  function fmtDate(iso, opts) {
+  function fmtDate(iso: string | null | undefined, opts?: DateOpts): string {
     iso = isoDate(iso);
     if (!iso) return '';
     var N = dateNames();
@@ -211,7 +248,7 @@ var HC = (function () {
   // "carried": it names that date (`label`, fmtDate; opts.weekday === false for a 360 px ring) and is
   // dimmed (`cls` = ' carried'). A value of the shown day itself is normal. `opts.stale` (the stronger
   // > STALE_DAYS grey, which the caller already applies) keeps the date but drops the dim class.
-  function carried(asOf, shownDay, opts) {
+  function carried(asOf: string | null | undefined, shownDay?: string | null, opts?: { weekday?: boolean; stale?: boolean } | null) {
     var a = isoDate(asOf), day = isoDate(shownDay) || todayIso();
     var c = !!a && a < day;
     return {
@@ -221,7 +258,7 @@ var HC = (function () {
     };
   }
   // "septiembre 2026" / "September 2026"; "YYYY-MM" when the names are not baked
-  function fmtMonth(iso) {
+  function fmtMonth(iso: string | null | undefined): string {
     iso = isoDate(iso);
     if (!iso) return '';
     var N = dateNames();
@@ -233,7 +270,7 @@ var HC = (function () {
   // Enter / Space): data-detail="<metric>" [data-date="<iso>"] plus a button role and a tab stop;
   // opts.plain = only the data attributes (a real <button>, or a mouse-only target such as an SVG
   // calendar cell or a table row whose keyboard path is another opener). '' when the sheet is not baked.
-  function detailAttrs(key, date, opts) {
+  function detailAttrs(key: string, date?: string | null, opts?: { plain?: boolean } | null): string {
     if (typeof DETAIL === 'undefined') return '';
     var d = isoDate(date);
     var out = ' data-detail="' + esc(key) + '"' + (d ? ' data-date="' + d + '"' : '');
@@ -244,7 +281,7 @@ var HC = (function () {
   // differs from the load day and the page is visible; 'defer' while the page is busy (the caller
   // decides: an open detail sheet, an open product / recipe editor, a focused field — anything a reload
   // would lose); 'none' otherwise (same day, hidden page, no usable dates).
-  function rolloverAction(loadDay, today, busy, hidden) {
+  function rolloverAction(loadDay: string | null | undefined, today: string | null | undefined, busy: boolean, hidden: boolean): string {
     if (hidden || !isoDate(loadDay) || !isoDate(today) || loadDay === today) return 'none';
     return busy ? 'defer' : 'reload';
   }
@@ -252,14 +289,14 @@ var HC = (function () {
   // publish it loaded. 'reload' when the server's status.json publishedAt is later than the baseline read at load
   // and the page is visible; 'defer' while busy (same rule as rolloverAction); 'none' otherwise (same or older
   // publish, hidden page, no baseline yet, an unreadable stamp).
-  function publishAction(loadAt, latestAt, busy, hidden) {
+  function publishAction(loadAt: unknown, latestAt: unknown, busy: boolean, hidden: boolean): string {
     var a = typeof loadAt === 'string' ? Date.parse(loadAt) : NaN;
     var b = typeof latestAt === 'string' ? Date.parse(latestAt) : NaN;
     if (hidden || !isFinite(a) || !isFinite(b) || b <= a) return 'none';
     return busy ? 'defer' : 'reload';
   }
   // minutes -> "1:45" / "0:45" (h:mm, the one duration format; the old `units` argument is ignored)
-  function duration(min) {
+  function duration(min: number | null | undefined): string {
     return HC_FMT.fmtMinutes(min);
   }
 
@@ -268,7 +305,7 @@ var HC = (function () {
   // icon · UPPERCASE name · value (+ small unit) and a ▲ / ▼ / • marker on the right, a small line
   // (the baseline, a range or a status word) under the value. Styles: .db-* in styles/score.css.
   // Line icons on a 24-unit grid, stroke only (currentColor via .db-ico); unknown key -> the HRV line.
-  var ICONS = {
+  var ICONS: Record<string, string> = {
     rhr: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
     hrv: '<path d="M3 12h4l2-5 4 10 2-5h6"/>',
     sleep: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
@@ -298,7 +335,7 @@ var HC = (function () {
   };
   // one icon set: a key missing here falls back to the contributor rows' paths (CONTRIB_ICONS: bed, wake,
   // vsTarget, cons, eff, stages …), then to the HRV line
-  function metricIcon(key) {
+  function metricIcon(key: string): string {
     var own = Object.prototype.hasOwnProperty;
     return '<svg class="db-ico" viewBox="0 0 24 24" aria-hidden="true">' + (own.call(ICONS, key) ? ICONS[key]
       : own.call(CONTRIB_ICONS, key) ? '<path d="' + CONTRIB_ICONS[key] + '"/>' : ICONS.hrv) + '</svg>';
@@ -306,8 +343,8 @@ var HC = (function () {
   // the ONE trend glyph (docs/design-system.md → Components → Trend glyph): ▲ / ▼ for a change, • for
   // typical / steady; the tone class colours it — good / bad / watch by the metric's direction,
   // `neutral` (--ink) for a change with no good direction, `flat` (grey) ONLY for the • (no grey arrow)
-  var ARROWS = { up: '▲', down: '▼', flat: '•' };
-  function trendTone(arrow, tone) {
+  var ARROWS: Record<string, string> = { up: '▲', down: '▼', flat: '•' };
+  function trendTone(arrow?: string, tone?: string | null): string {
     if (arrow === 'flat') return 'flat';
     return !tone || tone === 'flat' || tone === 'normal' ? 'neutral' : tone;
   }
@@ -321,7 +358,7 @@ var HC = (function () {
   //      holds the visible name and value). `sr`: the secondary lines said in words (the date, what a bare
   //      number is, the trend the ▲ / ▼ shows), read after the value; the visible `base` lines are then
   //      hidden from assistive tech, since `sr` already says them.
-  function metricRow(o) {
+  function metricRow(o: MetricRowOpts): string {
     var arrow = o.arrow && Object.prototype.hasOwnProperty.call(ARROWS, o.arrow) ? ARROWS[o.arrow] : '';
     var tag = /\brole="button"/.test(o.attrs || '') ? 'div' : 'li';
     var sr = o.sr != null && o.sr !== '';
@@ -338,7 +375,7 @@ var HC = (function () {
   // THE contributor row (docs/design-system.md → Components → Contributor row): the deep-dive sheets'
   // inputs and Salud's Recovery card — icon · caps label (+ a small sub line) · value · ▲ / ▼ / •.
   // Styles: .dd-row / .dd-ico / .dd-mk in styles/detail.css. 24-unit stroked paths, one per row key.
-  var CONTRIB_ICONS = {
+  var CONTRIB_ICONS: Record<string, string> = {
     hrv: 'M2 12h4l2-5 4 10 2-5h8',
     rhr: 'M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z',
     sleep: 'M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z',
@@ -358,12 +395,12 @@ var HC = (function () {
     clock: 'M12 3a9 9 0 1 0 0 18a9 9 0 1 0 0-18M12 7v5l3 2',
     stages: 'M3 6h5v6h6v6h7',
   };
-  function contribIcon(k) {
+  function contribIcon(k: string): string {
     return '<svg class="dd-ico" viewBox="0 0 24 24" aria-hidden="true"><path d="' + CONTRIB_ICONS[k] + '"/></svg>';
   }
   // o = {row? (data-row key), icon (CONTRIB_ICONS key), label, sub?, value, mark? {glyph, tone
   // ('better' | 'worse' | 'neutral' | 'typical'), said (screen-reader words)}} — texts escaped here
-  function contribRow(o) {
+  function contribRow(o: ContribRowOpts): string {
     var m = o.mark;
     return '<li class="dd-row"' + (o.row ? ' data-row="' + esc(o.row) + '"' : '') + '>' + contribIcon(o.icon) +
       '<span class="dd-row-lbl">' + esc(o.label) + (o.sub ? ' <small class="dd-row-sub">' + esc(o.sub) + '</small>' : '') + '</span>' +
@@ -373,7 +410,7 @@ var HC = (function () {
 
   // THE switch (docs/design-system.md → Components → Switch): show / hide one item; attrs = its own
   // data-* hooks; label = what it shows / hides (the state is aria-checked, so no visible word)
-  function switchBtn(on, label, attrs) {
+  function switchBtn(on: unknown, label: string, attrs?: string): string {
     return '<button type="button" class="sw" role="switch" aria-checked="' + (on ? 'true' : 'false') + '" aria-label="' + esc(label) + '"' + (attrs || '') + '>' +
       '<span class="sw-knob" aria-hidden="true"></span></button>';
   }
@@ -381,7 +418,7 @@ var HC = (function () {
   // ⓘ button of a Salud header: toggles the hidden block #<id> (client/health.ts listens for
   // [data-hs-info]); drawn as an SVG, the page fonts carry no ⓘ glyph
   var INFO_SVG = '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>';
-  function infoBtn(id, label) {
+  function infoBtn(id: string, label: string): string {
     return '<button type="button" class="hs-i" data-hs-info="' + esc(id) + '" aria-expanded="false" aria-controls="' + esc(id) + '" aria-label="' + esc(label) + '">' +
       INFO_SVG + '</button>';
   }
@@ -391,15 +428,15 @@ var HC = (function () {
   // I18N_DETAIL.deep.stress copy, fmt(v, dec) = the page's number format; decorative = aria-hidden
   var STRESS_BANDS = ['low', 'medium', 'high'];
   var SCV = { w: 320, h: 150, l: 22, r: 6, t: 8, b: 20 };
-  function stressBand(v) {
+  function stressBand(v: number): string {
     return v >= 2 ? 'high' : v >= 1 ? 'medium' : 'low';
   }
-  function stressChart(hours, P, fmt, decorative) {
+  function stressChart(hours: StressHour[] | null | undefined, P: StressCopy, fmt: (v: number | null | undefined, dec: number) => string, decorative?: boolean): string {
     var iw = SCV.w - SCV.l - SCV.r, ih = SCV.h - SCV.t - SCV.b;
-    var x = function (h) { return SCV.l + (iw * h) / 24; };
-    var y = function (v) { return SCV.t + ih * (1 - v / 3); };
-    var hh = function (t) { return String(t).slice(0, 2) + ':00'; };
-    var ok = function (v) { return typeof v === 'number' && isFinite(v); };
+    var x = function (h: number) { return SCV.l + (iw * h) / 24; };
+    var y = function (v: number) { return SCV.t + ih * (1 - v / 3); };
+    var hh = function (t: string) { return String(t).slice(0, 2) + ':00'; };
+    var ok = function (v: unknown): v is number { return typeof v === 'number' && isFinite(v); };
     var out = STRESS_BANDS.map(function (b, i) {
       return '<rect class="ds-zone ds-' + b + '" x="' + SCV.l + '" y="' + y(i + 1).toFixed(1) + '" width="' + iw + '" height="' + (ih / 3).toFixed(1) + '"/>';
     }).join('');
@@ -410,7 +447,7 @@ var HC = (function () {
       out += '<text class="ds-xlbl" x="' + x(h).toFixed(1) + '" y="' + (SCV.h - 5) + '" text-anchor="' + (h === 0 ? 'start' : h === 24 ? 'end' : 'middle') + '">' + (h < 10 ? '0' : '') + h + ':00</text>';
     }
     hours = hours || [];
-    var path = '', prev = null;
+    var path = '', prev = null as number | null;
     hours.forEach(function (p) {
       var n = parseInt(p.t, 10);
       if (!isFinite(n) || !ok(p.v)) return;
@@ -429,13 +466,13 @@ var HC = (function () {
   }
   // THE stale-data marker: a short line ("Data 5 d old" + ⓘ) whose full sentence is one tap away. A
   // native <details>, so it needs no listener (works on any tab, also with Salud hidden); cls = the owner
-  function staleMark(cls, short, sentence) {
+  function staleMark(cls: string | null | undefined, short: string, sentence: string): string {
     return '<details class="stale-mk' + (cls ? ' ' + esc(cls) : '') + '"><summary>' + esc(short) + INFO_SVG + '</summary><p>' +
       esc(sentence) + '</p></details>';
   }
   // the ONE CTA link (docs/design-system.md → Components → CTA link): a standalone "go there" link —
   // caps, link blue (.cta, base.css), the arrow drawn here; attrs = the button's own attributes
-  function cta(label, attrs) {
+  function cta(label: string, attrs?: string): string {
     return '<button type="button" class="cta"' + (attrs || '') + '>' + esc(label) + '<span aria-hidden="true"> →</span></button>';
   }
   // the ONE detail-sheet header (dial deep-dives and metric details, client/detail.ts): "‹" back =
@@ -444,7 +481,7 @@ var HC = (function () {
   // equal-width spacer so the title stays centred
   // o.sr: words read before the visible title (screen readers only), e.g. the metric of a dial page
   // whose visible title is its date, so the dialog's label still names what it shows
-  function sheetHead(o) {
+  function sheetHead(o: SheetHeadOpts): string {
     return '<div class="dt-head sh-head"><button type="button" class="sh-back" data-dt-act="close" aria-label="' + esc(o.back) + '">‹</button>' +
       '<h2 class="sh-title" id="dt-title">' + (o.sr ? '<span class="sr-only">' + esc(o.sr) + ' · </span>' : '') + esc(o.title) + '</h2>' +
       (o.info ? '<button type="button" class="sh-info" data-dt-act="info" aria-expanded="false" aria-controls="' + esc(o.info.controls) + '" aria-label="' + esc(o.info.label) + '">' + INFO_SVG + '</button>'
@@ -454,12 +491,12 @@ var HC = (function () {
   // client/detail.ts, deep link #<key>). The ONE writer; the registry appears with the first view. A
   // script registering its key again (a re-render, a reload of its API) replaces its view and never
   // throws on the live page; two scripts claiming one key is caught statically (util.test.mjs scan).
-  function registerView(name, view) {
+  function registerView(name: string, view: View): void {
     var all = window.HCViews = window.HCViews || {};
     all[name] = view;
   }
   // a registered view by key (own keys only: never "constructor" / "toString"), or null
-  function view(name) {
+  function view(name: string) {
     var all = typeof window !== 'undefined' && window.HCViews && typeof window.HCViews === 'object' ? window.HCViews : null;
     return all && Object.prototype.hasOwnProperty.call(all, name) ? all[name] : null;
   }
@@ -480,33 +517,33 @@ var HC = (function () {
    * (a mouse only with its main button) and never while one is active; a lost capture is re-taken while
    * the row is on the page, else it cancels like pointercancel (the saved order re-renders); a drag
    * whose row left the page is stale and never blocks the next one. */
-  function orderList(o) {
-    var memory = null; // the prefs when storage is unavailable
-    var hasOwn = function (x, k) { return Object.prototype.hasOwnProperty.call(x, k); };
+  function orderList(o: OrderListOpts) {
+    var memory = null as string | null; // the prefs when storage is unavailable
+    var hasOwn = function (x: object, k: string) { return Object.prototype.hasOwnProperty.call(x, k); };
     // raw: the stored JSON string (or null); avail: the catalogue keys present -> [{key, on}] in display order
-    function prefsFrom(raw, avail) {
+    function prefsFrom(raw: unknown, avail: string[]): Pref[] {
       var keys = o.catalog.filter(function (k) { return avail.indexOf(k) !== -1; });
-      var p;
-      try { p = typeof raw === 'string' ? JSON.parse(raw) : raw; } catch (e) { p = null; }
+      var p: StoredPrefs | null;
+      try { p = typeof raw === 'string' ? JSON.parse(raw) : raw as StoredPrefs | null; } catch (e) { p = null; }
       var order = p && Array.isArray(p.order) ? p.order : [];
       var hidden = p && Array.isArray(p.hidden) ? p.hidden : null;
-      var out = [], seen = {};
+      var out: Pref[] = [], seen: Record<string, boolean> = {};
       order.concat(keys).forEach(function (k) {
         if (typeof k !== 'string' || keys.indexOf(k) === -1 || hasOwn(seen, k)) return;
         seen[k] = true;
         var stored = order.indexOf(k) !== -1 && hidden;
-        out.push({ key: k, on: stored ? hidden.indexOf(k) === -1 : o.defaultOn.indexOf(k) !== -1 });
+        out.push({ key: k, on: stored ? hidden!.indexOf(k) === -1 : o.defaultOn.indexOf(k) !== -1 });
       });
       return out;
     }
-    function serialize(list) {
+    function serialize(list: Pref[]): string {
       return JSON.stringify({ order: list.map(function (x) { return x.key; }), hidden: list.filter(function (x) { return !x.on; }).map(function (x) { return x.key; }) });
     }
-    function readPrefs() {
+    function readPrefs(): string | null {
       if (memory != null) return memory;
       try { return window.localStorage ? window.localStorage.getItem(o.key) : null; } catch (e) { return null; }
     }
-    function writePrefs(list) {
+    function writePrefs(list: Pref[]): void {
       var str = serialize(list);
       try {
         if (!window.localStorage) throw new Error('no storage');
@@ -516,24 +553,24 @@ var HC = (function () {
         memory = str; // keeps working for this visit
       }
     }
-    function copy(list) {
+    function copy(list: Pref[]): Pref[] {
       return list.map(function (x) { return { key: x.key, on: x.on }; });
     }
-    function indexOf(list, key) {
+    function indexOf(list: Pref[], key: string | null): number {
       for (var j = 0; j < list.length; j++) if (list[j].key === key) return j;
       return -1;
     }
     // one item from index `from` to index `to` (pure): a new list; an out-of-range or equal index
     // returns an unchanged copy. The ↑ / ↓ buttons and the ≡ drag both reorder through it.
-    function move(list, from, to) {
+    function move(list: Pref[], from: number, to: number): Pref[] {
       var out = copy(list), n = out.length;
-      var ok = function (i) { return typeof i === 'number' && i % 1 === 0 && i >= 0 && i < n; };
+      var ok = function (i: number) { return typeof i === 'number' && i % 1 === 0 && i >= 0 && i < n; };
       if (!ok(from) || !ok(to) || from === to) return out;
       out.splice(to, 0, out.splice(from, 1)[0]);
       return out;
     }
     // up / down / toggle on the list (pure): returns a new list
-    function edit(list, key, act) {
+    function edit(list: Pref[], key: string | null, act: string | null): Pref[] {
       var i = indexOf(list, key);
       if (i === -1) return copy(list);
       if (act === 'up') return move(list, i, i - 1);
@@ -542,11 +579,11 @@ var HC = (function () {
       if (act === 'toggle') out[i].on = !out[i].on;
       return out;
     }
-    function current() {
+    function current(): Pref[] {
       return prefsFrom(readPrefs(), o.available());
     }
     var A = 'data-' + o.attr + '-act', G = 'data-' + o.attr + '-grip';
-    function editHtml(list) {
+    function editHtml(list: Pref[]): string {
       return '<ul class="db-edit">' + list.map(function (p, i) {
         var r = o.row(p.key), k = esc(p.key);
         return '<li class="db-erow' + (p.on ? '' : ' db-off') + '">' + r.icon + '<span class="db-name">' + esc(r.name) + '</span>' +
@@ -565,39 +602,39 @@ var HC = (function () {
       render: function () { clearDrag(); return { head: '', body: editHtml(current()) }; },
     };
     // save a new list, re-render the owner and the open sheet (focus: a selector to keep, or none)
-    function commit(list, focus) {
+    function commit(list: Pref[], focus?: string): void {
       writePrefs(list);
       o.changed();
       reopen(focus);
     }
-    function reopen(focus) {
+    function reopen(focus?: string): void {
       var H = window.HCDetail;
       if (H && typeof H.open === 'function') H.open(o.view, null, focus ? { focus: focus } : undefined);
     }
     document.addEventListener('click', function (e) {
-      var b = e && e.target && e.target.closest ? e.target.closest('[' + A + ']') : null;
+      var b = e && e.target && (e.target as Partial<Element>).closest ? (e.target as Element).closest('[' + A + ']') : null;
       if (!b) return;
       var key = b.getAttribute('data-key'), act = b.getAttribute(A);
       // keep focus on the control just used (or its row's toggle when the move disabled it)
       commit(edit(current(), key, act), '[' + A + '="' + act + '"][data-key="' + key + '"]');
     });
-    var drag = null;
+    var drag = null as Drag | null;
     function clearDrag() {
       if (drag) drag.li.classList.remove('db-drag');
       drag = null;
     }
-    function rowsBut(d) {
-      return [].slice.call(d.ul.children).filter(function (r) { return r !== d.li; });
+    function rowsBut(d: Drag): Element[] {
+      return ([].slice.call(d.ul.children) as Element[]).filter(function (r) { return r !== d.li; });
     }
     document.addEventListener('pointerdown', function (e) {
       if (drag && !drag.li.isConnected) clearDrag();
       if (drag || !e || !e.isPrimary || (e.pointerType === 'mouse' && e.button !== 0)) return;
-      var g = e && e.target && e.target.closest ? e.target.closest('[' + G + ']') : null;
+      var g = e && e.target && (e.target as Partial<Element>).closest ? (e.target as Element).closest('[' + G + ']') : null;
       var li = g && g.closest('li');
       if (!li || !li.parentNode) return;
-      var from = [].slice.call(li.parentNode.children).indexOf(li);
-      drag = { id: e.pointerId, grip: g, li: li, ul: li.parentNode, key: li.getAttribute('data-key') || g.getAttribute('data-key'), from: from, to: from };
-      try { g.setPointerCapture(e.pointerId); } catch (err) { /* capture is a nicety: document listeners still see the moves */ }
+      var from = ([].slice.call(li.parentNode.children) as Element[]).indexOf(li);
+      drag = { id: e.pointerId, grip: g!, li: li, ul: li.parentNode, key: li.getAttribute('data-key') || g!.getAttribute('data-key'), from: from, to: from };
+      try { g!.setPointerCapture(e.pointerId); } catch (err) { /* capture is a nicety: document listeners still see the moves */ }
       li.classList.add('db-drag');
       e.preventDefault();
     });
@@ -614,7 +651,7 @@ var HC = (function () {
       }
       e.preventDefault();
     });
-    function endDrag(e, save) {
+    function endDrag(e: PointerEvent, save: boolean): void {
       if (!drag || e.pointerId !== drag.id) return;
       var d = drag;
       drag = null;
@@ -691,3 +728,8 @@ var HC = (function () {
     view: view,
   };
 })();
+
+// Every other script reads HC by bare name. A classic script's top-level `var HC` was a page global; this module is
+// bundled into an IIFE (web/src/client-bundle.mjs), where it is local, so the global is set explicitly. globalThis is
+// window in the page and the context's global in the tests' vm.
+globalThis.HC = HC;

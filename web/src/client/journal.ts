@@ -117,7 +117,7 @@ type JournalState = {
     }
 
     /* ---------- API ---------- */
-    // HC.jsonApi (util.js), with the journal API's own X-HC-Journal header
+    // HC.jsonApi (util.ts), with the journal API's own X-HC-Journal header
     var api = HC.jsonApi(API, 'X-HC-Journal', TIMEOUT_MS);
 
     /* ---------- card ---------- */

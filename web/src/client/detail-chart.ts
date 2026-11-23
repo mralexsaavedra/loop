@@ -7,7 +7,7 @@
  * band / target / typical lines, three round Y ticks, the newest value labelled, a missing day is a gap,
  * never 0) + its key; selX = the x of a day's slot from the geometry the last chart recorded;
  * breakdownHtml = the window's days by state as one stacked bar + counts. detail.ts calls it once.
- * Reads window.HC (util.js) and, at call time, I18N_DATE (the weekday labels of a week's bars). */
+ * Reads window.HC (util.ts) and, at call time, I18N_DATE (the weekday labels of a week's bars). */
 import type { PageGlobals } from './page-globals';
 
 // the page globals this script reads (baked by the build or provided by an earlier script; manifest.mjs)

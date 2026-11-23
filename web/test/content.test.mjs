@@ -241,7 +241,7 @@ test('example build: Inicio reads today top to bottom — dials, monitor tiles, 
   const idx = (re) => scripts.findIndex((x) => re.test(x));
   const week = idx(/window\.HCWeekPlan\s*=/), dash = idx(/window\.HCDash\s*=/), deep = idx(/window\.HCDeep\s*=/), detail = idx(/window\.HCDetailState\s*=/);
   const adherence = idx(/window\.HCAdherence\s*=/), util = idx(/var HC\s*=\s*\(function/);
-  assert.ok(util !== -1 && adherence !== -1 && week > adherence && week > util, 'after util.js and adherence.ts');
+  assert.ok(util !== -1 && adherence !== -1 && week > adherence && week > util, 'after util.ts and adherence.ts');
   assert.ok(dash > week && deep > dash && detail === deep + 1, 'home-week → home-dash → deepdive → the detail sheet (detail-state.ts first)');
   assert.match(home, /<section class="home-sec" id="my-dash" aria-labelledby="my-dash-h" hidden>[\s\S]*?My dashboard<\/h2>\s*<button type="button" class="db-cust" id="dash-edit" data-detail="dash-edit"/);
   assert.match(html, /"tonight":\{"asOf":"\d{4}-\d{2}-\d{2}","wake":/, 'demo data bakes a bedtime');
@@ -367,19 +367,19 @@ test('example build: Salud headers — the page ⓘ sits beside the centred titl
   assert.equal(map.get('|||.hm .hs-head>.hs-i|||margin-left'), 'auto', 'the ⓘ closes the row');
 });
 
-test('example build: the shared client helpers (util.js) are inlined FIRST, right after the baked HC_CONST, before every other script', () => {
+test('example build: the shared client helpers (util.ts) are inlined FIRST, right after the baked HC_CONST, before every other script', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
   const utilIdx = scripts.findIndex((s) => /\bvar HC\s*=\s*\(function/.test(s));
   const constIdx = scripts.findIndex((s) => /\bvar HC_CONST = \{"staleDays":\d+\}/.test(s));
   const coreIdx = scripts.findIndex((s) => /function setTab\(/.test(s));
   assert.ok(constIdx !== -1 && utilIdx !== -1 && coreIdx !== -1, `HC_CONST ${constIdx}, util ${utilIdx}, core ${coreIdx}`);
-  assert.ok(constIdx <= utilIdx && utilIdx < coreIdx, 'HC_CONST, then util.js, then core.ts and the rest');
+  assert.ok(constIdx <= utilIdx && utilIdx < coreIdx, 'HC_CONST, then util.ts, then core.ts and the rest');
   assert.match(html, /var ACTIVITY = \{[^;]*"windowDays":30,"periods":\[7,30,182\],"bakeDays":367,"levelMin":\[1,30,60,90\]\}/, 'calendar + window constants baked from lib');
   const dateIdx = scripts.findIndex((s) => /\bvar I18N_DATE = \{"weekdays":\["Mon"/.test(s));
-  assert.ok(dateIdx !== -1 && dateIdx <= utilIdx, 'the date names of HC.fmtDate are baked before util.js');
+  assert.ok(dateIdx !== -1 && dateIdx <= utilIdx, 'the date names of HC.fmtDate are baked before util.ts');
   const fmtIdx = scripts.findIndex((s) => /\bvar HC_FMT\s*=\s*\(function/.test(s));
-  assert.ok(fmtIdx !== -1 && fmtIdx < utilIdx, 'the one number formatter (HC_FMT) is inlined before util.js');
+  assert.ok(fmtIdx !== -1 && fmtIdx < utilIdx, 'the one number formatter (HC_FMT) is inlined before util.ts');
 });
 
 test('example build: the detail sheet ships hidden OUTSIDE .wrap (so the page can go inert), with DETAIL baked for every demo metric and detail.ts before freshness.ts', () => {

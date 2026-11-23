@@ -40,7 +40,7 @@ food-calc.js.
 ### One formula, three runners
 
 - **Page** — `lib/nutrition/client.mjs` emits the functions (the module's `CLIENT` descriptor) as
-  `HC_FOODLOG` (inlined with HC_FMT before util.js, + `num.mjs` `fin` / `roundEps`), read by
+  `HC_FOODLOG` (inlined with HC_FMT before util.ts, + `num.mjs` `fin` / `roundEps`), read by
   `web/src/client/food-core.ts` (`window.HCFood`, no copy). The add sheet's preview uses the same
   functions: a recipe whose products are all listed uses `recipeBasis`, one with an archived product the
   server's computed basis on the recipe row, both through `entryFromBasis` — no fourth copy.
@@ -425,7 +425,7 @@ placeholder filled from them, never typed.
 
 Baked data, every build. `lib/nutrition/progress.mjs` is the ONE implementation (rules and bands in its
 header): `lib/nutrition/client.mjs` emits it (its `CLIENT` descriptor) as `HC_PROG` (inlined before
-util.js), which `client/progress.ts` runs (no copy; `PROGRESS_CASES` test HC_PROG against the module, plus
+util.ts), which `client/progress.ts` runs (no copy; `PROGRESS_CASES` test HC_PROG against the module, plus
 hand-computed tests).
 
 - **Rate** = least-squares slope of `DETAIL.metrics.weight.roll` over `windowDays`; too few averages →
@@ -450,7 +450,7 @@ hand-computed tests).
 LAN page only. `GET /food/log/summary?from&to` (≤ `summaryDaysMax` days, ≤ 20,000 rows, 30 reads / min per
 client) → per-day `daySummaries` (shared formula, generated into food-calc.js, pinned by `SUMMARY_CASES`).
 `lib/nutrition/adherence.mjs` is the ONE implementation: `lib/nutrition/client.mjs` emits (its `CLIENT`
-descriptor) `isComplete` / `dayState` / `adherence` as `HC_ADH` (inlined before util.js), which
+descriptor) `isComplete` / `dayState` / `adherence` as `HC_ADH` (inlined before util.ts), which
 `client/adherence.ts` runs (no copy; `ADHERENCE_CASES` test HC_ADH against the module).
 
 - **Complete day** = ≥ 1 entry in breakfast, lunch and dinner. Means and protein days only over complete
@@ -470,7 +470,7 @@ descriptor) `isComplete` / `dayState` / `adherence` as `HC_ADH` (inlined before 
 
 Every page. A day's 0–100 adherence to the viewer's own targets, from the food log. `lib/nutrition/nutri-score.mjs`
 is the ONE implementation (`NSCORE`, baked as `NUTRI.score`): `lib/nutrition/client.mjs` emits the scoring
-functions (its `CLIENT` descriptor) as `HC_NSCORE` (inlined before util.js), which `client/nutri-score.ts`
+functions (its `CLIENT` descriptor) as `HC_NSCORE` (inlined before util.ts), which `client/nutri-score.ts`
 runs (no copy). The client test and `web/test/client-globals-build.test.mjs` (the built page) run it over
 `NSCORE_CASES` (band and zero edges, missing and blank macros, today partial, no target / no entries) and
 over a whole `scoreSeries`.

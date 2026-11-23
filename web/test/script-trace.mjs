@@ -22,8 +22,9 @@ export function declaredGlobals(src) {
   return Object.getOwnPropertyNames(vm.runInContext('globalThis', ctx)).filter((k) => !base.has(k));
 }
 
+// a `window.X =` or `globalThis.X =` write (a module script exposes a shared global through globalThis: util.ts's HC)
 export function windowWrites(src) {
-  return [...new Set([...src.matchAll(/\bwindow\.([A-Za-z_$][\w$]*)\s*=(?!=)/g)].map((m) => m[1]))];
+  return [...new Set([...src.matchAll(/\b(?:window|globalThis)\.([A-Za-z_$][\w$]*)\s*=(?!=)/g)].map((m) => m[1]))];
 }
 
 function anything() {

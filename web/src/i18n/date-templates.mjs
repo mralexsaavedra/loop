@@ -1,4 +1,4 @@
-/* Date names for the ONE shared client date formatter (web/src/client/util.js HC.fmtDate /
+/* Date names for the ONE shared client date formatter (web/src/client/util.ts HC.fmtDate /
  * HC.fmtMonth / the Monday-first calendar headers), baked by layouts/Plan.astro as I18N_DATE.
  * Written out instead of Intl.DateTimeFormat: ICU versions disagree ("Sep" vs "Sept", "mar, 29"),
  * and the page must read the same in every browser. Neutral Spanish, Monday first. */

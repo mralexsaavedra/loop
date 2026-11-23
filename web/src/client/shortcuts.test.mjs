@@ -1,5 +1,5 @@
 /* web/src/client/shortcuts.ts — the page's keyboard shortcuts (1-4 tabs, a add food, d journal, ? the help
- * sheet) and the help sheet view. Runs the classic script in a vm over the DOM stub, after util.js. */
+ * sheet) and the help sheet view. Runs the classic script in a vm over the DOM stub, after util.ts. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';

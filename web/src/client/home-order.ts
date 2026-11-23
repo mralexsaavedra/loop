@@ -1,7 +1,7 @@
 /* Inicio's block order: the user's order and show / hide of the blocks under the tiles (My day, Today you
  * eat, Tonight, My journal, My plan, My dashboard). The dials, the tiles and the programmed session's
  * hidden source never move. "Customize Home ✎" (#home-cust, last on the tab) opens a registered sheet
- * ('home-edit', client/detail.ts modal) built by the shared HC.orderList (client/util.js): the switch,
+ * ('home-edit', client/detail.ts modal) built by the shared HC.orderList (client/util.ts): the switch,
  * ↑ / ↓ and the ≡ drag; preferences in localStorage (PREFS_KEY) as {order, hidden}, working the same
  * without storage (in memory). Applying = moving each present block, in the saved order, right before
  * #home-cust; a block switched off gets `home-off` (display: none), never the `hidden` attribute its own

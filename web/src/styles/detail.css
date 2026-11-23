@@ -24,7 +24,7 @@ html.dt-lock body {
   background-image: linear-gradient(180deg, var(--ground-top) 0, var(--ground) 420px);
   padding: calc(var(--sp-5) + env(safe-area-inset-top)) max(16px, env(safe-area-inset-right)) calc(var(--sp-10) + env(safe-area-inset-bottom)) max(16px, env(safe-area-inset-left));
 }
-/* the ONE sheet header (HC.sheetHead, client/util.js) for dial deep-dives and metric details:
+/* the ONE sheet header (HC.sheetHead, client/util.ts) for dial deep-dives and metric details:
    "‹" back | the title centred, uppercase | the ⓘ (shared SVG) or an equal 44px spacer */
 .dt-head {
   display: grid;

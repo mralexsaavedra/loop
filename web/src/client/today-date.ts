@@ -3,7 +3,7 @@
  * home-week.ts) can read the selected day at its first render and subscribe to changes.
  *
  * The date line: the viewer's local today ("mar 30 sept" / "Tue 30 Sep") written with the one date
- * formatter (HC.fmtDate, util.js) into the <time> inside the pill, decided here from Date.now(), never
+ * formatter (HC.fmtDate, util.ts) into the <time> inside the pill, decided here from Date.now(), never
  * baked, so consecutive builds stay byte-identical.
  *
  * Day stepping: "‹" steps back one day, "›" forward; "›" is disabled on the viewer's today, "‹" at the

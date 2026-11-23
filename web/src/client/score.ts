@@ -77,7 +77,7 @@ type DialParts = { fill?: string | null; mid?: { x: number; y: number } | null }
   var STALE_DAYS = HC.STALE_DAYS; // older data is greyed and gets no advice (baked)
   var ES = HC.isEs();
 
-  // shared helpers (web/src/client/util.js)
+  // shared helpers (web/src/client/util.ts)
   var esc = HC.esc, format = HC.format, num = HC.num, isoDate = HC.isoDate, daysOld = HC.daysOld, todayIso = HC.todayIso;
   function pct(x: number) {
     return HC.pct(x, true);

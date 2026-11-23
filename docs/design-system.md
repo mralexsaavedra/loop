@@ -104,7 +104,7 @@ not synced, the newest stress hour is yesterday's). It never reads as that day's
 - Date width: a dial centre (a 360 px ring) and a half-width tile drop the weekday ("7 OCT"); a sheet
   title or a full-width line keeps it ("Wed 7 Oct").
 
-ONE helper decides it: `HC.carried(asOf, shownDay, opts)` (`client/util.js`) → `{carried, label, cls}`
+ONE helper decides it: `HC.carried(asOf, shownDay, opts)` (`client/util.ts`) → `{carried, label, cls}`
 (`shownDay` null = the viewer's today; `opts.weekday: false` for the short date; `opts.stale` keeps
 the date and drops the dim class). Surfaces:
 
@@ -131,7 +131,7 @@ the shown day only: "No data", rest or no session, never an earlier day's value)
 ONE formatter for every number a viewer reads: `lib/format/numbers.mjs` (pure, no `Intl`, so every
 browser and Node ICU build prints the same bytes). The build imports it (Tablas' `RefTable.astro`,
 the advice copy); the page gets the SAME functions as a classic script, `clientSource()` →
-`var HC_FMT`, inlined by `layouts/Plan.astro` right before `client/util.js`, whose `HC.num` /
+`var HC_FMT`, inlined by `layouts/Plan.astro` right before `client/util.ts`, whose `HC.num` /
 `HC.int` / `HC.nf` / `HC.pct` / `HC.hours` / `HC.duration` add the page `LOCALE`. The recovery 0–100
 bands ride along the same way: `lib/score/recovery.mjs` `clientSource()` → `var HC_BAND` (`PCT_GOOD`,
 `PCT_LOW`, `pctBand`), so no client script re-types 67 / 33 (`web/test/recovery-band.test.mjs` guards it). The
@@ -218,7 +218,7 @@ section heading never looks like the card under it.
 
 ### CTA link
 
-`HC.cta(label, attrs)` (`client/util.js`) writes THE call-to-action link: a `<button class="cta">`, the
+`HC.cta(label, attrs)` (`client/util.ts`) writes THE call-to-action link: a `<button class="cta">`, the
 label in caps (`--fs-title-lg`, `--label-weight`, `--label-track`), then " →" (hidden from screen
 readers), at least 44 px tall. Astro writes the same markup (Inicio's eat card "See the full plan →").
 The text is the blue → violet gradient of the reference app: `--link` → `--link-end-card` on cards, and
@@ -250,7 +250,7 @@ the trend sheet's window, its calendar month (formerly 44 px filled circles) and
   the top bar's "‹ Today ›" pill (the header stays as is).
 - Guards: no CSS rule but the shared one gives a chevron (a `*chev*` class or a `content: "›"`) a
   colour / size / weight; every ‹ › glyph in the display sources sits in a `.chev` span (allowlist:
-  `util.js` sheet header).
+  `util.ts` sheet header).
 
 ### Segmented control, chip, switch and select
 
@@ -297,7 +297,7 @@ like the reference's setup flow; its own header reuses `.sh-back` for its one ba
 
 ### Metric row
 
-`HC.metricRow(o)` (`client/util.js`, `.db-*` in `score.css`) is THE list row of Salud, My dashboard, the
+`HC.metricRow(o)` (`client/util.ts`, `.db-*` in `score.css`) is THE list row of Salud, My dashboard, the
 monitor and Entreno's run / ride / intensity lists: icon · caps name · value (+ unit) · trend glyph, and ONE
 small secondary line under the value, right-aligned (`base`), plus an optional second one (`base2`:
 a ride's HR · effort · kJ) — nothing under the name, so run and ride rows are one template. Icons come from ONE set (`metricIcon`,
@@ -320,7 +320,7 @@ cannot work (initials, "6M"), the `aria-label` starts with the visible text.
 
 ### Stale-data marker
 
-`HC.staleMark(cls, short, sentence)` (`client/util.js`, `.stale-mk` in `base.css`): data older than 3
+`HC.staleMark(cls, short, sentence)` (`client/util.ts`, `.stale-mk` in `base.css`): data older than 3
 days gets ONE short yellow line ("Data 5 d old" + ⓘ) instead of a sentence on the card; it is a native
 `<details>`, so a tap opens the muted sentence in place with no listener (it works on any tab). Uses: under
 the Inicio dials, the load / recovery cards, Entreno's Activity section.
@@ -338,7 +338,7 @@ pill next to the journal's caps one. Secondary actions (cancel, change, use) kee
 
 ### Contributor row
 
-`HC.contribRow(o)` (`client/util.js`; styles `.dd-row` / `.dd-ico` / `.dd-mk` in `detail.css`) is THE row
+`HC.contribRow(o)` (`client/util.ts`; styles `.dd-row` / `.dd-ico` / `.dd-mk` in `detail.css`) is THE row
 for a score's inputs: a stroked icon (`HC.contribIcon`, one 24-unit path per row key), the caps label
 (the SHORT metric name, as everywhere else in the sheet: "HRV", "Resting HR"; never "HEART RATE
 VARIABILITY" above an "HRV" trend)
@@ -350,7 +350,7 @@ at = the grey •).
 
 ### Trend glyph
 
-▲ / ▼ for a change, • for typical / steady. `HC.trendTone(arrow, tone)` (`client/util.js`) picks the
+▲ / ▼ for a change, • for typical / steady. `HC.trendTone(arrow, tone)` (`client/util.ts`) picks the
 colour class: `good` (`--up`) / `bad` (`--down`) / `watch` (`--mid`) by the metric's good direction,
 `neutral` (`--ink`) for a change with no good direction (weight, expenditure, light sleep, respiratory
 rate, bedtime, training time), and `flat` (`--faint`) ONLY for the •. Never a grey arrow. Used by every

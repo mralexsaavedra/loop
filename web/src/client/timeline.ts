@@ -48,7 +48,7 @@ type DetailSession = { d: string; m: string; min: number; re?: number | null; n?
   var TL = S && S.timeline;
   var T = typeof I18N_SCORE === 'undefined' || !I18N_SCORE ? null : I18N_SCORE.timeline;
   if (!TL || !T) return;
-  // shared helpers (web/src/client/util.js); HC.num reads LOCALE at call time, inside the try below
+  // shared helpers (web/src/client/util.ts); HC.num reads LOCALE at call time, inside the try below
   var esc = HC.esc, format = HC.format, num = HC.num, isoDate = HC.isoDate, todayIso = HC.todayIso, daysOld = HC.daysOld;
   // a row opens the detail sheet on its day (client/detail.ts): sleep -> the sleep view, a scored
   // modality -> its load view, anything else -> training time

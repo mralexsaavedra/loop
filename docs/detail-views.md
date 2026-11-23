@@ -37,13 +37,13 @@ Classic scripts inlined in this order right after `deepdive.ts` (`web/src/client
 - A sheet that is not a `DETAIL` metric (profile, onboarding, tonight, dash-edit, hoy-session, food-add,
   journal, journal-insights) registers with `HC.registerView(<key>, {title(), render() → {head, body,
   info?}})` (`info`: notes collapsed under the shared header ⓘ, `#dd-info`, e.g. Tonight's rule).
-- `client/util.js` is the ONLY writer of `window.HCViews` (the registry appears with the first view);
+- `client/util.ts` is the ONLY writer of `window.HCViews` (the registry appears with the first view);
   `detail.ts` reads it through `HC.view(<key>)` (own keys only, else null).
 - Registering a key again replaces the view (a re-render or API reload of its own script; never a runtime
   throw).
 - Ownership is checked statically: `web/src/client/util.test.mjs` scans the client scripts and fails when
   a key is registered by two files, when a `registerView` key is not a string literal, or when any script
-  other than util.js writes `HCViews` directly.
+  other than util.ts writes `HCViews` directly.
 
 ## Data: the `DETAIL` bake
 
@@ -171,7 +171,7 @@ bottom: header → ⓘ block → hero ring → contributors → insight → week
 
 ### 1. Header "‹ TODAY ⓘ"
 
-- The ONE sheet header every detail shares (`HC.sheetHead`, `client/util.js`; a `44px | 1fr | 44px` grid).
+- The ONE sheet header every detail shares (`HC.sheetHead`, `client/util.ts`; a `44px | 1fr | 44px` grid).
 - The back arrow IS the sheet's close button (`data-dt-act="close"`, focus lands on it; Esc / Back still
   work).
 - Centred and uppercase, the DAY the page shows (`h2.sh-title#dt-title`): "Today" (`deep.today`, es "Hoy")

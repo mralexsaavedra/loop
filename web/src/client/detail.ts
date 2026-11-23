@@ -7,7 +7,7 @@
  * Module script (bundled into the page, docs/plan-page.md → Module scripts), the sheet's shell: detail-state.ts (the data / state
  * helpers, window.HCDetailState) and detail-chart.ts (the trend chart, window.HCDetailChart) are inlined
  * right before it. Reads DETAIL (lib/detail/detail.mjs) + I18N_DETAIL, both
- * baked by components/DetailSheet.astro, and the shared helpers of util.js (window.HC). Openers are any
+ * baked by components/DetailSheet.astro, and the shared helpers of util.ts (window.HC). Openers are any
  * element with data-detail="<metric>" [data-date="<iso>"] (HC.detailAttrs writes them): one delegated
  * click / keydown listener, so the card renderers never wire handlers. The view ends at the VIEWER's
  * today (Date.now(), never baked), or at the data's own asOf when that is stale or ahead of the clock.

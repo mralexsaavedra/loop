@@ -26,7 +26,7 @@ type Modality = { key: string; avgHr?: number | null; peakHr?: number | null };
   var host = document.getElementById('train-dash');
   if (!host) return;
   var LBL = I18N_DASH.modalityLabels;
-  // each modality its own icon (one set, util.js), not the same heart on every row; other = neutral
+  // each modality its own icon (one set, util.ts), not the same heart on every row; other = neutral
   var ICON: Record<string, string> = { strength: 'gym', hiit: 're', run: 'run', bike: 'bike' };
   var DASH_ = typeof DASH === 'undefined' ? null : DASH;
   var esc = HC.esc, format = HC.format;

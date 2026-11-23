@@ -9,7 +9,7 @@
  * per view (cached per instance), the value formatting (no NaN is ever printed: a dash) and the colour
  * state of a day (dayState, the legend's items). detail.ts calls it once and hands the result on to
  * detail-chart.ts and client/deepdive.ts; detail-state.test.mjs runs the helpers in a vm. Reads
- * window.HC (util.js), HC_BAND (lib/score/recovery.mjs) and, at call time, SCORES / window.HCNutriScore
+ * window.HC (util.ts), HC_BAND (lib/score/recovery.mjs) and, at call time, SCORES / window.HCNutriScore
  * / window.HCSettings for the metrics they own. */
 import type { PageGlobals } from './page-globals';
 

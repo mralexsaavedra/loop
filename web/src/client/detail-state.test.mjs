@@ -1,5 +1,5 @@
 /* Tests for the detail sheet's data / state helpers (web/src/client/detail-state.ts,
- * window.HCDetailState): the classic script runs in a vm after util.js, over small hand-made series and
+ * window.HCDetailState): the classic script runs in a vm after util.ts, over small hand-made series and
  * a fixed clock, so the window maths, the 7-day line, the partial-today rule and the formatting are
  * checked without the sheet. The sheet itself (periodStats and dayState through window.HCDetail, the
  * rendered views) is covered by detail.test.mjs. */

@@ -183,7 +183,7 @@ minification). `astro.config.mjs` exposes the result as the virtual module `virt
 `layouts/Plan.astro` inlines it at the module's place in the manifest, exactly like a classic script, so the page
 stays one file and the CSP hashes it like any other script. The tests run the same bytes
 (`clientScriptSource(file)`). The page globals a module reads are typed in `web/src/client/page-globals.d.ts`
-(`any` until each gets its own type). Modules so far: `home-week.ts`, `freshness.ts`, `nav-actions.ts`, `home-order.ts`, `training-dash.ts`, `energy.ts`, `shortcuts.ts`, `journal.ts`, `profile.ts`, `onboarding.ts`, `training-activity.ts`, `timeline.ts`, `home-dash.ts`, `health.ts`, `score.ts`, `monitor.ts`, `food-sheet.ts`, `food-catalog.ts`, `detail.ts`, `settings.ts`, `progress.ts`, `adherence.ts`, `intake.ts`, `training-today.ts`, `nutri-score.ts`, `today-date.ts`, `core.ts`, `deepdive.ts`, `detail-state.ts`, `detail-chart.ts`, `food-core.ts`, `food-log.ts`, `nutri-day.ts`.
+(`any` until each gets its own type). Every client script is a module script now (the last, `util.ts`, sets `globalThis.HC` itself: once bundled into an IIFE its `var HC` is no longer a page global).
 
 ESLint lints only `*.js` / `*.mjs`: for a module script `tsc` takes its place (`strict` for undefined names and
 shapes, `noUnusedLocals` for ESLint's `no-unused-vars`; unused parameters stay allowed, as ESLint's `args: 'none'`).
@@ -219,7 +219,7 @@ inlines every `web/src/client/*.js` (`import.meta.glob` `?raw`) in that order, a
 
 ## Shared client helpers (`HC`)
 
-`web/src/client/util.js` is inlined FIRST (right after `var NAV` and `var HC_CONST`, baked by
+`web/src/client/util.ts` is inlined FIRST (right after `var NAV` and `var HC_CONST`, baked by
 `layouts/Plan.astro` from `lib/stale.mjs`) and exposes the global `HC` (window.HC). The client scripts
 read these instead of redefining them (a test guards it). Tests load it with `web/test/client-util.mjs`
 `loadUtil(ctx)`.
@@ -239,7 +239,7 @@ read these instead of redefining them (a test guards it). Tests load it with `we
 ### Globals emitted from `lib/`
 
 `HC_FMT` is the ONE number formatter (`lib/format/numbers.mjs` `clientSource()`, inlined right before
-util.js; rules in [`design-system.md`](design-system.md) → "Numbers"). The same inlined script carries:
+util.ts; rules in [`design-system.md`](design-system.md) → "Numbers"). The same inlined script carries:
 
 | Global | Source | Read by |
 | --- | --- | --- |
