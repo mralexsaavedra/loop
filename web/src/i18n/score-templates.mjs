@@ -18,7 +18,7 @@ export const en = {
     myDay: 'My day',
     // the one-line outlook bar's title (client/score.js); the advice sentence is behind the tap
     outlook: 'Your daily outlook',
-    // "Tonight" card (client/home-week.js, SCORES.tonight from lib/score/tonight.mjs)
+    // "Tonight" card (client/home-week.ts, SCORES.tonight from lib/score/tonight.mjs)
     tonight: {
       heading: 'Tonight\'s sleep',
       bed: 'Recommended bedtime',
@@ -147,7 +147,7 @@ export const en = {
       needItem: '{name} · {yes} yes · {no} no',
       rowAria: '{name}: {diff} points of recovery the morning after ({yesMean}% after yes, {noMean}% after no; {yes} and {no} days)',
     },
-    // "My plan" weekly card (client/home-week.js)
+    // "My plan" weekly card (client/home-week.ts)
     plan: {
       heading: 'My plan',
       card: 'Weekly plan',
@@ -372,7 +372,7 @@ export const es = {
     myDay: 'Mi día',
     // título de la barra de una línea (client/score.js); la frase del consejo va tras el toque
     outlook: 'Tu panorama del día',
-    // tarjeta "Esta noche" (client/home-week.js, SCORES.tonight de lib/score/tonight.mjs)
+    // tarjeta "Esta noche" (client/home-week.ts, SCORES.tonight de lib/score/tonight.mjs)
     tonight: {
       heading: 'Esta noche',
       bed: 'Hora de acostarte',
@@ -495,7 +495,7 @@ export const es = {
       needItem: '{name} · {yes} sí · {no} no',
       rowAria: '{name}: {diff} puntos de recuperación a la mañana siguiente ({yesMean}% tras sí, {noMean}% tras no; {yes} y {no} días)',
     },
-    // tarjeta semanal "Mi plan" (client/home-week.js)
+    // tarjeta semanal "Mi plan" (client/home-week.ts)
     plan: {
       heading: 'Mi plan',
       card: 'Plan semanal',

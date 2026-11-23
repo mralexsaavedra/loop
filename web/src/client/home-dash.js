@@ -14,7 +14,7 @@
  * rows: the shared HC.orderList (client/util.js) — the switch, ↑ / ↓ and the ≡ drag; preferences in
  * localStorage (PREFS_KEY) as {order, hidden}, working the same without storage (in memory).
  *
- * Classic script in layouts/Plan.astro's end-of-body list, right after client/home-week.js and before
+ * Classic script in layouts/Plan.astro's end-of-body list, right after client/home-week.ts and before
  * detail.js (its `dash-edit` sheet is registered before detail.js runs); its own try/catch hides the section on a throw. */
 (function () {
   function boot() {

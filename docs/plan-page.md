@@ -173,6 +173,18 @@ A missing `--root` value or `--root` without `--personal` is exit 2 (`web/test/g
 
 ## Client scripts
 
+### Module scripts (TypeScript)
+
+A client script may be a **module** (`web/src/client/*.ts`) instead of a classic `*.js`. It is TypeScript checked
+with `strict` (`web/src/client/tsconfig.json`, part of `npm run typecheck`), and it can `import` lib modules
+directly (`home-week.ts` imports `fin` from `lib/nutrition/num.mjs` instead of reading `HC.fin`). At build time
+`web/src/client-bundle.mjs` bundles it with esbuild into ONE classic IIFE (types stripped, imports inlined; no
+minification). `astro.config.mjs` exposes the result as the virtual module `virtual:client-modules`, and
+`layouts/Plan.astro` inlines it at the module's place in the manifest, exactly like a classic script, so the page
+stays one file and the CSP hashes it like any other script. The tests run the same bytes
+(`clientScriptSource(file)`). The page globals a module reads are typed in `web/src/client/page-globals.d.ts`
+(`any` until each gets its own type). Only `home-week.ts` is a module so far.
+
 ### Script order: one manifest
 
 The client scripts are classic `is:inline` scripts that talk only through page globals, so their order is
