@@ -7,6 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { clientScriptSource } from '../src/client-bundle.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.dirname(path.dirname(here));
@@ -26,7 +27,8 @@ test('two consecutive example builds are byte-identical, exit 0 with no extract 
   }
 });
 
-test('health.js ago() and score.js guard a null asOf (no NaN/throw)', () => {
-  const health = fs.readFileSync(path.join(ROOT, 'web', 'src', 'client', 'health.js'), 'utf8');
-  assert.match(health, /function ago\(iso\) \{\s*\n\s*if \(!iso\) return '';/);
+test('health.ts ago() and score.ts guard a null asOf (no NaN/throw)', () => {
+  // a module script: its bundled bytes (types stripped; esbuild prints '' as "")
+  const health = clientScriptSource('health.ts');
+  assert.match(health, /function ago\(iso\) \{\s*\n\s*if \(!iso\) return (''|"");/);
 });

@@ -108,7 +108,7 @@ test('example build: Nutrición opens like Salud / Entreno (centred title + ⓘ)
 test('example build: Balance (intake vs expenditure + macro split) lives in Nutrición, after the day\'s blocks and before Progreso; Salud has no host for it', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   const dia = sliceSection(html, 'dia');
-  assert.match(dia, /<div class="nutri-block" id="nutri-balance" hidden><\/div>/, 'client-rendered by health.js, hidden until it has something');
+  assert.match(dia, /<div class="nutri-block" id="nutri-balance" hidden><\/div>/, 'client-rendered by health.ts, hidden until it has something');
   const at = (id) => dia.indexOf(`id="${id}"`);
   assert.ok(at('nutri-fuel-block') < at('nutri-balance') && at('nutri-balance') < at('nutri-progress-block'), 'order: fuelling, Balance, Progreso');
   assert.equal(sliceTabPanel(html, 'health').indexOf('nutri-balance'), -1);
@@ -229,7 +229,7 @@ test('example build: Inicio reads today top to bottom — dials, monitor tiles, 
   assert.doesNotMatch(home, /id="monitor"|monitor-fold|hm-fold/);
   assert.match(html, /"timeline":\{"asOf":"\d{4}-\d{2}-\d{2}","days":\[\{"date"/, 'demo data fills the timeline');
   assert.match(html, /getElementById\(["']timeline["']\)/, 'timeline.ts is inlined');
-  assert.match(html, /getElementById\(["']home-tiles["']\)/, 'monitor.js writes the tiles');
+  assert.match(html, /getElementById\(["']home-tiles["']\)/, 'monitor.ts writes the tiles');
   // Tonight + My plan ship hidden; client/home-week.ts (an end-of-body script) reveals them
   assert.match(home, /<div id="home-tonight" hidden><\/div>/);
   assert.match(home, /<div id="my-journal" hidden><\/div>/, 'My journal ships hidden (client/journal.ts)');
@@ -252,7 +252,7 @@ test('example build: the health monitor list leads Salud (before the sections ho
   const salud = sliceTabPanel(html, 'health');
   // header first: the centred title + an ⓘ toggle holding the tab intro, the green glow behind it
   const at = ['class="hs-glow"', '<h2 class="hs-title">Health</h2>', '<span class="hs-i-slot" id="hs-intro-i" data-label="About Health"></span>', '<div class="hs-info" id="hs-intro" hidden>', 'id="monitor"', 'id="health-body"'].map((n) => salud.indexOf(n));
-  // the ⓘ itself is HC.infoBtn's markup, written by client/health.js: no static copy in the tab
+  // the ⓘ itself is HC.infoBtn's markup, written by client/health.ts: no static copy in the tab
   assert.doesNotMatch(salud.slice(0, salud.indexOf('id="monitor"')), /<button[^>]*class="hs-i"/);
   assert.ok(at.every((v, i) => v !== -1 && (i === 0 || v > at[i - 1])), `Salud order ${at}`);
   assert.match(salud, /<div class="hs-info" id="hs-intro" hidden><p>Body, activity &amp; recovery from your latest Apple Health export\.<\/p><p>Each row:/);

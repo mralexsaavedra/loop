@@ -24,7 +24,7 @@
  *   - Past days (`days`, the top bar's day stepping): the sleep + recovery dials of each SCORES.days
  *     entry, scored on that day by the same lib functions, in the same shapes.
  * No new metric: the recovery % is a rank of the same composite (lib/score/recovery.mjs). Baked by components/Bake.astro as DIALS;
- * client/score.js turns it into inline SVG. */
+ * client/score.ts turns it into inline SVG. */
 import { Z_CLAMP } from '../../../lib/score/recovery.mjs';
 import { sleepPerformance } from '../../../lib/score/sleep.mjs';
 

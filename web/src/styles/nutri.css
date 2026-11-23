@@ -241,7 +241,7 @@ details.sec-fold.nutri-fold {
   margin-top: var(--sp-4);
   line-height: 1.45;
 }
-/* Balance (client/health.js renderBalance): the window caption, the shared metric rows (.db-*), then the
+/* Balance (client/health.ts renderBalance): the window caption, the shared metric rows (.db-*), then the
    macro split card = Entreno's stacked bar + legend (.act-bar / .act-legend / .act-sw, training.css)
    with a colour per macro; the legend always names them, colour is never alone */
 .nb-win,

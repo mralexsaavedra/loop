@@ -2,7 +2,7 @@
  * prior days the composite in units of the user's typical spread, I18N_SCORE recovery.unit) + its 7-day TREND + per-modality load,
  * rendered client-side from SCORES / I18N_SCORE / LOCALE baked by components/Bake.astro.
  *
- * Classic script (is:inline, no module scope). Only `asOf` is baked: staleness is computed here
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts). Only `asOf` is baked: staleness is computed here
  * from Date.now(), so consecutive builds stay byte-identical. Colour is used only on the
  * direction arrows and the dials' meaning colours. Advice uses the same templates and number formatting as
  * lib/score/advice-copy.mjs (a test asserts the two sentences are identical).
@@ -24,6 +24,26 @@
  * (data-date), are never greyed as stale, and the advice (it reads the current 7-day trend) is hidden.
  * Today goes through exactly the code it always did (VIEW = null), so its markup is unchanged.
  */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads by bare name (baked by components/Bake.astro or an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+declare const SCORES: PageGlobals['SCORES'];
+declare const DIALS: PageGlobals['DIALS'];
+declare const I18N_SCORE: PageGlobals['I18N_SCORE'];
+
+/** A baked SCORES / DIALS / I18N_SCORE piece (lib/score/*, web/src/view/dial.mjs): untyped until those shapes get their own types. */
+type Baked = any;
+/** One modality's recent day (DIALS.load.modalities[].days, lib/score/training-load.mjs). */
+type LoadDay = { date: string; re: number; unscored: number; fill?: string | null };
+/** One day of the day-strain dial (DIALS.strain.days, lib/score/strain.mjs). */
+type StrainDay = { date: string; s: number; fill?: string | null };
+/** One DIALS.load modality (web/src/view/dial.mjs). */
+type DialModality = { key: string; state: string; reason?: string; last?: Baked; days?: LoadDay[] };
+/** A modality's state on the shown day (loadToday). */
+type LoadToday = { kind: 'trained' | 'noEffort'; day: LoadDay } | { kind: 'rest'; day: null };
+/** The baked dial arc pieces dialSvg joins: the fill path and the baseline / typical-day tick. */
+type DialParts = { fill?: string | null; mid?: { x: number; y: number } | null };
 // Load dial modality switch: shows the chosen modality's dial on Inicio, hides the others. The gym /
 // run / bike pills live in the load deep-dive (client/deepdive.js modSwitch: each opens that
 // modality's page and, through data-mod, sets this dial), not under the dials; the collapsed dial row (#home-mini) carries
@@ -32,11 +52,11 @@
 // (no inline onclick: the page's CSP blocks them); a click on one follows Inicio's dial through the delegated
 // listener below, the pill's own data-detail still opens its page (detail.js)
 (function () {
-  function setMod(key) {
+  function setMod(key: string | null) {
     ['home-dials', 'home-advice', 'home-mini'].forEach(function (id) {
       var host = document.getElementById(id);
       if (!host || !host.querySelectorAll) return;
-      host.querySelectorAll('[data-dmod]').forEach(function (el) {
+      host.querySelectorAll<HTMLElement>('[data-dmod]').forEach(function (el) {
         el.hidden = el.getAttribute('data-dmod') !== key;
       });
     });
@@ -44,7 +64,7 @@
   if (typeof window !== 'undefined') window.HCScore = { setMod: setMod };
   if (typeof document.addEventListener === 'function') {
     document.addEventListener('click', function (e) {
-      var b = e && e.target && typeof e.target.closest === 'function' ? e.target.closest('[data-mod]') : null;
+      var b = e && e.target && typeof (e.target as Element).closest === 'function' ? (e.target as Element).closest('[data-mod]') : null;
       if (b) setMod(b.getAttribute('data-mod'));
     });
   }
@@ -59,18 +79,18 @@
 
   // shared helpers (web/src/client/util.js)
   var esc = HC.esc, format = HC.format, num = HC.num, isoDate = HC.isoDate, daysOld = HC.daysOld, todayIso = HC.todayIso;
-  function pct(x) {
+  function pct(x: number) {
     return HC.pct(x, true);
   }
-  function isStale(iso) {
+  function isStale(iso: string | null | undefined) {
     var d = daysOld(iso);
     return d != null && d > STALE_DAYS;
   }
-  function sparkSvg(values) {
-    var v = (values || []).filter(function (x) { return x != null; });
+  function sparkSvg(values: (number | null)[] | null | undefined) {
+    var v = (values || []).filter(function (x): x is number { return x != null; });
     if (v.length < 2) return '';
     var n = v.length, mn = Math.min.apply(null, v), mx = Math.max.apply(null, v), rng = mx - mn || 1, pad = 10;
-    var pts = v.map(function (y, i) {
+    var pts = v.map(function (y: number, i: number) {
       return (100 * i / (n - 1)).toFixed(2) + ',' + (pad + (100 - 2 * pad) * (1 - (y - mn) / rng)).toFixed(2);
     });
     return (
@@ -81,34 +101,34 @@
   }
   // the recovery trend's glyph: THE trend glyph (docs/design-system.md), its colour from the shared tone
   // classes — above baseline = better (▲ db-good), below = worse (▼ db-bad), at = the grey •
-  var GLYPH = { above: '▲', below: '▼', at: '•' };
-  var GLYPH_TONE = { above: 'good', below: 'bad', at: 'flat' };
-  function arrow(band) {
+  var GLYPH: Record<string, string> = { above: '▲', below: '▼', at: '•' };
+  var GLYPH_TONE: Record<string, string> = { above: 'good', below: 'bad', at: 'flat' };
+  function arrow(band: string) {
     var b = Object.prototype.hasOwnProperty.call(GLYPH, band) ? band : 'at';
     return '<span class="sc-arrow db-' + GLYPH_TONE[b] + '" aria-hidden="true">' + GLYPH[b] + '</span>';
   }
-  function asOfHtml(iso) {
+  function asOfHtml(iso: string | null | undefined) {
     iso = isoDate(iso);
     return iso ? '<span class="sc-asof">' + esc(format(T.asOfLbl, { date: HC.fmtDate(iso) })) + '</span>' : '';
   }
-  function staleHtml(iso) {
+  function staleHtml(iso: string | null | undefined) {
     var days = { days: daysOld(iso) };
     return HC.staleMark('sc-stale-note', format(T.staleShort, days), format(T.staleNote, days));
   }
 
   /* ---- advice (mirror of lib/score/advice-copy.mjs renderAdvice) ---- */
-  function adviceText(a) {
+  function adviceText(a: Baked) {
     var v = a.vars || {};
-    var fill = {
+    var fill: Record<string, string> = {
       trend7: v.trend7 == null ? '' : num(v.trend7, 1, true),
       trend7Abs: v.trend7 == null ? '' : num(Math.abs(v.trend7), 1, false),
       delta7: v.delta7 == null ? '' : num(v.delta7, 1, true),
       trendPct: v.trendPct == null ? '' : pct(v.trendPct),
       modality: ADV_MOD[v.modality] || v.modality || '',
     };
-    return T.advice[a.key].replace(/\{(\w+)\}/g, function (_, k) { return k in fill ? fill[k] : ''; });
+    return T.advice[a.key].replace(/\{(\w+)\}/g, function (_: string, k: string) { return k in fill ? fill[k] : ''; });
   }
-  var ADV_MOD = ES ? { gym: 'gimnasio', run: 'carrera', bike: 'bici' } : { gym: 'gym', run: 'run', bike: 'bike' };
+  var ADV_MOD: Record<string, string> = ES ? { gym: 'gimnasio', run: 'carrera', bike: 'bici' } : { gym: 'gym', run: 'run', bike: 'bike' };
 
   /* ---- recovery ---- */
   // Whoop-style detail: headline (last night, big number + band word, one short 7-day trend line) |
@@ -116,19 +136,19 @@
   // folded into a <details>. The long lines (what the baseline is, the full trend sentence with the
   // week-on-week change, confidence, the SDNN caveat, the unit in words, each contributor's baseline
   // and n, missing / lowest signal) are the card's notes: they go behind the Salud Recovery section's
-  // ⓘ (#hs-info-recovery, client/health.js) when it exists, else behind the card's own ⓘ (#rec-info).
+  // ⓘ (#hs-info-recovery, client/health.ts) when it exists, else behind the card's own ⓘ (#rec-info).
   // Every number is the same as the glance on Inicio.
-  function compDec(c) {
+  function compDec(c: Baked) {
     return c.unit === 'min' ? 0 : 1;
   }
   // a contributor's value: hours as h:mm (no unit), anything else at its decimals
-  function compVal(c, v) {
+  function compVal(c: Baked, v: number) {
     return c.unit === 'h' ? HC.hours(v) : num(v, compDec(c), false);
   }
-  function compUnit(c) {
+  function compUnit(c: Baked) {
     return c.unit === 'h' ? '' : c.unit;
   }
-  function recHeadline(R, rt) {
+  function recHeadline(R: Baked, rt: Baked) {
     var out = [];
     if (R.today) {
       // "Last night" only when that day has a sleep-duration reading AND is dated the viewer's today;
@@ -155,8 +175,8 @@
     return '<div class="rec-head">' + out.join('') + '</div>';
   }
   // the card's notes (plain text, escaped by recInfoHtml), in reading order
-  function recNotes(R, rt) {
-    var out = [];
+  function recNotes(R: Baked, rt: Baked) {
+    var out: string[] = [];
     if (R.today && typeof R.today.pct === 'number') {
       out.push(rt.pctNote);
       out.push(format(rt.sdLbl, { value: num(R.today.value, 1, true), band: rt.bands[R.today.band] }));
@@ -166,7 +186,7 @@
       (R.delta7 != null ? ' · ' + format(rt.deltaLbl, { value: num(R.delta7, 1, true) }) : ''));
     // what the card's sparkline shows (no caption under it: the reference app's cards carry no prose)
     if (R.spark && R.spark.v && R.spark.v.length) out.push(rt.sparkLbl);
-    (R.components || []).forEach(function (c) {
+    (R.components || []).forEach(function (c: Baked) {
       out.push(rt.components[c.key] + ': ' + format(rt.baselineLbl, { value: compVal(c, c.baseline), unit: compUnit(c) }).trim() + ' · ' + format(rt.nLbl, { n: c.n }));
     });
     // the composite's unit in plain words (rt.unit = the ONE recovery unit, also the dial's and the sheet's)
@@ -175,16 +195,16 @@
     if (R.noHrv) out.push(rt.partialNote);
     if (R.hrvPending) out.push(rt.partialPendingNote);
     if (R.rhrDerived) out.push(rt.rhrDerivedNote);
-    if (R.missing && R.missing.length) out.push(format(rt.missingLbl, { list: R.missing.map(function (k) { return rt.components[k]; }).join(', ') }));
+    if (R.missing && R.missing.length) out.push(format(rt.missingLbl, { list: R.missing.map(function (k: string) { return rt.components[k]; }).join(', ') }));
     if (R.driver) out.push(format(rt.driverLbl, { name: rt.components[R.driver] }));
     return out;
   }
-  function recInfoHtml(notes) {
+  function recInfoHtml(notes: string[]) {
     return notes.map(function (n) { return '<p>' + esc(n) + '</p>'; }).join('');
   }
   // the Salud Recovery section's ⓘ block: the card's notes are (re)written into their own child,
   // after the section's notes, so a re-render replaces them instead of stacking them
-  function intoSectionInfo(notes) {
+  function intoSectionInfo(notes: string[]) {
     var box = document.getElementById('hs-info-recovery');
     if (!box) return false;
     var own = String(box.innerHTML || '').replace(/<div class="rec-info-notes">[\s\S]*<\/div>$/, '');
@@ -195,9 +215,9 @@
   // the 7-day ±SD as the small sub line, and ▲ / ▼ = which way its 7-day mean sits from the baseline
   // (the raw direction: a lower resting HR is ▼), coloured by what that means — band above = better,
   // below = worse — or • at baseline (docs/design-system.md → Contributor row)
-  var COMP_ICON = { hrv: 'hrv', rhr: 'rhr', sleepDur: 'sleep', sleepCons: 'cons' };
-  var COMP_TONE = { above: 'better', below: 'worse', at: 'typical' };
-  function recContributor(c, rt) {
+  var COMP_ICON: Record<string, string> = { hrv: 'hrv', rhr: 'rhr', sleepDur: 'sleep', sleepCons: 'cons' };
+  var COMP_TONE: Record<string, string> = { above: 'better', below: 'worse', at: 'typical' };
+  function recContributor(c: Baked, rt: Baked) {
     var last = c.daily && c.daily.length ? c.daily[c.daily.length - 1] : null;
     var tone = COMP_TONE[c.band];
     var side = c.band === 'above' ? (c.dir || 1) : c.band === 'below' ? -(c.dir || 1) : 0;
@@ -207,14 +227,14 @@
       mark: tone ? { glyph: side > 0 ? '▲' : side < 0 ? '▼' : '•', tone: tone, said: rt.cmp[tone] } : null,
     });
   }
-  function recRaw(comps, rt) {
+  function recRaw(comps: Baked[], rt: Baked) {
     return '<details class="rec-raw"><summary>' + esc(rt.rawSummary) + '</summary>' + comps.map(function (c) {
       var lbl = compUnit(c) ? format(rt.rawCompLbl, { name: rt.components[c.key], unit: c.unit }) : rt.components[c.key];
       return '<div class="sc-raw"><span class="sc-raw-lbl">' + esc(lbl) + '</span>' +
-        c.daily.map(function (d) { return '<span class="sc-raw-v">' + esc(compVal(c, d.value)) + '</span>'; }).join('') + '</div>';
+        c.daily.map(function (d: Baked) { return '<span class="sc-raw-v">' + esc(compVal(c, d.value)) + '</span>'; }).join('') + '</div>';
     }).join('') + '</details>';
   }
-  function recoveryHtml(R) {
+  function recoveryHtml(R: Baked) {
     var stale = isStale(R.asOf);
     var rt = T.recovery;
     var out = ['<div class="sc-card sc-recovery' + (stale ? ' sc-stale' : '') + '">'];
@@ -233,7 +253,7 @@
       out.push('<div class="sc-insufficient">' + esc(rt.insufficient) + '</div></div>');
       return out.join('');
     }
-    var comps = R.components || [];
+    var comps: Baked[] = R.components || [];
     out.push('<div class="rec-layout">' + recHeadline(R, rt) +
       '<div class="sc-spark rec-spark">' + sparkSvg(R.spark && R.spark.v) + '</div>' +
       '<ul class="dd-rows rec-contrib">' + comps.map(function (c) { return recContributor(c, rt); }).join('') + '</ul></div>');
@@ -248,29 +268,29 @@
   // Inicio dial or the deep-dive), "LOAD · <date>", and a pill for the 7-day vs 42-day trend. A tap
   // opens that modality's deep-dive (load-<m>). The relative score, coverage, other activities and the
   // caveats sit behind the section's ⓘ (nothing dropped, only moved).
-  var LOAD_TONE = { steady: 'flat', above: 'good', below: 'good', ramping: 'bad', wellBelow: 'bad' };
-  var LOAD_ARROW = { steady: '•', above: '▲', ramping: '▲', below: '▼', wellBelow: '▼' };
-  function loadDialOf(key) {
-    var out = null;
-    var list = D && D.load && Array.isArray(D.load.modalities) ? D.load.modalities : [];
+  var LOAD_TONE: Record<string, string> = { steady: 'flat', above: 'good', below: 'good', ramping: 'bad', wellBelow: 'bad' };
+  var LOAD_ARROW: Record<string, string> = { steady: '•', above: '▲', ramping: '▲', below: '▼', wellBelow: '▼' };
+  function loadDialOf(key: string) {
+    var out = null as DialModality | null;
+    var list: DialModality[] = D && D.load && Array.isArray(D.load.modalities) ? D.load.modalities : [];
     list.forEach(function (x) { if (x && x.key === key) out = x; });
     return out;
   }
-  function miniRing(fill) {
+  function miniRing(fill: string | null | undefined) {
     if (!D || !D.track) return '';
     var tick = D.load && D.load.tick;
     return '<svg class="ld-ring" viewBox="0 0 120 120" aria-hidden="true"><path class="ld-track" d="' + attr(D.track) + '"/>' +
       (fill ? '<path class="ld-fill" d="' + attr(fill) + '"/>' : '') +
       (tick ? '<line class="ld-tick" x1="' + attr(tick.x1) + '" y1="' + attr(tick.y1) + '" x2="' + attr(tick.x2) + '" y2="' + attr(tick.y2) + '"/>' : '') + '</svg>';
   }
-  function loadCard(m) {
+  function loadCard(m: Baked) {
     var lt = T.load, dl = T.dials.load;
     var name = lt.modalities[m.key] || m.key;
     var dm = loadDialOf(m.key);
     var gated = dm ? dm.state !== 'ok' : !(m.trend && m.trend.ok);
     var noEff = gated && m.trend && m.trend.reason === 'noEffortSource';
     var last = m.last && isoDate(m.last.date) ? m.last : dm && dm.last && isoDate(dm.last.date) ? dm.last : null;
-    var fill = null;
+    var fill = null as string | null;
     if (last && dm) (dm.days || []).forEach(function (x) { if (x.date === last.date && x.fill) fill = x.fill; });
     var when = last ? (last.date === todayIso() ? lt.today : HC.fmtDate(last.date, { weekday: false })) : '';
     var val = last && !gated ? HC.num(last.re, 0, false) : "—";
@@ -291,11 +311,11 @@
   }
   // the notes behind the section's ⓘ: as-of date, one line per modality (relative score, trend band
   // or why it is gated, sessions without effort), other activities, coverage, the epoch, the caveats
-  function loadInfo(L) {
-    var lt = T.load, out = [];
+  function loadInfo(L: Baked) {
+    var lt = T.load, out: string[] = [];
     var asOf = isoDate(L.asOf) ? format(T.asOfLbl, { date: HC.fmtDate(L.asOf) }) : '';
     if (asOf) out.push('<p>' + esc(asOf.charAt(0).toUpperCase() + asOf.slice(1)) + '. ' + esc(lt.pillHelp) + '</p>');
-    L.modalities.forEach(function (m) {
+    L.modalities.forEach(function (m: Baked) {
       var parts = [m.relScore != null ? format(lt.relLbl, { score: m.relScore, modality: ADV_MOD[m.key] }) : lt.noRel];
       if (m.trend && m.trend.reason === 'noEffortSource') parts = [lt.gated.noEffortSource];
       else if (m.trend && m.trend.ok) parts.push(format(lt.trendLbl, { pct: pct(m.trend.trendPct) }) + ' · ' + lt.bands[m.trend.band]);
@@ -307,13 +327,13 @@
     out.push('<p class="sc-other">' + esc(format(lt.otherLine, { days: o.windowDays || 28, minutes: num(o.minutes || 0, 0, false), re: num(o.re || 0, 0, false), sessions: o.sessions || 0 })) + '</p>');
     var c = L.coverage || {};
     out.push('<p class="sc-cov"><b>' + esc(lt.coverageHeading) + ':</b> ' +
-      ['scored', 'unscored', 'invalid', 'droppedJunk', 'superseded', 'preEpoch'].map(function (k) {
+      ['scored', 'unscored', 'invalid', 'droppedJunk', 'superseded', 'preEpoch'].map(function (k: string) {
         return '<span><b class="sc-cov-' + k + '">' + (c[k] || 0) + '</b> ' + esc(lt.coverage[k]) + '</span>';
       }).join(' · ') + '</p>');
     out.push('<p>' + esc(isoDate(L.reEpoch) ? format(lt.preEpochNote, { date: HC.fmtDate(L.reEpoch) }) : lt.noEpochNote) + '</p>');
     return out.join('') + caveatsHtml();
   }
-  function loadHtml(L) {
+  function loadHtml(L: Baked) {
     var lt = T.load;
     var stale = isStale(L.asOf);
     return '<section class="hs-sec sc-load' + (stale ? ' sc-stale' : '') + '" aria-labelledby="ld-h"><div class="hs-head"><h3 class="hs-lbl" id="ld-h">' + esc(lt.heading) + '</h3>' +
@@ -335,24 +355,24 @@
   var D = typeof DIALS === 'undefined' ? null : DIALS;
   // the past day Inicio shows (null = the viewer's today), set from HCDay before each dial render
   var DAY = typeof HCDay !== 'undefined' && HCDay ? HCDay : null;
-  var VIEW = null;
-  function dayIso() {
+  var VIEW: string | null = null;
+  function dayIso(): string {
     return VIEW || todayIso();
   }
   // a past day is the day the viewer asked for: never greyed as stale
-  function dialStale(iso) {
+  function dialStale(iso: string | null | undefined) {
     return VIEW ? false : isStale(iso);
   }
   // that day's sleep + recovery dials (DIALS.days), "No data" when the day has no entry
   function pastDials() {
     var out = null;
-    (D.days || []).forEach(function (x) { if (x && x.date === VIEW) out = x; });
+    (D.days || []).forEach(function (x: Baked) { if (x && x.date === VIEW) out = x; });
     return out || { date: VIEW, sleep: { state: 'none' }, recovery: { state: 'none' } };
   }
-  function attr(v) { return esc(String(v)); }
+  function attr(v: unknown) { return esc(String(v)); }
   // parts: fill d, mid {x,y} (the baseline / typical-day tick); paths are baked, never computed here.
   // The fill takes ONE colour end to end (the figure's --dial-c: recovery = its band's state colour)
-  function dialSvg(parts) {
+  function dialSvg(parts: DialParts) {
     var out = ['<svg class="dial-svg" viewBox="0 0 120 120" aria-hidden="true">'];
     out.push('<path class="dial-track" d="' + attr(D.track) + '"/>');
     if (parts.fill) out.push('<path class="dial-fill" pathLength="100" d="' + attr(parts.fill) + '"/>');
@@ -362,12 +382,12 @@
   }
   // Whoop-style drill-down: the dial is the glance, a tap opens its detail sheet (client/detail.js);
   // a load dial opens its own modality (detailKey), the no-load placeholder opens training time
-  var DIAL_DETAIL = { 'dial-sleep': 'sleep', 'dial-rec': 'recovery', 'dial-load': 'workouts' };
+  var DIAL_DETAIL: Record<string, string> = { 'dial-sleep': 'sleep', 'dial-rec': 'recovery', 'dial-load': 'workouts' };
   // Collapsed dial row (Inicio, shown once the dials scroll away): every dialFig call also queues a
   // mini ring = the SAME svg string (baked geometry, colour class), its label and its detail opener —
   // nothing recomputed. dialsHtml() resets the queue, render() writes it to #home-mini.
-  var MINI = [];
-  function miniItem(cls, stale, extra, aria, svg, label, to) {
+  var MINI: string[] = [];
+  function miniItem(cls: string, stale: boolean, extra: string, aria: string, svg: string, label: string, to: string | undefined) {
     MINI.push('<div class="dm ' + cls + (stale ? ' sc-stale' : '') + '"' + (extra || '') + (to ? HC.detailAttrs(to, VIEW) : '') +
       ' aria-label="' + attr(aria || label) + '"><span class="dm-ring">' + svg + '</span><span class="dm-lbl">' + esc(label) + '</span></div>');
   }
@@ -378,7 +398,7 @@
   // uppercase in CSS). No caption under it: "last night" / the night's date, the 7-day trend, the sleep
   // target, the load scale and acute/chronic context live in the dial's detail sheet (client/detail.js)
   // and in the accessible name.
-  function dialFig(cls, stale, extra, aria, svg, centre, label, detailKey) {
+  function dialFig(cls: string, stale: boolean, extra: string, aria: string, svg: string, centre: string, label: string, detailKey?: string) {
     var to = detailKey || DIAL_DETAIL[cls.split(' ')[0]];
     miniItem(cls, stale, extra, aria, svg, label, to);
     return '<figure class="dial ' + cls + (stale ? ' sc-stale' : '') + '"' + (extra || '') + (to ? HC.detailAttrs(to, VIEW) : '') + '>' +
@@ -386,22 +406,22 @@
       '<div class="dial-centre" aria-hidden="true">' + centre + '</div></div>' +
       '<figcaption class="dial-lbl">' + esc(label) + '<span class="chev dial-chev" aria-hidden="true">›</span></figcaption></figure>';
   }
-  function numCentre(value, unit) {
+  function numCentre(value: string, unit: string) {
     return '<b class="dial-num">' + esc(value) + '<small>' + esc(unit) + '</small></b>';
   }
-  function offCentre(word) {
+  function offCentre(word: string) {
     return '<span class="dial-word">' + esc(word) + '</span>';
   }
   // THE carried-value rule (HC.carried, docs/design-system.md → Carried values): a dial value dated
   // before the shown day (the viewer's today or the stepped-to day) names that date inside the ring
   // (no weekday: it must fit a 360 px ring) and is dimmed, the mini ring too; `stale` (> STALE_DAYS,
   // the stronger grey) keeps the date without stacking the dim
-  function carry(iso, stale) {
+  function carry(iso: string | null, stale: boolean) {
     var c = HC.carried(iso, dayIso(), { weekday: false, stale: stale });
     c.html = c.carried ? '<span class="carried-date">' + esc(c.label) + '</span>' : '';
     return c;
   }
-  function sleepDial(d, dt) {
+  function sleepDial(d: Baked, dt: Baked) {
     var target = d.target != null ? HC.hours(d.target) : '';
     if (d.state !== 'ok') return dialFig('dial-sleep dial-off', false, '', '', dialSvg({}), offCentre(dt.none), dt.sleep.label);
     var h = HC.hours(d.hours);
@@ -420,19 +440,19 @@
       dialSvg({ fill: d.fill }), numCentre(h, '') + c.html, dt.sleep.label);
   }
   // "Last night" only when the night's data is dated today AND has a sleep reading; else its date
-  function nightLbl(iso, hasSleep, rt) {
+  function nightLbl(iso: string, hasSleep: boolean, rt: Baked) {
     return daysOld(iso) === 0 && hasSleep ? rt.lastNight : format(T.asOfLbl, { date: HC.fmtDate(iso) });
   }
   // one modality's state for the viewer's today: 'trained' (RE > 0), 'noEffort' (rows, no RE), 'rest'
-  function loadToday(m) {
+  function loadToday(m: DialModality): LoadToday {
     var t = dayIso();
-    var day = null;
+    var day = null as LoadDay | null;
     (m.days || []).forEach(function (x) { if (x.date === t) day = x; });
     if (day && day.re > 0) return { kind: 'trained', day: day };
     if (day && day.unscored > 0) return { kind: 'noEffort', day: day };
     return { kind: 'rest', day: null };
   }
-  function recDial(d, dt) {
+  function recDial(d: Baked, dt: Baked) {
     var rt = dt.recovery;
     if (d.state !== 'ok') {
       var word = d.state === 'gated' ? rt.gated : dt.none;
@@ -459,9 +479,9 @@
   // session today, gated or not (a gated one opens in its gated state) — highest RE first, ties by
   // modality order, a session without RE still beats nothing — else the baked default (the first
   // ungated one).
-  function openKey(d) {
+  function openKey(d: Baked) {
     var best = null, bestRe = -1;
-    d.modalities.forEach(function (m) {
+    d.modalities.forEach(function (m: DialModality) {
       var td = loadToday(m);
       var re = td.kind === 'trained' ? td.day.re : td.kind === 'noEffort' ? 0 : -1;
       if (re > bestRe) { best = m.key; bestRe = re; }
@@ -470,22 +490,22 @@
   }
   // the day strain dial: the viewer's day (or the stepped-to day) from DIALS.strain.days; a day the
   // data does not reach yet reads "No data" (never a made-up 0.0)
-  function strainDialHtml(d, dt) {
-    var t = dayIso(), day = null, st = dt.strain || {};
-    (d.days || []).forEach(function (x) { if (x.date === t) day = x; });
+  function strainDialHtml(d: Baked, dt: Baked) {
+    var t = dayIso(), day = null as StrainDay | null, st = dt.strain || {};
+    (d.days || []).forEach(function (x: StrainDay) { if (x.date === t) day = x; });
     if (!day) return dialFig('dial-load dial-strain dial-off', dialStale(d.asOf), '', format(st.ariaNone || '', { date: HC.fmtDate(t) }), dialSvg({}), offCentre(dt.none), dt.load.label, 'strain');
     var v = num(day.s, 1, false);
     return dialFig('dial-load dial-strain', dialStale(d.asOf), '', format(VIEW ? st.ariaPast : st.aria, { value: v, date: HC.fmtDate(t) }),
       dialSvg({ fill: day.fill }), numCentre(v, ''), dt.load.label, 'strain');
   }
-  function loadDials(d, dt) {
+  function loadDials(d: Baked, dt: Baked) {
     var lt = dt.load;
     var stale = dialStale(d.asOf);
     var open = openKey(d);
     // a past day: "No session" (not "yet") and the arias name the day
     var P = VIEW && dt.past ? dt.past : null;
     var on = P ? HC.fmtDate(VIEW) : '';
-    var figs = d.modalities.map(function (m) {
+    var figs = d.modalities.map(function (m: Baked) {
       var hid = m.key === open ? '' : ' hidden';
       var extra = ' data-dmod="' + attr(m.key) + '"' + hid;
       var mod = T.load.modalities[m.key] || m.key;
@@ -517,8 +537,8 @@
   function staleLine() {
     if (VIEW) return '';
     var ages = [D.sleep && D.sleep.state === 'ok' ? D.sleep.date : null, D.recovery ? D.recovery.asOf : null, D.strain ? D.strain.asOf : D.load ? D.load.asOf : null]
-      .map(function (iso) { return isStale(iso) ? daysOld(iso) : null; })
-      .filter(function (n) { return n != null; });
+      .map(function (iso: string | null) { return isStale(iso) ? daysOld(iso) : null; })
+      .filter(function (n: number | null) { return n != null; });
     if (!ages.length) return '';
     var days = { days: Math.min.apply(null, ages) };
     return HC.staleMark('dial-stale', format(T.staleShort, days), format(T.staleNote, days));
@@ -526,17 +546,17 @@
   // Data honesty: the full caveats live with each dial's detail (load: Entreno #score-load,
   // recovery: Salud). When page.hideTabs makes that detail unreachable (tab hidden, or Entreno's
   // load section hidden), a compact caveat line goes under the dials instead.
-  function detailReachable(tab, sectionId) {
+  function detailReachable(tab: string, sectionId?: string) {
     if (!document.getElementById('t-' + tab)) return false;
     var sec = sectionId ? document.getElementById(sectionId) : null;
     return !(sec && sec.hidden);
   }
   // every modality gated because no workout ever carried effort (lib/score/training-load.mjs): dial (state/reason)
   // or SCORES (trend.reason) entries
-  function noEffortSource(list) {
+  function noEffortSource(list: Baked[] | null | undefined) {
     return !!(list && list.length) && list.every(function (m) { return (m.reason || (m.trend && m.trend.reason)) === 'noEffortSource'; });
   }
-  function caveatLines(dt, hasLoad) {
+  function caveatLines(dt: Baked, hasLoad: boolean) {
     var out = '';
     if (D.recovery && D.recovery.state === 'ok' && !detailReachable('health') && dt.recovery.caveatLine) {
       out += '<div class="dial-caveat dial-caveat-rec">' + esc(dt.recovery.caveatLine) + '</div>';
@@ -566,20 +586,21 @@
   // #home-mini (fixed under the top edge) turns on while the dials are scrolled ABOVE the viewport;
   // CSS fades / slides it (no motion under prefers-reduced-motion) and `visibility` keeps it out of
   // the tab order and the accessibility tree while off. No IntersectionObserver: the row stays off.
-  function watchMini(dialsHost) {
+  function watchMini(dialsHost: HTMLElement | null) {
     var mini = document.getElementById('home-mini');
     if (!mini || !dialsHost || typeof IntersectionObserver !== 'function') return;
+    var row: HTMLElement = mini; // the narrowed host, for the observer callback
     try {
       new IntersectionObserver(function (entries) {
         var e = entries[entries.length - 1];
-        mini.classList.toggle('is-on', !e.isIntersecting && e.boundingClientRect.top < 0 && mini.innerHTML !== '');
+        row.classList.toggle('is-on', !e.isIntersecting && e.boundingClientRect.top < 0 && row.innerHTML !== '');
       }).observe(dialsHost);
     } catch (e) { /* the row simply stays off */ }
   }
 
   // one broken block must never blank Inicio: render it as an empty state instead (or `fallback`,
   // e.g. '' for the optional advice sentence)
-  function safe(fn, arg, fallback) {
+  function safe(fn: (arg?: Baked) => string, arg?: Baked, fallback?: string | null) {
     try {
       return fn(arg);
     } catch (e) {
@@ -588,7 +609,7 @@
   }
 
   // Writes one host inside its own try/catch: a throwing block or host never stops the others.
-  function write(id, fn) {
+  function write(id: string | HTMLElement | null, fn: () => string) {
     var el = typeof id === 'string' ? document.getElementById(id) : id;
     if (!el) return;
     try {
@@ -625,7 +646,7 @@
   }
 
   // the blocks that follow the selected day (HCDay): the dials, the collapsed row, the advice
-  function renderDay(dialsHost) {
+  function renderDay(dialsHost: HTMLElement | null) {
     VIEW = DAY && typeof DAY.sel === 'function' ? DAY.sel() || null : null;
     if (dialsHost) write(dialsHost, function () { return safe(dialsHtml); });
     // the collapsed row mirrors the dials just written (empty when they threw or there are none)

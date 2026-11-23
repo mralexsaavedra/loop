@@ -1,4 +1,4 @@
-/* Tests for the Home tab client renderer (web/src/client/score.js): runs the classic script in a
+/* Tests for the Home tab client renderer (web/src/client/score.ts): runs the classic script in a
  * vm with baked SCORES/I18N_SCORE/LOCALE globals and a controllable clock. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -15,9 +15,11 @@ import { buildDials } from '../view/dial.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { fmtHours } from '../../../lib/format/numbers.mjs';
 import { addDays } from '../../../lib/date.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'score.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('score.ts');
 
 const ASOF = '2026-09-29';
 const wig = (i) => ((i * 7) % 5) - 2;
@@ -958,7 +960,7 @@ test('one date format: every date the dials and cards print goes through HC.fmtD
   assert.ok(textOf(withDials(fixtureScores(), { now: addDays(ASOF, 10), locale: 'es' })).includes('mar 29 sept'), 'es display date');
 });
 
-test('one recovery unit: the dial, the Salud card and the detail sheet all say SD (es: desv.), from ONE i18n key; no unit literal in score.js', async () => {
+test('one recovery unit: the dial, the Salud card and the detail sheet all say SD (es: desv.), from ONE i18n key; no unit literal in score.ts', async () => {
   const { en: enD, es: esD } = await import('../i18n/detail-templates.mjs');
   assert.equal(enT.recovery.unit, 'SD');
   assert.equal(esT.recovery.unit, 'desv.');
@@ -974,7 +976,7 @@ test('one recovery unit: the dial, the Salud card and the detail sheet all say S
   }
   assert.match(enT.recovery.unitNote, /typical spread/);
   assert.match(esT.recovery.unitNote, /variación típica/);
-  assert.doesNotMatch(source, /'[^'\n]*\b(MAD|sd)\b[^'\n]*'/, 'score.js hard-codes no recovery unit string');
+  assert.doesNotMatch(source, /'[^'\n]*\b(MAD|sd)\b[^'\n]*'/, 'score.ts hard-codes no recovery unit string');
   const card = recCard(sdScores());
   assert.ok(card.includes(enT.recovery.unitNote), 'the card explains the unit (behind its ⓘ)');
   const es = (() => { const hosts = {}; render(sdScores(), { locale: 'es', hosts }); return hosts.rec.innerHTML; })();

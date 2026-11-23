@@ -42,9 +42,9 @@ Hosts live in `web/src/tabs/TrainingDetail.astro` (hosts only) and `Entrenos.ast
 | # | Block | Section key (`data-section`) | Host | Client |
 | --- | --- | --- | --- | --- |
 | 1 | Title + ⓘ | — | `#tr-intro` | — |
-| 2 | Load summary | `load` | `#score-load` | `score.js` `loadHtml` |
+| 2 | Load summary | `load` | `#score-load` | `score.ts` `loadHtml` |
 | 3 | Activity card | `calendar` | `#train-activity` | `training-activity.ts` |
-| 4 | Running, cycling, load vs recovery | `sessions` | `#health-train` | `health.js` |
+| 4 | Running, cycling, load vs recovery | `sessions` | `#health-train` | `health.ts` |
 | 5 | Intensity (HR) | `dash` | `#train-dash` | `training-dash.ts` |
 
 ## Title and intro
@@ -165,7 +165,7 @@ Same rules as the dashboard:
 
 ## Running, cycling, load vs recovery
 
-`#health-train`, rendered by `client/health.js`: see `docs/health-tab.md` → Training tab cards.
+`#health-train`, rendered by `client/health.ts`: see `docs/health-tab.md` → Training tab cards.
 
 ## Intensity (HR)
 

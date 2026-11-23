@@ -505,7 +505,7 @@ example plan has none (tests use synthetic items).
 
 ## Balance
 
-`client/health.js` `renderBalance` renders `HEALTH.energy` (lib/health/aggregate.mjs `aggEnergy`) into
+`client/health.ts` `renderBalance` renders `HEALTH.energy` (lib/health/aggregate.mjs `aggEnergy`) into
 `#nutri-balance`, after Ride fuelling and before Progress (Salud keeps the expenditure row).
 
 - `.hs-head` "BALANCE" + ⓘ (window, days, "historical", the macro clause); the window as a caption ("31 May

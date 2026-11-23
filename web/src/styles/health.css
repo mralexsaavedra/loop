@@ -20,7 +20,7 @@
   stroke-linecap: round;
 }
 /* Salud section header (the monitor list and every section): the section heading, an optional status
- * chip, and an ⓘ button that shows the section's notes in place (client/health.js toggles). */
+ * chip, and an ⓘ button that shows the section's notes in place (client/health.ts toggles). */
 .hs-sec {
   margin: var(--sp-5) 0 var(--sp-3);
 }
@@ -146,7 +146,7 @@
   border-radius: var(--r-sm);
   box-shadow: none;
 }
-/* Fitness age (client/health.js fitnessAgeBlock): the dial figure as a large full ring with a soft
+/* Fitness age (client/health.ts fitnessAgeBlock): the dial figure as a large full ring with a soft
  * glow, coloured by younger (--up) / older (--down) than the chronological age */
 .dial.fa {
   --dial-size: 176px;
@@ -189,7 +189,7 @@
   font-weight: 400;
 }
 
-/* Healthspan habits (client/health.js habitsSection): the met count over the rows */
+/* Healthspan habits (client/health.ts habitsSection): the met count over the rows */
 .hb-sum {
   margin: 0 0 var(--sp-3);
   color: var(--muted);

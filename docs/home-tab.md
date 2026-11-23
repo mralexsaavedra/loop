@@ -37,11 +37,11 @@ Order, top to bottom (`web/src/tabs/Home.astro`, which also renders `components/
 | # | Block | Host | Rendered by |
 | --- | --- | --- | --- |
 | 0 | Top bar (shared): avatar · LOOP wordmark · freshness / Sync, plus the Home-only date pill | `layouts/Plan.astro` | see `docs/plan-page.md` → Brand / Top bar |
-| 1 | Collapsed dial row | `#home-mini` | `score.js` |
-| 2 | Dials | `#home-dials` | `score.js` |
-| 3 | Monitor tiles | `#home-tiles` | `monitor.js` |
+| 1 | Collapsed dial row | `#home-mini` | `score.ts` |
+| 2 | Dials | `#home-dials` | `score.ts` |
+| 3 | Monitor tiles | `#home-tiles` | `monitor.ts` |
 | 4 | "My day" (heading `.hs-lbl.home-h`, sentence case) | `#my-day` | — |
-| 4a | Outlook bar (advice) | `#home-advice` | `score.js` |
+| 4a | Outlook bar (advice) | `#home-advice` | `score.ts` |
 | 4b | Energy bank | `#home-energy` | `energy.ts` |
 | 4c | Nutrition score | `#home-nscore` | `nutri-score.js` |
 | 4d | Today's activities | `#timeline` | `timeline.ts` |
@@ -67,7 +67,7 @@ Order, top to bottom (`web/src/tabs/Home.astro`, which also renders `components/
 - Data: `lib/score/*` (single-source pattern). `buildScoresFrom(inputs, {sex})` (pure, over
   `lib/extract/read.mjs` `readExtract`, called once by `web/src/bakes.mjs`) bakes `SCORES` with only
   `asOf` dates — staleness is computed client-side, so consecutive builds are byte-identical.
-- `web/src/client/score.js` renders the dials + advice on Home, the recovery card into Salud's
+- `web/src/client/score.ts` renders the dials + advice on Home, the recovery card into Salud's
   `#score-recovery`, and the per-modality load summary cards (caveats behind their ⓘ) into Entreno's
   `#score-load` — glance vs detail.
 - The tab is first and active by default. The visible panel is derived from the FILTERED nav list
@@ -84,7 +84,7 @@ What it shows: a strip fixed at the top with the three dials as mini rings + lab
 · Load) once the dials scroll above the viewport.
 
 - Host `#home-mini`, first in `Home.astro`; triggered by an IntersectionObserver on `#home-dials`
-  (`score.js`).
+  (`score.ts`).
 - A SOLID `--ground-top` fill behind the whole bar and a `--line-soft` hairline under it.
 - Each mini ring draws its grey `--track` in full even with no value (the 45 % dimming of an empty
   ring applies to the big dial only).
@@ -102,7 +102,7 @@ values; no new metric (the recovery % is a rank of the same composite).
 ### Geometry and common rules
 
 - `web/src/view/dial.mjs` (`buildDials(scores, health)`, unit-tested, baked as `DIALS`) pre-computes
-  the ring geometry; `score.js` only formats numbers and joins SVG strings.
+  the ring geometry; `score.ts` only formats numbers and joins SVG strings.
 - Three equal full rings in a row (≈ 92 px at a 390 px viewport), each starting at 12 o'clock and
   filling clockwise, round caps, a 9.5-unit stroke (of the 120-unit dial ≈ 8 %) on `--track`.
 - Value INSIDE (D-DIN number, small unit); an uppercase "LABEL ›" BELOW; the dials sit on the page
@@ -165,7 +165,7 @@ values; no new metric (the recovery % is a rank of the same composite).
 - ONE dial per modality, one shown, NO pills under the dials. The gym / run / bike pills live in the
   `load-<m>` deep-dive, between its contributors and the insight card (`deepdive.js` `modSwitch`, the
   page's modality pressed, only with two or more load series); a pill opens that modality's page and,
-  through its `data-mod` attribute (`score.js`'s delegated listener), calls `window.HCScore.setMod(key)` (no bare page global; `deepdive.js` feature-detects it), which shows that modality's dial on Home and in the collapsed row.
+  through its `data-mod` attribute (`score.ts`'s delegated listener), calls `window.HCScore.setMod(key)` (no bare page global; `deepdive.js` feature-detects it), which shows that modality's dial on Home and in the collapsed row.
 - Which modality it opens on (client-side, from the VIEWER's today, picked from the baked `recent`
   days, each with its pre-computed fill):
   1. the modality with a session today, GATED OR NOT (a gated one opens greyed, no number; gated
@@ -195,7 +195,7 @@ values; no new metric (the recovery % is a rank of the same composite).
 
 ## Monitor tiles
 
-What it shows: two 96 px tiles under the dials (`#home-tiles`, `client/monitor.js`), from the SAME
+What it shows: two 96 px tiles under the dials (`#home-tiles`, `client/monitor.ts`), from the SAME
 `SCORES.monitor` cards — no new metric.
 
 ### Tile 1 — `HEALTH MONITOR ›`
@@ -242,7 +242,7 @@ the nutrition score and today's activities.
   line — the short title `home.outlook` "Your daily outlook" / "Tu panorama del día" — and a chevron);
   opens the recovery sheet (every rule reads the recovery trend).
 - The sentence is the bar's accessible name and leads the recovery deep-dive's insight card
-  (`score.js` exposes it as `window.HCAdvice`, '' on a past day or stale data; `deepdive.js`
+  (`score.ts` exposes it as `window.HCAdvice`, '' on a past day or stale data; `deepdive.js`
   `recoveryLines` prepends it).
 - Without a detail sheet (nothing to tap) the bar shows the sentence itself, ellipsised.
 - The rules read the 7-day trend, and every sentence names that window ("Over the last 7 days recovery
@@ -478,7 +478,7 @@ What it does: the user's order and show / hide of the Home blocks from "My day" 
 
 What it shows: the FIRST block of Salud (`tabs/Salud.astro`) — five signals vs a personal band; the
 Home tiles summarise it. `lib/score/monitor.mjs`, baked as `SCORES.monitor` even when `hasData` is
-false; `components/HealthMonitor.astro` + `client/monitor.js`.
+false; `components/HealthMonitor.astro` + `client/monitor.ts`.
 
 - Header: an UPPERCASE "HEALTH MONITOR" label with the same status chip as tile 1 and an ⓘ button (the
   band explanation, collapsed: `#hm-info`).
@@ -520,7 +520,7 @@ What it shows: last night's recovery as a % rank (headline), with the 7-day tren
 - In units of the user's typical spread (scaled MAD). ONE unit key, `RECOVERY_UNIT`
   (`lib/score/advice-copy.mjs`, re-exported by score-templates: en "SD", es "desv."; dict
   `recovery.unit`), builds every recovery string — advice, dial, Salud card, monitor note, detail
-  sheet; no unit literal in `score.js`. The Salud card explains it behind its ⓘ (`recovery.unitNote`:
+  sheet; no unit literal in `score.ts`. The Salud card explains it behind its ⓘ (`recovery.unitNote`:
   "typical spread" / "variación típica").
 - Inputs vs a median/MAD baseline (42 days ending asOf-1), z clamped ±3:
 
@@ -625,7 +625,7 @@ What it shows: last night's recovery as a % rank (headline), with the 7-day tren
   días"), a quiet uppercase disclosure line with a turning chevron (it resets tablas.css's bare details
   card).
 - Notes (what the baseline is, the full trend sentence with the week-on-week change, each contributor's
-  baseline and n, the unit in words, confidence + the SDNN caveat, missing / lowest signal): `score.js`
+  baseline and n, the unit in words, confidence + the SDNN caveat, missing / lowest signal): `score.ts`
   writes them into the Salud Recovery section's ⓘ block (`#hs-info-recovery`, in their own
   `.rec-info-notes` child after the section's notes) and only draws its own ⓘ (`#rec-info`) when that
   block is absent.
@@ -732,9 +732,9 @@ What it shows: Home for a PAST day (`#d=YYYY-MM-DD`) via the top bar's "‹ HOY 
 
 | Block | On a past day |
 | --- | --- |
-| Dials + collapsed row (`score.js` `renderDay`) | sleep + recovery = that day's `DIALS.days` entry (a day without its own night reads "No data", never another day's value); load = the modality's baked `recent` session day (the dial opens on the modality trained THAT day; "No session" instead of "No session yet"; a gated modality stays gated, the gate is today's); the arias name the date instead of "last night" / "today"; never greyed as stale, no stale line; every dial and mini ring opens its deep-dive ON that day (`data-date`) |
+| Dials + collapsed row (`score.ts` `renderDay`) | sleep + recovery = that day's `DIALS.days` entry (a day without its own night reads "No data", never another day's value); load = the modality's baked `recent` session day (the dial opens on the modality trained THAT day; "No session" instead of "No session yet"; a gated modality stays gated, the gate is today's); the arias name the date instead of "last night" / "today"; never greyed as stale, no stale line; every dial and mini ring opens its deep-dive ON that day (`data-date`) |
 | Outlook bar | hidden (it reads the current 7-day trend) |
-| Monitor tiles (`monitor.js` `renderTiles`) | that day's `SCORES.days` summary (in / out of range among the cards fresh ON that day, out of `total`) and that day's stress value (`SCORES.stress.days`, the last 14 days; opens the stress page on that day), else its HRV card (dated when its reading is older than the day; opens the HRV sheet on that day); no entry → "No data". The Salud list stays the latest |
+| Monitor tiles (`monitor.ts` `renderTiles`) | that day's `SCORES.days` summary (in / out of range among the cards fresh ON that day, out of `total`) and that day's stress value (`SCORES.stress.days`, the last 14 days; opens the stress page on that day), else its HRV card (dated when its reading is older than the day; opens the HRV sheet on that day); no entry → "No data". The Salud list stays the latest |
 | "My day" (`timeline.ts` `pastHtml`) | "Activities · <date>" with that day's night (`DETAIL.metrics.sleep`: hours, bed / wake clock) and workouts (`DETAIL.sessions`: one per date + modality after the SAME display rule as `SCORES.timeline`, minutes, RE, parts; a test checks both give the same rows); no programmed-session row, never greyed, every row opens its sheet on that day; nothing that day → "Nothing logged that day" |
 | Energy bank (`energy.ts`) | that day's `SCORES.energy.days` entry (level, curve, start, low); opens the energy bank page on that day; no value → hidden |
 | Nutrition score (`nutri-score.js`) | that day's FINAL score (no average line); opens the nutrition sheet on that day; no log or no target → hidden |
@@ -751,7 +751,7 @@ What it shows: the limits of the scores, kept reachable wherever a dial is shown
   two-a-day is indistinguishable); HRV is daytime SDNN; not medical advice.
 - They live with each dial's detail: the caveats card in Entreno's `load` section; the recovery card in
   Salud.
-- When `page.hideTabs` hides Entreno (or its `load` section), `score.js` writes a compact load caveat
+- When `page.hideTabs` hides Entreno (or its `load` section), `score.ts` writes a compact load caveat
   line under the dials on Home (`dials.load.caveatLine`); when it hides Salud, a compact recovery line
   (`dials.recovery.caveatLine`).
 

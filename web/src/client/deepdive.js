@@ -113,7 +113,7 @@
     var d = dials() && dials().recovery;
     return h && h.mode === 'today' && d && d.state === 'ok' && d.mode === 'today' && d.date === h.date && isNum(d.pct) ? d.pct : null;
   }
-  // recovery: exactly the dial (view/dial.mjs recoveryDial + score.js recDial): last night's composite,
+  // recovery: exactly the dial (view/dial.mjs recoveryDial + score.ts recDial): last night's composite,
   // its band as the ONE colour of the whole fill; gated / none = an empty ring with the dial's word
   function recoveryHero(m, end, X) {
     var P = X.T.deep, h = m.head, d = dials() && dials().recovery;
@@ -143,7 +143,7 @@
     var d = dials() && dials().sleep;
     return d && d.state === 'ok' && isoDate(d.date) ? d.date : X.lastDataDate(m, end);
   }
-  // load: the dial's today logic (score.js loadToday): today's RE fills to its baked arc, the typical
+  // load: the dial's today logic (score.ts loadToday): today's RE fills to its baked arc, the typical
   // day is the white tick at the ring's midpoint; no RE today = the dial's word, an empty ring
   function loadHero(key, m, X) {
     var P = X.T.deep, D = dials(), dm = loadDialOf(X.modOf(key));
@@ -188,7 +188,7 @@
     var names = worse.length === 1 ? worse[0] : worse.slice(0, -1).join(', ') + W.and + worse[worse.length - 1];
     return format(worse.length === 1 ? W.worse1 : W.worseN, { names: names });
   }
-  // recovery: Inicio's outlook sentence (score.js window.HCAdvice, '' on a past day or stale data:
+  // recovery: Inicio's outlook sentence (score.ts window.HCAdvice, '' on a past day or stale data:
   // the bar's full text) leads, then the night in words; without it, the 7-day trend in words
   function recoveryLines(m, X) {
     var R = X.T.rec, W = X.T.deep.prose, h = m.head;
@@ -620,7 +620,7 @@
   }
 
   // load pages: the gym / run / bike pills: each opens that
-  // modality's page and sets Inicio's load dial to it (data-mod: score.js's delegated listener, when window.HCScore is loaded); the page's own
+  // modality's page and sets Inicio's load dial to it (data-mod: score.ts's delegated listener, when window.HCScore is loaded); the page's own
   // modality is the pressed one. Fewer than two modalities with a load series: no pills.
   function modSwitch(key, X) {
     var cur = X.modOf(key);

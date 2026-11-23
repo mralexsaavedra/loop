@@ -165,7 +165,7 @@ type DetailSession = { d: string; m: string; min: number; re?: number | null; n?
     var plan = programRow(today);
     if (!day && !plan) return card('<div class="sc-head"><h3>' + esc(T.heading) + '</h3></div><div class="sc-note">' + esc(T.empty) + '</div>', false);
     var isToday = !day || day.date === today;
-    // the same-day merge note: behind the header's ⓘ (client/health.js toggles [data-hs-info]), only
+    // the same-day merge note: behind the header's ⓘ (client/health.ts toggles [data-hs-info]), only
     // when the day lists workouts
     var title = isToday ? T.heading : format(T.dateHeading, { date: HC.fmtDate(day!.date) });
     var note = !!(day && day.items.length && T.note);

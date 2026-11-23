@@ -160,7 +160,7 @@ test('a settings change (the target weight saved) re-renders the block', () => {
 test('the Progreso ⓘ keeps its open state across a settings re-render (like Constancia); with no notes left it closes', () => {
   const st = settingsStub(null);
   const r = run({ settings: st });
-  // the viewer opens the ⓘ (client/health.js toggle)
+  // the viewer opens the ⓘ (client/health.ts toggle)
   r.info.hidden = false;
   r.btn.setAttribute('aria-expanded', 'true');
   st.targetWeight = () => 75;

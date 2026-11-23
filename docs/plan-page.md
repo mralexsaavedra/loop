@@ -89,7 +89,7 @@ from `web/src/csp.mjs`, as a `<meta http-equiv="Content-Security-Policy">` right
 
 - No inline `on*=` handler anywhere: navigation is delegated. `client/core.js` listens on the document for
   `data-tab-go="<tab>"` (empty = the default tab: the wordmark) and `data-jump="<id>"` (in-page links);
-  `client/score.js` for the load pages' `data-mod="<modality>"` pills (it exposes the setter as `window.HCScore.setMod`, never a bare global).
+  `client/score.ts` for the load pages' `data-mod="<modality>"` pills (it exposes the setter as `window.HCScore.setMod`, never a bare global).
 - The personal plan's trusted notes (`page.notes`) may still write the legacy `onclick="jump('<id>')"` /
   `onclick="setTab('<tab>')"`: the build rewrites exactly those two into `data-jump` / `data-tab-go` and
   warns (`page-csp: … inline handler(s)`) about any other handler, which the browser would block.
@@ -183,7 +183,13 @@ minification). `astro.config.mjs` exposes the result as the virtual module `virt
 `layouts/Plan.astro` inlines it at the module's place in the manifest, exactly like a classic script, so the page
 stays one file and the CSP hashes it like any other script. The tests run the same bytes
 (`clientScriptSource(file)`). The page globals a module reads are typed in `web/src/client/page-globals.d.ts`
-(`any` until each gets its own type). Modules so far: `home-week.ts`, `freshness.ts`, `nav-actions.ts`, `home-order.ts`, `training-dash.ts`, `energy.ts`, `shortcuts.ts`, `journal.ts`, `profile.ts`, `onboarding.ts`, `training-activity.ts`, `timeline.ts`, `home-dash.ts`.
+(`any` until each gets its own type). Modules so far: `home-week.ts`, `freshness.ts`, `nav-actions.ts`, `home-order.ts`, `training-dash.ts`, `energy.ts`, `shortcuts.ts`, `journal.ts`, `profile.ts`, `onboarding.ts`, `training-activity.ts`, `timeline.ts`, `home-dash.ts`, `health.ts`, `score.ts`, `monitor.ts`.
+
+A module script runs in **strict mode**: the client `tsconfig.json` sets `strict`, which implies `alwaysStrict`, so
+esbuild opens every bundle with `"use strict";` (classic scripts stay sloppy). For these scripts that changes
+nothing observable: they assign no undeclared variable (ESLint `no-undef` already forbade it), use no `this` outside
+methods, write no baked or frozen global, and `delete` only own properties of their own objects. A new module
+script must keep to that (a write into a frozen `HC_*` object, silently ignored in a classic script, throws here).
 
 ### Script order: one manifest
 

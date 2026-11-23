@@ -110,13 +110,13 @@ the date and drops the dim class). Surfaces:
 
 | Surface | Value | Date shown |
 | --- | --- | --- |
-| Inicio dials: sleep, recovery (`score.js`) | the night | under the number ("7 OCT"); the mini ring dims |
+| Inicio dials: sleep, recovery (`score.ts`) | the night | under the number ("7 OCT"); the mini ring dims |
 | Sleep + recovery deep-dives (`deepdive.js`) | the headline night | the sheet title + contributor legend ("Wed 7 Oct"); the hero dims |
-| Monitor summary tile (`monitor.js`) | the newest night it counts | under "5/5 metrics" ("8 OCT") |
-| Stress + HRV tiles (`monitor.js`) | the reading | its sub line ("8 OCT · 23:00") |
+| Monitor summary tile (`monitor.ts`) | the newest night it counts | under "5/5 metrics" ("8 OCT") |
+| Stress + HRV tiles (`monitor.ts`) | the reading | its sub line ("8 OCT · 23:00") |
 | Energy bank card (`energy.ts`) | the latest level | under the number ("8 OCT · 21:00"); opens that day |
 | "My day" (`timeline.ts`) | the newest day's activities | the heading ("Activities · Thu 8 Oct") |
-| Salud recovery card (`score.js`) | the headline night | above the number ("Thu 8 Oct"); the number + band word dim |
+| Salud recovery card (`score.ts`) | the headline night | above the number ("Thu 8 Oct"); the number + band word dim |
 
 Kept as they are: Salud's monitor list and metric rows ("latest per metric" lists; each row already
 names its own date or keeps it in its screen-reader words), My dashboard (the latest value per metric, dimmed only when stale), Tonight (a forecast) and the
@@ -169,7 +169,7 @@ globals out of the BUILT page.
 - **Hours.** Sleep, time in bed, stages, REM + deep, activity and ride durations, the sleep target and
   every delta of them are h:mm WITHOUT a unit ("7:32", "+0:02 vs your 7:30 target"); the old
   decimal hours ("7,5 h") and "1 h 45 min" are gone. A metric whose unit is `h` drops the unit where it
-  is shown (`unitOf` in `detail-state.js`, `mrow` in `health.js`, `compUnit` in `score.js`, the monitor).
+  is shown (`unitOf` in `detail-state.js`, `mrow` in `health.ts`, `compUnit` in `score.ts`, the monitor).
   Baked sleep hours keep 2 decimals so h:mm is exact to the minute.
 - **Display rounding is `toFixed`'s** (binary, no epsilon): a float just under x.x5 shows the lower digit
   (`HC.num(2.3 + 0.05, 1)` → `2,3`). Values that must round half-up are rounded by the lib BEFORE they are
@@ -210,7 +210,7 @@ section heading never looks like the card under it.
 
 - **Duplicate titles.** When a section holds one card whose title would repeat the section heading,
   the section heading stays and the card drops its title — but only the title: anything else in the
-  card's head (an as-of date, a CTA, its ⓘ) stays. Today: Salud's Recovery card (`score.js`
+  card's head (an as-of date, a CTA, its ⓘ) stays. Today: Salud's Recovery card (`score.ts`
   `recoveryHtml`). A card with its own name (Entreno "Load vs recovery" → "Weekly cardiovascular
   load") keeps it.
 - **Not section headings:** the tab title (`.hs-title`, centred caps), fold rows (`.sec-fold > summary`,
