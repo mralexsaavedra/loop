@@ -1,4 +1,4 @@
-/* web/src/client/food-core.js on its own (the food log's behaviour is tested through all four food
+/* web/src/client/food-core.ts on its own (the food log's behaviour is tested through all four food
  * scripts in food.test.mjs): what it reuses from the libs instead of copying. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -16,7 +16,7 @@ function loadCore() {
   };
   vm.createContext(ctx);
   loadUtil(ctx);
-  vm.runInContext(FOOD_SOURCES[FOOD_SCRIPTS.indexOf('food-core.js')], ctx);
+  vm.runInContext(FOOD_SOURCES[FOOD_SCRIPTS.indexOf('food-core.ts')], ctx);
   return ctx;
 }
 

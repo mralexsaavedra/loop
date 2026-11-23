@@ -22,7 +22,7 @@ export const CLIENT_SCRIPTS = [
   },
   { file: 'today-date.ts', provides: ['HCDay'], requires: ['HC', 'I18N_DATE', 'NAV', 'SCORES'] },
   {
-    file: 'nutri-day.js',
+    file: 'nutri-day.ts',
     provides: ['nutriTarget', 'HCNutri'],
     requires: [
       'DETAIL', 'FOOD_BASICS', 'HC', 'HCDay', 'HC_DAYTYPE', 'HC_FMT', 'HC_FUEL', 'HC_GUIDE', 'HC_SCALE', 'I18N_NUTRI', 'INTAKE', 'LOCALE',
@@ -31,13 +31,13 @@ export const CLIENT_SCRIPTS = [
     probes: ['intakeWaiting', 'HCFood', 'foodTotals', 'intakeRefresh', 'HCProgress', 'HCAdherence', 'HCNutriScore'],
   },
   {
-    file: 'food-core.js',
+    file: 'food-core.ts',
     provides: ['foodTotals', 'HCFoodInternal'],
     requires: ['FOOD_BASICS', 'FOOD_CONST', 'HC', 'HC_FOODLOG', 'HC_GUIDE', 'I18N_FOOD'],
   },
   { file: 'food-sheet.ts', provides: [], requires: ['HC', 'HCFoodInternal'] },
   { file: 'food-catalog.ts', provides: [], requires: ['HC', 'HCFoodInternal'] },
-  { file: 'food-log.js', provides: ['foodTotals', 'HCFood'], requires: ['HC', 'HCFoodInternal'] },
+  { file: 'food-log.ts', provides: ['foodTotals', 'HCFood'], requires: ['HC', 'HCFoodInternal'] },
   { file: 'settings.ts', provides: ['HCSettings'], requires: ['FOOD_CONST', 'HC', 'HCFood'] },
   {
     file: 'progress.ts',

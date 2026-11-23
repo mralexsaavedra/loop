@@ -183,7 +183,7 @@ minification). `astro.config.mjs` exposes the result as the virtual module `virt
 `layouts/Plan.astro` inlines it at the module's place in the manifest, exactly like a classic script, so the page
 stays one file and the CSP hashes it like any other script. The tests run the same bytes
 (`clientScriptSource(file)`). The page globals a module reads are typed in `web/src/client/page-globals.d.ts`
-(`any` until each gets its own type). Modules so far: `home-week.ts`, `freshness.ts`, `nav-actions.ts`, `home-order.ts`, `training-dash.ts`, `energy.ts`, `shortcuts.ts`, `journal.ts`, `profile.ts`, `onboarding.ts`, `training-activity.ts`, `timeline.ts`, `home-dash.ts`, `health.ts`, `score.ts`, `monitor.ts`, `food-sheet.ts`, `food-catalog.ts`, `detail.ts`, `settings.ts`, `progress.ts`, `adherence.ts`, `intake.ts`, `training-today.ts`, `nutri-score.ts`, `today-date.ts`, `core.ts`, `deepdive.ts`, `detail-state.ts`, `detail-chart.ts`.
+(`any` until each gets its own type). Modules so far: `home-week.ts`, `freshness.ts`, `nav-actions.ts`, `home-order.ts`, `training-dash.ts`, `energy.ts`, `shortcuts.ts`, `journal.ts`, `profile.ts`, `onboarding.ts`, `training-activity.ts`, `timeline.ts`, `home-dash.ts`, `health.ts`, `score.ts`, `monitor.ts`, `food-sheet.ts`, `food-catalog.ts`, `detail.ts`, `settings.ts`, `progress.ts`, `adherence.ts`, `intake.ts`, `training-today.ts`, `nutri-score.ts`, `today-date.ts`, `core.ts`, `deepdive.ts`, `detail-state.ts`, `detail-chart.ts`, `food-core.ts`, `food-log.ts`, `nutri-day.ts`.
 
 ESLint lints only `*.js` / `*.mjs`: for a module script `tsc` takes its place (`strict` for undefined names and
 shapes, `noUnusedLocals` for ESLint's `no-unused-vars`; unused parameters stay allowed, as ESLint's `args: 'none'`).
@@ -227,7 +227,7 @@ read these instead of redefining them (a test guards it). Tests load it with `we
 | Helper | What it does |
 | --- | --- |
 | `lan()` | false when the page is opened from `file://`: every LAN fetch — `/api/food/*`, `/api/journal/*`, `/api/sync/status` + Sync, `/status.json`, the `/manuales/` probe — is skipped there and the page degrades exactly as with the services down, with no console errors; read at call time, no location = served |
-| `jsonApi(base, header, timeoutMs)` | THE fetch wrapper of the LAN JSON APIs (`food-core.js`: `/api/food` + `X-HC-Food`, `journal.ts`: `/api/journal` + `X-HC-Journal`): `api(method, path, body?)` resolves a 2xx's JSON (`{}` without one), rejects `{code, field, status}` (`offline` / status 0 with no answer, a timeout or `file://`); built on `fetchTimeout`, the body read inside its timeout |
+| `jsonApi(base, header, timeoutMs)` | THE fetch wrapper of the LAN JSON APIs (`food-core.ts`: `/api/food` + `X-HC-Food`, `journal.ts`: `/api/journal` + `X-HC-Journal`): `api(method, path, body?)` resolves a 2xx's JSON (`{}` without one), rejects `{code, field, status}` (`offline` / status 0 with no answer, a timeout or `file://`); built on `fetchTimeout`, the body read inside its timeout |
 | `fetchTimeout(url, init, ms, read?)` | THE timed fetch (`jsonApi`, `freshness.ts` via `fetchJson`, `profile.ts`'s `/manuales/` probe at 10 s): rejects `{name: 'TimeoutError'}` after `ms` and aborts the request (`AbortController` when present), so a hung service never leaves the Sync button busy. `read(res)` reads the body inside the same timeout (a stalled body times out too) and its result resolves. The caller's `init` is copied, never mutated; a caller `init.signal` is combined with the timeout's (`AbortSignal.any`, else relayed by hand) and its abort rejects at once with `{name: 'AbortError'}` |
 | `fetchJson(url, init, ms)` | `fetchTimeout` + the JSON body of a 2xx (`null` otherwise), read inside the timeout: `freshness.ts`'s status reads + Sync POST at 15 s |
 | `esc` (`null` / `undefined` → `''`), `format`, `isoDate`, `todayIso`, `daysOld`, `shiftIso`, `MS_PER_DAY`, `STALE_DAYS` | string / ISO date helpers, constants |
@@ -247,10 +247,10 @@ util.js; rules in [`design-system.md`](design-system.md) → "Numbers"). The sam
 | `HC_ADH` — food log adherence | `lib/nutrition/adherence.mjs` | `client/adherence.ts` (instead of a copy) |
 | `HC_PROG` — weight progress | `lib/nutrition/progress.mjs` | `client/progress.ts` |
 | `HC_NSCORE` — nutrition score | `lib/nutrition/nutri-score.mjs` | `client/nutri-score.ts` |
-| `HC_FOODLOG` — food log formula | `lib/nutrition/foodlog.mjs` | `client/food-core.js` |
-| `HC_DAYTYPE` / `HC_FUEL` — day type detection, ride fuelling | `lib/nutrition/daytype.mjs` / `fuel.mjs` | `client/nutri-day.js` |
-| `HC_SCALE` — portion scaling | `lib/nutrition/scale.mjs` | `client/nutri-day.js` |
-| `HC_GUIDE` — portion guide | `lib/nutrition/guide.mjs` | `client/nutri-day.js` |
+| `HC_FOODLOG` — food log formula | `lib/nutrition/foodlog.mjs` | `client/food-core.ts` |
+| `HC_DAYTYPE` / `HC_FUEL` — day type detection, ride fuelling | `lib/nutrition/daytype.mjs` / `fuel.mjs` | `client/nutri-day.ts` |
+| `HC_SCALE` — portion scaling | `lib/nutrition/scale.mjs` | `client/nutri-day.ts` |
+| `HC_GUIDE` — portion guide | `lib/nutrition/guide.mjs` | `client/nutri-day.ts` |
 
 Every nutrition global is emitted by `lib/nutrition/client.mjs` `clientSource()` from the modules'
 `CLIENT` descriptors. Constants come baked from `lib/` (`STALE_DAYS` via `HC_CONST`; the calendar's
@@ -405,7 +405,7 @@ in tracked Astro/JS source, which stays fully generic.
 | **Completar el diario** | the journal sheet, `HCViews.journal` ([`journal.md`](journal.md)) | `/api/journal/settings` answered |
 | **Sincronizar** | clicks the top bar's Sync | the freshness group is shown, i.e. `/api/sync/status` answered |
 
-- They appear asynchronously (`food-log.js`, `journal.ts`, `freshness.ts` call `HCActions.refresh()`).
+- They appear asynchronously (`food-log.ts`, `journal.ts`, `freshness.ts` call `HCActions.refresh()`).
   The root and every row ship `hidden`: in the example build, `file://` or a static copy the "+" never
   shows (no dead control).
 

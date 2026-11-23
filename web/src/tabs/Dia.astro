@@ -10,7 +10,7 @@
  *                        under it (the goal itself is set in the profile sheet, client/profile.ts), three
  *                        macro rows (protein / carbs / fat), then the intake rings (#intake, only with
  *                        intake logged in the last 3 days; otherwise nothing). The notes sit behind the
- *                        section's ⓘ (#nutri-sum-info, written by client/nutri-day.js);
+ *                        section's ⓘ (#nutri-sum-info, written by client/nutri-day.ts);
  *   2. Registrar       — a day's food log by meal slot (a ‹ date › navigator, opens on today) + the add
  *                        sheet (client/food-*.js, docs/nutrition-food-log.md). Ships `hidden` and appears only on the LAN page, when the food API answers
  *                        (never in the claude.ai artifact or the example build); baked here: I18N_FOOD
@@ -21,7 +21,7 @@
  *                        Extras, each with today's budget (goal × day type × ride minutes) and, per
  *                        macro, one example food and its amount; in a native <details> COLLAPSED by
  *                        default (summary: heading + the meals target kcal, written by
- *                        client/nutri-day.js, which also remembers open / closed per viewer);
+ *                        client/nutri-day.ts, which also remembers open / closed per viewer);
  *   4. Avituallamiento — before -> during -> after the ride as a 3-step timeline, bike day types only
  *                        (never collapsed);
  *   5. Balance         — intake vs expenditure (avg intake, avg burn, deficit / surplus a day) + the
@@ -35,7 +35,7 @@
  *                        hidden without a food log), a tap opens its trend sheet.
  * 5–7 follow the day's blocks on purpose: today's actions first, the multi-week look back after.
  * The day-type control is server-rendered (real labelled radios); the numbers
- * are client-rendered by client/nutri-day.js from NUTRI (lib/nutrition/today.mjs: the 12 precomputed
+ * are client-rendered by client/nutri-day.ts from NUTRI (lib/nutrition/today.mjs: the 12 precomputed
  * plans), baked here with I18N_NUTRI. Today's day type is picked on the viewer's clock, so builds
  * stay byte-identical.
  */
@@ -80,7 +80,7 @@ const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForSc
       <h2 class="hs-lbl">{T.headings.summary}</h2>
       <button type="button" class="hs-i" data-hs-info="nutri-sum-info" aria-expanded="false" aria-controls="nutri-sum-info" aria-label={sumInfoLbl}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg></button>
     </div>
-    {/* where today's intake comes from + "carbs are the rest": written by client/nutri-day.js */}
+    {/* where today's intake comes from + "carbs are the rest": written by client/nutri-day.ts */}
     <div class="hs-info" id="nutri-sum-info" hidden></div>
     <div class="nutri-card">
       <fieldset class="seg" id="nutri-daytype">

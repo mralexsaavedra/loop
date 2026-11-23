@@ -138,9 +138,9 @@ bands ride along the same way: `lib/score/recovery.mjs` `clientSource()` → `va
 food log adherence and weight progress functions ride along too (`lib/nutrition/adherence.mjs` →
 `var HC_ADH`, read by `client/adherence.ts`; `lib/nutrition/progress.mjs` → `var HC_PROG`, read by
 `client/progress.ts`; `lib/nutrition/nutri-score.mjs` → `var HC_NSCORE`, read by `client/nutri-score.ts`;
-`lib/nutrition/foodlog.mjs` → `var HC_FOODLOG`, read by `client/food-core.js`; `lib/nutrition/daytype.mjs` →
+`lib/nutrition/foodlog.mjs` → `var HC_FOODLOG`, read by `client/food-core.ts`; `lib/nutrition/daytype.mjs` →
 `var HC_DAYTYPE`, `lib/nutrition/fuel.mjs` → `var HC_FUEL` and `lib/nutrition/scale.mjs` (+ amounts / units /
-fill) → `var HC_SCALE` and `lib/nutrition/guide.mjs` → `var HC_GUIDE`, read by `client/nutri-day.js`. Every
+fill) → `var HC_SCALE` and `lib/nutrition/guide.mjs` → `var HC_GUIDE`, read by `client/nutri-day.ts`. Every
 nutrition module only declares a plain `CLIENT` descriptor; `lib/nutrition/client.mjs` is the ONE module there that
 imports the emitter and exposes the `clientSource()` functions, because `data/nutrition/generate.mjs` loads
 `lib/nutrition` without `lib/format` — `lib/nutrition/client.test.mjs` guards that no other module imports it);

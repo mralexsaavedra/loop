@@ -38,7 +38,7 @@ var HC = (function () {
       return vars && vars[k] != null ? vars[k] : '';
     });
   }
-  // The ONE fetch wrapper of the LAN JSON APIs (food-core.js: /api/food + X-HC-Food, journal.ts:
+  // The ONE fetch wrapper of the LAN JSON APIs (food-core.ts: /api/food + X-HC-Food, journal.ts:
   // /api/journal + X-HC-Journal — each API requires its own header, the CSRF guard of services/loop-ingest).
   // Returns api(method, path, body?) -> a promise of the JSON body of a 2xx ({} when it has none); it
   // rejects {code, field, status}: the server's coarse error code (else 'generic'), or 'offline' with

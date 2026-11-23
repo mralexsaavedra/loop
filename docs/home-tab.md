@@ -45,7 +45,7 @@ Order, top to bottom (`web/src/tabs/Home.astro`, which also renders `components/
 | 4b | Energy bank | `#home-energy` | `energy.ts` |
 | 4c | Nutrition score | `#home-nscore` | `nutri-score.ts` |
 | 4d | Today's activities | `#timeline` | `timeline.ts` |
-| 5 | Today you eat | `EatCard.astro` | `nutri-day.js` |
+| 5 | Today you eat | `EatCard.astro` | `nutri-day.ts` |
 | 6 | Tonight | `#home-tonight` | `home-week.ts` |
 | 7 | My journal | `#my-journal` | `journal.ts` |
 | 8 | My plan | `#my-plan` | `home-week.ts` |
@@ -324,7 +324,7 @@ the nutrition score and today's activities.
 ## Today you eat
 
 What it shows: today's day type, goal and target (`components/EatCard.astro`, `#eat-body`,
-`nutri-day.js` `renderEat`; see `docs/nutrition.md`). Past days: [Day stepping](#day-stepping).
+`nutri-day.ts` `renderEat`; see `docs/nutrition.md`). Past days: [Day stepping](#day-stepping).
 
 ## Tonight
 
@@ -738,7 +738,7 @@ What it shows: Home for a PAST day (`#d=YYYY-MM-DD`) via the top bar's "‹ HOY 
 | "My day" (`timeline.ts` `pastHtml`) | "Activities · <date>" with that day's night (`DETAIL.metrics.sleep`: hours, bed / wake clock) and workouts (`DETAIL.sessions`: one per date + modality after the SAME display rule as `SCORES.timeline`, minutes, RE, parts; a test checks both give the same rows); no programmed-session row, never greyed, every row opens its sheet on that day; nothing that day → "Nothing logged that day" |
 | Energy bank (`energy.ts`) | that day's `SCORES.energy.days` entry (level, curve, start, low); opens the energy bank page on that day; no value → hidden |
 | Nutrition score (`nutri-score.ts`) | that day's FINAL score (no average line); opens the nutrition sheet on that day; no log or no target → hidden |
-| Eat card (`nutri-day.js` `renderEat`) | "Target for <date>" with that day's DETECTED day type (`dayInput` + `detectDayType`, the same detection as `HCNutri.targetFor`) and its plan targets for the current goal; a day whose type cannot be told (no session, sleep or programmed session) hides the card |
+| Eat card (`nutri-day.ts` `renderEat`) | "Target for <date>" with that day's DETECTED day type (`dayInput` + `detectDayType`, the same detection as `HCNutri.targetFor`) and its plan targets for the current goal; a day whose type cannot be told (no session, sleep or programmed session) hides the card |
 | Tonight | hidden (it is about the coming night) |
 | My plan / My dashboard | unchanged: the viewer's week / the latest values |
 

@@ -32,7 +32,7 @@ const STRAVA = {
 const MANUAL = { birthdate: '1990-05-17', heightCm: 178, devices: [{ name: 'Demo Watch 2', type: 'watch', since: '2028-03' }, { name: 'Demo EMS suit', type: 'ems' }] };
 const FULL = buildProfile({ manual: MANUAL, strava: STRAVA, weight: { kg: 71.4, date: '2030-01-04' } });
 
-// nutri = a stand-in for client/nutri-day.js's window.HCNutri (the goal's owner), or null
+// nutri = a stand-in for client/nutri-day.ts's window.HCNutri (the goal's owner), or null
 // fetch = a stand-in for window.fetch (the manual HEAD probe); links = the elements querySelectorAll returns
 function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null, nutri = null, settings = null, progress = null, els = {}, fetch = undefined, links = [], location, onb = false } = {}) {
   const img = photo ? { getAttribute: (k) => (k === 'src' ? photo : null) } : null;
@@ -305,7 +305,7 @@ test('events: upcoming listed soonest first with days to go on the viewer clock,
   assert.doesNotMatch(html(setup()), /Upcoming events/);
 });
 
-/* ---------- Goal setting: the plan's goal, owned by client/nutri-day.js (hc.nutri.goal) ---------- */
+/* ---------- Goal setting: the plan's goal, owned by client/nutri-day.ts (hc.nutri.goal) ---------- */
 const GOALS = [{ goal: 'maintain', kcal: 0, bikeKept: false }, { goal: 'cut', kcal: -320, bikeKept: true }, { goal: 'bulk', kcal: 300, bikeKept: false }];
 function nutriStub(goal = 'maintain') {
   const n = { set: [], state: () => ({ goal }), setGoal: (g) => { n.set.push(g); goal = g; return true; } };

@@ -3,7 +3,7 @@
  * (components/Avatar.astro, data-detail="profile"). Strava-style card, honest data only:
  *   header  — photo (or initials, or a generic icon), full name, age, location;
  *   Goal    — Mantener / Bajar / Ganar radios, each with its kcal/day change vs maintain (PROFILE.goals,
- *             lib/profile/goal.mjs). The goal itself belongs to Nutrición (client/nutri-day.js, inlined
+ *             lib/profile/goal.mjs). The goal itself belongs to Nutrición (client/nutri-day.ts, inlined
  *             earlier): the checked radio is window.HCNutri.state().goal and a change calls
  *             HCNutri.setGoal, which stores it (hc.nutri.goal) and refreshes the summary, plan, fuelling,
  *             rings, builder and the kcal chip. No HCNutri or no options -> the section is omitted.
@@ -248,7 +248,7 @@ type SettingsState = { pending?: boolean; last?: SaveStatus | null } | null | un
     return out.length ? section(S.heading, out.join('')) : '';
   }
 
-  // the plan's goal: owned by client/nutri-day.js (window.HCNutri); a ready-made description per option
+  // the plan's goal: owned by client/nutri-day.ts (window.HCNutri); a ready-made description per option
   function nutri() {
     var n = window.HCNutri;
     return n && typeof n.setGoal === 'function' && typeof n.state === 'function' ? n : null;

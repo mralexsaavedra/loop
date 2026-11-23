@@ -2,10 +2,10 @@
  * Añadidos, inside the `dia` section; a ‹ date › navigator on top opens on today and walks to past days,
  * never persisted), the
  * add sheet (a view of the detail sheet modal), Mis productos and Mis recetas (folds before Tablas).
- * Four classic scripts (is:inline), inlined in this order after nutri-day.js and before intake.ts:
- * food-core.js (this file: the formula from HC_FOODLOG, parseNum, the API client, the shared state S and the
+ * Four module scripts (bundled into the page, docs/plan-page.md → Module scripts), in this order after nutri-day.ts and before intake.ts:
+ * food-core.ts (this file: the formula from HC_FOODLOG, parseNum, the API client, the shared state S and the
  * small helpers, handed to the others as window.HCFoodInternal), food-sheet.ts (the add sheet),
- * food-catalog.ts (Mis productos / Mis recetas) and food-log.js (Registrar + its day navigator, the
+ * food-catalog.ts (Mis productos / Mis recetas) and food-log.ts (Registrar + its day navigator, the
  * events, the boot and the public window.HCFood / window.foodTotals). Reads
  * I18N_FOOD + FOOD_CONST (meal slots / stores / units from lib/nutrition/foodlog.mjs), baked by
  * web/src/tabs/Dia.astro, and window.HC (util.js).
@@ -31,7 +31,7 @@
  * under "Mis productos", then the basics); a basic ingredient is saved as a SNAPSHOT of its FOOD_BASICS
  * row (basicIngredient), so a later table change never alters a saved recipe.
  *
- * Plan de hoy's portion guide (nutri-day.js) reads today's log per group (HCFood.groupTotals), the
+ * Plan de hoy's portion guide (nutri-day.ts) reads today's log per group (HCFood.groupTotals), the
  * owner's products (HCFood.products) and logs an example amount with its "+" (HCFood.addGuide: a basic
  * as ONE quick entry through the same basics formula, a product as a product entry; same request-id /
  * ambiguous-retry rules as the add sheet).
@@ -39,15 +39,38 @@
  * Wiring: window.foodTotals() = today's logged totals ({date, k, p, c, g, n, missing, src: 'log'}) when
  * the server answered and today has >= 1 entry, else null — TODAY only, whatever day Registrar shows
  * (today's log is kept apart from a viewed past day; adds / deletes on a past day never touch it). Resumen de hoy's dial + macro bars
- * (nutri-day.js) and the intake rings (intake.ts) prefer it over the Apple Health intake; after every
+ * (nutri-day.ts) and the intake rings (intake.ts) prefer it over the Apple Health intake; after every
  * add / delete this script calls HCNutri.refresh() (which also refreshes the rings),
  * and HCFood.recentDay(days) gives the rings a PAST food-log day when today has none (a lazy log summary read),
  * each hook in its own try/catch. Errors are one line from the server's coarse codes. */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads by bare name (baked by components/Bake.astro or an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+declare const HC_FOODLOG: PageGlobals['HC_FOODLOG'];
+declare const HC_GUIDE: PageGlobals['HC_GUIDE'];
+declare const I18N_FOOD: PageGlobals['I18N_FOOD'];
+declare const FOOD_CONST: PageGlobals['FOOD_CONST'];
+declare const FOOD_BASICS: PageGlobals['FOOD_BASICS'];
+
+// the food log's shapes this script reads (mirroring lib/nutrition/foodlog.mjs Macros / Product / LogEntry; a
+// basic is a FOOD_BASICS row, lib/nutrition/basics.mjs)
+type Macros = { kcal: number | null; protein: number | null; carbs: number | null; fat: number | null };
+type Product = Macros & { id: number; name: string; brand: string | null; unit: string; per100: Macros };
+type LogEntry = Macros & { id: number; date: string; meal: string; label: string; amount: number; unit: string };
+type DayLog = { date: string; entries: LogEntry[]; totals: unknown };
+type Basic = { k: string; n: string; u: string; m: (number | null)[]; pc?: { m: string; a?: number }; v?: unknown; h?: unknown; d?: number };
+// a rejected request (HC.jsonApi): the server's coarse code, or 'offline' with status 0
+type ApiError = { code?: string; field?: string; status: number } | null | undefined;
+type FieldErr = { id: string; key: string; kind: string };
+type NumFieldOpts = { unit?: string | null; ph?: string; miss?: string };
+type Act = (el: HTMLElement) => void;
+
 (function () {
   var T = typeof I18N_FOOD === 'undefined' || !I18N_FOOD ? null : I18N_FOOD;
   var K = typeof FOOD_CONST === 'undefined' || !FOOD_CONST ? null : FOOD_CONST;
   // the public basics (lib/nutrition/basics.mjs): [{k, n, u, m: [kcal, p, c, f] per 100 of u, pc?, v?, h?}]
-  var BASICS = typeof FOOD_BASICS !== 'undefined' && Array.isArray(FOOD_BASICS) ? FOOD_BASICS : [];
+  var BASICS: Basic[] = typeof FOOD_BASICS !== 'undefined' && Array.isArray(FOOD_BASICS) ? FOOD_BASICS : [];
   var BASIC_RESULTS_MAX = 25; // a short list: typing narrows it
   window.foodTotals = function () { return null; };
   if (!T || !K || typeof fetch !== 'function' || typeof document === 'undefined') return;
@@ -64,13 +87,13 @@
   var MAIN = K.mainSlots || [];
   var ADDON = K.addonGroup;
   // a fresh add sheet's group by the viewer's hour: before 11 breakfast, before 16 lunch, before 20 an add-on, else dinner
-  var MEAL_HOUR_CUTS = [[11, 'breakfast'], [16, 'lunch'], [20, ADDON]];
+  var MEAL_HOUR_CUTS: [number, string][] = [[11, 'breakfast'], [16, 'lunch'], [20, ADDON]];
   // before this hour (lib/nutrition/slots.mjs LATE_NIGHT_HOUR) the evening still belongs to the day
   // before: the navigator opens on it and a fresh sheet guesses dinner (absent = never late night)
   var LATE_NIGHT_HOUR = K.lateNightHour;
   // log = TODAY's log (the one foodTotals / groupTotals read); view = the day Registrar shows (null =
   // follow today, so a midnight roll moves with it), dayLog / dayFail = that past day's log / load error
-  var S = { ok: false, boot: true, products: [], recipes: [], log: null, view: null, autoView: false, dayLog: null, dayFail: null, sheet: null, pform: null, rform: null, confirm: null };
+  var S = { ok: false, boot: true, products: [] as Product[], recipes: [] as unknown[], log: null as DayLog | null, view: null as string | null, autoView: false, dayLog: null as DayLog | null, dayFail: null as { date: string; msg: string } | null, sheet: null as unknown, pform: null as unknown, rform: null as unknown, confirm: null as unknown };
 
   /* ---------- the formula: lib/nutrition/foodlog.mjs's own functions (clientSource -> HC_FOODLOG) ---------- */
   var FL = HC_FOODLOG;
@@ -80,17 +103,17 @@
     basicEntry = FL.basicEntry, basicLabel = FL.basicLabel, basicConvert = FL.basicConvert, basicIngredient = FL.basicIngredient;
 
   /* ---------- small helpers ---------- */
-  function $(id) { return document.getElementById(id); }
-  function kf(n) { // a whole number, grouped: 3.050 (es) / 3,050 (en) — the one formatter (HC.int)
+  function $(id: string) { return document.getElementById(id); }
+  function kf(n: number | null) { // a whole number, grouped: 3.050 (es) / 3,050 (en) — the one formatter (HC.int)
     return HC.int(n);
   }
-  function val(id) {
-    var el = $(id);
+  function val(id: string) {
+    var el = $(id) as HTMLInputElement | null;
     return el && el.value != null ? String(el.value) : '';
   }
   // the words the user may type after a number ("30 g", "30g", "250 ml", "130 kcal"), by unit
-  var UNIT_WORDS = { g: ['g', 'gr', 'grs', 'gramo', 'gramos', 'gram', 'grams'], ml: ['ml'], kcal: ['kcal'], kg: ['kg', 'kilo', 'kilos'] };
-  function unitOfWord(w) {
+  var UNIT_WORDS: Record<string, string[]> = { g: ['g', 'gr', 'grs', 'gramo', 'gramos', 'gram', 'grams'], ml: ['ml'], kcal: ['kcal'], kg: ['kg', 'kilo', 'kilos'] };
+  function unitOfWord(w: string) {
     for (var u in UNIT_WORDS) if (Object.prototype.hasOwnProperty.call(UNIT_WORDS, u) && UNIT_WORDS[u].indexOf(w) >= 0) return u;
     return null;
   }
@@ -98,7 +121,7 @@
    * is fine, and a trailing unit the field takes is dropped (`units`: e.g. ['g']; null = a count, no
    * unit). null = empty or ONLY a unit word ("g": an optional field is then simply not set); NaN =
    * anything else that is not a plain non-negative number, including another unit (never g <-> ml). */
-  function parseNum(v, units) {
+  function parseNum(v: unknown, units?: string[] | null) {
     var s = String(v == null ? '' : v).trim();
     var m = /^(.*?)\s*([A-Za-z]+)\.?$/.exec(s);
     if (m) {
@@ -113,21 +136,21 @@
     return /^(\d+(\.\d*)?|\.\d+)$/.test(s) ? Number(s) : NaN;
   }
   // a parsed value's error kind (T.fieldErrors), or null when it is fine
-  function numKind(v, required, positive) {
+  function numKind(v: number | null, required?: boolean, positive?: boolean) {
     if (v == null) return required ? 'required' : null;
     if (!fin(v)) return 'number';
     if (positive && !(v > 0)) return 'positive';
     return null;
   }
-  function g1(v) { return v == null ? '—' : nf(round1(v)); }
-  function setText(id, s) { var el = $(id); if (el) el.textContent = s; }
-  function setHtml(id, s) { var el = $(id); if (el) el.innerHTML = s; }
-  function focus(id) { var el = $(id); if (el && typeof el.focus === 'function') el.focus(); }
+  function g1(v: number | null) { return v == null ? '—' : nf(round1(v)); }
+  function setText(id: string, s: string) { var el = $(id); if (el) el.textContent = s; }
+  function setHtml(id: string, s: string) { var el = $(id); if (el) el.innerHTML = s; }
+  function focus(id: string) { var el = $(id); if (el && typeof el.focus === 'function') el.focus(); }
 
   /* ---------- inline field errors ---------- */
   // every field renders an empty <small id="<id>-err"> its input is described by; an error fills it
   // and marks the input aria-invalid
-  function fieldErr(id, msg) {
+  function fieldErr(id: string, msg: string) {
     setText(id + '-err', msg);
     var el = $(id);
     if (!el || typeof el.setAttribute !== 'function') return;
@@ -135,7 +158,7 @@
     var d = el.getAttribute('aria-describedby') || '';
     if ((' ' + d + ' ').indexOf(' ' + id + '-err ') < 0) el.setAttribute('aria-describedby', (d ? d + ' ' : '') + id + '-err');
   }
-  function clearErrs(ids) {
+  function clearErrs(ids: string[]) {
     ids.forEach(function (id) {
       setText(id + '-err', '');
       var el = $(id);
@@ -144,55 +167,55 @@
   }
   // errs = [{id, key (T.fields), kind (T.fieldErrors)}]: each under its field, focus on the first;
   // returns the form's status line, which names the first field
-  function showErrs(errs) {
+  function showErrs(errs: FieldErr[]) {
     errs.forEach(function (e) { fieldErr(e.id, T.fieldErrors[e.kind] || T.fieldErrors.invalid); });
     focus(errs[0].id);
     return format(T.errors.invalid, { field: T.fields[errs[0].key] || errs[0].key });
   }
   // a server answer that names a field ({error: 'invalid', field}) also lands under that field
-  function serverFieldErr(err, ids) {
+  function serverFieldErr(err: ApiError, ids: Record<string, string>) {
     var key = err && (err.code === 'invalid' ? err.field : err.code === 'barcode_exists' ? 'barcode' : null);
     var id = key && Object.prototype.hasOwnProperty.call(ids, key) ? ids[key] : null;
     if (!id || !$(id)) return;
-    fieldErr(id, err.code === 'invalid' ? T.fieldErrors.invalid : errText(err));
+    fieldErr(id, err!.code === 'invalid' ? T.fieldErrors.invalid : errText(err));
     focus(id);
   }
-  function byId(list) {
-    var out = {};
+  function byId<X extends { id: number | string }>(list: X[]) {
+    var out: Record<string, X> = {};
     list.forEach(function (x) { out[x.id] = x; });
     return out;
   }
-  function find(list, id) {
+  function find<X extends { id: unknown }>(list: X[], id: unknown) {
     for (var i = 0; i < list.length; i++) if (String(list[i].id) === String(id)) return list[i];
     return null;
   }
-  function pcf(m) {
+  function pcf(m: Macros) {
     var A = T.macroAbbr;
     return A.p + ' ' + g1(m.protein) + ' · ' + A.c + ' ' + g1(m.carbs) + ' · ' + A.f + ' ' + g1(m.fat);
   }
-  function macroLine(m) {
+  function macroLine(m: Macros) {
     return '<b>' + esc(kf(m.kcal)) + '</b> ' + esc(T.kcal) + ' · ' + esc(pcf(m));
   }
-  function amountText(amount, unit) {
+  function amountText(amount: number, unit: string) {
     var u = unit === 'serving' ? (amount === 1 ? T.units.serving : T.units.servings) : T.units[unit] || unit;
     return nf(amount) + ' ' + u;
   }
-  function errText(e) {
+  function errText(e: ApiError) {
     var code = e && e.code;
-    if (code === 'invalid') return format(T.errors.invalid, { field: (e.field && T.fields[e.field]) || e.field || '' });
-    return T.errors[code] || T.errors.generic;
+    if (code === 'invalid') return format(T.errors.invalid, { field: (e!.field && T.fields[e!.field]) || e!.field || '' });
+    return T.errors[code!] || T.errors.generic;
   }
   // the group of a stored slot (or of a group key): a main slot is its own group, anything else add-ons
-  function groupOf(slot) {
+  function groupOf(slot: string) {
     return MAIN.indexOf(slot) >= 0 ? slot : ADDON;
   }
   // a group key, a stored slot (mapped to its group), else null
-  function asGroup(v) {
+  function asGroup(v: string | null | undefined) {
     if (GROUPS.indexOf(v) >= 0) return v;
-    return K.meals.indexOf(v) >= 0 ? groupOf(v) : null;
+    return K.meals.indexOf(v) >= 0 ? groupOf(v!) : null;
   }
   // the slot stored for a group: a main group is its slot, the add-ons group K.addonSlot
-  function slotFor(group) {
+  function slotFor(group: string) {
     return group !== ADDON ? group : K.addonSlot;
   }
   function lateNight() {
@@ -225,7 +248,7 @@
     return h.slice(0, 8) + '-' + h.slice(8, 12) + '-' + h.slice(12, 16) + '-' + h.slice(16, 20) + '-' + h.slice(20);
   }
   // no answer, a timeout or a 5xx: the write may or may not have landed
-  function ambiguous(err) {
+  function ambiguous(err: ApiError) {
     return !err || err.code === 'offline' || !(err.status > 0) || err.status >= 500;
   }
 
@@ -272,7 +295,7 @@
     return S.dayLog && S.dayLog.date === S.view ? S.dayLog : null;
   }
   // the in-memory log of a date, if it is loaded (today's or the viewed day's)
-  function logFor(date) {
+  function logFor(date: string) {
     if (S.log && S.log.date === date) return S.log;
     if (S.dayLog && S.dayLog.date === date) return S.dayLog;
     return null;
@@ -283,17 +306,17 @@
   var norm = HC_GUIDE.foldName;
   // the basics whose name contains the search (accent- and case-insensitive), names that START with it first;
   // a hidden basic (h: the food is logged as one of your own products instead) is never listed, findBasic still knows it
-  function basicMatches(q) {
+  function basicMatches(q: string) {
     var hits = BASICS.filter(function (b) { return !b.h && norm(b.n).indexOf(q) >= 0; });
     var first = hits.filter(function (b) { return norm(b.n).indexOf(q) === 0; });
     return first.concat(hits.filter(function (b) { return norm(b.n).indexOf(q) !== 0; })).slice(0, BASIC_RESULTS_MAX);
   }
   // "88 kcal por 100 g · valor medio" (a unit food: "por ud"; a verified label of the DB: "etiqueta")
-  function basicSub(b) {
+  function basicSub(b: Basic) {
     var per = b.u === 'ud' ? T.sheet.perUnit : format(T.sheet.per100, { unit: T.units[b.u] || b.u });
     return per + ' · ' + (b.v ? T.sheet.basicLabelSrc : T.sheet.basicAvg);
   }
-  function findBasic(key) {
+  function findBasic(key: string) {
     for (var i = 0; i < BASICS.length; i++) if (BASICS[i].k === key) return BASICS[i];
     return null;
   }
@@ -302,7 +325,7 @@
     return { dec: HC.isEs() ? ',' : '.', g: T.units.g, ml: T.units.ml, ud: T.units.ud };
   }
   // a mode's option text: "huevos (~50 g)", "plátanos medianos (~120 g)"; g / ml as their unit word
-  function basicModeText(b, mode) {
+  function basicModeText(b: Basic, mode: string) {
     if (mode !== 'piece') return T.units[mode] || mode;
     var pc = b.pc;
     if (!pc) return T.units.ud;
@@ -311,20 +334,20 @@
     return w ? format(T.sheet.pieceOpt, { name: pc.m, w: nf(w) + ' ' + T.units[unit] }) : pc.m;
   }
   // a mode's amount parser units (a piece is a count) and its prefill: ONE piece, else 100 g / ml
-  function modeUnits(mode) { return mode === 'piece' ? null : [mode]; }
+  function modeUnits(mode: string) { return mode === 'piece' ? null : [mode]; }
   // the amount a basic starts at: 1 piece, else its own default (FOOD_BASICS `d`, e.g. 1 ml of oil) or 100 g / ml
-  function modeDefault(mode, b) {
+  function modeDefault(mode: string, b?: Basic | null) {
     if (mode === 'piece') return '1';
-    return b && b.d > 0 ? HC.numInput(b.d) : '100';
+    return b && b.d! > 0 ? HC.numInput(b.d) : '100';
   }
-  function errSlot(id) { return '<small class="food-err" id="' + id + '-err"></small>'; }
-  function field(id, label, input) {
+  function errSlot(id: string) { return '<small class="food-err" id="' + id + '-err"></small>'; }
+  function field(id: string, label: string, input: string) {
     return '<div class="food-field"><label class="food-lbl" for="' + id + '">' + esc(label) + '</label>' + input + errSlot(id) + '</div>';
   }
   /** a numeric field: label, the input with its unit as a visible suffix (o.unit; '' = an empty suffix a
    * later choice fills, undefined = none), an optional placeholder (o.ph), the "missing in Open Food
    * Facts" hint (o.miss) and the inline error slot; the input is described by all of them */
-  function numField(id, label, value, o) {
+  function numField(id: string, label: string, value: unknown, o?: NumFieldOpts) {
     o = o || {};
     var hasUnit = o.unit != null;
     var desc = (hasUnit ? id + '-unit ' : '') + (o.miss ? id + '-miss ' : '') + id + '-err';
@@ -334,15 +357,15 @@
       (hasUnit ? '<span class="food-suffix" id="' + id + '-unit">' + esc(o.unit) + '</span>' : '') + '</div>' +
       (o.miss ? '<small class="food-miss" id="' + id + '-miss">' + esc(o.miss) + '</small>' : '') + errSlot(id) + '</div>';
   }
-  // the shared click actions (data-food-act): each script registers its own; food-log.js dispatches them
-  var ACTS = {};
-  function addActs(o) {
+  // the shared click actions (data-food-act): each script registers its own; food-log.ts dispatches them
+  var ACTS: Record<string, Act> = {};
+  function addActs(o: Record<string, Act>) {
     for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ACTS[k] = o[k];
   }
 
-  // the internal namespace of food-sheet.ts / food-catalog.ts / food-log.js (absent when this script
+  // the internal namespace of food-sheet.ts / food-catalog.ts / food-log.ts (absent when this script
   // bailed out above, so they bail out too). pendingMeal = the group the next add sheet opens on;
-  // renderLog / loadDay are added by food-log.js (the sheet calls them only after boot)
+  // renderLog / loadDay are added by food-log.ts (the sheet calls them only after boot)
   window.HCFoodInternal = {
     pendingMeal: null,
     T: T, K: K, BASICS: BASICS, LIM: LIM, BARCODE_RE: BARCODE_RE, GROUPS: GROUPS, MAIN: MAIN, ADDON: ADDON,

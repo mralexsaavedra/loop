@@ -18,16 +18,16 @@ const html = fs.existsSync(htmlPath) ? fs.readFileSync(htmlPath, 'utf8') : '';
 const src = (name) => fs.readFileSync(path.join(WEB_ROOT, 'src', 'client', name), 'utf8');
 
 // [client file, the global it reads, the lib functions it must not re-define] (a file may read several;
-// old port names listed too; fuel.mjs `step` is left out: nutri-day.js has its own unrelated render helper step())
+// old port names listed too; fuel.mjs `step` is left out: nutri-day.ts has its own unrelated render helper step())
 const COPIES = [
   ['adherence.ts', 'HC_ADH', ['fin', 'isComplete', 'dayState', 'adherence']],
   ['progress.ts', 'HC_PROG', ['fin', 'round', 'dayNum', 'isoOf', 'rollPoints', 'weeklyRate', 'weightProgress', 'etaMonths']],
-  ['food-core.js', 'HC_FOODLOG', ['fin', 'roundEps', 'round1', 'roundKcal', 'round2', 'roundMacros', 'scaleMacros', 'times', 'productAmount', 'productEntry', 'knownMacros', 'ingredientBasis', 'recipeBasis', 'entryFromBasis', 'recipeEntry', 'dayTotals', 'atwaterOk', 'pieceWeight', 'basicModes', 'basicAmount', 'basicEntry', 'basicLabel', 'basicConvert', 'basicIngredient']],
+  ['food-core.ts', 'HC_FOODLOG', ['fin', 'roundEps', 'round1', 'roundKcal', 'round2', 'roundMacros', 'scaleMacros', 'times', 'productAmount', 'productEntry', 'knownMacros', 'ingredientBasis', 'recipeBasis', 'entryFromBasis', 'recipeEntry', 'dayTotals', 'atwaterOk', 'pieceWeight', 'basicModes', 'basicAmount', 'basicEntry', 'basicLabel', 'basicConvert', 'basicIngredient']],
   ['nutri-score.ts', 'HC_NSCORE', ['fin', 'clamp100', 'ratio', 'pts1', 'kcalPoints', 'proteinPoints', 'fatPoints', 'scoreBand', 'hasMeals', 'nutritionScore', 'scoreSeries']],
-  ['nutri-day.js', 'HC_DAYTYPE', ['rideType', 'lengthType', 'itemType', 'dayTypeOfWorkouts', 'ofWorkouts', 'dayTypeOfProgram', 'ofProgram', 'detectDayType', 'hasValue', 'dayInputFor']],
-  ['nutri-day.js', 'HC_FUEL', ['isBikeDay', 'fuelStep', 'range', 'pickItem', 'pickFuelItem', 'ownDuring', 'ownBefore', 'fuelPlan']],
-  ['nutri-day.js', 'HC_SCALE', ['round2', 'stepAmount', 'lineUnit', 'lineAmt', 'lineStep', 'lineKey', 'lineCap', 'capFactor', 'floorToStep', 'capAmount', 'pieceOf', 'isDiscrete', 'fmtHalf', 'fmtPieces', 'fmtAmt', 'bound', 'waterFill', 'scaleFill', 'fmtFactor', 'solveScale', 'planFor']],
-  ['nutri-day.js', 'HC_GUIDE', ['zero', 'zero4', 'fin', 'finite', 'foldName', 'fold', 'cmp', 'guideBudgets', 'exampleAmount', 'remaining', 'mealState', 'isCovered', 'dayRemaining', 'capByDay', 'roleOptions']],
+  ['nutri-day.ts', 'HC_DAYTYPE', ['rideType', 'lengthType', 'itemType', 'dayTypeOfWorkouts', 'ofWorkouts', 'dayTypeOfProgram', 'ofProgram', 'detectDayType', 'hasValue', 'dayInputFor']],
+  ['nutri-day.ts', 'HC_FUEL', ['isBikeDay', 'fuelStep', 'range', 'pickItem', 'pickFuelItem', 'ownDuring', 'ownBefore', 'fuelPlan']],
+  ['nutri-day.ts', 'HC_SCALE', ['round2', 'stepAmount', 'lineUnit', 'lineAmt', 'lineStep', 'lineKey', 'lineCap', 'capFactor', 'floorToStep', 'capAmount', 'pieceOf', 'isDiscrete', 'fmtHalf', 'fmtPieces', 'fmtAmt', 'bound', 'waterFill', 'scaleFill', 'fmtFactor', 'solveScale', 'planFor']],
+  ['nutri-day.ts', 'HC_GUIDE', ['zero', 'zero4', 'fin', 'finite', 'foldName', 'fold', 'cmp', 'guideBudgets', 'exampleAmount', 'remaining', 'mealState', 'isCovered', 'dayRemaining', 'capByDay', 'roleOptions']],
 ];
 
 for (const [file, global, fns] of COPIES) {

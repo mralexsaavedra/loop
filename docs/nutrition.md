@@ -185,7 +185,7 @@ refs, no `<script type="module">`, every script `is:inline`), so a static copy w
   `health.css`).
 - **`dia` section** (key kept for `page.hideTabs`): Today's summary, Log food, Today's plan, Ride fuelling;
   then Balance, Score, Progress, Consistency (`docs/nutrition-food-log.md`).
-- **One bake** — nutri-day.js (`web/src/client/nutri-day.js`) renders the blocks from `NUTRI`
+- **One bake** — nutri-day.ts (`web/src/client/nutri-day.ts`) renders the blocks from `NUTRI`
   (`lib/nutrition/today.mjs` `buildNutriToday`, in `Dia.astro`) + `I18N_NUTRI`
   (`web/src/i18n/nutri-templates.mjs`, es/en). `NUTRI` = `{…, base: {<day>: {sl, fixed, flex}}, guide:
   {roles, defaults, oil, fallback, extras, done, covered}}`, ~3.6 KB on the example (budget 8 KB,
@@ -210,7 +210,7 @@ type in [Today's summary](#todays-summary).
 ## Day-type detection
 
 `lib/nutrition/daytype.mjs` is the ONE implementation; `lib/nutrition/client.mjs` emits it as `HC_DAYTYPE`
-(its `CLIENT` descriptor) for nutri-day.js — no copy. `DAYTYPE_CASES` / `DAYINPUT_CASES` test it in the
+(its `CLIENT` descriptor) for nutri-day.ts — no copy. `DAYTYPE_CASES` / `DAYINPUT_CASES` test it in the
 lib, the page and the built page.
 
 | Input | Rule (`DETECT`) |
@@ -282,7 +282,7 @@ strawberries 250, blueberries 150 g).
   recomputed from the ROUNDED amounts.
 - Model line `[…, step, ingredient key]` (`amounts.mjs` `modelLine` / `stepAmount`); its layout is named
   ONCE as `LINE` with accessors `lineUnit` / `lineAmt` / `lineMac` / `lineStep` / `lineKey` /
-  `pieceOf(pieces, l)` / `scaleLine`, mirrored in nutri-day.js — never read by a bare index.
+  `pieceOf(pieces, l)` / `scaleLine`, mirrored in nutri-day.ts — never read by a bare index.
 - `rem` = target − ride fuel − meals (kcal): listed per (goal, day type) in plan-tables.md, handed to
   Extras by the guide (the example plan's capped plates miss most goal × day types, so its Extras are
   large).
@@ -322,7 +322,7 @@ strawberries 250, blueberries 150 g).
 - Ring and rows fill ONLY from intake logged on the viewer's today (`INTAKE.latest` dated today; the page
   food log `window.foodTotals` wins when it has entries; a macro some entries lack is a minimum "≥"), and
   follow the [boot wait](#boot-wait).
-- ⓘ `#nutri-sum-info` (written by nutri-day.js each render): where intake comes from, "a half-logged day
+- ⓘ `#nutri-sum-info` (written by nutri-day.ts each render): where intake comes from, "a half-logged day
   looks short", "carbs are the rest of the kcal".
 - **Goal chip** — muted ≥ 44 px button under the ring (`#nutri-goal-chip`) opening the profile sheet on its
   goal (`HCDetail.open('profile', null, { focus: '#pf-goal input:checked' })`).
@@ -365,14 +365,14 @@ draws four rings (kcal, protein, carbs, fat).
 - Today's summary ring + rows share the wait (`window.intakeWaiting()`, owned by intake.ts, one grace
   timer): empty track + "— / target" while waiting; answered → food log only; failure / grace over → Apple
   Health day.
-- nutri-day.js is inlined before the food scripts and intake.ts after them, so intake.ts re-renders Today's
+- nutri-day.ts is inlined before the food scripts and intake.ts after them, so intake.ts re-renders Today's
   summary (`HCNutri.refresh`) at load and when the grace ends; consecutive inline scripts run before first
   paint, so the Apple Health day never flashes.
 
 ## Portion guide (Today's plan)
 
 An orientative "how much can I eat", not a menu. `lib/nutrition/guide.mjs` is the ONE implementation, run
-by nutri-day.js as `HC_GUIDE` (emitted by `lib/nutrition/client.mjs`; `GUIDE_CASES` / `DAYCAP_CASES` test
+by nutri-day.ts as `HC_GUIDE` (emitted by `lib/nutrition/client.mjs`; `GUIDE_CASES` / `DAYCAP_CASES` test
 it in the lib, the page and the built page). Always four groups — Breakfast, Lunch, Dinner + Extras
 (`Desayuno`, `Comida`, `Cena`) — whatever the day type; goal and day type change only amounts.
 
@@ -468,7 +468,7 @@ workout, cena / dinner, merienda / snack / anclaje).
 
 ## Ride fuelling
 
-Bike day types only. `lib/nutrition/fuel.mjs` is the ONE implementation, run by nutri-day.js as `HC_FUEL`
+Bike day types only. `lib/nutrition/fuel.mjs` is the ONE implementation, run by nutri-day.ts as `HC_FUEL`
 (emitted by `lib/nutrition/client.mjs`), pinned by `FUEL_CASES`. Orientative, not medical advice.
 
 | Step | Guidance |

@@ -1,5 +1,5 @@
 /* Top bar "‹ TODAY ›" pill + Inicio's day stepping (window.HCDay). Module script (bundled into the page, docs/plan-page.md →
- * Module scripts), run right after core.ts, so every Inicio renderer (score.ts, monitor.ts, timeline.ts, nutri-day.js,
+ * Module scripts), run right after core.ts, so every Inicio renderer (score.ts, monitor.ts, timeline.ts, nutri-day.ts,
  * home-week.ts) can read the selected day at its first render and subscribe to changes.
  *
  * The date line: the viewer's local today ("mar 30 sept" / "Tue 30 Sep") written with the one date

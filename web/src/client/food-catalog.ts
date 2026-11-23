@@ -1,7 +1,7 @@
 /* Nutrición food log — Mis productos (list by store, Open Food Facts lookup, the product form, archive)
  * and Mis recetas (list, the editor with its ingredient search over products + basics, the live preview).
  * Module script (bundled into the page, docs/plan-page.md → Module scripts), after food-sheet.ts and before
- * food-log.js, which renders both at boot. See food-core.js for the whole food log. */
+ * food-log.ts, which renders both at boot. See food-core.ts for the whole food log. */
 import type { PageGlobals } from './page-globals';
 
 // the page globals this script reads by bare name (manifest.mjs); window.HCFoodInternal is typed by the Window interface

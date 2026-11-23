@@ -437,7 +437,7 @@ test('select: an owner 44px min-height beats .sel by specificity (no load-order 
 });
 
 // Nutrición's example-food row: the select asks for its chosen name's width (--pick, set by
-// nutri-day.js) but never more than the row, and its chevron adds no width (12px box, margins summing to
+// nutri-day.ts) but never more than the row, and its chevron adds no width (12px box, margins summing to
 // minus the row gap), so a long amount wraps under the select and a lone select never passes the card
 test('food example row: the select is sized by --pick, capped at the row; the chevron adds no width', () => {
   const one = (sel) => RULES.find((r) => r.file === 'nutri.css' && !r.media && r.selector === sel)?.decl;
