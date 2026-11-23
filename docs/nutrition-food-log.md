@@ -176,7 +176,7 @@ calling the service directly is trusted (the LAN-only model).
 ### Scripts and bake
 
 - `web/src/client/food-*.js`, four classic scripts inlined in this order after nutri-day.js, before
-  intake.js: `food-core.js` (the formula from `HC_FOODLOG`, `parseNum`, the API client, the shared state
+  intake.ts: `food-core.js` (the formula from `HC_FOODLOG`, `parseNum`, the API client, the shared state
   `S` + helpers, handed to the others as `window.HCFoodInternal`), `food-sheet.ts` (the add sheet),
   `food-catalog.ts` (My products / My recipes), `food-log.js` (Log food + navigator, the event listeners,
   the boot, the public `window.HCFood` / `window.foodTotals`). Tests load them with
@@ -341,7 +341,7 @@ The search box also looks in `FOOD_BASICS` (it shows even with no product yet).
 ## Wiring
 
 - `window.foodTotals()` = `{date, k, p, c, g, n, missing, src: 'log'}` when the API answered and TODAY (the
-  viewer's local date) has ≥ 1 entry, else null — the one contract; nutri-day.js and intake.js do not
+  viewer's local date) has ≥ 1 entry, else null — the one contract; nutri-day.js and intake.ts do not
   re-check the date. TODAY-only whatever day the navigator shows.
 - A macro NO entry states is `null` (a dash, never "0 / 150 g" or 0 %); `missing[m]` = at least one entry
   lacks it, so a non-null value is a minimum and the bar / ring shows "≥ 40" (the rings add a one-line
@@ -359,8 +359,8 @@ The search box also looks in `FOOD_BASICS` (it shows even with no product yet).
 - After every add / delete the food scripts call `HCNutri.refresh()` (re-renders Today's summary, which
   refreshes the rings, and the portion guide, in its own try/catch).
 - **Boot**: `HCFood.pending()` = `GET /products` has not answered yet (true from load, set synchronously,
-  so intake.js sees it on its first render). The dial, bars and rings wait on it through ONE shared wait
-  (`window.intakeWaiting()`, intake.js, grace `INTAKE.bootGraceMs`). An answer calls
+  so intake.ts sees it on its first render). The dial, bars and rings wait on it through ONE shared wait
+  (`window.intakeWaiting()`, intake.ts, grace `INTAKE.bootGraceMs`). An answer calls
   `window.intakeRefresh()` (today's log then refreshes Today's summary); a failure calls
   `HCNutri.refresh()` (dial, bars and rings fall back to the Apple Health day). See "Intake rings" in
   `docs/nutrition.md`.
@@ -404,7 +404,7 @@ placeholder filled from them, never typed.
   (partial `{goal?, targetWeightKg?, locale?}`, `null` clears the target or the language; `locale` must be
   `es` or `en`, else `400 {error: 'invalid', field: 'locale'}`) sit under the food prefix, so loop-web's
   `/api/food/` proxy and every food layer apply (no nginx change).
-- **Page** — `client/settings.js` (`HCSettings`, reuses `HCFood.api`).
+- **Page** — `client/settings.ts` (`HCSettings`, reuses `HCFood.api`).
   - Without an answer: goal in `hc.nutri.goal`, no target field.
   - With one, the server goal wins (`HCNutri.applyGoal`, cached locally, never sent back) EXCEPT a PENDING
     goal (`HCNutri.setGoal` writes `hc.nutri.goalPending` until a PUT succeeds; retried on the next load
@@ -425,7 +425,7 @@ placeholder filled from them, never typed.
 
 Baked data, every build. `lib/nutrition/progress.mjs` is the ONE implementation (rules and bands in its
 header): `lib/nutrition/client.mjs` emits it (its `CLIENT` descriptor) as `HC_PROG` (inlined before
-util.js), which `client/progress.js` runs (no copy; `PROGRESS_CASES` test HC_PROG against the module, plus
+util.js), which `client/progress.ts` runs (no copy; `PROGRESS_CASES` test HC_PROG against the module, plus
 hand-computed tests).
 
 - **Rate** = least-squares slope of `DETAIL.metrics.weight.roll` over `windowDays`; too few averages →
@@ -438,7 +438,7 @@ hand-computed tests).
   weekly rate as a pill (`.pg-pill`, `--up` on pace / steady / reached, `--down` otherwise), the status word
   with its dot (the word in white caps, the dot in the status colour — a caps label is never coloured,
   docs/design-system.md), target / kg to go, the ETA.
-- ⓘ `#nutri-progress-info` (written by progress.js): the status why, the rate window and "the series mixes
+- ⓘ `#nutri-progress-info` (written by progress.ts): the status why, the rate window and "the series mixes
   scales"; the ⓘ hides when there is nothing behind it, and a re-render (a settings change) keeps the block
   open or closed as the viewer left it.
 - The card opens the weight sheet, which draws the target dashed (`detail-state.js` `targetOf`). Its accessible
@@ -451,7 +451,7 @@ LAN page only. `GET /food/log/summary?from&to` (≤ `summaryDaysMax` days, ≤ 2
 client) → per-day `daySummaries` (shared formula, generated into food-calc.js, pinned by `SUMMARY_CASES`).
 `lib/nutrition/adherence.mjs` is the ONE implementation: `lib/nutrition/client.mjs` emits (its `CLIENT`
 descriptor) `isComplete` / `dayState` / `adherence` as `HC_ADH` (inlined before util.js), which
-`client/adherence.js` runs (no copy; `ADHERENCE_CASES` test HC_ADH against the module).
+`client/adherence.ts` runs (no copy; `ADHERENCE_CASES` test HC_ADH against the module).
 
 - **Complete day** = ≥ 1 entry in breakfast, lunch and dinner. Means and protein days only over complete
   days with a DETECTED day type (`HCNutri.targetFor` = current goal × that day's type; past days via
@@ -470,7 +470,7 @@ descriptor) `isComplete` / `dayState` / `adherence` as `HC_ADH` (inlined before 
 
 Every page. A day's 0–100 adherence to the viewer's own targets, from the food log. `lib/nutrition/nutri-score.mjs`
 is the ONE implementation (`NSCORE`, baked as `NUTRI.score`): `lib/nutrition/client.mjs` emits the scoring
-functions (its `CLIENT` descriptor) as `HC_NSCORE` (inlined before util.js), which `client/nutri-score.js`
+functions (its `CLIENT` descriptor) as `HC_NSCORE` (inlined before util.js), which `client/nutri-score.ts`
 runs (no copy). The client test and `web/test/client-globals-build.test.mjs` (the built page) run it over
 `NSCORE_CASES` (band and zero edges, missing and blank macros, today partial, no target / no entries) and
 over a whole `scoreSeries`.

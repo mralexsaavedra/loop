@@ -130,7 +130,7 @@ export const es = {
     fullPlan: 'Ver plan completo',
     dayGoal: '{day} · {goal}',
   },
-  // Progreso (client/progress.js): every number comes from the baked NUTRI.progress ({win}, {min}, {max}, {pct}, …)
+  // Progreso (client/progress.ts): every number comes from the baked NUTRI.progress ({win}, {min}, {max}, {pct}, …)
   progress: {
     open: 'Ver el historial de peso',
     avg: 'media de 7 días',
@@ -169,8 +169,8 @@ export const es = {
     line: '{avg} kg de media · {rate} · {status}',
     lineFew: '{avg} kg de media · {status}',
   },
-  // Constancia (client/adherence.js): {n}, {pct}, {band} come from the baked NUTRI.adherence
-  // the nutrition score block (client/nutri-score.js, lib/nutrition/nutri-score.mjs): averages + the ⓘ notes
+  // Constancia (client/adherence.ts): {n}, {pct}, {band} come from the baked NUTRI.adherence
+  // the nutrition score block (client/nutri-score.ts, lib/nutrition/nutri-score.mjs): averages + the ⓘ notes
   score: {
     avgs: 'Media 7 días {a7} · 30 días {a30}',
     lineLbl: 'Puntuación de cada día, últimos {n} días (0–100)',
@@ -338,7 +338,7 @@ export const en = {
     fullPlan: 'See the full plan',
     dayGoal: '{day} · {goal}',
   },
-  // Progress (client/progress.js): every number comes from the baked NUTRI.progress ({win}, {min}, {max}, {pct}, …)
+  // Progress (client/progress.ts): every number comes from the baked NUTRI.progress ({win}, {min}, {max}, {pct}, …)
   progress: {
     // read after the card's own lines (screen readers only: the card is named by its content)
     open: 'See the weight history',
@@ -378,8 +378,8 @@ export const en = {
     line: '{avg} kg average · {rate} · {status}',
     lineFew: '{avg} kg average · {status}',
   },
-  // Consistency (client/adherence.js): {n}, {pct}, {band} come from the baked NUTRI.adherence
-  // the nutrition score block (client/nutri-score.js, lib/nutrition/nutri-score.mjs): averages + the ⓘ notes
+  // Consistency (client/adherence.ts): {n}, {pct}, {band} come from the baked NUTRI.adherence
+  // the nutrition score block (client/nutri-score.ts, lib/nutrition/nutri-score.mjs): averages + the ⓘ notes
   score: {
     avgs: '7-day average {a7} · 30-day {a30}',
     lineLbl: 'Each day\'s score, last {n} days (0–100)',

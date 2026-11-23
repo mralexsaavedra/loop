@@ -27,11 +27,11 @@
  *   5. Balance         — intake vs expenditure (avg intake, avg burn, deficit / surplus a day) + the
  *                        average macro split over ONE baked window (client/health.ts renderBalance,
  *                        HEALTH.energy);
- *   6. Progreso        — weight vs the goal (client/progress.js, from the baked DETAIL weight series;
+ *   6. Progreso        — weight vs the goal (client/progress.ts, from the baked DETAIL weight series;
  *                        the target weight on the LAN page), a tap opens the weight detail sheet;
- *   7. Constancia      — food log adherence over 7 / 14 / 28 days + a 28-day strip (client/adherence.js,
+ *   7. Constancia      — food log adherence over 7 / 14 / 28 days + a 28-day strip (client/adherence.ts,
  *                        LAN page only: ships hidden until GET /api/food/log/summary answers).
- *   (between 5 and 6) Puntuación — the nutrition score card + 7 / 30-day averages (client/nutri-score.js;
+ *   (between 5 and 6) Puntuación — the nutrition score card + 7 / 30-day averages (client/nutri-score.ts;
  *                        hidden without a food log), a tap opens its trend sheet.
  * 5–7 follow the day's blocks on purpose: today's actions first, the multi-week look back after.
  * The day-type control is server-rendered (real labelled radios); the numbers
@@ -56,7 +56,7 @@ interface Props {
   locale: string;
   hidden: boolean; // page.hideTabs includes "dia"
   page?: { notes?: Record<string, string> };
-  intakeHost?: boolean; // false = no intake ever logged: no rings host (intake.js also renders nothing for stale intake)
+  intakeHost?: boolean; // false = no intake ever logged: no rings host (intake.ts also renders nothing for stale intake)
   supplements?: any[]; // profile.json supplements (lib/profile/profile.mjs)
   weight?: { kg: number; date: string } | null; // the latest weigh-in, for the g/kg fuelling amounts
   sports?: any[]; // the in-page onboarding's sports (lib/profile/onboarding.mjs), absent without one
@@ -96,7 +96,7 @@ const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForSc
       </fieldset>
       <div id="nutri-target"></div>
     </div>
-    {/* intake rings: client-rendered by client/intake.js from INTAKE (baked by the shared Bake, pages/index.astro) */}
+    {/* intake rings: client-rendered by client/intake.ts from INTAKE (baked by the shared Bake, pages/index.astro) */}
     {intakeHost && <div id="intake"></div>}
   </div>
 
@@ -133,7 +133,7 @@ const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForSc
       expenditure + the macro split over the baked window; hidden when there is no expenditure data */}
   <div class="nutri-block" id="nutri-balance" hidden></div>
 
-  {/* the nutrition score (client/nutri-score.js, lib/nutrition/nutri-score.mjs): the day's adherence to its
+  {/* the nutrition score (client/nutri-score.ts, lib/nutrition/nutri-score.mjs): the day's adherence to its
       targets + the 7 / 30-day averages and a 30-day line, a tap opens its trend sheet; hidden without
       any food log day (baked INTAKE.log or the LAN summary). The formula sits behind its ⓘ */}
   <div class="nutri-block" id="nutri-score-block" hidden>
@@ -145,7 +145,7 @@ const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForSc
     <div id="nutri-score"></div>
   </div>
 
-  {/* Progreso (client/progress.js): weight vs the goal from the baked DETAIL weight series; always
+  {/* Progreso (client/progress.ts): weight vs the goal from the baked DETAIL weight series; always
       rendered (an empty state without weigh-ins). After the day's blocks: today's actions come first,
       the multi-week look back follows */}
   <div class="nutri-block" id="nutri-progress-block">
@@ -153,16 +153,16 @@ const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForSc
       <h2 class="hs-lbl">{T.headings.progress}</h2>
       <button type="button" class="hs-i" id="nutri-progress-i" data-hs-info="nutri-progress-info" aria-expanded="false" aria-controls="nutri-progress-info" aria-label={T.infoTpl.replace('{section}', T.headings.progress)}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg></button>
     </div>
-    {/* the status why, the rate window and the method: written by client/progress.js */}
+    {/* the status why, the rate window and the method: written by client/progress.ts */}
     <div class="hs-info" id="nutri-progress-info" hidden></div>
     <div id="nutri-progress"></div>
   </div>
 
-  {/* Constancia (client/adherence.js): the food log's adherence, hidden until the LAN summary answers */}
+  {/* Constancia (client/adherence.ts): the food log's adherence, hidden until the LAN summary answers */}
   <div class="nutri-block" id="food-adherence-block" hidden>
     <div class="hs-head">
       <h2 class="hs-lbl">{T.headings.adherence}</h2>
-      {/* the notes block (#adh-info) leads #food-adherence, written by client/adherence.js */}
+      {/* the notes block (#adh-info) leads #food-adherence, written by client/adherence.ts */}
       <button type="button" class="hs-i" data-hs-info="adh-info" aria-expanded="false" aria-controls="adh-info" aria-label={T.infoTpl.replace('{section}', T.headings.adherence)}><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg></button>
     </div>
     <fieldset class="seg adh-seg" id="adh-window">

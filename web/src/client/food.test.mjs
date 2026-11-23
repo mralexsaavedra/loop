@@ -112,7 +112,7 @@ test('HCFood.pending(): true while the boot request is in flight, false once it 
   let release;
   const gate = new Promise((r) => { release = r; });
   const t = setup({ routes: { ...BOOT, 'GET /api/food/products': () => gate.then(() => BOOT['GET /api/food/products']) } });
-  assert.equal(t.F.pending(), true, 'set synchronously at load, before intake.js renders');
+  assert.equal(t.F.pending(), true, 'set synchronously at load, before intake.ts renders');
   assert.equal(t.F.ready(), false);
   release();
   await flush();
@@ -1569,8 +1569,8 @@ test('a failed past-day load offers Reintentar (re-reads that day); a stale fail
   assert.match(e.els['food-log'].innerHTML, />Retry<\/button>/);
 });
 
-/* ---------- hooks for settings.js / adherence.js (the one API client, a day to show, log changes) ---------- */
-test('HCFood.api is the one food API client (header, JSON, coarse codes) for settings.js and adherence.js; ready() follows the probe', async () => {
+/* ---------- hooks for settings.ts / adherence.ts (the one API client, a day to show, log changes) ---------- */
+test('HCFood.api is the one food API client (header, JSON, coarse codes) for settings.ts and adherence.ts; ready() follows the probe', async () => {
   const off = setup();
   await flush();
   assert.equal(off.F.ready(), false);

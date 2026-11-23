@@ -648,7 +648,7 @@ test('food log macros: none stated -> a dash, never "0 / 125 g"; some entries la
   assert.equal(some[0].val, '<b>≥ 40</b><small> / 125 g</small>');
   assert.equal(some[1].val, '<b>30</b><small> / 304 g</small>', 'a complete macro has no marker');
 });
-/* The food API boot (client/food-*.js) decides the dial's source like the rings' (client/intake.js):
+/* The food API boot (client/food-*.js) decides the dial's source like the rings' (client/intake.ts):
  * while window.intakeWaiting() is true (boot in flight, grace not over) no Apple Health day; once the
  * API answered (HCFood.ready()) the food log only; failure / grace over -> the Apple Health day. */
 test('food API boot: the dial + bars wait for it, then use the food log only (LAN) or the Apple Health day (failure, grace over)', () => {

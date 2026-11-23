@@ -1,18 +1,16 @@
-/* web/src/client/intake.js — Nutrición intake rings. Runs the real classic script in node:vm
+/* web/src/client/intake.ts — Nutrición intake rings. Runs the real classic script in node:vm
  * against web/test/dom-stub.mjs with a fixed clock. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { en as enIntake, es as esIntake } from '../i18n/intake-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { INTAKE_FRESH_DAYS, INTAKE_BOOT_GRACE_MS } from '../../../lib/nutrition/intake.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'intake.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('intake.ts');
 
 const TARGET = { train: { k: 2400, p: 170, c: 260, g: 70 }, rest: { k: 2000, p: 160, c: 180, g: 70 } };
 

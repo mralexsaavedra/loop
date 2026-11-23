@@ -599,7 +599,7 @@ details.sec-fold.nutri-fold {
   }
 }
 
-/* ---------- Progreso (client/progress.js): weight vs the goal; the card opens the weight sheet ---------- */
+/* ---------- Progreso (client/progress.ts): weight vs the goal; the card opens the weight sheet ---------- */
 .pg-head {
   display: flex;
   flex-wrap: wrap;
@@ -702,7 +702,7 @@ details.sec-fold.nutri-fold {
   color: var(--muted);
 }
 
-/* ---------- Constancia (client/adherence.js): the food log's adherence + a 28-day strip ---------- */
+/* ---------- Constancia (client/adherence.ts): the food log's adherence + a 28-day strip ---------- */
 /* number tiles, Entreno's Activity stat tiles: --surface-2 inside the flat card */
 .adh-stats {
   display: grid;

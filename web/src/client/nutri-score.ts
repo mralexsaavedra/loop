@@ -1,7 +1,7 @@
 /* Nutrition score — a day's 0-100 adherence to the viewer's own targets. The math is
  * lib/nutrition/nutri-score.mjs itself: its clientSource() emits HC_NSCORE (inlined with HC_FMT before
- * util.js), so nothing here re-implements it; NSCORE_CASES test it. Classic script (is:inline), after
- * nutri-day.js, adherence.js and today-date.js.
+ * util.js), so nothing here re-implements it; NSCORE_CASES test it. Module script (bundled into the page, docs/plan-page.md → Module scripts), after
+ * nutri-day.js, adherence.ts and today-date.js.
  *
  * Inputs: the baked food log (INTAKE.log.days: the synced foodlog-daily.csv, the example's demo data)
  * with, on the LAN page, each day of Constancia's live summary (HCAdherence.state().days) in its place;
@@ -14,8 +14,27 @@
  * averages and a 30-day line; the formula behind its ⓘ, #nutri-score-info). Both open the detail sheet
  * on key 'nutrition' (detail.ts reads HCNutriScore.metric(): kind 'nscore', one value per day of the
  * last NSCORE.days ending today, `days` = the per-day results for the day panel). Days without a log
- * have no score (never 0). adherence.js calls HCNutriScore.refresh() after every summary read, and a
+ * have no score (never 0). adherence.ts calls HCNutriScore.refresh() after every summary read, and a
  * goal change re-renders through it. Each host has its own try/catch: a failure empties it. */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads (baked by the build or provided by an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+declare const HC_NSCORE: PageGlobals['HC_NSCORE'];
+declare const I18N_NUTRI: PageGlobals['I18N_NUTRI'];
+declare const I18N_SCORE: PageGlobals['I18N_SCORE'];
+declare const INTAKE: PageGlobals['INTAKE'];
+declare const NUTRI: PageGlobals['NUTRI'];
+
+/** One component of a day's score (lib/nutrition/nutri-score.mjs): eaten v, target t, its points. */
+type Part = { v: number; t: number; pts: number; min?: boolean };
+/** A day's result (lib/nutrition/nutri-score.mjs nutritionScore). */
+type DayScore = { score: number; partial?: boolean; inc?: boolean; parts: { k: Part | null; p: Part | null; f: Part | null } };
+/** scoreSeries()'s result plus what series() adds to it. */
+type Series = { days: Record<string, DayScore>; avg: number | null; n: number; dates: string[]; any: boolean; today: string };
+/** What a card shows (view()), extra = its footer line. */
+type View = { head: { date: string; r: DayScore } | null; run: DayScore | null; sel: string | null; extra?: string };
+
 (function () {
   var N = typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI;
   var C = N && N.score ? N.score : null;
@@ -33,21 +52,21 @@
   // the baked days, each replaced by the LAN summary's day when Constancia has read one
   function logDays() {
     var L = typeof INTAKE !== 'undefined' && INTAKE && INTAKE.log && Array.isArray(INTAKE.log.days) ? INTAKE.log.days : [];
-    var by = {};
-    L.forEach(function (d) { if (d && isoDate(d.date)) by[d.date] = d; });
+    var by: Record<string, any> = {};
+    L.forEach(function (d: any) { if (d && isoDate(d.date)) by[d.date] = d; });
     var A = window.HCAdherence, st;
     try { st = A && typeof A.state === 'function' ? A.state() : null; } catch (e) { st = null; }
     if (st && Array.isArray(st.days)) {
-      st.days.forEach(function (d) {
+      st.days.forEach(function (d: any) {
         if (!d || !isoDate(d.date)) return;
         by[d.date] = { date: d.date, k: d.k, p: d.p, f: d.f, n: d.n, missing: d.missing || {}, groups: d.groups || {} };
       });
     }
     return Object.keys(by).map(function (k) { return by[k]; });
   }
-  function targetsFor(dates) {
-    var n = window.HCNutri, out = {};
-    dates.forEach(function (d) {
+  function targetsFor(dates: string[]) {
+    var n = window.HCNutri, out: Record<string, any> = {};
+    dates.forEach(function (d: string) {
       var t;
       try { t = n && typeof n.targetFor === 'function' ? n.targetFor(d) : null; } catch (e) { t = null; }
       out[d] = t && fin(t.k) ? { k: t.k, p: fin(t.p) ? t.p : null, g: fin(t.g) ? t.g : null, inferred: !!t.inferred } : null;
@@ -56,14 +75,14 @@
   }
   // the last NSCORE.days days ending at the viewer's today, oldest first
   function windowDates() {
-    var today = HC.todayIso(), out = [];
+    var today = HC.todayIso(), out: string[] = [];
     for (var i = C.days - 1; i >= 0; i--) out.push(HC.shiftIso(today, -i));
     return out;
   }
   // computed once per viewer day: a page left open past midnight recomputes (yesterday stops being
   // "so far"); refresh() drops it after new data
-  var cache = null;
-  function series() {
+  var cache = null as Series | null;
+  function series(): Series {
     var today = HC.todayIso();
     if (cache && cache.today === today) return cache;
     var dates = windowDates(), days = logDays();
@@ -75,9 +94,9 @@
     return s;
   }
   // the mean of the FINAL scores among the last n dates (the 30-day figure; avg = the 7-day one)
-  function meanFinal(s, n) {
+  function meanFinal(s: Series, n: number) {
     var sum = 0, k = 0;
-    s.dates.slice(-n).forEach(function (d) {
+    s.dates.slice(-n).forEach(function (d: string) {
       var r = s.days[d];
       if (r && !r.partial) { sum += r.score; k++; }
     });
@@ -85,8 +104,8 @@
   }
   /** The detail sheet's series (detail.ts metric('nutrition')): null without any scored day. */
   function metric() {
-    var s = series(), v = [], any = false;
-    s.dates.forEach(function (d) {
+    var s = series(), v: (number | null)[] = [], any = false;
+    s.dates.forEach(function (d: string) {
       var r = s.days[d];
       // today is still filling up: no score on the chart (its day panel shows the progress instead)
       v.push(r && !r.partial ? r.score : null);
@@ -99,13 +118,13 @@
   // Today is a partial day: it gets NO score (a mid-day "0%" in red read as a failed day) — only its
   // progress, eaten / target per component, labelled "in progress". The headline score is the newest
   // CLOSED day; a component's points are shown only for a closed day, labelled "· 85 pts".
-  var BAND_CLS = { good: 'de-hi', mid: 'de-mid', low: 'de-lo' };
-  function kf(v) {
+  var BAND_CLS: Record<string, string> = { good: 'de-hi', mid: 'de-mid', low: 'de-lo' };
+  function kf(v: number) {
     return HC.num(v, 0);
   }
   // pts = true: a closed day (its points in the label, the bar = the points in their band colour);
   // false: today in progress (eaten / target only, the bar = progress toward the target, neutral)
-  function partRow(c, x, pts) {
+  function partRow(c: string, x: Part | null, pts: boolean) {
     var L = TS.parts[c], unit = c === 'k' ? ' kcal' : ' g';
     if (!x) {
       return '<li class="nt-mac"><span class="nt-mac-lbl">' + esc(L) + '</span><span class="nt-mac-val"><small>' + esc(TS.unknown) + '</small></span>' +
@@ -117,26 +136,27 @@
       '<span class="nt-mac-val"><b>' + (x.min ? '≥ ' : '') + esc(kf(x.v)) + '</b><small> / ' + esc(kf(x.t)) + unit + '</small></span>' +
       '<span class="nt-mac-track">' + (w > 0 ? '<i style="width:' + w + '%"></i>' : '') + '</span></li>';
   }
-  function partRows(r, pts) {
+  function partRows(r: DayScore, pts: boolean) {
     return '<ul class="nt-macros">' + partRow('k', r.parts.k, pts) + partRow('p', r.parts.p, pts) + partRow('f', r.parts.f, pts) + '</ul>';
   }
-  function dayWord(date) {
+  function dayWord(date: string) {
     return date === HC.shiftIso(HC.todayIso(), -1) ? TS.yesterday : HC.fmtDate(date);
   }
   // today's kcal eaten as a % of its target (the in-progress headline), null without a kcal log
-  function runPct(run) {
+  function runPct(run: DayScore | null) {
     var k = run && run.parts ? run.parts.k : null;
     return k && fin(k.v) && fin(k.t) && k.t > 0 ? Math.round((100 * k.v) / k.t) : null;
   }
   // the footer's "Yesterday 56%": the closed day, when today's progress heads the card instead
-  function prevTxt(o) {
+  function prevTxt(o: View) {
     return o.run && o.head && !o.sel ? format(TS.prev, { date: dayWord(o.head.date), value: HC.pct(o.head.r.score) }) : '';
   }
   // o = {head: {date, r} | null (the scored, closed day), run: r | null (today, in progress), sel, extra}.
   // Today being logged heads the card ALONE (its kcal % of target, neutral: no score, no band); the
   // closed day's score moves to the footer line (o.extra, prevTxt). Without today, the closed day heads it.
-  function cardHtml(o) {
-    var h = o.head, run = o.run;
+  function cardHtml(o: View) {
+    // view() never returns a card with neither: head is read only when run is null
+    var h = o.head as { date: string; r: DayScore }, run = o.run;
     var tag = run ? TS.inProgress : h.r.inc ? TS.incomplete : '';
     var pct = run ? runPct(run) : null;
     var opens = o.sel || (h && !run ? h.date : null);
@@ -151,18 +171,18 @@
       '<h3 class="tn-h">' + esc(TS.heading + (tag ? ' · ' + tag : '')) + '</h3>' + (run ? '<span class="sr-only">' + esc(TS.srRun) + '</span>' : '') +
       '<div class="tn-row">' + left + right + '</div>' + (o.extra || '') + '</div>';
   }
-  function footHtml(parts) {
+  function footHtml(parts: string[]) {
     var t = parts.filter(Boolean).join(' · ');
     return t ? '<p class="tn-lbl en-sub">' + esc(t) + '</p>' : '';
   }
   // the newest CLOSED scored day (never today) while it is <= STALE_DAYS old
-  function closedDay(s) {
-    var best = null;
-    s.dates.forEach(function (d) { if (s.days[d] && !s.days[d].partial) best = d; });
+  function closedDay(s: Series) {
+    var best = null as string | null;
+    s.dates.forEach(function (d: string) { if (s.days[d] && !s.days[d].partial) best = d; });
     return best && HC.daysOld(best) <= HC.STALE_DAYS ? best : null;
   }
   // what a card shows: a stepped-to past day = that day's score; else the newest closed day + today's progress
-  function view(s, sel) {
+  function view(s: Series, sel: string | null): View | null {
     if (sel) return s.days[sel] && !s.days[sel].partial ? { head: { date: sel, r: s.days[sel] }, run: null, sel: sel }
       : s.days[sel] ? { head: null, run: s.days[sel], sel: sel } : null;
     var c = closedDay(s), t = s.days[HC.todayIso()];
@@ -187,14 +207,14 @@
   // the last WIDE days' final scores as the Salud sparkline (.sc-spark / .spark: line + area down to the
   // 0 baseline, a caption under it), x by date (gaps = days without a score, bridged), 0-100 up
   var W = 200, H = 48;
-  function lineHtml(s) {
-    var dates = s.dates.slice(-WIDE), pts = [];
-    dates.forEach(function (d, i) {
+  function lineHtml(s: Series) {
+    var dates = s.dates.slice(-WIDE), pts: number[][] = [];
+    dates.forEach(function (d: string, i: number) {
       var r = s.days[d];
       if (r && !r.partial) pts.push([(W * i) / (WIDE - 1), H - (H * r.score) / 100]);
     });
     if (pts.length < 2) return '';
-    var dd = pts.map(function (p, i) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
+    var dd = pts.map(function (p: number[], i: number) { return (i ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); }).join(' ');
     var x0 = pts[0][0].toFixed(1), x1 = pts[pts.length - 1][0].toFixed(1);
     return '<div class="sc-spark ns-spark"><svg class="spark" viewBox="0 0 ' + W + ' ' + H + '" preserveAspectRatio="none" aria-hidden="true">' +
       '<path class="area" d="' + dd + ' L' + x1 + ' ' + H + ' L' + x0 + ' ' + H + ' Z"/><path class="line" d="' + dd + '"/></svg>' +

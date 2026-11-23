@@ -3,7 +3,7 @@
  * (#home-dials, client/score.ts), the monitor tiles (#home-tiles: the health monitor's summary + the
  * HRV signal, client/monitor.ts), "My day" (#my-day: the advice sentence as the outlook bar in
  * #home-advice, then the energy bank card in #home-energy (client/energy.ts: our intraday estimate,
- * hidden without a value), then the nutrition score card in #home-nscore (client/nutri-score.js: today
+ * hidden without a value), then the nutrition score card in #home-nscore (client/nutri-score.ts: today
  * "so far" vs today's targets, hidden without a fresh scored day), then "Today's activities" in #timeline: last night's sleep, the day's workouts and
  * today's programmed session, client/timeline.ts), the "today you eat" card (components/EatCard.astro,
  * client/nutri-day.js). The full health monitor list leads Salud (tabs/Salud.astro); the summary
@@ -16,7 +16,7 @@
  * client/journal.ts, LAN page only) between them, then "My dashboard" (#my-dash: metric
  * rows + "Customize", client/home-dash.ts), then "Customize Home" (#home-cust: the user's order and show / hide
  * of the blocks from "My day" to "My dashboard", client/home-order.ts, which moves them right before it). Those scripts run in layouts/Plan.astro's end-of-body
- * list (after HC, the baked globals and adherence.js, before deepdive.js / detail.ts), so their sheets
+ * list (after HC, the baked globals and adherence.ts, before deepdive.js / detail.ts), so their sheets
  * (tonight, dash-edit) are registered before detail.ts runs.
  * #home-mini = the collapsed dial row (fixed at the top, shown by score.ts once the dials scroll away:
  * the same three rings small, with their labels; a tap opens the same detail as the dial).

@@ -205,7 +205,7 @@ test('Entrenamiento dashboard labels the watch "hiit" bucket as gym (matches Ini
   assert.match(enAct.labelsNote, /“Gym”/);
 });
 
-test('intake-templates.mjs (Mi día intake rings) has identical key trees in es/en, no empty leaves, and the placeholders intake.js relies on', () => {
+test('intake-templates.mjs (Mi día intake rings) has identical key trees in es/en, no empty leaves, and the placeholders intake.ts relies on', () => {
   assert.deepEqual(keyTree(esIntake), keyTree(enIntake));
   for (const [locale, dict] of [['es', esIntake], ['en', enIntake]]) {
     for (const [p, value] of leaves(dict)) {

@@ -2,7 +2,7 @@
  * metric rows via HC.metricRow, notes behind an ⓘ toggle per section) plus Entreno's
  * running / cycling list rows and load vs recovery (#health-train, see render()). Reads HEALTH / LOCALE
  * from the globals baked by web/src/components/Bake.astro and its copy from I18N_HEALTH
- * (web/src/i18n/health-templates.mjs) — same pattern as client/training-today.js and
+ * (web/src/i18n/health-templates.mjs) — same pattern as client/training-today.ts and
  * client/training-dash.ts.
  *
  * `esc()` / `format()` / `daysOld()` are the shared helpers of client/util.js (window.HC). `esc()` wraps

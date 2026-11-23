@@ -1,5 +1,5 @@
-/* Nutrición "Progreso" (weight vs the goal) + its one-line summary in the profile sheet. Classic script
- * (is:inline), inlined after settings.js and before profile.ts. Reads the baked DETAIL.metrics.weight
+/* Nutrición "Progreso" (weight vs the goal) + its one-line summary in the profile sheet. Module script
+ * (bundled into the page, docs/plan-page.md → Module scripts), inlined after settings.ts and before profile.ts. Reads the baked DETAIL.metrics.weight
  * (the weight card's 7-day rolling average, `roll`), NUTRI.progress (the thresholds, from
  * lib/nutrition/progress.mjs) + I18N_NUTRI.progress, the goal from window.HCNutri and the target weight
  * from window.HCSettings (LAN page only; without it there is no target and no ETA).
@@ -14,13 +14,28 @@
  * which draws the target as a dashed line. The card carries numbers + labels only (average, rate pill,
  * status word, target, ETA); the why, the rate window and the method go behind the section's ⓘ
  * (#nutri-progress-info). The block renders in its own try/catch (a one-line fallback). */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads by bare name (manifest.mjs); window.HCNutri / HCSettings / HCProgress are typed by the Window interface
+declare const NUTRI: PageGlobals['NUTRI'];
+declare const I18N_NUTRI: PageGlobals['I18N_NUTRI'];
+declare const HC: PageGlobals['HC'];
+declare const HC_PROG: PageGlobals['HC_PROG'];
+declare const DETAIL: PageGlobals['DETAIL'];
+
+/** lib/nutrition/progress.mjs weightProgress's result (the fields this script reads). */
+type Progress = {
+  current: { date: string; kg: number }; rate: number | null; n: number; span: number; from: string;
+  remaining: number | null; status: string; mismatch: boolean; etaWeeks: [number, number] | null;
+};
+
 (function () {
   var N = typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI;
   var TN = typeof I18N_NUTRI === 'undefined' || !I18N_NUTRI ? null : I18N_NUTRI;
   if (!N || !TN || !N.progress || !TN.progress) return;
   var P = N.progress, T = TN.progress;
   var esc = HC.esc, format = HC.format;
-  var TONE = { onPace: 'good', steady: 'good', reached: 'good', slow: 'mid', drift: 'mid', fast: 'low', wrong: 'low', fewData: 'muted' };
+  var TONE: Record<string, string> = { onPace: 'good', steady: 'good', reached: 'good', slow: 'mid', drift: 'mid', fast: 'low', wrong: 'low', fewData: 'muted' };
 
   // the lib's own functions (lib/nutrition/progress.mjs clientSource, inlined before util.js)
   var fin = HC_PROG.fin, weightProgress = HC_PROG.weightProgress, etaMonths = HC_PROG.etaMonths;
@@ -39,20 +54,20 @@
     var S = window.HCSettings;
     return S && typeof S.ready === 'function' && S.ready() && fin(S.targetWeight()) ? S.targetWeight() : null;
   }
-  function compute() {
+  function compute(): Progress | null {
     return weightProgress(weightMetric(), { goal: goal(), target: target() });
   }
-  function stale(p) {
+  function stale(p: Progress) {
     return HC.daysOld(p.current.date) > P.staleDays;
   }
-  function kg(v) { return HC.num(v, 1); }
-  function rateText(p) { return format(T.rate, { rate: HC.num(p.rate, 2, true) }); }
+  function kg(v: number | null) { return HC.num(v, 1); }
+  function rateText(p: Progress) { return format(T.rate, { rate: HC.num(p.rate, 2, true) }); }
   // the status word: a maintain drift says which way
-  function statusKey(p) {
-    return p.status === 'drift' ? (p.rate > 0 ? 'driftUp' : 'driftDown') : p.status;
+  function statusKey(p: Progress) {
+    return p.status === 'drift' ? (p.rate! > 0 ? 'driftUp' : 'driftDown') : p.status;
   }
   // every number in the copy comes from the baked thresholds (the goal's own band)
-  function detailText(p, g) {
+  function detailText(p: Progress, g: string) {
     var D = T.detail, st = statusKey(p), band = P.bands[g] || {};
     var vars = { min: fin(band.min) ? HC.num(band.min, 2) : '', max: fin(band.max) ? HC.num(band.max, 2) : '', pct: HC.num(P.maxPctWeek, 0),
       kg: HC.num(P.reachedKg, 1), stable: HC.num(P.stableKg, 2) };
@@ -66,7 +81,7 @@
   // average big in --num with the weekly rate as a pill coloured by the status, the status word with
   // its dot, the target / kg to go, the ETA. The why of the status, the rate window and the method go
   // to the section's ⓘ block (#nutri-progress-info, Dia.astro), written here on every render.
-  function html(notes) {
+  function html(notes: string[]) {
     var m = weightMetric(), p = compute();
     if (!p) return '<p class="pg-empty">' + esc(T.empty) + '</p>';
     var g = goal(), old = stale(p), tone = old ? 'muted' : TONE[p.status] || 'muted';
@@ -106,7 +121,7 @@
   function render() {
     var host = document.getElementById ? document.getElementById('nutri-progress') : null;
     if (!host) return;
-    var notes = [];
+    var notes: string[] = [];
     try { host.innerHTML = html(notes); } catch (e) { host.innerHTML = '<p class="nutri-failed">' + esc(TN.failed) + '</p>'; notes = []; }
     // the ⓘ block keeps the state the viewer left it in across a re-render (a settings change), like
     // Constancia's; with nothing behind it the button hides and the block closes with it

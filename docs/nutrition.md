@@ -334,7 +334,7 @@ strawberries 250, blueberries 150 g).
 
 `lib/nutrition/intake.mjs` `intakeFrom(inputs, targets)` (over the build's one `lib/extract/read.mjs`
 `readExtract`) bakes the most recent LOGGED day of `dietary-daily.csv` (kcal > 0) + the plan's base day
-totals (the bake keeps only `target.train`, the fallback without `HCNutri`). `web/src/client/intake.js`
+totals (the bake keeps only `target.train`, the fallback without `HCNutri`). `web/src/client/intake.ts`
 draws four rings (kcal, protein, carbs, fat).
 
 - **Target** = THAT day's `window.HCNutri.targetFor(date)`: today = `nutriTarget()`; a past day = its own
@@ -362,10 +362,10 @@ draws four rings (kcal, protein, carbs, fat).
 - While the food API boot request is in flight (`HCFood.pending()`) the rings render NOTHING; answer → the
   food log, failure → the Apple Health day. Past `INTAKE.bootGraceMs` (`INTAKE_BOOT_GRACE_MS`, 2500 ms,
   baked) the Apple Health day renders anyway (a hanging fetch) and a late answer still switches.
-- Today's summary ring + rows share the wait (`window.intakeWaiting()`, owned by intake.js, one grace
+- Today's summary ring + rows share the wait (`window.intakeWaiting()`, owned by intake.ts, one grace
   timer): empty track + "— / target" while waiting; answered → food log only; failure / grace over → Apple
   Health day.
-- nutri-day.js is inlined before the food scripts and intake.js after them, so intake.js re-renders Today's
+- nutri-day.js is inlined before the food scripts and intake.ts after them, so intake.ts re-renders Today's
   summary (`HCNutri.refresh`) at load and when the grace ends; consecutive inline scripts run before first
   paint, so the Apple Health day never flashes.
 

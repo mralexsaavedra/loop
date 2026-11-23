@@ -1,5 +1,5 @@
 /* Client-side (browser, classic-script) format strings for the "Hoy / Today" tab — same
- * rationale/constraint as the other *-templates.mjs files: web/src/client/training-today.js
+ * rationale/constraint as the other *-templates.mjs files: web/src/client/training-today.ts
  * is a classic script and cannot import an ES module, so it can only
  * receive plain JSON-safe data baked by Bake.astro (I18N_HOY).
  *

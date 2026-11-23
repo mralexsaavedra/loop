@@ -50,7 +50,7 @@ window.HCDetailState = function (T, D) {
     var S = typeof SCORES !== 'undefined' && SCORES ? SCORES.energy : null;
     return S && S.ok && S.metric && Array.isArray(S.metric.v) ? S.metric : null;
   }
-  // the nutrition score is scored at VIEW time (the current goal × each day's type): client/nutri-score.js
+  // the nutrition score is scored at VIEW time (the current goal × each day's type): client/nutri-score.ts
   function nutritionMetric() {
     var S = typeof window !== 'undefined' ? window.HCNutriScore : null;
     var m = S && typeof S.metric === 'function' ? S.metric() : null;
@@ -90,7 +90,7 @@ window.HCDetailState = function (T, D) {
     return { end: age < 0 ? asOf : today, stale: false };
   }
   // the dashed target line: a baked target (sleep), else the user's target weight on the weight view
-  // (client/settings.js, LAN page only; nothing without it)
+  // (client/settings.ts, LAN page only; nothing without it)
   function targetOf(key, m) {
     if (m.target != null) return m.target;
     if (key !== 'weight') return null;

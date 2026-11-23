@@ -38,7 +38,7 @@ export function computeBakes(env) {
   const detail = detailFrom(inputs, { sex: profile.sex });
   // intake rings target = the same day totals Mi día shows for a train / rest day
   // + `log`: the synced food log's last 90 days (the example: the demo extract's), the nutrition score's
-  // input on every page (client/nutri-score.js; the LAN page's live summary overrides it day by day)
+  // input on every page (client/nutri-score.ts; the LAN page's live summary overrides it day by day)
   const intake = { ...intakeFrom(inputs, { train: dayViewModel(nut, 'train').totals, rest: dayViewModel(nut, 'rest').totals }), log: buildFoodlogBake({ repoRoot, dataMode, extractDir, paths }) };
   return { nut, dash, activity, health, profile, scores, detail, intake };
 }

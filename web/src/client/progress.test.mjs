@@ -1,19 +1,17 @@
-/* web/src/client/progress.js — Nutrición "Progreso" (weight vs the goal) + the profile sheet's line.
+/* web/src/client/progress.ts — Nutrición "Progreso" (weight vs the goal) + the profile sheet's line.
  * Runs the real classic script in node:vm against web/test/dom-stub.mjs with a fixed clock and SYNTHETIC
  * weight series; its numbers are lib/nutrition/progress.mjs run as HC_PROG (clientSource). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { es as esN, en as enN } from '../i18n/nutri-templates.mjs';
 import { PROGRESS, PROGRESS_CASES, etaMonths, weeklyRate, rollPoints } from '../../../lib/nutrition/progress.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'progress.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('progress.ts');
 const CUT = PROGRESS_CASES[0].metric; // 80 -> 78 kg over 41 days, ending 2030-02-10
 const text = (html) => String(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 

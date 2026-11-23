@@ -1,21 +1,19 @@
-/* web/src/client/nutri-score.js — the nutrition score (Inicio card + Nutrición block). Runs the real
+/* web/src/client/nutri-score.ts — the nutrition score (Inicio card + Nutrición block). Runs the real
  * classic script in node:vm against web/test/dom-stub.mjs with a fixed clock, a baked INTAKE.log
  * (SYNTHETIC days), a stand-in HCNutri.targetFor and, optionally, a LAN HCAdherence summary; the port
  * is pinned against lib/nutrition/nutri-score.mjs. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { es as esN, en as enN } from '../i18n/nutri-templates.mjs';
 import { es as esS, en as enS } from '../i18n/score-templates.mjs';
 import { NSCORE, NSCORE_CASES, nutritionScore, scoreSeries } from '../../../lib/nutrition/nutri-score.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'nutri-score.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('nutri-score.ts');
 const TODAY = '2030-01-28';
 // the text a sighted reader sees (screen-reader-only words left out); `said` = the card's accessible name, from its
 // content (no aria-label: WCAG 2.5.3 Label in Name), screen-reader words included

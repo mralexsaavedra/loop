@@ -7,10 +7,10 @@
  *             earlier): the checked radio is window.HCNutri.state().goal and a change calls
  *             HCNutri.setGoal, which stores it (hc.nutri.goal) and refreshes the summary, plan, fuelling,
  *             rings, builder and the kcal chip. No HCNutri or no options -> the section is omitted.
- *             On the LAN page (window.HCSettings ready, client/settings.js) the goal is also stored on
+ *             On the LAN page (window.HCSettings ready, client/settings.ts) the goal is also stored on
  *             the server and the section adds a "Target weight" field (kg, HCSettings.parseTarget = the
  *             food forms' parser; an inline error; saved on change, which fires on blur), one status
- *             line for both saves, and the Progreso line (window.HCProgress.line, client/progress.js);
+ *             line for both saves, and the Progreso line (window.HCProgress.line, client/progress.ts);
  *   Language — LAN page only (HCSettings ready): Español / English radios, the stored settings.locale checked
  *             (none stored = the language this page was built in, LOCALE); a change saves it
  *             (HCSettings.saveLocale) and then presses the page's Sync button, so the next build is in that
@@ -49,7 +49,7 @@ type Device = { name: string; type: string; since?: string; source?: string; cou
 type ProfileEvent = { name: string; type: string; date: string; location?: string };
 /** A goal option (PROFILE.goals, lib/profile/goal.mjs): its kcal/day change vs maintain. */
 type GoalOption = { goal: string; kcal: number; bikeKept?: boolean };
-/** The last settings save (window.HCSettings, client/settings.js). */
+/** The last settings save (window.HCSettings, client/settings.ts). */
 type SaveStatus = { status: string; what?: string; code: string };
 /** The settings state handed to the onChange listeners. */
 type SettingsState = { pending?: boolean; last?: SaveStatus | null } | null | undefined;
@@ -261,7 +261,7 @@ type SettingsState = { pending?: boolean; last?: SaveStatus | null } | null | un
     var key = (o.kcal < 0 ? 'deficit' : 'surplus') + (o.bikeKept ? 'BikeKept' : '');
     return format(G[key], { kcal: kcal });
   }
-  // the server-side settings (client/settings.js), only once the LAN API answered
+  // the server-side settings (client/settings.ts), only once the LAN API answered
   function settings() {
     var st = window.HCSettings;
     return st && typeof st.ready === 'function' && st.ready() ? st : null;

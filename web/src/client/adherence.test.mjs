@@ -1,19 +1,17 @@
-/* web/src/client/adherence.js — Nutrición "Constancia" (food log adherence, LAN page). Runs the real
+/* web/src/client/adherence.ts — Nutrición "Constancia" (food log adherence, LAN page). Runs the real
  * classic script in node:vm against web/test/dom-stub.mjs with a fixed clock, a stubbed HCFood.api and
  * a stand-in for HCNutri.targetFor; its counts are lib/nutrition/adherence.mjs run as HC_ADH (clientSource). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { es as esN, en as enN } from '../i18n/nutri-templates.mjs';
 import { ADHERENCE, ADHERENCE_CASES, isComplete, dayState } from '../../../lib/nutrition/adherence.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'adherence.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('adherence.ts');
 const TODAY = '2030-01-28';
 const flush = async () => { for (let i = 0; i < 10; i++) await new Promise((r) => setImmediate(r)); };
 const text = (html) => String(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();

@@ -136,8 +136,8 @@ the advice copy); the page gets the SAME functions as a classic script, `clientS
 bands ride along the same way: `lib/score/recovery.mjs` `clientSource()` → `var HC_BAND` (`PCT_GOOD`,
 `PCT_LOW`, `pctBand`), so no client script re-types 67 / 33 (`web/test/recovery-band.test.mjs` guards it). The
 food log adherence and weight progress functions ride along too (`lib/nutrition/adherence.mjs` →
-`var HC_ADH`, read by `client/adherence.js`; `lib/nutrition/progress.mjs` → `var HC_PROG`, read by
-`client/progress.js`; `lib/nutrition/nutri-score.mjs` → `var HC_NSCORE`, read by `client/nutri-score.js`;
+`var HC_ADH`, read by `client/adherence.ts`; `lib/nutrition/progress.mjs` → `var HC_PROG`, read by
+`client/progress.ts`; `lib/nutrition/nutri-score.mjs` → `var HC_NSCORE`, read by `client/nutri-score.ts`;
 `lib/nutrition/foodlog.mjs` → `var HC_FOODLOG`, read by `client/food-core.js`; `lib/nutrition/daytype.mjs` →
 `var HC_DAYTYPE`, `lib/nutrition/fuel.mjs` → `var HC_FUEL` and `lib/nutrition/scale.mjs` (+ amounts / units /
 fill) → `var HC_SCALE` and `lib/nutrition/guide.mjs` → `var HC_GUIDE`, read by `client/nutri-day.js`. Every

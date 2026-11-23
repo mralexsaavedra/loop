@@ -183,7 +183,7 @@ minification). `astro.config.mjs` exposes the result as the virtual module `virt
 `layouts/Plan.astro` inlines it at the module's place in the manifest, exactly like a classic script, so the page
 stays one file and the CSP hashes it like any other script. The tests run the same bytes
 (`clientScriptSource(file)`). The page globals a module reads are typed in `web/src/client/page-globals.d.ts`
-(`any` until each gets its own type). Modules so far: `home-week.ts`, `freshness.ts`, `nav-actions.ts`, `home-order.ts`, `training-dash.ts`, `energy.ts`, `shortcuts.ts`, `journal.ts`, `profile.ts`, `onboarding.ts`, `training-activity.ts`, `timeline.ts`, `home-dash.ts`, `health.ts`, `score.ts`, `monitor.ts`, `food-sheet.ts`, `food-catalog.ts`, `detail.ts`.
+(`any` until each gets its own type). Modules so far: `home-week.ts`, `freshness.ts`, `nav-actions.ts`, `home-order.ts`, `training-dash.ts`, `energy.ts`, `shortcuts.ts`, `journal.ts`, `profile.ts`, `onboarding.ts`, `training-activity.ts`, `timeline.ts`, `home-dash.ts`, `health.ts`, `score.ts`, `monitor.ts`, `food-sheet.ts`, `food-catalog.ts`, `detail.ts`, `settings.ts`, `progress.ts`, `adherence.ts`, `intake.ts`, `training-today.ts`, `nutri-score.ts`.
 
 ESLint lints only `*.js` / `*.mjs`: for a module script `tsc` takes its place (`strict` for undefined names and
 shapes, `noUnusedLocals` for ESLint's `no-unused-vars`; unused parameters stay allowed, as ESLint's `args: 'none'`).
@@ -244,9 +244,9 @@ util.js; rules in [`design-system.md`](design-system.md) → "Numbers"). The sam
 | Global | Source | Read by |
 | --- | --- | --- |
 | `HC_BAND` — recovery 0–100 bands `PCT_GOOD` / `PCT_LOW` / `pctBand` | `lib/score/recovery.mjs` `clientSource()` | the recovery % colour and the energy bank (instead of literals) |
-| `HC_ADH` — food log adherence | `lib/nutrition/adherence.mjs` | `client/adherence.js` (instead of a copy) |
-| `HC_PROG` — weight progress | `lib/nutrition/progress.mjs` | `client/progress.js` |
-| `HC_NSCORE` — nutrition score | `lib/nutrition/nutri-score.mjs` | `client/nutri-score.js` |
+| `HC_ADH` — food log adherence | `lib/nutrition/adherence.mjs` | `client/adherence.ts` (instead of a copy) |
+| `HC_PROG` — weight progress | `lib/nutrition/progress.mjs` | `client/progress.ts` |
+| `HC_NSCORE` — nutrition score | `lib/nutrition/nutri-score.mjs` | `client/nutri-score.ts` |
 | `HC_FOODLOG` — food log formula | `lib/nutrition/foodlog.mjs` | `client/food-core.js` |
 | `HC_DAYTYPE` / `HC_FUEL` — day type detection, ride fuelling | `lib/nutrition/daytype.mjs` / `fuel.mjs` | `client/nutri-day.js` |
 | `HC_SCALE` — portion scaling | `lib/nutrition/scale.mjs` | `client/nutri-day.js` |

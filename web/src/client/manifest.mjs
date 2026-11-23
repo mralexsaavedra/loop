@@ -38,15 +38,15 @@ export const CLIENT_SCRIPTS = [
   { file: 'food-sheet.ts', provides: [], requires: ['HC', 'HCFoodInternal'] },
   { file: 'food-catalog.ts', provides: [], requires: ['HC', 'HCFoodInternal'] },
   { file: 'food-log.js', provides: ['foodTotals', 'HCFood'], requires: ['HC', 'HCFoodInternal'] },
-  { file: 'settings.js', provides: ['HCSettings'], requires: ['FOOD_CONST', 'HC', 'HCFood'] },
+  { file: 'settings.ts', provides: ['HCSettings'], requires: ['FOOD_CONST', 'HC', 'HCFood'] },
   {
-    file: 'progress.js',
+    file: 'progress.ts',
     provides: ['HCProgress'],
     requires: ['DETAIL', 'HC', 'HCNutri', 'HCSettings', 'HC_FMT', 'HC_PROG', 'I18N_DATE', 'I18N_NUTRI', 'LOCALE', 'NUTRI'],
   },
-  { file: 'adherence.js', provides: ['HCAdherence'], requires: ['HC', 'HCFood', 'HC_ADH', 'I18N_NUTRI', 'NUTRI'] },
+  { file: 'adherence.ts', provides: ['HCAdherence'], requires: ['HC', 'HCFood', 'HC_ADH', 'I18N_NUTRI', 'NUTRI'] },
   {
-    file: 'intake.js',
+    file: 'intake.ts',
     provides: ['intakeRefresh', 'intakeWaiting'],
     requires: [
       'DETAIL', 'FOOD_BASICS', 'HC', 'HCAdherence', 'HCDay', 'HCFood', 'HCNutri', 'HCProgress', 'HCSettings', 'HC_FMT', 'I18N_DATE',
@@ -54,7 +54,7 @@ export const CLIENT_SCRIPTS = [
     ],
     probes: ['HCNutriScore'],
   },
-  { file: 'training-today.js', provides: ['HCProgram'], requires: ['HC', 'I18N_DATE', 'I18N_HOY', 'TRAINING', 'TRAINING_META'] },
+  { file: 'training-today.ts', provides: ['HCProgram'], requires: ['HC', 'I18N_DATE', 'I18N_HOY', 'TRAINING', 'TRAINING_META'] },
   { file: 'training-dash.ts', provides: [], requires: ['DASH', 'HC', 'I18N_DASH', 'I18N_DATE'] },
   {
     file: 'training-activity.ts',
@@ -74,7 +74,7 @@ export const CLIENT_SCRIPTS = [
   { file: 'monitor.ts', provides: [], requires: ['DETAIL', 'HC', 'HCDay', 'HC_FMT', 'I18N_DATE', 'I18N_DETAIL', 'I18N_SCORE', 'LOCALE', 'SCORES'] },
   { file: 'energy.ts', provides: [], requires: ['HC', 'HCDay', 'HC_BAND', 'I18N_SCORE', 'SCORES'] },
   {
-    file: 'nutri-score.js',
+    file: 'nutri-score.ts',
     provides: ['HCNutriScore'],
     requires: [
       'DETAIL', 'HC', 'HCAdherence', 'HCDay', 'HCNutri', 'HC_FMT', 'HC_NSCORE', 'I18N_NUTRI', 'I18N_SCORE', 'INTAKE', 'LOCALE', 'NUTRI',

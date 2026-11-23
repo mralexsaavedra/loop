@@ -2,7 +2,7 @@
  * rule), the shared event listeners (click actions registered by every food script, input / change /
  * Enter), the boot (GET /api/food/products reveals the hosts) and the public hooks: window.foodTotals,
  * window.HCFood (groupTotals, recentDay, products, addGuide, showDay, the formula port, api). Classic
- * script (is:inline), the LAST food script: inlined after food-catalog.ts and before settings.js.
+ * script (is:inline), the LAST food script: inlined after food-catalog.ts and before settings.ts.
  * See food-core.js for the whole food log. */
 (function () {
   var FI = window.HCFoodInternal;
@@ -30,7 +30,7 @@
   FI.loadDay = loadDay;
 
   /* ---------- today's totals for Resumen de hoy + the rings ---------- */
-  /** THE contract nutri-day.js and intake.js rely on (they do not re-check it): null unless the food API
+  /** THE contract nutri-day.js and intake.ts rely on (they do not re-check it): null unless the food API
    * answered AND today (the viewer's local date) has >= 1 entry. Otherwise {date: today, k, p, c, g,
    * n (entries), missing, src: 'log'}: a macro NO entry states is null (a dash, never 0); missing[m] is
    * true when at least one entry lacks it, so a non-null value is then a minimum. */
@@ -41,7 +41,7 @@
     var known = function (k) { return L.entries.some(function (e) { return fin(e[k]); }) ? t[k] : null; };
     return { date: L.date, k: t.kcal, p: known('protein'), c: known('carbs'), g: known('fat'), n: t.count, missing: t.missing, src: 'log' };
   };
-  /* ---------- the intake rings' past day (intake.js) ---------- */
+  /* ---------- the intake rings' past day (intake.ts) ---------- */
   function loadRecent(from, to) {
     var mine = ++R.seq;
     R.key = from + '|' + to;
@@ -278,7 +278,7 @@
   }
   function loadLog() { return loadDay(HC.todayIso()); }
   function show(id) { var el = $(id); if (el) el.hidden = false; }
-  // the rings (intake.js) wait for this boot answer (HCFood.pending()) instead of flashing the Apple Health day
+  // the rings (intake.ts) wait for this boot answer (HCFood.pending()) instead of flashing the Apple Health day
   function bootDone() {
     S.boot = false;
     if (typeof window.intakeRefresh === 'function') {
@@ -418,7 +418,7 @@
     });
   }
 
-  /** Constancia's day cells (client/adherence.js): Registrar shows `date` (a past day, or today) and
+  /** Constancia's day cells (client/adherence.ts): Registrar shows `date` (a past day, or today) and
    * scrolls into view; false without the food API. */
   function showDay(date) {
     var d = HC.isoDate(date);
@@ -435,8 +435,8 @@
   }
 
   window.HCFood = {
-    // the one food API client (X-HC-Food, JSON, timeout, coarse codes): client/settings.js and
-    // client/adherence.js reuse it, so every /api/food request carries the same layers
+    // the one food API client (X-HC-Food, JSON, timeout, coarse codes): client/settings.ts and
+    // client/adherence.ts reuse it, so every /api/food request carries the same layers
     api: api,
     ready: function () { return !!S.ok; },
     // the boot request (GET /products) has not answered yet: the intake rings render nothing meanwhile

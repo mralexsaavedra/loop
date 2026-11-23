@@ -43,7 +43,7 @@ Order, top to bottom (`web/src/tabs/Home.astro`, which also renders `components/
 | 4 | "My day" (heading `.hs-lbl.home-h`, sentence case) | `#my-day` | — |
 | 4a | Outlook bar (advice) | `#home-advice` | `score.ts` |
 | 4b | Energy bank | `#home-energy` | `energy.ts` |
-| 4c | Nutrition score | `#home-nscore` | `nutri-score.js` |
+| 4c | Nutrition score | `#home-nscore` | `nutri-score.ts` |
 | 4d | Today's activities | `#timeline` | `timeline.ts` |
 | 5 | Today you eat | `EatCard.astro` | `nutri-day.js` |
 | 6 | Tonight | `#home-tonight` | `home-week.ts` |
@@ -60,7 +60,7 @@ Order, top to bottom (`web/src/tabs/Home.astro`, which also renders `components/
 - Little text on the tab: each block's explanation lives in the detail sheet it opens.
 - The full health monitor list is NOT on Home: it leads Salud ([below](#health-monitor-on-salud)).
 - `client/home-week.ts` and `client/home-dash.ts` load in `layouts/Plan.astro`'s end-of-body script
-  list (after `HC`, the baked globals and `adherence.js`, right before `deepdive.js` / `detail.ts`).
+  list (after `HC`, the baked globals and `adherence.ts`, right before `deepdive.js` / `detail.ts`).
   They render at once and register their sheets (`tonight`, `dash-edit`) before `detail.ts` runs;
   `#tonight` / `#dash-edit` deep-link to them (`NAV.viewTab` → `home`). Without their hosts they
   render nothing.
@@ -266,7 +266,7 @@ the nutrition score and today's activities.
 
 ### Nutrition score
 
-- `lib/nutrition/nutri-score.mjs` = the reference, scored at view time by `client/nutri-score.js`;
+- `lib/nutrition/nutri-score.mjs` = the reference, scored at view time by `client/nutri-score.ts`;
   `#home-nscore`, under the energy bank card.
 - The day's 0–100 adherence to its own targets from the food log (kcal 0.4, protein 0.4, fat 0.2;
   formula and rules in `docs/nutrition-food-log.md` → Nutrition score and `analysis/methodology.md` 5b).
@@ -299,7 +299,7 @@ the nutrition score and today's activities.
 - workouts.csv has no start time, so a workout has no start / end clock pair. Each row is an `<li>` holding the
   opener (`<li><div role="button">`), named by its content; a workout's chip is hidden from the name and said in
   words after it ("Run, RE 94, 0:45, 2 parts").
-- Programmed session (viewer's today only, `window.HCProgram` from `client/training-today.js`): the last
+- Programmed session (viewer's today only, `window.HCProgram` from `client/training-today.ts`): the last
   row — an outline chip "Plan", its focus (one line, ellipsised; the row's content-derived name carries the whole
   focus and the session view shows it in full), "Programmed" (white caps; the row's bar carries the
   colour); opens the session as the `hoy-session` detail view. Nothing matches it to a done workout
@@ -377,7 +377,7 @@ What it shows: the viewer's weekly goals (`#my-plan`, `client/home-week.ts`,
 
 - The usual week = the median of the session days per week over the last 6 complete weeks before this
   one (only weeks the data covers).
-- The food rows appear when the summary answers: `client/adherence.js` calls `HCWeekPlan.refresh()`
+- The food rows appear when the summary answers: `client/adherence.ts` calls `HCWeekPlan.refresh()`
   after every read (the card keeps its open / closed state).
 - No row → the card and its "My plan" heading stay hidden.
 - The sleep row opens the sleep sheet, the training row the training-time sheet.
@@ -737,7 +737,7 @@ What it shows: Home for a PAST day (`#d=YYYY-MM-DD`) via the top bar's "‹ HOY 
 | Monitor tiles (`monitor.ts` `renderTiles`) | that day's `SCORES.days` summary (in / out of range among the cards fresh ON that day, out of `total`) and that day's stress value (`SCORES.stress.days`, the last 14 days; opens the stress page on that day), else its HRV card (dated when its reading is older than the day; opens the HRV sheet on that day); no entry → "No data". The Salud list stays the latest |
 | "My day" (`timeline.ts` `pastHtml`) | "Activities · <date>" with that day's night (`DETAIL.metrics.sleep`: hours, bed / wake clock) and workouts (`DETAIL.sessions`: one per date + modality after the SAME display rule as `SCORES.timeline`, minutes, RE, parts; a test checks both give the same rows); no programmed-session row, never greyed, every row opens its sheet on that day; nothing that day → "Nothing logged that day" |
 | Energy bank (`energy.ts`) | that day's `SCORES.energy.days` entry (level, curve, start, low); opens the energy bank page on that day; no value → hidden |
-| Nutrition score (`nutri-score.js`) | that day's FINAL score (no average line); opens the nutrition sheet on that day; no log or no target → hidden |
+| Nutrition score (`nutri-score.ts`) | that day's FINAL score (no average line); opens the nutrition sheet on that day; no log or no target → hidden |
 | Eat card (`nutri-day.js` `renderEat`) | "Target for <date>" with that day's DETECTED day type (`dayInput` + `detectDayType`, the same detection as `HCNutri.targetFor`) and its plan targets for the current goal; a day whose type cannot be told (no session, sleep or programmed session) hides the card |
 | Tonight | hidden (it is about the coming night) |
 | My plan / My dashboard | unchanged: the viewer's week / the latest values |

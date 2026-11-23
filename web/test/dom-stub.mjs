@@ -35,7 +35,7 @@ function matchesSelector(el, sel) {
  * when serializing an ATTRIBUTE value, never inside a text node). This is
  * the browser behavior the client scripts' `esc()` helper
  * relies on (`document.createElement('div'); d.textContent=s; return
- * d.innerHTML;`) — see web/src/client/training-today.js. */
+ * d.innerHTML;`) — see web/src/client/training-today.ts. */
 function escapeHtml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
 }

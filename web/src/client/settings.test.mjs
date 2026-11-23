@@ -1,21 +1,19 @@
-/* web/src/client/settings.js — the server-side goal + target weight (LAN page). Runs the real food scripts (food-*.js)
- * (its API client: X-HC-Food, JSON, coarse codes) and settings.js in node:vm with a stubbed fetch and a
+/* web/src/client/settings.ts — the server-side goal + target weight (LAN page). Runs the real food scripts (food-*.js)
+ * (its API client: X-HC-Food, JSON, coarse codes) and settings.ts in node:vm with a stubbed fetch and a
  * stand-in for nutri-day.js's window.HCNutri; nothing real is requested. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { loadUtil, FOOD_SOURCE } from '../../test/client-util.mjs';
 import { es as esF } from '../i18n/food-templates.mjs';
 import { FOOD_MEALS, FOOD_STORES, FOOD_UNITS, FOOD_LIMITS, SETTINGS_GOALS } from '../../../lib/nutrition/foodlog.mjs';
 import { MEAL_GROUPS, MAIN_SLOTS, ADDON_GROUP, ADDON_SLOT } from '../../../lib/nutrition/slots.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
 const foodSource = FOOD_SOURCE; // the four food scripts, in page order
-const source = fs.readFileSync(path.join(here, 'settings.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('settings.ts');
 const FOOD_CONST = { meals: FOOD_MEALS, stores: FOOD_STORES, units: FOOD_UNITS, limits: FOOD_LIMITS, goals: SETTINGS_GOALS, groups: MEAL_GROUPS, mainSlots: MAIN_SLOTS, addonGroup: ADDON_GROUP, addonSlot: ADDON_SLOT };
 const flush = async () => { for (let i = 0; i < 10; i++) await new Promise((r) => setImmediate(r)); };
 const json = (body, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => JSON.parse(JSON.stringify(body)) });

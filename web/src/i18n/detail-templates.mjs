@@ -335,7 +335,7 @@ export const en = {
     stress: { title: 'Stress estimate', unit: '/ 3' },
     // not a DETAIL key either: the energy bank page's series is SCORES.energy.metric (lib/score/energy-bank.mjs)
     'energy-bank': { title: 'Energy bank', unit: '/ 100' },
-    // not a DETAIL key either: the page scores it at view time (client/nutri-score.js metric())
+    // not a DETAIL key either: the page scores it at view time (client/nutri-score.ts metric())
     nutrition: { title: 'Nutrition score', unit: '%' },
   },
   day: {
@@ -715,7 +715,7 @@ export const es = {
     gymTime: { title: 'Tiempo de gimnasio', unit: 'min' },
     stress: { title: 'Estimación de estrés', unit: '/ 3' },
     'energy-bank': { title: 'Banco de energía', unit: '/ 100' },
-    // tampoco es clave de DETAIL: la página la puntúa al verla (client/nutri-score.js metric())
+    // tampoco es clave de DETAIL: la página la puntúa al verla (client/nutri-score.ts metric())
     nutrition: { title: 'Puntuación de nutrición', unit: '%' },
   },
   day: {

@@ -3,7 +3,7 @@
  * escaping round-trip. training-today / training-dash's `esc()` helper relies on this exact browser
  * behavior: `&`/`<`/`>` are escaped, quotes are NOT (real browsers only escape quotes
  * when serializing an ATTRIBUTE, not a text node) — see
- * web/src/client/training-today.js. Also covers that innerHTML/textContent
+ * web/src/client/training-today.ts. Also covers that innerHTML/textContent
  * stay independently overridable — used by web/src/client/nutrition.test.mjs's `<select>` stub, which
  * redefines element properties with Object.defineProperty and needs that to keep working. */
 import { test } from 'node:test';

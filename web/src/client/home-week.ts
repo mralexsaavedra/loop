@@ -23,10 +23,10 @@
  * A row whose source is missing or stale (DETAIL's newest day > STALE_DAYS before today) is hidden; no
  * row → no card. % accomplished = the mean of min(1, done / target) over the shown rows. On pace = done
  * ≥ target × (days elapsed / 7). The food rows appear once the food log summary answers
- * (client/adherence.js calls HCWeekPlan.refresh after each read).
+ * (client/adherence.ts calls HCWeekPlan.refresh after each read).
  *
  * Classic script in layouts/Plan.astro's end-of-body list: it runs at once, after HC, the baked globals
- * and adherence.js, and BEFORE detail.ts, so the `tonight` sheet is registered before detail.ts runs
+ * and adherence.ts, and BEFORE detail.ts, so the `tonight` sheet is registered before detail.ts runs
  * (window.HCDetail is only used on a click). Each block renders in its own try/catch; a
  * throw hides that block. No host (#home-tonight / #my-plan) = nothing rendered. */
 import { fin } from '../../../lib/nutrition/num.mjs';
