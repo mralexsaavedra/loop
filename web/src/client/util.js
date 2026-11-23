@@ -387,7 +387,7 @@ var HC = (function () {
   }
   // THE stress chart (lib/score/stress.mjs hours: [{t: 'HH', v: 0-3, hr}]): 24 h across, 0-3 up, the three
   // bands shaded, one point per scored hour (its middle), joined while the hours are consecutive. Drawn by
-  // the stress sheet (client/deepdive.js) and Mi panel's stress card (client/home-dash.js); P = the
+  // the stress sheet (client/deepdive.js) and Mi panel's stress card (client/home-dash.ts); P = the
   // I18N_DETAIL.deep.stress copy, fmt(v, dec) = the page's number format; decorative = aria-hidden
   var STRESS_BANDS = ['low', 'medium', 'high'];
   var SCV = { w: 320, h: 150, l: 22, r: 6, t: 8, b: 20 };
@@ -465,7 +465,7 @@ var HC = (function () {
   }
 
   /* A user-ordered list with show / hide, kept in localStorage, and its customize sheet: Inicio's
-   * "My dashboard" rows (client/home-dash.js, attr 'dash') and Inicio's blocks (client/home-order.ts,
+   * "My dashboard" rows (client/home-dash.ts, attr 'dash') and Inicio's blocks (client/home-order.ts,
    * attr 'home'). o = {view (the registered sheet key), attr (data-<attr>-act / data-<attr>-grip),
    * key (the storage key), catalog, defaultOn, available() (the catalogue keys present now), title()
    * (the sheet title), row(key) -> {icon (html), name (short, shown), full (for the button labels)},

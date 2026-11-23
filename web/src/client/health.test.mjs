@@ -594,7 +594,7 @@ test('fitness age: no number without sex, birthdate or VO₂max — the reason i
   assert.doesNotMatch(fitSec(out.health), /class="dial fa|NaN|undefined/);
 });
 
-test('the empty-state copy inserted raw with innerHTML is trusted markup: plain text + <code> only (health.js, training-activity.js)', async () => {
+test('the empty-state copy inserted raw with innerHTML is trusted markup: plain text + <code> only (health.js, training-activity.ts)', async () => {
   // these strings may carry <code>…</code>, so the scripts insert them unescaped;
   // anything else (another tag, an attribute, a stray < or &) must not sneak into them
   const { es: esHealth } = await import('../i18n/health-templates.mjs');

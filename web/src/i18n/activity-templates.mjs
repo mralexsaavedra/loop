@@ -1,5 +1,5 @@
 /* Client-side (classic-script) copy for Entreno's Activity card (totals, W / M / 6M switch, modality
- * split, 30-day calendar: web/src/client/training-activity.js), baked as I18N_ACTIVITY by
+ * split, 30-day calendar: web/src/client/training-activity.ts), baked as I18N_ACTIVITY by
  * tabs/TrainingDetail.astro (all but `head`, the header built there).
  * JSON-safe only: `{placeholder}` strings, substituted client-side. Modality labels follow the
  * dashboard's (the Watch's `hiit` bucket is shown as Gym). */

@@ -334,7 +334,7 @@ test('chevron: one glyph size and colour; no rule styles a chevron of its own', 
 
 // a ‹ / › glyph in markup sits in a .chev span; the one exception is the sheet header's back button
 // sheetHead's .sh-back "‹" (a 44px header control, docs) and the onboarding's own header back (a `bare` view, the same .sh-back)
-const GLYPH_ALLOW = { 'web/src/client/util.js': 1, 'web/src/client/onboarding.js': 1 };
+const GLYPH_ALLOW = { 'web/src/client/util.js': 1, 'web/src/client/onboarding.ts': 1 };
 test('chevron: every ‹ / › written in markup is a .chev span', () => {
   const bad = [];
   for (const f of CODE) {
@@ -501,7 +501,7 @@ test('trend glyph: the tone colour wins the cascade on every host, in ANY styles
 // and ONE treatment paints it (.carried + .carried-date in base.css); every surface that shows a
 // "today" value which may come from an earlier day calls the helper, none rolls its own date compare
 // or dim class
-const CARRIED_SURFACES = ['web/src/client/score.js', 'web/src/client/deepdive.js', 'web/src/client/monitor.js', 'web/src/client/energy.ts', 'web/src/client/timeline.js'];
+const CARRIED_SURFACES = ['web/src/client/score.js', 'web/src/client/deepdive.js', 'web/src/client/monitor.js', 'web/src/client/energy.ts', 'web/src/client/timeline.ts'];
 test('carried values: one helper, one treatment, used by every surface that can carry', () => {
   const own = RULES.filter((x) => /\.carried(-date)?\b/.test(x.selector) && !(x.file === 'base.css' && !x.media && (x.selector === '.carried' || x.selector === '.carried-date')));
   assert.deepEqual(own.map(where), ['score.css `.dial-centre .carried-date`'], 'only base.css styles the treatment (the dial only places the date)');

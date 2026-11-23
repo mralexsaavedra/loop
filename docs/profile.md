@@ -293,7 +293,7 @@ there.
 
 ## In-page onboarding (no AI coach needed)
 
-`web/src/client/onboarding.js` registers the `onboarding` view (deep link `#onboarding`; LAN page only, since it
+`web/src/client/onboarding.ts` registers the `onboarding` view (deep link `#onboarding`; LAN page only, since it
 saves to the ingest service). Copy: `web/src/i18n/onboarding-templates.mjs` (`I18N_ONB`, baked by
 `components/Avatar.astro`).
 

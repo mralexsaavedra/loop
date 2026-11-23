@@ -5,7 +5,7 @@
  * #home-advice, then the energy bank card in #home-energy (client/energy.ts: our intraday estimate,
  * hidden without a value), then the nutrition score card in #home-nscore (client/nutri-score.js: today
  * "so far" vs today's targets, hidden without a fresh scored day), then "Today's activities" in #timeline: last night's sleep, the day's workouts and
- * today's programmed session, client/timeline.js), the "today you eat" card (components/EatCard.astro,
+ * today's programmed session, client/timeline.ts), the "today you eat" card (components/EatCard.astro,
  * client/nutri-day.js). The full health monitor list leads Salud (tabs/Salud.astro); the summary
  * tile jumps there (jump('monitor') switches tab and scrolls). The detail behind each
  * dial, tile and row opens in the detail sheet (client/detail.js). Everything is client-rendered from
@@ -14,7 +14,7 @@
  * After the eat card: "Tonight" (#home-tonight: recommended bedtime ↔ usual wake time) and "My plan"
  * (#my-plan: the weekly goals card), both client/home-week.ts, with "My journal" (#my-journal,
  * client/journal.ts, LAN page only) between them, then "My dashboard" (#my-dash: metric
- * rows + "Customize", client/home-dash.js), then "Customize Home" (#home-cust: the user's order and show / hide
+ * rows + "Customize", client/home-dash.ts), then "Customize Home" (#home-cust: the user's order and show / hide
  * of the blocks from "My day" to "My dashboard", client/home-order.ts, which moves them right before it). Those scripts run in layouts/Plan.astro's end-of-body
  * list (after HC, the baked globals and adherence.js, before deepdive.js / detail.js), so their sheets
  * (tonight, dash-edit) are registered before detail.js runs.

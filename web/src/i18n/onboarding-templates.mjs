@@ -1,4 +1,4 @@
-/* In-page onboarding copy (web/src/client/onboarding.js), es/en, baked as I18N_ONB by components/Avatar.astro.
+/* In-page onboarding copy (web/src/client/onboarding.ts), es/en, baked as I18N_ONB by components/Avatar.astro.
  * One question per screen. {name} placeholders are filled client-side (HC.format). Neutral Spanish. The method
  * and the safety rules are lib/nutrition/energy.mjs; the sport keys are its SPORTS (a test pins them). */
 export const en = {

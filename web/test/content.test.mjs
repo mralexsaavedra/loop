@@ -215,7 +215,7 @@ test('example build: glance on Inicio, detail behind it — Entreno holds the lo
   assert.ok(at('score-load') !== -1 && at('score-load') < at('train-activity') && at('train-activity') < at('health-train') && at('health-train') < at('sec-dash'), 'Entreno order: load summary, Activity card, run/bike/load vs recovery, intensity');
   assert.match(html, /var ACTIVITY = \{"hasData":true,"asOf":"\d{4}-\d{2}-\d{2}","first":"\d{4}-\d{2}-\d{2}","days":\[/, 'demo data fills the Activity card');
   assert.match(html, /var I18N_ACTIVITY = /);
-  assert.match(html, /getElementById\(["']train-activity["']\)/, 'training-activity.js is inlined');
+  assert.match(html, /getElementById\(["']train-activity["']\)/, 'training-activity.ts is inlined');
   assert.match(sliceTabPanel(html, 'health'), /<div id="health-body"><\/div>/);
 });
 
@@ -228,14 +228,14 @@ test('example build: Inicio reads today top to bottom — dials, monitor tiles, 
   // the full monitor list moved to Salud: Inicio keeps only the summary tiles (no fold, no grid)
   assert.doesNotMatch(home, /id="monitor"|monitor-fold|hm-fold/);
   assert.match(html, /"timeline":\{"asOf":"\d{4}-\d{2}-\d{2}","days":\[\{"date"/, 'demo data fills the timeline');
-  assert.match(html, /getElementById\(["']timeline["']\)/, 'timeline.js is inlined');
+  assert.match(html, /getElementById\(["']timeline["']\)/, 'timeline.ts is inlined');
   assert.match(html, /getElementById\(["']home-tiles["']\)/, 'monitor.js writes the tiles');
   // Tonight + My plan ship hidden; client/home-week.ts (an end-of-body script) reveals them
   assert.match(home, /<div id="home-tonight" hidden><\/div>/);
   assert.match(home, /<div id="my-journal" hidden><\/div>/, 'My journal ships hidden (client/journal.ts)');
   assert.match(home, /<section class="home-sec" id="my-plan" aria-labelledby="my-plan-h" hidden>\s*<h2 class="hs-lbl home-h" id="my-plan-h">My plan<\/h2>/);
   assert.doesNotMatch(home, /<script/, 'no script inside the Inicio panel');
-  // home-week.ts + home-dash.js run in the end-of-body list, after their globals and before
+  // home-week.ts + home-dash.ts run in the end-of-body list, after their globals and before
   // deepdive.js / detail.js, so their views (tonight, dash-edit) exist when detail.js runs
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((x) => x[1]);
   const idx = (re) => scripts.findIndex((x) => re.test(x));

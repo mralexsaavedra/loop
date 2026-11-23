@@ -161,7 +161,7 @@ export const en = {
       onTrack: 'on track',
       behind: 'behind pace',
     },
-    // "My dashboard" rows + the customize sheet (client/home-dash.js; titles / units from I18N_DETAIL)
+    // "My dashboard" rows + the customize sheet (client/home-dash.ts; titles / units from I18N_DETAIL)
     dash: {
       heading: 'My dashboard',
       customize: 'Customize',
@@ -172,7 +172,7 @@ export const en = {
       baseAria: '30-day average {base}',
       dirs: { up: 'above the average', down: 'below the average', flat: 'about the average' },
       empty: 'Every metric is hidden. Use Customize to show some.',
-      // full metric names on the rows (client/home-dash.js); the rest use the detail sheet's title
+      // full metric names on the rows (client/home-dash.ts); the rest use the detail sheet's title
       names: { rhr: 'Resting heart rate', hrv: 'Heart rate variability', sleep: 'Hours of sleep', walkingHr: 'Walking heart rate', energy: 'Daily energy expenditure', wristTemp: 'Wrist temperature (sleep)', zones13: 'Heart rate zones 1–3 · last 7 days', zones45: 'Heart rate zones 4–5 · last 7 days', gymTime: 'Gym time · last 7 days', stress: 'Stress monitor' },
     },
     // "Customize Home": the order and show / hide of the blocks under the tiles (client/home-order.ts)
@@ -331,7 +331,7 @@ export const en = {
     rangeAria: 'Normal range {lo}–{hi}',
     note: `Normal = your median ± 2 ${UE} (your typical spread) over the 42 days before each reading (14+ days needed). High HRV is good and high resting HR is not; respiratory rate and wrist temperature matter when they shift either way. Descriptive, not medical advice.`,
   },
-  // Inicio "today" timeline (client/timeline.js): last night's sleep + the day's workouts
+  // Inicio "today" timeline (client/timeline.ts): last night's sleep + the day's workouts
   timeline: {
     heading: 'Today\'s activities',
     ariaLabel: 'Last night, today\'s workouts and today\'s programmed session',
@@ -509,7 +509,7 @@ export const es = {
       onTrack: 'a buen ritmo',
       behind: 'por detrás del ritmo',
     },
-    // filas de "Mi panel" + la hoja de personalizar (client/home-dash.js; títulos / unidades de I18N_DETAIL)
+    // filas de "Mi panel" + la hoja de personalizar (client/home-dash.ts; títulos / unidades de I18N_DETAIL)
     dash: {
       heading: 'Mi panel',
       customize: 'Personalizar',
@@ -520,7 +520,7 @@ export const es = {
       baseAria: 'media de 30 días {base}',
       dirs: { up: 'por encima de la media', down: 'por debajo de la media', flat: 'en torno a la media' },
       empty: 'Todas las métricas están ocultas. Usa Personalizar para mostrar alguna.',
-      // nombres completos en las filas (client/home-dash.js); el resto usa el título de la hoja de detalle
+      // nombres completos en las filas (client/home-dash.ts); el resto usa el título de la hoja de detalle
       names: { rhr: 'Frecuencia cardiaca en reposo', hrv: 'Variabilidad de la frecuencia cardiaca', sleep: 'Horas de sueño', walkingHr: 'Frecuencia cardiaca al caminar', energy: 'Gasto energético diario', wristTemp: 'Temperatura de muñeca (sueño)', zones13: 'Zonas de pulso 1–3 · últimos 7 días', zones45: 'Zonas de pulso 4–5 · últimos 7 días', gymTime: 'Tiempo de gimnasio · últimos 7 días', stress: 'Monitor de estrés' },
     },
     // "Personalizar inicio": el orden y mostrar / ocultar de los bloques bajo las tarjetas (client/home-order.ts)
@@ -674,7 +674,7 @@ export const es = {
     rangeAria: 'Rango normal {lo}–{hi}',
     note: `Normal = tu mediana ± 2 ${US} (tu variación típica) en los 42 días anteriores a cada lectura (hacen falta 14+ días). Una VFC alta es buena y una FC en reposo alta no; la frecuencia respiratoria y la temperatura de muñeca importan cuando cambian en cualquier sentido. Descriptivo, no es consejo médico.`,
   },
-  // "Hoy" en Inicio (client/timeline.js): el sueño de anoche + los entrenos del día
+  // "Hoy" en Inicio (client/timeline.ts): el sueño de anoche + los entrenos del día
   timeline: {
     heading: 'Actividades de hoy',
     ariaLabel: 'La noche pasada, los entrenos de hoy y la sesión programada de hoy',

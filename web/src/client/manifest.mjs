@@ -57,7 +57,7 @@ export const CLIENT_SCRIPTS = [
   { file: 'training-today.js', provides: ['HCProgram'], requires: ['HC', 'I18N_DATE', 'I18N_HOY', 'TRAINING', 'TRAINING_META'] },
   { file: 'training-dash.ts', provides: [], requires: ['DASH', 'HC', 'I18N_DASH', 'I18N_DATE'] },
   {
-    file: 'training-activity.js',
+    file: 'training-activity.ts',
     provides: ['HCActivity'],
     requires: ['ACTIVITY', 'DETAIL', 'HC', 'HC_FMT', 'I18N_ACTIVITY', 'I18N_DATE', 'LOCALE'],
   },
@@ -82,12 +82,12 @@ export const CLIENT_SCRIPTS = [
     ],
   },
   {
-    file: 'timeline.js',
+    file: 'timeline.ts',
     provides: [],
     requires: ['DETAIL', 'HC', 'HCDay', 'HCProgram', 'HC_FMT', 'I18N_DATE', 'I18N_SCORE', 'LOCALE', 'SCORES'],
   },
   { file: 'profile.ts', provides: ['HCProfile'], requires: ['HC', 'HCSettings', 'HCViews', 'I18N_PROFILE', 'LOCALE', 'PROFILE'] },
-  { file: 'onboarding.js', provides: ['HCOnboarding'], requires: ['HC', 'HCViews', 'HC_ENERGY', 'I18N_ONB', 'PROFILE'] },
+  { file: 'onboarding.ts', provides: ['HCOnboarding'], requires: ['HC', 'HCViews', 'HC_ENERGY', 'I18N_ONB', 'PROFILE'] },
   { file: 'nav-actions.ts', provides: ['HCActions'], requires: [] },
   {
     file: 'home-week.ts',
@@ -95,7 +95,7 @@ export const CLIENT_SCRIPTS = [
     requires: ['DETAIL', 'HC', 'HCAdherence', 'HCDay', 'HCViews', 'I18N_SCORE', 'SCORES', 'TRAINING'],
   },
   {
-    file: 'home-dash.js',
+    file: 'home-dash.ts',
     provides: ['HCDash'],
     requires: ['DETAIL', 'HC', 'HCViews', 'HC_FMT', 'I18N_DATE', 'I18N_DETAIL', 'I18N_SCORE', 'LOCALE', 'SCORES'],
   },

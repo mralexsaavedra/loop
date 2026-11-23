@@ -34,7 +34,7 @@ const GEOMETRY_TOFIXED = {
   'web/src/client/journal.ts': 2, // an insight bar's left / width
   'web/src/client/nutri-score.js': 4, // the sparkline path + its area's two baseline corners
   'web/src/client/score.js': 2, // the sparkline points
-  'web/src/client/training-activity.js': 2, // the modality bar's rect x / width
+  'web/src/client/training-activity.ts': 2, // the modality bar's rect x / width
 };
 // a hand-made decimal comma that is DATA, not display. None left in the display sources: the logged food
 // entry's stored name ("Arroz · 1,5 ud", lib/nutrition/foodlog.mjs basicLabel, run as HC_FOODLOG) and the

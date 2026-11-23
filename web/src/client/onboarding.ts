@@ -9,7 +9,49 @@
  * The numbers, screen and bounds are HC_ENERGY = lib/nutrition/energy.mjs (one formula for the page and the
  * build). Opened from the profile sheet ([data-onb-open]) and, once, on its own when the server has neither a
  * profile nor a goal yet ("Later" is remembered in localStorage, a convenience only). Registers the
- * `onboarding` view of the detail sheet (client/detail.js: ASYNC_VIEWS, deep link #onboarding). */
+ * `onboarding` view of the detail sheet (client/detail.js: ASYNC_VIEWS, deep link #onboarding).
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts). */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads (baked by the build or provided by an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+declare const HC_ENERGY: PageGlobals['HC_ENERGY'];
+declare const I18N_ONB: PageGlobals['I18N_ONB'];
+declare const PROFILE: PageGlobals['PROFILE'];
+
+/** One sport's sessions: their length (minutes) and how many a week. */
+type Session = { minutes: number; perWeek: number };
+/** A picked sport with its sessions (the document's `sports`, HC_ENERGY's person.sports). */
+type Sport = { sport: string; minutes: number; perWeek: number };
+/** The wizard's answers, as typed (strings) or ticked (the safety booleans); indexed by data-onb-field. */
+type Answers = {
+  name: string; sex: string; birthdate: string; heightCm: string; weightKg: string; activity: string;
+  pregnant: boolean; medical: boolean; eating1: boolean; eating2: boolean;
+  [key: string]: string | boolean;
+};
+/** HC_ENERGY.screenPerson's verdict (lib/nutrition/energy.mjs): numbers shown or not, the goals offered, why. */
+type Screening = { numbers: boolean; goals: string[]; flags: string[] };
+/** The wizard's state. errors: a field / cell key → its message (a summary cell → true when not a number). */
+type State = {
+  at: string; a: Answers; picks: string[]; sess: Record<string, Session>; goal: string; target: string;
+  edits: Record<string, number>; adjust: boolean; errors: Record<string, string | boolean>; screen: Screening | null; status: string;
+};
+/** The person HC_ENERGY computes for. */
+type Person = { sex: string; age: number | null; heightCm: number | null; weightKg: number | null; activity: string; sports: Sport[] };
+/** The targets: goal → day type → { kcal, p, f }. */
+type Targets = Record<string, Record<string, Record<string, number>>>;
+/** A bound check (HC_ENERGY.checkTargets): its code, goal and day type. */
+type Check = { code: string; goal: string; day: string };
+/** A big option card. */
+type Card = { value: string; name: string; desc?: string; on: boolean };
+/** input()'s options. */
+type InputOpts = { label?: string; type?: string; mode?: string; suffix?: string; big?: boolean; q?: string; err?: string };
+/** The onboarding document PUT to /api/food/profile. */
+type OnbDoc = {
+  sex: string; birthdate: string; heightCm: number | null; weightKg: number | null; activity: string; sports: Sport[];
+  goals: string[]; targets: Targets; name?: string;
+};
+
 (function () {
   var T = typeof I18N_ONB !== 'undefined' ? I18N_ONB : null, E = typeof HC_ENERGY !== 'undefined' ? HC_ENERGY : null;
   if (!T || !E) return;
@@ -20,11 +62,11 @@
   var MINUTES = [30, 45, 60, 90, 120, 180, 240];
   var TIMES = [1, 2, 3, 4, 5, 6, 7];
   // a new pick's session: an hour three times a week, a ride two hours twice
-  var SESSION = { cycling: { minutes: 120, perWeek: 2 } };
+  var SESSION: Record<string, Session> = { cycling: { minutes: 120, perWeek: 2 } };
   var P = (typeof PROFILE !== 'undefined' && PROFILE) || {};
   var S = fresh();
 
-  function fresh() {
+  function fresh(): State {
     return {
       at: 'welcome',
       a: {
@@ -39,29 +81,29 @@
     var F = window.HCFood;
     return F && typeof F.api === 'function' ? F.api : null;
   }
-  function num(v) {
+  function num(v: unknown): number | null {
     var s = String(v == null ? '' : v).trim().replace(',', '.');
     return s === '' || !/^\d+(\.\d+)?$/.test(s) ? null : Number(s);
   }
-  function sports() {
+  function sports(): Sport[] {
     return S.picks.map(function (k) { return { sport: k, minutes: S.sess[k].minutes, perWeek: S.sess[k].perWeek }; });
   }
-  function person() {
+  function person(): Person {
     var a = S.a;
     return {
       sex: a.sex, age: realDate(a.birthdate) ? E.ageOn(a.birthdate, HC.todayIso()) : null, heightCm: num(a.heightCm), weightKg: num(a.weightKg),
       activity: a.activity, sports: sports(),
     };
   }
-  function realDate(s) {
+  function realDate(s: string) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(s)) return false;
     var p = s.split('-').map(Number), d = new Date(Date.UTC(p[0], p[1] - 1, p[2]));
     return d.getUTCFullYear() === p[0] && d.getUTCMonth() === p[1] - 1 && d.getUTCDate() === p[2];
   }
   // the 12 cells: computed for this person, the chosen goal's cells overridden by what was typed
-  function targets() {
-    var t = E.computeTargets(person()).targets;
-    DAYS.forEach(function (d) {
+  function targets(): Targets {
+    var t: Targets = E.computeTargets(person()).targets;
+    DAYS.forEach(function (d: string) {
       ['kcal', 'p', 'f'].forEach(function (k) {
         var v = S.edits[d + '.' + k];
         if (v != null) t[S.goal][d][k] = v;
@@ -81,19 +123,19 @@
 
   /* ---------- screens ---------- */
   // id: the question names the field under it (an input without a visible label of its own, input() opts.q)
-  function q(text, hint, id) {
+  function q(text: string, hint?: string, id?: string) {
     return '<h3 class="onb-q"' + (id ? ' id="' + id + '"' : '') + '>' + esc(text) + '</h3>' + (hint ? '<p class="pf-note">' + esc(hint) + '</p>' : '');
   }
   // an inline error, with the id its field's aria-describedby points at
-  function err(key) {
+  function err(key: string) {
     return S.errors[key] ? '<small class="food-err" id="onb-err-' + key + '">' + esc(S.errors[key]) + '</small>' : '';
   }
-  function invalid(key) {
+  function invalid(key: string) {
     return S.errors[key] ? ' aria-invalid="true" aria-describedby="onb-err-' + key + '"' : '';
   }
   // opts.q: the id of the screen's question, which names a field with no label of its own (+ its unit), so the
   // field always has a programmatic label (WCAG 1.3.1 / 4.1.2: "When were you born?" for the date field)
-  function input(key, value, opts) {
+  function input(key: string, value: string, opts?: InputOpts) {
     opts = opts || {};
     var id = 'onb-' + key;
     var named = opts.q && !opts.label ? ' aria-labelledby="' + opts.q + (opts.suffix ? ' ' + id + '-unit' : '') + '"' : '';
@@ -104,29 +146,29 @@
   }
   // big option cards: radios (one) or checkboxes (several); `o` = [{value, name, desc?, on}]. A refused
   // choice marks the first option invalid and describes it by the error (the group's error text)
-  function cards(key, type, o, label) {
+  function cards(key: string, type: string, o: Card[], label: string) {
     return '<fieldset class="seg"><legend class="sr-only">' + esc(label) + '</legend>' + o.map(function (x, i) {
       return '<label class="seg-opt onb-card"><input type="' + type + '" name="onb-' + key + '" data-onb-field="' + key + '" value="' + esc(x.value) + '"' + (i === 0 ? invalid(key) : '') + (x.on ? ' checked' : '') +
         '><span class="chip seg-in onb-in"><b>' + esc(x.name) + '</b>' + (x.desc ? '<small>' + esc(x.desc) + '</small>' : '') + '</span></label>';
     }).join('') + '</fieldset>' + err(key);
   }
   // compact pills (the session length and times a week)
-  function pills(key, values, current, label, text) {
+  function pills(key: string, values: number[], current: number, label: string, text: (v: number) => string) {
     return '<fieldset class="seg"><legend class="seg-lbl">' + esc(label) + '</legend><div class="seg-opts">' + values.map(function (v) {
       return '<label class="seg-opt"><input type="radio" name="onb-' + key + '" data-onb-field="' + key + '" value="' + v + '"' + (v === current ? ' checked' : '') +
         '><span class="chip seg-in"><span class="seg-txt">' + esc(text(v)) + '</span></span></label>';
     }).join('') + '</div></fieldset>';
   }
-  function minutesText(m) {
+  function minutesText(m: number) {
     return m < 60 ? format(T.session.min, { n: m }) : HC.hours(m / 60);
   }
-  function sportsOf(d) {
+  function sportsOf(d: string) {
     return S.picks.filter(function (k) { return E.dayTypeOfMinutes(S.sess[k].minutes) === d; }).map(function (k) { return T.sports.names[k]; });
   }
   // the week's average kcal for the chosen goal: each sport's sessions on its day type, the other days rest
   // (more than 7 sessions a week are scaled to 7)
-  function weekAverage(t) {
-    var n = { gym: 0, bike: 0, bikeLong: 0 }, total = 0;
+  function weekAverage(t: Targets) {
+    var n: Record<string, number> = { gym: 0, bike: 0, bikeLong: 0 }, total = 0;
     S.picks.forEach(function (k) { n[E.dayTypeOfMinutes(S.sess[k].minutes)] += S.sess[k].perWeek; total += S.sess[k].perWeek; });
     var f = total > 7 ? 7 / total : 1, sum = 0;
     ['gym', 'bike', 'bikeLong'].forEach(function (d) { sum += n[d] * f * t[S.goal][d].kcal; });
@@ -134,27 +176,27 @@
     return E.round50(sum / 7);
   }
   // the summary's bounds for the chosen goal on the day types the week has (errors first, then warnings)
-  function summaryChecks(t, p) {
+  function summaryChecks(t: Targets, p: Person): Check[] {
     var res = E.checkTargets(t, p), used = E.usedDayTypes(p.sports);
-    return res.errors.concat(res.warnings).filter(function (x) { return x.goal === S.goal && used.indexOf(x.day) >= 0; });
+    return res.errors.concat(res.warnings).filter(function (x: Check) { return x.goal === S.goal && used.indexOf(x.day) >= 0; });
   }
-  function checkText(x, p) {
+  function checkText(x: Check, p: Person) {
     return T.errors[x.code] ? format(T.errors[x.code], { min: p.sex === 'male' ? 1500 : 1200 }) : T.warnings[x.code];
   }
   // the adjust cell a hard bound is about
-  var CELL_OF = { kcalFloor: 'kcal', deficitMax: 'kcal', surplusMax: 'kcal', rateMax: 'kcal', proteinMin: 'p', proteinMax: 'p', fatMin: 'f' };
+  var CELL_OF: Record<string, string> = { kcalFloor: 'kcal', deficitMax: 'kcal', surplusMax: 'kcal', rateMax: 'kcal', proteinMin: 'p', proteinMax: 'p', fatMin: 'f' };
   function summaryHtml() {
     var N = T.summary, t = targets(), p = person(), used = E.usedDayTypes(p.sports);
     var mine = summaryChecks(t, p);
     var floor = E.computeTargets(p).flags.indexOf('floor') >= 0;
-    var rows = used.map(function (d) {
+    var rows = used.map(function (d: string) {
       var c = t[S.goal][d], names = sportsOf(d), own = mine.filter(function (x) { return x.day === d; });
       // each message has an id; every cell of the row is described by them, the cell a bound is about is invalid
       var ids = own.map(function (x, i) { return 'onb-msg-' + d + '-' + i; });
       var msgs = own.map(function (x, i) {
         return '<small class="' + (T.errors[x.code] ? 'food-err' : 'pf-note') + '" id="' + ids[i] + '">' + esc(checkText(x, p)) + '</small>';
       }).join('');
-      function cell(k, lbl) {
+      function cell(k: string, lbl: string) {
         var bad = S.errors[d + '.' + k] || own.some(function (x) { return T.errors[x.code] && CELL_OF[x.code] === k; });
         return '<label class="onb-cell"><span class="food-lbl"><span class="sr-only">' + esc(N.days[d]) + ' </span>' + esc(lbl) + '</span><input class="food-in" data-onb-cell="' + d + '.' + k +
           '" inputmode="numeric" value="' + esc(String(c[k])) + '"' + (bad ? ' aria-invalid="true"' : '') + (ids.length ? ' aria-describedby="' + ids.join(' ') + '"' : '') + '></label>';
@@ -175,7 +217,7 @@
   // the one-off Apple Health export for the history)
   function dataHtml() {
     var D = T.data, origin = typeof location !== 'undefined' && location && location.origin ? location.origin : '';
-    function step(n, x, extra, action) {
+    function step(n: number, x: { t: string; d: string }, extra?: string, action?: string) {
       return '<li class="db-row"><b class="db-val">' + n + '</b><span class="db-name">' + esc(x.t) + '<br><small>' + esc(x.d) + '</small>' + (extra || '') + '</span>' + (action || '') + '</li>';
     }
     return q(D.q, D.intro) + '<ol class="db-list onb-steps">' +
@@ -189,10 +231,10 @@
     if (!c || typeof c.writeText !== 'function') return;
     c.writeText(origin).then(function () { S.status = T.data.server.copied; reopen('[data-onb-act="copy"]'); }, function () { /* no clipboard: the address stays on screen */ });
   }
-  function screenHtml(id) {
+  function screenHtml(id: string) {
     var a = S.a;
     if (id === 'welcome') {
-      return q(T.welcome.q, T.welcome.intro) + '<ol class="db-list onb-steps">' + T.welcome.steps.map(function (x, n) {
+      return q(T.welcome.q, T.welcome.intro) + '<ol class="db-list onb-steps">' + T.welcome.steps.map(function (x: string, n: number) {
         return '<li class="db-row"><b class="db-val">' + (n + 1) + '</b><span class="db-name">' + esc(x) + '</span></li>';
       }).join('') + '</ol><p class="pf-note">' + esc(T.welcome.time) + '</p>';
     }
@@ -219,7 +261,7 @@
       }).join('');
     }
     if (id === 'goal') {
-      var G = T.goal, sc = S.screen;
+      var G = T.goal, sc = S.screen as Screening; // set by the safety screen before the goal one
       var notes = sc.flags.filter(function (f) { return G[f]; }).map(function (f) { return '<p class="pf-note">' + esc(G[f]) + '</p>'; }).join('');
       return q(G.q) + notes + cards('goal', 'radio', sc.goals.map(function (g) { return { value: g, name: G.options[g].name, desc: G.options[g].desc, on: S.goal === g }; }), G.q);
     }
@@ -228,20 +270,20 @@
     return dataHtml();
   }
   function stopHtml() {
-    var X = T.stop, why = S.screen.flags[0];
+    var X = T.stop, why = (S.screen as Screening).flags[0]; // a stop is always screened
     return q(X.heading) + '<p class="pf-note">' + esc(X[why] || X.minor) + '</p>' +
       '<div class="onb-nav"><button type="button" class="food-btn" data-onb-act="later">' + esc(X.close) + '</button></div>';
   }
   // the flow's own header (a `bare` view): ONE back arrow (on the cover it closes, like "Later"), the
   // segmented progress (one segment per screen after the cover) and "Later"
-  function topHtml(i, n) {
+  function topHtml(i: number, n: number) {
     var back = i > 0 ? 'back' : 'later', segs = '';
     for (var k = 1; k <= n; k++) segs += '<i' + (k <= i ? ' class="on"' : '') + '></i>';
     return '<div class="onb-top"><button type="button" class="sh-back" data-onb-act="' + back + '" aria-label="' + esc(i > 0 ? T.back : T.later) + '">‹</button>' +
       (i > 0 ? '<span class="onb-prog" role="img" aria-label="' + esc(format(T.step, { n: i, total: n })) + '">' + segs + '</span>' : '') +
       (i > 0 ? '<button type="button" class="lnk" data-onb-act="later">' + esc(T.later) + '</button>' : '') + '</div><h2 class="sr-only" id="dt-title">' + esc(T.title) + '</h2>';
   }
-  function navHtml(list, i) {
+  function navHtml(list: string[], i: number) {
     var first = i === 0, last = i === list.length - 1;
     return '<div class="onb-nav"><p class="pf-note pf-status" id="onb-status" role="status" aria-live="polite">' + esc(S.status) + '</p>' +
       '<button type="button" class="food-btn" data-onb-act="' + (last ? 'save' : 'next') + '">' + esc(last ? T.save : first ? T.start : T.next) + '</button></div>';
@@ -253,8 +295,8 @@
   }
 
   /* ---------- validation per screen ---------- */
-  var FIELD = { birth: 'age', height: 'heightCm', weight: 'weightKg' };
-  function valid(id) {
+  var FIELD: Record<string, string> = { birth: 'age', height: 'heightCm', weight: 'weightKg' };
+  function valid(id: string) {
     S.errors = {};
     if (id === 'sex' && !S.a.sex) S.errors.sex = T.errors.sex;
     if (FIELD[id] && E.validatePerson(person()).indexOf(FIELD[id]) >= 0) S.errors[FIELD[id]] = T.errors[FIELD[id]];
@@ -273,19 +315,19 @@
     var p = person(), probs = E.checkTargetWeight({ heightCm: p.heightCm, weightKg: p.weightKg, goal: S.goal, targetWeightKg: t });
     if (probs.length) S.errors.target = T.errors[probs[0]];
   }
-  function screen() {
+  function screen(): Screening {
     var a = S.a, p = person();
     return E.screenPerson({ age: p.age, heightCm: p.heightCm, weightKg: p.weightKg, pregnant: a.sex === 'female' && a.pregnant, medical: a.medical, eatingRisk: a.eating1 || a.eating2 });
   }
 
   /* ---------- actions ---------- */
-  function reopen(focus) {
+  function reopen(focus?: string) {
     var H = window.HCDetail;
     if (H && typeof H.open === 'function') H.open('onboarding', null, focus ? { focus: focus } : undefined);
   }
   // a status set into the live region already in the sheet, so it is announced (a region re-rendered
   // together with its text is not); without the node, render first, then set the text
-  function setStatus(text, focus) {
+  function setStatus(text: string, focus?: string) {
     var get = function () { return document.getElementById ? document.getElementById('onb-status') : null; };
     if (!get()) {
       S.status = '';
@@ -341,9 +383,9 @@
     reopen('[data-onb-act="next"]');
   }
   function doc() {
-    var a = S.a, p = person(), out = {
+    var a = S.a, p = person(), out: OnbDoc = {
       sex: a.sex, birthdate: a.birthdate, heightCm: p.heightCm, weightKg: p.weightKg, activity: a.activity, sports: sports(),
-      goals: S.screen.goals.slice(), targets: targets(),
+      goals: (S.screen as Screening).goals.slice(), targets: targets(), // save is on the last screen, after safety
     };
     if (String(a.name).trim()) out.name = String(a.name).trim();
     return out;
@@ -364,13 +406,13 @@
       close();
       var b = document.getElementById ? document.getElementById('sync-btn') : null;
       if (b && !b.hidden && typeof b.click === 'function') b.click();
-    }).catch(function (err) {
+    }).catch(function (err: { status?: number } | null | undefined) {
       setStatus(format(T.errors.save, { reason: err && err.status === 0 ? T.reasons.offline : T.reasons.generic }));
     });
   }
 
-  function onInput(e) {
-    var t = e && e.target;
+  function onInput(e: Event) {
+    var t = (e && e.target) as HTMLInputElement | null;
     if (!t || !t.getAttribute) return;
     var cell = t.getAttribute('data-onb-cell');
     if (cell) {
@@ -400,7 +442,7 @@
 
   if (document.addEventListener) {
     document.addEventListener('click', function (e) {
-      var t = e && e.target && e.target.closest ? e.target : null;
+      var t = e && e.target && (e.target as Element).closest ? (e.target as Element) : null;
       if (!t) return;
       var open = t.closest('[data-onb-open]');
       if (open) { S = fresh(); return reopen(); }
@@ -418,7 +460,7 @@
     // Enter in a field or on a card = the primary button (Start / Continue / Save; Close on a stop); a focused
     // button or link clicks itself
     document.addEventListener('keydown', function (e) {
-      var t = e && e.target;
+      var t = (e && e.target) as Element | null;
       if (!e || e.key !== 'Enter' || !t || typeof t.closest !== 'function' || !t.closest('.onb')) return;
       var tag = String(t.tagName || '').toUpperCase();
       if (tag === 'BUTTON' || tag === 'A' || tag === 'TEXTAREA') return;

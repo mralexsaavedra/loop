@@ -44,12 +44,12 @@ Order, top to bottom (`web/src/tabs/Home.astro`, which also renders `components/
 | 4a | Outlook bar (advice) | `#home-advice` | `score.js` |
 | 4b | Energy bank | `#home-energy` | `energy.ts` |
 | 4c | Nutrition score | `#home-nscore` | `nutri-score.js` |
-| 4d | Today's activities | `#timeline` | `timeline.js` |
+| 4d | Today's activities | `#timeline` | `timeline.ts` |
 | 5 | Today you eat | `EatCard.astro` | `nutri-day.js` |
 | 6 | Tonight | `#home-tonight` | `home-week.ts` |
 | 7 | My journal | `#my-journal` | `journal.ts` |
 | 8 | My plan | `#my-plan` | `home-week.ts` |
-| 9 | My dashboard | `#my-dash` | `home-dash.js` |
+| 9 | My dashboard | `#my-dash` | `home-dash.ts` |
 | 9a | "Customize Home ✎" | `#home-cust` | `home-order.ts` (moves blocks 4–9 right before it) |
 | 10 | The programmed session's hidden source section | `hoy` | — |
 
@@ -59,7 +59,7 @@ Order, top to bottom (`web/src/tabs/Home.astro`, which also renders `components/
   the built (default) order. The dials, the tiles and the hidden Hoy source never move.
 - Little text on the tab: each block's explanation lives in the detail sheet it opens.
 - The full health monitor list is NOT on Home: it leads Salud ([below](#health-monitor-on-salud)).
-- `client/home-week.ts` and `client/home-dash.js` load in `layouts/Plan.astro`'s end-of-body script
+- `client/home-week.ts` and `client/home-dash.ts` load in `layouts/Plan.astro`'s end-of-body script
   list (after `HC`, the baked globals and `adherence.js`, right before `deepdive.js` / `detail.js`).
   They render at once and register their sheets (`tonight`, `dash-edit`) before `detail.js` runs;
   `#tonight` / `#dash-edit` deep-link to them (`NAV.viewTab` → `home`). Without their hosts they
@@ -288,7 +288,7 @@ the nutrition score and today's activities.
 ### Today's activities
 
 - `lib/score/timeline.mjs`, baked as `SCORES.timeline` even when `hasData` is false; `#timeline` +
-  `client/timeline.js`, under the outlook bar in "My day".
+  `client/timeline.ts`, under the outlook bar in "My day".
 - Per day: last night's sleep (`sleep-daily.csv`, dated the wake-up day, with its bed / wake clock
   `bed` / `wake` when the row has them) and that day's workouts by Home modality (gym / run / bike /
   other) with minutes and RE when the source recorded it.
@@ -385,7 +385,7 @@ What it shows: the viewer's weekly goals (`#my-plan`, `client/home-week.ts`,
 ## My dashboard
 
 What it shows: user-chosen metric cards with the latest value vs a 30-day baseline (`#my-dash`,
-`client/home-dash.js`).
+`client/home-dash.ts`).
 
 ### Cards
 
@@ -735,7 +735,7 @@ What it shows: Home for a PAST day (`#d=YYYY-MM-DD`) via the top bar's "‹ HOY 
 | Dials + collapsed row (`score.js` `renderDay`) | sleep + recovery = that day's `DIALS.days` entry (a day without its own night reads "No data", never another day's value); load = the modality's baked `recent` session day (the dial opens on the modality trained THAT day; "No session" instead of "No session yet"; a gated modality stays gated, the gate is today's); the arias name the date instead of "last night" / "today"; never greyed as stale, no stale line; every dial and mini ring opens its deep-dive ON that day (`data-date`) |
 | Outlook bar | hidden (it reads the current 7-day trend) |
 | Monitor tiles (`monitor.js` `renderTiles`) | that day's `SCORES.days` summary (in / out of range among the cards fresh ON that day, out of `total`) and that day's stress value (`SCORES.stress.days`, the last 14 days; opens the stress page on that day), else its HRV card (dated when its reading is older than the day; opens the HRV sheet on that day); no entry → "No data". The Salud list stays the latest |
-| "My day" (`timeline.js` `pastHtml`) | "Activities · <date>" with that day's night (`DETAIL.metrics.sleep`: hours, bed / wake clock) and workouts (`DETAIL.sessions`: one per date + modality after the SAME display rule as `SCORES.timeline`, minutes, RE, parts; a test checks both give the same rows); no programmed-session row, never greyed, every row opens its sheet on that day; nothing that day → "Nothing logged that day" |
+| "My day" (`timeline.ts` `pastHtml`) | "Activities · <date>" with that day's night (`DETAIL.metrics.sleep`: hours, bed / wake clock) and workouts (`DETAIL.sessions`: one per date + modality after the SAME display rule as `SCORES.timeline`, minutes, RE, parts; a test checks both give the same rows); no programmed-session row, never greyed, every row opens its sheet on that day; nothing that day → "Nothing logged that day" |
 | Energy bank (`energy.ts`) | that day's `SCORES.energy.days` entry (level, curve, start, low); opens the energy bank page on that day; no value → hidden |
 | Nutrition score (`nutri-score.js`) | that day's FINAL score (no average line); opens the nutrition sheet on that day; no log or no target → hidden |
 | Eat card (`nutri-day.js` `renderEat`) | "Target for <date>" with that day's DETECTED day type (`dayInput` + `detectDayType`, the same detection as `HCNutri.targetFor`) and its plan targets for the current goal; a day whose type cannot be told (no session, sleep or programmed session) hides the card |

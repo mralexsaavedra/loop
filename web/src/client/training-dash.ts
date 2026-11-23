@@ -1,5 +1,5 @@
 /* Entreno "Intensity (HR)" block — what is left of the executed-workouts dashboard once its weekly
- * volume, modality split and summary cards merged into the Activity card (client/training-activity.js).
+ * volume, modality split and summary cards merged into the Activity card (client/training-activity.ts).
  * Reads DASH (lib/training/dashboard.mjs aggregateDashboard, baked by web/src/components/Bake.astro),
  * and I18N_DASH (web/src/i18n/dash-templates.mjs).
  *
