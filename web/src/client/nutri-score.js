@@ -1,5 +1,5 @@
 /* Nutrition score — a day's 0-100 adherence to the viewer's own targets. The math is
- * lib/nutrition/score.mjs itself: its clientSource() emits HC_NSCORE (inlined with HC_FMT before
+ * lib/nutrition/nutri-score.mjs itself: its clientSource() emits HC_NSCORE (inlined with HC_FMT before
  * util.js), so nothing here re-implements it; NSCORE_CASES test it. Classic script (is:inline), after
  * nutri-day.js, adherence.js and today-date.js.
  *
@@ -26,7 +26,7 @@
   var DAY = typeof HCDay !== 'undefined' && HCDay ? HCDay : null;
   var WIDE = 30; // the Nutrición block's longer average and line
 
-  /* ---------- the score: lib/nutrition/score.mjs's own functions (clientSource -> HC_NSCORE) ---------- */
+  /* ---------- the score: lib/nutrition/nutri-score.mjs's own functions (clientSource -> HC_NSCORE) ---------- */
   var fin = HC_NSCORE.fin, scoreBand = HC_NSCORE.scoreBand, nutritionScore = HC_NSCORE.nutritionScore, scoreSeries = HC_NSCORE.scoreSeries;
 
   /* ---------- inputs ---------- */

@@ -1,7 +1,7 @@
 /* web/src/client/nutri-score.js — the nutrition score (Inicio card + Nutrición block). Runs the real
  * classic script in node:vm against web/test/dom-stub.mjs with a fixed clock, a baked INTAKE.log
  * (SYNTHETIC days), a stand-in HCNutri.targetFor and, optionally, a LAN HCAdherence summary; the port
- * is pinned against lib/nutrition/score.mjs. */
+ * is pinned against lib/nutrition/nutri-score.mjs. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
@@ -12,7 +12,7 @@ import { StubDocument } from '../../test/dom-stub.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { es as esN, en as enN } from '../i18n/nutri-templates.mjs';
 import { es as esS, en as enS } from '../i18n/score-templates.mjs';
-import { NSCORE, NSCORE_CASES, nutritionScore, scoreSeries } from '../../../lib/nutrition/score.mjs';
+import { NSCORE, NSCORE_CASES, nutritionScore, scoreSeries } from '../../../lib/nutrition/nutri-score.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const source = fs.readFileSync(path.join(here, 'nutri-score.js'), 'utf8');
@@ -58,7 +58,7 @@ function setup({ log = [], live = null, targetFor, locale = 'en', sel = null, ho
 }
 const plain = (x) => JSON.parse(JSON.stringify(x));
 
-test('parity: the port scores exactly what lib/nutrition/score.mjs scores', () => {
+test('parity: the port scores exactly what lib/nutrition/nutri-score.mjs scores', () => {
   const { S } = setup({ home: false, nutri: false });
   for (const c of NSCORE_CASES) assert.deepEqual(plain(S.nutritionScore(c.day, c.target, { today: c.today })), plain(c.expect), c.name);
   const dates = ['2030-01-04', '2030-01-05', '2030-01-06', '2030-01-07', '2030-01-08', '2030-01-09', '2030-01-10', '2030-01-11'];
@@ -141,7 +141,7 @@ test('metric(): the sheet\'s series — one value per day of the last 90 ending 
   assert.equal(m.v[m.v.length - 2], 100);
   assert.equal(m.v[m.v.length - 1], null, 'today (in progress) has no point on the chart');
   assert.equal(m.days[TODAY].partial, true);
-  assert.equal(m.days[TODAY].score, 66, 'the math is unchanged (lib/nutrition/score.mjs)');
+  assert.equal(m.days[TODAY].score, 66, 'the math is unchanged (lib/nutrition/nutri-score.mjs)');
   assert.deepEqual(plain(m.bands), { good: 85, mid: 60 });
 });
 

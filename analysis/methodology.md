@@ -88,7 +88,7 @@ Calorie target by goal:
   recovery %, no wake time or no strain scale (K) → no value. Limits: it inherits every limit of its
   inputs (heart rate only, no HRV, walking raises stress), the day ends at midnight, naps and food
   are not seen, and the contributions summary adds nominal amounts (the clamp can make them exceed
-  the change). Compare it with your own days only. Code: `lib/score/energy.mjs`.
+  the change). Compare it with your own days only. Code: `lib/score/energy-bank.mjs`.
 - **Fitness age (mean-based, from the smartwatch VO2max):** the age whose healthy-population MEAN
   VO2max equals the latest reading of `vo2max.csv` (one value per day, the later row wins; its date
   and source are shown). Reference: Loe H, Rognmo Ø, Saltin B, Wisløff U, "Aerobic Capacity
@@ -143,7 +143,7 @@ changes an action. Use it to pick what to test (e.g. two weeks without late caff
 ### 5b. Nutrition score (daily adherence to your own targets)
 
 A logged day's 0–100 adherence to THAT day's meals target (the current goal × that day's detected
-day type, as Constancia and the intake rings use; `lib/nutrition/score.mjs`, the page's Inicio card
+day type, as Constancia and the intake rings use; `lib/nutrition/nutri-score.mjs`, the page's Inicio card
 and Nutrición block). Components: kcal (weight 0.4) = 100 within ±10 % of the target, linear to 0 at
 ±35 %; protein (0.4) = 100 at ≥ 90 % of the target, linear to 0 at 50 % (more is never penalised);
 fat (0.2) = 100 from 60 % to 110 % of the target, linear to 0 at 160 % above and 30 % below; score =

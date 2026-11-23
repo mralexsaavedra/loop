@@ -225,7 +225,7 @@ util.js; rules in [`design-system.md`](design-system.md) → "Numbers"). The sam
 | `HC_BAND` — recovery 0–100 bands `PCT_GOOD` / `PCT_LOW` / `pctBand` | `lib/score/recovery.mjs` `clientSource()` | the recovery % colour and the energy bank (instead of literals) |
 | `HC_ADH` — food log adherence | `lib/nutrition/adherence.mjs` | `client/adherence.js` (instead of a copy) |
 | `HC_PROG` — weight progress | `lib/nutrition/progress.mjs` | `client/progress.js` |
-| `HC_NSCORE` — nutrition score | `lib/nutrition/score.mjs` | `client/nutri-score.js` |
+| `HC_NSCORE` — nutrition score | `lib/nutrition/nutri-score.mjs` | `client/nutri-score.js` |
 | `HC_FOODLOG` — food log formula | `lib/nutrition/foodlog.mjs` | `client/food-core.js` |
 | `HC_DAYTYPE` / `HC_FUEL` — day type detection, ride fuelling | `lib/nutrition/daytype.mjs` / `fuel.mjs` | `client/nutri-day.js` |
 | `HC_SCALE` — portion scaling | `lib/nutrition/scale.mjs` | `client/nutri-day.js` |

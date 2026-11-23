@@ -133,7 +133,7 @@ const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForSc
       expenditure + the macro split over the baked window; hidden when there is no expenditure data */}
   <div class="nutri-block" id="nutri-balance" hidden></div>
 
-  {/* the nutrition score (client/nutri-score.js, lib/nutrition/score.mjs): the day's adherence to its
+  {/* the nutrition score (client/nutri-score.js, lib/nutrition/nutri-score.mjs): the day's adherence to its
       targets + the 7 / 30-day averages and a 30-day line, a tap opens its trend sheet; hidden without
       any food log day (baked INTAKE.log or the LAN summary). The formula sits behind its ⓘ */}
   <div class="nutri-block" id="nutri-score-block" hidden>

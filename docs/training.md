@@ -67,7 +67,7 @@ What it shows: per modality (gym / run / bike), the last scored session's Relati
   - a small ring = the dial's own baked arc for that session (`DIALS.load.modalities[].days[].fill`, the
     typical-day tick);
   - "LOAD · <date>" (`today` when it is the viewer's today);
-  - a 7-day vs 42-day pill (`lib/score/load.mjs` bands):
+  - a 7-day vs 42-day pill (`lib/score/training-load.mjs` bands):
 
 | Pill | Meaning |
 | --- | --- |
@@ -76,7 +76,7 @@ What it shows: per modality (gym / run / bike), the last scored session's Relati
 | orange ▲▼ | ramping / well below |
 
 - A gated modality shows "—" and the dial's "Building" word (also when its trend is ok but the dial is gated).
-- When no workout ever carried effort (`trend.reason` `noEffortSource`, lib/score/load.mjs), the pill says
+- When no workout ever carried effort (`trend.reason` `noEffortSource`, lib/score/training-load.mjs), the pill says
   "No effort data" instead, the ⓘ line names the reason, and a note under the cards (`.ld-noeffort`) says the
   workouts arrive without heart rate / effort and what would enable load (a heart-rate device or Strava).
 - The pill sits on the card's bottom edge (`.ld-foot`), so the three align when a "LOAD · 6 OCT" label wraps.

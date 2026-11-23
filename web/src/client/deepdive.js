@@ -752,7 +752,7 @@
     };
   }
 
-  /* ---------- energy bank (key 'energy-bank', SCORES.energy: lib/score/energy.mjs) ---------- */
+  /* ---------- energy bank (key 'energy-bank', SCORES.energy: lib/score/energy-bank.mjs) ---------- */
   // OUR intraday 0-100 estimate: wake at the morning's recovery %, then per awake hour a baseline,
   // stress and heart-rate-load drain and a calm-hour recharge. Everything is baked; this lays it out.
   function energyBake() {

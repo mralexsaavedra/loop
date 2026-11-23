@@ -18,7 +18,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { journalCsv } from '../lib/journal/journal.mjs';
 import { JOURNAL_FILE } from '../lib/journal/bake.mjs';
-import { FOODLOG_FILE, FOODLOG_HEADER } from '../lib/nutrition/score.mjs';
+import { FOODLOG_FILE, FOODLOG_HEADER } from '../lib/nutrition/nutri-score.mjs';
 import { isMain } from './lib/is-main.mjs';
 import { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER } from '../lib/extract/samples.mjs';
 import { HR_HOURLY_HEADER, HR_HOURLY_CSV } from '../lib/health/hr-hourly.mjs';

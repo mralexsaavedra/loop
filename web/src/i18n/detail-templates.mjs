@@ -224,7 +224,7 @@ export const en = {
         estimate: 'Our own estimate, not a medical or psychological measure: compare it with your own days only.',
       },
     },
-    // the energy bank page (key 'energy', lib/score/energy.mjs): OUR intraday 0-100 estimate
+    // the energy bank page (key 'energy', lib/score/energy-bank.mjs): OUR intraday 0-100 estimate
     energy: {
       bands: { hi: 'High', mid: 'Middle', lo: 'Low' },
       updated: 'Latest hour {time}',
@@ -333,7 +333,7 @@ export const en = {
     gymTime: { title: 'Gym time', unit: 'min' },
     // not a DETAIL key: the stress page's series is SCORES.stress.metric (lib/score/stress.mjs)
     stress: { title: 'Stress estimate', unit: '/ 3' },
-    // not a DETAIL key either: the energy bank page's series is SCORES.energy.metric (lib/score/energy.mjs)
+    // not a DETAIL key either: the energy bank page's series is SCORES.energy.metric (lib/score/energy-bank.mjs)
     'energy-bank': { title: 'Energy bank', unit: '/ 100' },
     // not a DETAIL key either: the page scores it at view time (client/nutri-score.js metric())
     nutrition: { title: 'Nutrition score', unit: '%' },
@@ -609,7 +609,7 @@ export const es = {
         estimate: 'Estimación propia, no una medida médica ni psicológica: compárala solo con tus propios días.',
       },
     },
-    // la página del banco de energía (clave 'energy', lib/score/energy.mjs): NUESTRA estimación intradía 0-100
+    // la página del banco de energía (clave 'energy', lib/score/energy-bank.mjs): NUESTRA estimación intradía 0-100
     energy: {
       bands: { hi: 'Alto', mid: 'Medio', lo: 'Bajo' },
       updated: 'Última hora {time}',

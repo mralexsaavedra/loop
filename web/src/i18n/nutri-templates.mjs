@@ -170,7 +170,7 @@ export const es = {
     lineFew: '{avg} kg de media · {status}',
   },
   // Constancia (client/adherence.js): {n}, {pct}, {band} come from the baked NUTRI.adherence
-  // the nutrition score block (client/nutri-score.js, lib/nutrition/score.mjs): averages + the ⓘ notes
+  // the nutrition score block (client/nutri-score.js, lib/nutrition/nutri-score.mjs): averages + the ⓘ notes
   score: {
     avgs: 'Media 7 días {a7} · 30 días {a30}',
     lineLbl: 'Puntuación de cada día, últimos {n} días (0–100)',
@@ -379,7 +379,7 @@ export const en = {
     lineFew: '{avg} kg average · {status}',
   },
   // Consistency (client/adherence.js): {n}, {pct}, {band} come from the baked NUTRI.adherence
-  // the nutrition score block (client/nutri-score.js, lib/nutrition/score.mjs): averages + the ⓘ notes
+  // the nutrition score block (client/nutri-score.js, lib/nutrition/nutri-score.mjs): averages + the ⓘ notes
   score: {
     avgs: '7-day average {a7} · 30-day {a30}',
     lineLbl: 'Each day\'s score, last {n} days (0–100)',

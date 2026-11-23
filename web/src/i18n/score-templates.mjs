@@ -31,8 +31,8 @@ export const en = {
       history: 'See sleep history',
       none: 'Not enough nights with a wake time yet (7 needed in the last 14 days).',
     },
-    // "My day" energy bank card (client/energy.js, lib/score/energy.mjs): our own intraday estimate
-    // "My day" nutrition card (client/nutri-score.js, lib/nutrition/score.mjs): adherence to your targets
+    // "My day" energy bank card (client/energy.js, lib/score/energy-bank.mjs): our own intraday estimate
+    // "My day" nutrition card (client/nutri-score.js, lib/nutrition/nutri-score.mjs): adherence to your targets
     nscore: {
       heading: 'Nutrition',
       // today is still filling up: no score, only its progress (client/nutri-score.js)
@@ -385,8 +385,8 @@ export const es = {
       history: 'Ver historial de sueño',
       none: 'Aún no hay suficientes noches con hora de despertar (hacen falta 7 en los últimos 14 días).',
     },
-    // tarjeta "Banco de energía" de "Mi día" (client/energy.js, lib/score/energy.mjs): estimación propia
-    // tarjeta "Nutrición" de "Mi día" (client/nutri-score.js, lib/nutrition/score.mjs): cumplimiento de tus objetivos
+    // tarjeta "Banco de energía" de "Mi día" (client/energy.js, lib/score/energy-bank.mjs): estimación propia
+    // tarjeta "Nutrición" de "Mi día" (client/nutri-score.js, lib/nutrition/nutri-score.mjs): cumplimiento de tus objetivos
     nscore: {
       heading: 'Nutrición',
       inProgress: 'en curso',
