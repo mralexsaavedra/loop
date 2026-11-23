@@ -291,7 +291,7 @@
     S.products = Array.isArray(data.products) ? data.products : [];
     // detail.js asks for the title after render(), so it names the sheet's own day when it is not today
     HC.registerView('food-add', { title: sheetTitle, render: renderSheet });
-    // the dock's "+" can now offer "add food" (client/nav-actions.js)
+    // the dock's "+" can now offer "add food" (client/nav-actions.ts)
     if (window.HCActions) {
       try { window.HCActions.refresh(); } catch (e) { /* the "+" keeps its last state */ }
     }

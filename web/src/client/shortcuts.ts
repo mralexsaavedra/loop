@@ -1,30 +1,37 @@
 /* Keyboard shortcuts for the whole page (no modifier keys, GitHub / Gmail style) and the "?" help sheet.
- * Classic script (is:inline), inlined before deepdive.js / detail.js so the help sheet is a registered view
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts), inlined before deepdive.js / detail.js so the help sheet is a registered view
  * (window.HCViews.shortcuts, deep link #shortcuts) when detail.js reads the URL at load.
  *   1 … 4          the visible tabs in nav order (presses the tab bar's button: client/core.js)
- *   a              add food (window.HCActions.run('food'), client/nav-actions.js; LAN only)
+ *   a              add food (window.HCActions.run('food'), client/nav-actions.ts; LAN only)
  *   d              the journal (window.HCActions.run('journal'); LAN only)
  *   ?              this list (the add sheet's own keys too: client/food-sheet.js)
  * A key is ignored while typing (input, textarea, select, contenteditable), with Ctrl / Cmd / Alt (so the
  * browser keeps Cmd+1 etc.), while a sheet or the "+" popover is open, and once something else handled it.
  * Copy: I18N_DETAIL.shortcuts (web/src/i18n/detail-templates.mjs). */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads (baked by the build or provided by an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+declare const I18N_DETAIL: PageGlobals['I18N_DETAIL'];
+declare const NAV: PageGlobals['NAV'];
+
 (function () {
   var T = typeof I18N_DETAIL !== 'undefined' && I18N_DETAIL ? I18N_DETAIL.shortcuts : null;
   if (!T || typeof document.addEventListener !== 'function') return;
   var esc = HC.esc;
-  var TABS = (typeof NAV !== 'undefined' && NAV && NAV.tabs) || [];
-  var ACTION_KEYS = { a: 'food', d: 'journal' };
+  var TABS: string[] = (typeof NAV !== 'undefined' && NAV && NAV.tabs) || [];
+  var ACTION_KEYS: Record<string, string> = { a: 'food', d: 'journal' };
 
   // the tabs this page shows, in nav order (a hidden tab has no button: layouts/Plan.astro)
-  function tabButtons() {
-    var out = [];
+  function tabButtons(): HTMLElement[] {
+    var out: HTMLElement[] = [];
     for (var i = 0; i < TABS.length; i++) {
       var b = document.getElementById('t-' + TABS[i]);
       if (b && !b.hidden) out.push(b);
     }
     return out;
   }
-  function typing(t) {
+  function typing(t: HTMLElement | null): boolean {
     if (!t) return false;
     var tag = String(t.tagName || '').toUpperCase();
     return tag === 'INPUT' || tag === 'TEXTAREA' || tag === 'SELECT' || !!t.isContentEditable;
@@ -40,8 +47,8 @@
     if (d && typeof d.open === 'function') d.open('shortcuts', null);
   }
 
-  function keyRow(keys, label) {
-    return '<li class="kb-row"><span class="kb-keys">' + keys.map(function (k) { return '<kbd class="kb">' + esc(k) + '</kbd>'; }).join(' ') +
+  function keyRow(keys: string[], label: string): string {
+    return '<li class="kb-row"><span class="kb-keys">' + keys.map(function (k: string) { return '<kbd class="kb">' + esc(k) + '</kbd>'; }).join(' ') +
       '</span><span class="kb-label">' + esc(label) + '</span></li>';
   }
   function render() {
@@ -63,7 +70,7 @@
 
   document.addEventListener('keydown', function (e) {
     if (!e || e.defaultPrevented || e.ctrlKey || e.metaKey || e.altKey || e.isComposing) return;
-    if (typing(e.target) || busy()) return;
+    if (typing(e.target as HTMLElement | null) || busy()) return;
     var k = e.key;
     if (k === '?') {
       e.preventDefault();

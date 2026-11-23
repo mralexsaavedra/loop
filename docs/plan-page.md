@@ -183,7 +183,7 @@ minification). `astro.config.mjs` exposes the result as the virtual module `virt
 `layouts/Plan.astro` inlines it at the module's place in the manifest, exactly like a classic script, so the page
 stays one file and the CSP hashes it like any other script. The tests run the same bytes
 (`clientScriptSource(file)`). The page globals a module reads are typed in `web/src/client/page-globals.d.ts`
-(`any` until each gets its own type). Modules so far: `home-week.ts`, `freshness.ts`.
+(`any` until each gets its own type). Modules so far: `home-week.ts`, `freshness.ts`, `nav-actions.ts`, `home-order.ts`, `training-dash.ts`, `energy.ts`, `shortcuts.ts`.
 
 ### Script order: one manifest
 
@@ -382,7 +382,7 @@ in tracked Astro/JS source, which stays fully generic.
 
 ### "+" action button
 
-- `#act` (`client/nav-actions.js`): a separate 56 px white circular button to the RIGHT of the dock,
+- `#act` (`client/nav-actions.ts`): a separate 56 px white circular button to the RIGHT of the dock,
   outside the tab nav. Its popover `#act-pop` is a labelled `role="group"` of buttons, not a dialog.
 - Opens a navy → violet popover card (12 px radius, gradient from `--link` at 15 % to `--insight-b` at
   62 %, each mixed into `--surface`; 47 px icon + uppercase label rows) over a scrim that dims the page
@@ -402,7 +402,7 @@ in tracked Astro/JS source, which stays fully generic.
 
 ### Keyboard shortcuts
 
-`client/shortcuts.js` adds single keys with no modifier, like GitHub or Gmail. It is inlined before
+`client/shortcuts.ts` adds single keys with no modifier, like GitHub or Gmail. It is inlined before
 `deepdive.js` / `detail.js` so its help sheet is a registered view (`HC.registerView('shortcuts')`, deep link
 `#shortcuts`, `VIEW_TAB` null) when detail.js reads the URL.
 
@@ -415,7 +415,7 @@ in tracked Astro/JS source, which stays fully generic.
 
 A key is ignored while typing (input, textarea, select, contenteditable, IME composition), with Ctrl / Cmd / Alt (the
 browser keeps Cmd+1 … for its own tabs), while a sheet (`HCDetail.state()`) or the "+" popover is open, and
-when something else already handled it (`defaultPrevented`). `HCActions.run(name)` (`nav-actions.js`) runs an
+when something else already handled it (`defaultPrevented`). `HCActions.run(name)` (`nav-actions.ts`) runs an
 action only when it is available and returns whether it ran, so a shortcut for a missing action does nothing.
 
 ## Tabs and sections

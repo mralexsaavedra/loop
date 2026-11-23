@@ -19,6 +19,8 @@ export function list(dir, ext) {
 
 export const CODE = [
   ...list('web/src/client', '.js'),
+  // the module client scripts (TypeScript, bundled into the page); their type declarations hold no display code
+  ...list('web/src/client', '.ts').filter((f) => !f.endsWith('.d.ts')),
   ...list('web/src/view', '.mjs'),
   ...list('web/src/tabs', '.astro'),
   ...list('web/src/components', '.astro'),

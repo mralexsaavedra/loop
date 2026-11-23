@@ -476,7 +476,7 @@ details.sec-fold > summary:hover > h2 {
   display: none;
 }
 
-/* the dock's "+" action (client/nav-actions.js; markup in layouts/Plan.astro): a 56 px white circle
+/* the dock's "+" action (client/nav-actions.ts; markup in layouts/Plan.astro): a 56 px white circle
  * right of the tab bar, hidden until an action exists. Open: a navy -> violet card above it (12 px
  * radius, 47 px icon + uppercase label rows), the "+" turns 45 deg into an "x", and a scrim under the
  * dock (z 29) dims the page 40 % with a light 4 px blur; a tap anywhere outside the card closes it. */

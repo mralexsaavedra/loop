@@ -3,7 +3,7 @@
  * running / cycling list rows and load vs recovery (#health-train, see render()). Reads HEALTH / LOCALE
  * from the globals baked by web/src/components/Bake.astro and its copy from I18N_HEALTH
  * (web/src/i18n/health-templates.mjs) — same pattern as client/training-today.js and
- * client/training-dash.js.
+ * client/training-dash.ts.
  *
  * `esc()` / `format()` / `daysOld()` are the shared helpers of client/util.js (window.HC). `esc()` wraps
  * every data value (dates, source names, titles); the static I18N_HEALTH copy is generic, tracked text,

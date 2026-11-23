@@ -1,4 +1,4 @@
-/* web/src/client/nav-actions.js — the bottom dock's "+" action button and its popover. Runs the classic
+/* web/src/client/nav-actions.ts — the bottom dock's "+" action button and its popover. Runs the classic
  * script in a vm over the DOM stub. Contract: the button ships hidden and shows only when at least one
  * REAL action is available (the food add sheet = the food API answered; Sync = the freshness group is
  * shown, i.e. /api/sync/status answered); only available actions are listed; open / close via the
@@ -6,13 +6,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'nav-actions.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('nav-actions.ts');
 
 function page({ freshness = false, food = false } = {}) {
   const doc = new StubDocument();

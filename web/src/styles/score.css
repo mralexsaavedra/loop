@@ -1017,7 +1017,7 @@ details.rec-raw[open] > summary::after {
   outline-offset: 2px;
 }
 
-/* Inicio "Energy bank" (client/energy.js; also the energy bank page, deepdive.js energyPage): the
+/* Inicio "Energy bank" (client/energy.ts; also the energy bank page, deepdive.js energyPage): the
    level's thirds colour --ds (high = good, middle = mid, low = low); the card reuses .tn's header,
    big D-DIN number and captions, plus a stretched curve from wake to the latest hour */
 .de-hi { --ds: var(--good); }
@@ -1229,7 +1229,7 @@ details.rec-raw[open] > summary::after {
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
-/* "Customize Home" (client/home-order.js): one centred caps link after the last block; a block the
+/* "Customize Home" (client/home-order.ts): one centred caps link after the last block; a block the
    user switched off gets home-off (never the hidden attribute its own script manages) */
 .home-cust {
   display: flex;

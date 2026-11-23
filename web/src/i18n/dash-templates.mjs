@@ -1,5 +1,5 @@
 /* Client-side (browser, classic-script) format strings for Entreno's "Intensity (HR)" block
- * (web/src/client/training-dash.js — what is left of the former "Entrenos / Workouts" dashboard; its
+ * (web/src/client/training-dash.ts — what is left of the former "Entrenos / Workouts" dashboard; its
  * volume and modality split live in the Activity card, activity-templates.mjs) — same rationale as
  * hoy-templates.mjs.
  *

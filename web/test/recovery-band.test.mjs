@@ -11,6 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { pctBand } from '../../lib/score/recovery.mjs';
 import { en as enScore } from '../src/i18n/score-templates.mjs';
 import { loadUtil } from './client-util.mjs';
+import { clientScriptSource } from '../src/client-bundle.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const clientDir = path.join(here, '..', 'src', 'client');
@@ -47,8 +48,8 @@ test('deepdive.js: the recovery % colour and the energy gauge band like lib pctB
   }
 });
 
-test('energy.js: the Inicio energy bank card colours its level like lib pctBand (33.5 = mid, 33 = low)', () => {
-  const source = read('energy.js');
+test('energy.ts: the Inicio energy bank card colours its level like lib pctBand (33.5 = mid, 33 = low)', () => {
+  const source = clientScriptSource('energy.ts'); // a module script: the bytes the page inlines
   const map = { good: 'hi', mid: 'mid', low: 'lo' };
   for (const lv of EDGES) {
     const host = { innerHTML: '', hidden: true };

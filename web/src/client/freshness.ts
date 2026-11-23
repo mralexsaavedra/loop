@@ -118,7 +118,7 @@ type Item = { a: Age; plain: string; html: string };
       sum.setAttribute('aria-expanded', open ? 'true' : 'false');
     }
 
-    // the dock's "+" lists Sync only while this group is shown (client/nav-actions.js)
+    // the dock's "+" lists Sync only while this group is shown (client/nav-actions.ts)
     function actionsChanged() {
       try {
         if (typeof window !== 'undefined' && window.HCActions) window.HCActions.refresh();

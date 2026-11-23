@@ -19,7 +19,7 @@ export default {
       today: 'Today',
       // the pill's day stepping (client/today-date.js): Inicio shows a past day; the label returns to today
       day: { group: 'Day shown', prev: 'Previous day', next: 'Next day', back: 'Back to today' },
-      // the dock's "+" button and its popover (client/nav-actions.js lists only the available actions)
+      // the dock's "+" button and its popover (client/nav-actions.ts lists only the available actions)
       actions: { open: 'Actions', close: 'Close actions', label: 'Quick actions', addFood: 'Add food', journal: 'Complete your journal', sync: 'Sync' },
       // headings of the sections inside a tab (Mi día/Tablas keep their own)
       sections: {

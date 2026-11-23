@@ -465,7 +465,7 @@ var HC = (function () {
   }
 
   /* A user-ordered list with show / hide, kept in localStorage, and its customize sheet: Inicio's
-   * "My dashboard" rows (client/home-dash.js, attr 'dash') and Inicio's blocks (client/home-order.js,
+   * "My dashboard" rows (client/home-dash.js, attr 'dash') and Inicio's blocks (client/home-order.ts,
    * attr 'home'). o = {view (the registered sheet key), attr (data-<attr>-act / data-<attr>-grip),
    * key (the storage key), catalog, defaultOn, available() (the catalogue keys present now), title()
    * (the sheet title), row(key) -> {icon (html), name (short, shown), full (for the button labels)},

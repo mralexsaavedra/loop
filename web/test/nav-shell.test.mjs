@@ -3,7 +3,7 @@
  *   stepping chevrons ship hidden, client/today-date.js shows them) · freshness / Sync right;
  * - the bottom dock: the tab bar (a labelled <nav> of four plain buttons, aria-current="page" on the
  *   active one; never role=tab + aria-pressed, an invalid mix) and, outside it, the "+" action button +
- *   its popover (a labelled group, not a dialog), shipped HIDDEN (nav-actions.js
+ *   its popover (a labelled group, not a dialog), shipped HIDDEN (nav-actions.ts
  *   reveals only the actions that exist on this page: never a dead control in a static build);
  * - the collapsed dial row host (#home-mini) inside the Inicio panel. */
 import { test } from 'node:test';
@@ -61,7 +61,7 @@ test('dock: a labelled nav of four buttons, aria-current="page" on the active on
 });
 
 test('the action root and every action ship hidden; only real actions exist (add food, journal, Sync)', () => {
-  assert.match(html, /<div class="act" id="act" hidden>/, 'revealed by nav-actions.js when an action is available');
+  assert.match(html, /<div class="act" id="act" hidden>/, 'revealed by nav-actions.ts when an action is available');
   assert.match(html, new RegExp(`<div class="act-pop" id="act-pop" role="group" aria-label="${N.actions.label}" hidden>`), 'a group of actions, not a dialog');
   const acts = [...html.matchAll(/<button type="button" class="act-item" data-act="([a-z]+)" hidden>/g)].map((m) => m[1]);
   assert.deepEqual(acts, ['food', 'journal', 'sync']);

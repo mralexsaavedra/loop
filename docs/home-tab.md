@@ -42,7 +42,7 @@ Order, top to bottom (`web/src/tabs/Home.astro`, which also renders `components/
 | 3 | Monitor tiles | `#home-tiles` | `monitor.js` |
 | 4 | "My day" (heading `.hs-lbl.home-h`, sentence case) | `#my-day` | — |
 | 4a | Outlook bar (advice) | `#home-advice` | `score.js` |
-| 4b | Energy bank | `#home-energy` | `energy.js` |
+| 4b | Energy bank | `#home-energy` | `energy.ts` |
 | 4c | Nutrition score | `#home-nscore` | `nutri-score.js` |
 | 4d | Today's activities | `#timeline` | `timeline.js` |
 | 5 | Today you eat | `EatCard.astro` | `nutri-day.js` |
@@ -50,7 +50,7 @@ Order, top to bottom (`web/src/tabs/Home.astro`, which also renders `components/
 | 7 | My journal | `#my-journal` | `journal.js` |
 | 8 | My plan | `#my-plan` | `home-week.ts` |
 | 9 | My dashboard | `#my-dash` | `home-dash.js` |
-| 9a | "Customize Home ✎" | `#home-cust` | `home-order.js` (moves blocks 4–9 right before it) |
+| 9a | "Customize Home ✎" | `#home-cust` | `home-order.ts` (moves blocks 4–9 right before it) |
 | 10 | The programmed session's hidden source section | `hoy` | — |
 
 - Date pill placement: on a phone, its own row under the top bar; on a wide screen, centred in the bar
@@ -250,7 +250,7 @@ the nutrition score and today's activities.
 
 ### Energy bank
 
-- `lib/score/energy-bank.mjs`, baked as `SCORES.energy`; `#home-energy` + `client/energy.js`, between the
+- `lib/score/energy-bank.mjs`, baked as `SCORES.energy`; `#home-energy` + `client/energy.ts`, between the
   outlook bar and "Today's activities".
 - OUR intraday 0–100 estimate, not a validated physiological measure (formula + constants in
   `analysis/methodology.md`): starts at the wake time at the morning's recovery %, drains per awake
@@ -460,7 +460,7 @@ What it shows: user-chosen metric cards with the latest value vs a 30-day baseli
 ## Customize Home
 
 What it does: the user's order and show / hide of the Home blocks from "My day" to "My dashboard"
-(`#home-cust`, `client/home-order.js`).
+(`#home-cust`, `client/home-order.ts`).
 
 - A centred caps "CUSTOMIZE HOME ✎" link (`.db-cust`) after the last block opens the registered `home-edit`
   sheet (deep link `#home-edit`, `VIEW_TAB` → `home`): the same rows, switch, ↑ / ↓ and ≡ drag as the
@@ -736,7 +736,7 @@ What it shows: Home for a PAST day (`#d=YYYY-MM-DD`) via the top bar's "‹ HOY 
 | Outlook bar | hidden (it reads the current 7-day trend) |
 | Monitor tiles (`monitor.js` `renderTiles`) | that day's `SCORES.days` summary (in / out of range among the cards fresh ON that day, out of `total`) and that day's stress value (`SCORES.stress.days`, the last 14 days; opens the stress page on that day), else its HRV card (dated when its reading is older than the day; opens the HRV sheet on that day); no entry → "No data". The Salud list stays the latest |
 | "My day" (`timeline.js` `pastHtml`) | "Activities · <date>" with that day's night (`DETAIL.metrics.sleep`: hours, bed / wake clock) and workouts (`DETAIL.sessions`: one per date + modality after the SAME display rule as `SCORES.timeline`, minutes, RE, parts; a test checks both give the same rows); no programmed-session row, never greyed, every row opens its sheet on that day; nothing that day → "Nothing logged that day" |
-| Energy bank (`energy.js`) | that day's `SCORES.energy.days` entry (level, curve, start, low); opens the energy bank page on that day; no value → hidden |
+| Energy bank (`energy.ts`) | that day's `SCORES.energy.days` entry (level, curve, start, low); opens the energy bank page on that day; no value → hidden |
 | Nutrition score (`nutri-score.js`) | that day's FINAL score (no average line); opens the nutrition sheet on that day; no log or no target → hidden |
 | Eat card (`nutri-day.js` `renderEat`) | "Target for <date>" with that day's DETECTED day type (`dayInput` + `detectDayType`, the same detection as `HCNutri.targetFor`) and its plan targets for the current goal; a day whose type cannot be told (no session, sleep or programmed session) hides the card |
 | Tonight | hidden (it is about the coming night) |

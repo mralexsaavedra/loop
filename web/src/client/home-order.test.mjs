@@ -1,18 +1,16 @@
-/* Tests for Inicio's block order (web/src/client/home-order.js): the user's order and show / hide of the
+/* Tests for Inicio's block order (web/src/client/home-order.ts): the user's order and show / hide of the
  * blocks below the tiles (My day … My dashboard), kept in localStorage, applied to the page at load and
  * after every change in the "Customize Home" sheet (the shared HC.orderList, client/util.js). Runs the
  * classic script in a vm over a tiny fake DOM (one panel whose children can be moved). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { es as esT, en as enT } from '../i18n/score-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'home-order.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('home-order.ts');
 const plain = (x) => JSON.parse(JSON.stringify(x));
 const KEY = 'hc-home-v1';
 

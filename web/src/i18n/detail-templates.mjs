@@ -5,7 +5,7 @@ import { en as enS, es as esS, RECOVERY_UNIT } from './score-templates.mjs';
 const UE = RECOVERY_UNIT.en, US = RECOVERY_UNIT.es;
 export const en = {
   close: 'Close',
-  // the "?" help sheet (client/shortcuts.js)
+  // the "?" help sheet (client/shortcuts.ts)
   shortcuts: {
     title: 'Keyboard shortcuts',
     pageTitle: 'Anywhere on the page',
@@ -399,7 +399,7 @@ export const en = {
 
 export const es = {
   close: 'Cerrar',
-  // la hoja de ayuda "?" (client/shortcuts.js)
+  // la hoja de ayuda "?" (client/shortcuts.ts)
   shortcuts: {
     title: 'Atajos de teclado',
     pageTitle: 'En cualquier parte de la página',

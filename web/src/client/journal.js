@@ -6,7 +6,7 @@
  * answered (loop-web proxies /api/journal/ to the ingest service, every request carries
  * `X-HC-Journal: 1`). Then the card shows the 7 days ending on the viewer's today (Date.now(), never
  * baked) with a check circle per journaled day (GET /api/journal/summary), the "+" popover lists
- * "Complete your journal" (client/nav-actions.js) and a tap on the card / a day opens the sheet on that
+ * "Complete your journal" (client/nav-actions.ts) and a tap on the card / a day opens the sheet on that
  * day. Without the API (example build, file://, a static copy) the card still shows when the build
  * baked a journal (SCORES.journal.recent: the synced journal-daily.csv, the example's demo data), its
  * columns read-only, and nothing can be written.
