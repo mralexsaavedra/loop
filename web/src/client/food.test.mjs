@@ -1892,10 +1892,10 @@ test('keyboard: Escape with an item picked goes back to the list and does not re
   assert.match(t.els['fa-panel'].innerHTML, /id="fa-amt"/);
   const amt = t.inSheet(t.input('fa-amt', '100'));
   const e = t.key('Escape', amt);
-  assert.equal(e.defaultPrevented, true, 'detail.js leaves a handled Escape alone');
+  assert.equal(e.defaultPrevented, true, 'detail.ts leaves a handled Escape alone');
   assert.match(t.els['fa-panel'].innerHTML, /id="fa-q"/, 'back to the search and its list');
   assert.ok(t.focused.includes('fa-q'));
-  assert.equal(t.key('Escape').defaultPrevented, false, 'on the list Escape is detail.js\'s: it closes the sheet');
+  assert.equal(t.key('Escape').defaultPrevented, false, 'on the list Escape is detail.ts\'s: it closes the sheet');
 });
 
 test('keyboard: ArrowLeft / ArrowRight on a tab switch tabs (wrapping) and keep the focus on the tabs', async () => {

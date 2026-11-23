@@ -1,13 +1,13 @@
 /* Detail sheet, the data and state helpers (no DOM). detail-state.js (this file) -> detail-chart.js
- * (the trend chart) -> detail.js (the sheet shell: header, period, calendar, day panel, open / close,
+ * (the trend chart) -> detail.ts (the sheet shell: header, period, calendar, day panel, open / close,
  * history, deep links, the public window.HCDetail). Classic scripts (is:inline), inlined in that order
  * right after deepdive.js (web/src/client/manifest.mjs).
  *
  * window.HCDetailState(T, D) builds one set of helpers over the sheet's copy (I18N_DETAIL) and data
- * (DETAIL, or detail.js's empty stand-in): the series access (a missing day is null, never 0), the
+ * (DETAIL, or detail.ts's empty stand-in): the series access (a missing day is null, never 0), the
  * view's end day, the W / M / 6M / 1Y windows and their averages + delta (periodStats), the 7-day line
  * per view (cached per instance), the value formatting (no NaN is ever printed: a dash) and the colour
- * state of a day (dayState, the legend's items). detail.js calls it once and hands the result on to
+ * state of a day (dayState, the legend's items). detail.ts calls it once and hands the result on to
  * detail-chart.js and client/deepdive.js; detail-state.test.mjs runs the helpers in a vm. Reads
  * window.HC (util.js), HC_BAND (lib/score/recovery.mjs) and, at call time, SCORES / window.HCNutriScore
  * / window.HCSettings for the metrics they own. */
@@ -30,7 +30,7 @@ window.HCDetailState = function (T, D) {
   function own(o, k) {
     return !!o && typeof o === 'object' && Object.prototype.hasOwnProperty.call(o, k);
   }
-  // views registered by other scripts before detail.js: {<key>: {title(): string, render(): {head, body}}}
+  // views registered by other scripts before detail.ts: {<key>: {title(): string, render(): {head, body}}}
   function viewOf(key) {
     var v = HC.view(key);
     return v && typeof v.render === 'function' ? v : null;

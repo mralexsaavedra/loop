@@ -1,4 +1,4 @@
-/* Tests for the detail sheet renderer (web/src/client/detail.js): runs the classic script in a vm with
+/* Tests for the detail sheet renderer (web/src/client/detail.ts): runs the classic script in a vm with
  * the baked DETAIL (built from the tracked synthetic demo extract) + I18N_DETAIL, a controllable clock,
  * and stubbed document / history / location, so opening, deep links, Back, Esc, the range switch, the
  * month calendar and the day detail are exercised without a browser. */
@@ -20,13 +20,15 @@ import { buildScoresFrom } from '../../../lib/score/index.mjs';
 import { healthFrom } from '../../../lib/health/aggregate.mjs';
 import { buildDials } from '../view/dial.mjs';
 import { addDays } from '../../../lib/date.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
 const format = (tpl, vars) => tpl.replace(/\{(\w+)\}/g, (_, k) => (vars[k] != null ? vars[k] : ''));
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 // the sheet shell (the Tab trap's selector lives there); the vm runs the whole set, DETAIL_SOURCE
-const source = fs.readFileSync(path.join(here, 'detail.js'), 'utf8');
-// the dial deep-dive pages (sleep, recovery, load-<m>): inlined right before detail.js on the page
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('detail.ts');
+// the dial deep-dive pages (sleep, recovery, load-<m>): inlined right before detail.ts on the page
 const deepSource = fs.readFileSync(path.join(here, 'deepdive.js'), 'utf8');
 const coreSource = fs.readFileSync(path.join(here, 'core.js'), 'utf8');
 // the synthetic demo extract, read once (lib/extract/read.mjs) like the page build

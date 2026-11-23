@@ -28,7 +28,7 @@
  * (the next fresh open starts from the saved day). Errors are one line from the coarse codes.
  *
  * Module script (bundled into the page, docs/plan-page.md → Module scripts) in layouts/Plan.astro's end-of-body list, after home-dash.ts and before deepdive.js /
- * detail.js. Each render runs in its own try/catch; a throw hides the card. */
+ * detail.ts. Each render runs in its own try/catch; a throw hides the card. */
 import type { PageGlobals } from './page-globals';
 
 // the page globals this script reads (baked by the build or provided by an earlier script; manifest.mjs)
@@ -469,7 +469,7 @@ type JournalState = {
           if (window.HCActions) {
             try { window.HCActions.refresh(); } catch (e) { /* the "+" keeps its last state */ }
           }
-          // a deep link to the sheet waited for the API (detail.js leaves an async view's hash alone)
+          // a deep link to the sheet waited for the API (detail.ts leaves an async view's hash alone)
           if (typeof location !== 'undefined' && location.hash === '#journal' && window.HCDetail) window.HCDetail.open('journal', null, {});
         });
       }, function () { /* no journal API (example build, file://, old service): nothing appears */ });

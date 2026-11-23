@@ -484,7 +484,7 @@ test('dial taps open the detail sheet: sleep -> sleep, recovery -> recovery, eac
     assert.match(dialOf(linked, 'dial-rec'), /data-detail="recovery" role="button"/);
     // #home-advice only (the dials lead it without a #home-dials host); Entreno's load cards open the same views
     for (const m of s.load.modalities) assert.equal(count(hosts.home.innerHTML, `data-detail="load-${m.key}" role="button"`), 1, `${m.key} dial`);
-    assert.doesNotMatch(linked, /jumpOr\(|onkeydown=/, 'one delegated listener (client/detail.js), no inline handlers on the dials');
+    assert.doesNotMatch(linked, /jumpOr\(|onkeydown=/, 'one delegated listener (client/detail.ts), no inline handlers on the dials');
   }
 });
 

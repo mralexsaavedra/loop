@@ -14,7 +14,7 @@
  * (greyed with a note) or AFTER the viewer's today (clock / timezone skew: its sessions stay
  * visible). A window that starts before the first session gets no comparison. Geometry lives in SVG
  * attributes (no inline styles). A throw renders the empty state, never a blank tab. The totals and
- * the calendar open the training-time detail sheet (HC.detailAttrs -> client/detail.js); a tap on a
+ * the calendar open the training-time detail sheet (HC.detailAttrs -> client/detail.ts); a tap on a
  * day cell opens that day. The chosen window is a per-viewer convenience (localStorage, optional).
  */
 import type { PageGlobals } from './page-globals';

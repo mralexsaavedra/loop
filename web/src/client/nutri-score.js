@@ -12,7 +12,7 @@
  * that day's score or nothing; otherwise the headline is the newest CLOSED scored day while it is
  * <= STALE_DAYS old, and today — still filling up — shows only its progress, "in progress", no score) and Nutrición's score block (#nutri-score-block: the same card + the 7 / 30-day
  * averages and a 30-day line; the formula behind its ⓘ, #nutri-score-info). Both open the detail sheet
- * on key 'nutrition' (detail.js reads HCNutriScore.metric(): kind 'nscore', one value per day of the
+ * on key 'nutrition' (detail.ts reads HCNutriScore.metric(): kind 'nscore', one value per day of the
  * last NSCORE.days ending today, `days` = the per-day results for the day panel). Days without a log
  * have no score (never 0). adherence.js calls HCNutriScore.refresh() after every summary read, and a
  * goal change re-renders through it. Each host has its own try/catch: a failure empties it. */
@@ -83,7 +83,7 @@
     });
     return k ? Math.round(sum / k) : null;
   }
-  /** The detail sheet's series (detail.js metric('nutrition')): null without any scored day. */
+  /** The detail sheet's series (detail.ts metric('nutrition')): null without any scored day. */
   function metric() {
     var s = series(), v = [], any = false;
     s.dates.forEach(function (d) {

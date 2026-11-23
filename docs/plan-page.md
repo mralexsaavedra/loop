@@ -183,7 +183,10 @@ minification). `astro.config.mjs` exposes the result as the virtual module `virt
 `layouts/Plan.astro` inlines it at the module's place in the manifest, exactly like a classic script, so the page
 stays one file and the CSP hashes it like any other script. The tests run the same bytes
 (`clientScriptSource(file)`). The page globals a module reads are typed in `web/src/client/page-globals.d.ts`
-(`any` until each gets its own type). Modules so far: `home-week.ts`, `freshness.ts`, `nav-actions.ts`, `home-order.ts`, `training-dash.ts`, `energy.ts`, `shortcuts.ts`, `journal.ts`, `profile.ts`, `onboarding.ts`, `training-activity.ts`, `timeline.ts`, `home-dash.ts`, `health.ts`, `score.ts`, `monitor.ts`.
+(`any` until each gets its own type). Modules so far: `home-week.ts`, `freshness.ts`, `nav-actions.ts`, `home-order.ts`, `training-dash.ts`, `energy.ts`, `shortcuts.ts`, `journal.ts`, `profile.ts`, `onboarding.ts`, `training-activity.ts`, `timeline.ts`, `home-dash.ts`, `health.ts`, `score.ts`, `monitor.ts`, `food-sheet.ts`, `food-catalog.ts`, `detail.ts`.
+
+ESLint lints only `*.js` / `*.mjs`: for a module script `tsc` takes its place (`strict` for undefined names and
+shapes, `noUnusedLocals` for ESLint's `no-unused-vars`; unused parameters stay allowed, as ESLint's `args: 'none'`).
 
 A module script runs in **strict mode**: the client `tsconfig.json` sets `strict`, which implies `alwaysStrict`, so
 esbuild opens every bundle with `"use strict";` (classic scripts stay sloppy). For these scripts that changes
@@ -211,7 +214,7 @@ inlines every `web/src/client/*.js` (`import.meta.glob` `?raw`) in that order, a
 - A new script goes into the manifest at its place; the test names what to declare.
 - A factory-only script (`detail-state.js`, `detail-chart.js`: one `window.X = function`, nothing read at
   load) declares `requires: []`: its reads happen when its caller invokes it, so the trace counts them on
-  the caller (`detail.js`), and a load-time read added to the factory itself fails the trace as an
+  the caller (`detail.ts`), and a load-time read added to the factory itself fails the trace as an
   undeclared require.
 
 ## Shared client helpers (`HC`)
@@ -409,8 +412,8 @@ in tracked Astro/JS source, which stays fully generic.
 ### Keyboard shortcuts
 
 `client/shortcuts.ts` adds single keys with no modifier, like GitHub or Gmail. It is inlined before
-`deepdive.js` / `detail.js` so its help sheet is a registered view (`HC.registerView('shortcuts')`, deep link
-`#shortcuts`, `VIEW_TAB` null) when detail.js reads the URL.
+`deepdive.js` / `detail.ts` so its help sheet is a registered view (`HC.registerView('shortcuts')`, deep link
+`#shortcuts`, `VIEW_TAB` null) when detail.ts reads the URL.
 
 | Key | Does |
 | --- | --- |
@@ -486,7 +489,7 @@ bottom dock. Blocks inside a tab are SECTIONS (`data-section="<key>"`,
   (never `pushState`: Back does not walk through tabs, it keeps closing the detail sheet).
 - A legacy section key writes its HOSTING tab's hash; a hidden tab (no nav button) is never written;
   nothing is written while the sheet is open (its `#detail/…` owns the URL).
-- `window.HCNav.hash()` = the current tab's hash, read by detail.js.
+- `window.HCNav.hash()` = the current tab's hash, read by detail.ts.
 - core.js runs in one function scope; its page globals are only `setTab`, `jump`, `jumpOr`, `currentTab`
   (read by today-date.js) and `HCNav`.
 - `jump(id)` scrolls smoothly, instantly when the viewer prefers reduced motion
@@ -499,7 +502,7 @@ bottom dock. Blocks inside a tab are SECTIONS (`data-section="<key>"`,
 | --- | --- | --- |
 | visible tab | opens that tab | switches tab |
 | none, hidden or unknown | opens the default tab (the one the server rendered); the URL is replaced to match | switches nothing |
-| sheet deep link (`#detail/…`, view keys) | left to detail.js; its HOST tab is shown underneath | switches nothing (never fights detail.js's popstate) |
+| sheet deep link (`#detail/…`, view keys) | left to detail.ts; its HOST tab is shown underneath | switches nothing (never fights detail.ts's popstate) |
 | `ANCHOR_TAB` anchor (`#monitor` → `health`) | shows its tab, keeps the hash, scrolls to the block | same |
 | `#d=YYYY-MM-DD` | shows Home and KEEPS the hash | same |
 
@@ -507,8 +510,8 @@ bottom dock. Blocks inside a tab are SECTIONS (`data-section="<key>"`,
   `workouts` / `load-*` → `entreno`, `food-add` → `nutricion`, `hoy-session` / `tonight` / `dash-edit` →
   `home`, `profile` → none = the default tab. A test pins every `DETAIL_KEYS` key.
 - A deep link that opens NO sheet (`#detail/<unknown or no-data metric>`, a bad view key) is replaced by
-  the tab hash once detail.js has run (when its initial open did not happen).
-- `#food-add` is left alone: its view registers only after the food API answers (async) and detail.js does
+  the tab hash once detail.ts has run (when its initial open did not happen).
+- `#food-add` is left alone: its view registers only after the food API answers (async) and detail.ts does
   not reopen it then, so it stays in the URL until the next tab tap or sheet close.
 
 ### Past day of Home

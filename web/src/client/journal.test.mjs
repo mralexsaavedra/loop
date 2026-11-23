@@ -206,7 +206,7 @@ test('insights view with no behavior scored yet (the user\'s first days): ONE em
   assert.match(es.ctx.HCViews['journal-insights'].render().body, /Faltan datos<\/span><p class="jr-msg">Cada hábito necesita al menos 5 días/);
 });
 
-// a stand-in for detail.js: open() renders the registered view like the real modal; close() forgets it
+// a stand-in for detail.ts: open() renders the registered view like the real modal; close() forgets it
 function fakeDetail(ctx) {
   const D = { st: null, opens: 0, closes: 0, html: null };
   ctx.HCDetail = {

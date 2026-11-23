@@ -26,7 +26,7 @@
  * (client/adherence.js calls HCWeekPlan.refresh after each read).
  *
  * Classic script in layouts/Plan.astro's end-of-body list: it runs at once, after HC, the baked globals
- * and adherence.js, and BEFORE detail.js, so the `tonight` sheet is registered before detail.js runs
+ * and adherence.js, and BEFORE detail.ts, so the `tonight` sheet is registered before detail.ts runs
  * (window.HCDetail is only used on a click). Each block renders in its own try/catch; a
  * throw hides that block. No host (#home-tonight / #my-plan) = nothing rendered. */
 import { fin } from '../../../lib/nutrition/num.mjs';

@@ -35,8 +35,8 @@ export const CLIENT_SCRIPTS = [
     provides: ['foodTotals', 'HCFoodInternal'],
     requires: ['FOOD_BASICS', 'FOOD_CONST', 'HC', 'HC_FOODLOG', 'HC_GUIDE', 'I18N_FOOD'],
   },
-  { file: 'food-sheet.js', provides: [], requires: ['HC', 'HCFoodInternal'] },
-  { file: 'food-catalog.js', provides: [], requires: ['HC', 'HCFoodInternal'] },
+  { file: 'food-sheet.ts', provides: [], requires: ['HC', 'HCFoodInternal'] },
+  { file: 'food-catalog.ts', provides: [], requires: ['HC', 'HCFoodInternal'] },
   { file: 'food-log.js', provides: ['foodTotals', 'HCFood'], requires: ['HC', 'HCFoodInternal'] },
   { file: 'settings.js', provides: ['HCSettings'], requires: ['FOOD_CONST', 'HC', 'HCFood'] },
   {
@@ -100,19 +100,19 @@ export const CLIENT_SCRIPTS = [
     requires: ['DETAIL', 'HC', 'HCViews', 'HC_FMT', 'I18N_DATE', 'I18N_DETAIL', 'I18N_SCORE', 'LOCALE', 'SCORES'],
   },
   { file: 'journal.ts', provides: ['HCJournal'], requires: ['HC', 'HCViews', 'I18N_DATE', 'I18N_SCORE', 'SCORES'] },
-  // after every Inicio block's script (it moves the rendered blocks), before detail.js (#home-edit)
+  // after every Inicio block's script (it moves the rendered blocks), before detail.ts (#home-edit)
   { file: 'home-order.ts', provides: ['HCHomeOrder'], requires: ['HC', 'HCViews', 'I18N_SCORE'] },
-  // before detail.js: the "?" help sheet is a registered view when detail.js reads a #shortcuts deep link
+  // before detail.ts: the "?" help sheet is a registered view when detail.ts reads a #shortcuts deep link
   { file: 'shortcuts.ts', provides: [], requires: ['HC', 'HCViews', 'I18N_DETAIL', 'NAV'] },
   { file: 'deepdive.js', provides: ['HCDeep'], requires: ['HC'] },
   // factories: loading them only assigns window.HCDetailState / HCDetailChart and reads nothing, so they
   // require nothing (the trace proves it, and still runs clean with both moved to the very front). What
-  // they read (HC, HC_BAND, SCORES, HCNutriScore, HCSettings, I18N_DATE) is read when detail.js calls
-  // them: at its load (traced and declared on detail.js) or later in handlers, which do not count.
+  // they read (HC, HC_BAND, SCORES, HCNutriScore, HCSettings, I18N_DATE) is read when detail.ts calls
+  // them: at its load (traced and declared on detail.ts) or later in handlers, which do not count.
   { file: 'detail-state.js', provides: ['HCDetailState'], requires: [] },
   { file: 'detail-chart.js', provides: ['HCDetailChart'], requires: [] },
   {
-    file: 'detail.js',
+    file: 'detail.ts',
     provides: ['HCDetail'],
     requires: [
       'DETAIL', 'DIALS', 'HC', 'HCDeep', 'HCDetailChart', 'HCDetailState', 'HCNav', 'HCNutri', 'HCProgress', 'HCSettings', 'HCViews', 'HC_FMT', 'I18N_DATE', 'I18N_DETAIL', 'I18N_ONB',

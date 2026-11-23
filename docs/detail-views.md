@@ -26,9 +26,9 @@ Classic scripts inlined in this order right after `deepdive.js` (`web/src/client
 | --- | --- |
 | `detail-state.js` | `window.HCDetailState(T, D)`: data / state helpers, no DOM — series access, the view end, the W / M / 6M / 1Y windows + `periodStats`, the cached 7-day line, value formatting, `dayState` + the legend's states (`detail-state.test.mjs`) |
 | `detail-chart.js` | `window.HCDetailChart(T, DS)`: the trend chart's SVG + key, `selX` from the geometry it records in the sheet state's `geo`, and the window's breakdown bar (`detail-chart.test.mjs`) |
-| `detail.js` | the shell: header, period, calendar and day panel markup, open / close, focus, history, deep links and the public `window.HCDetail` |
+| `detail.ts` | the shell: header, period, calendar and day panel markup, open / close, focus, history, deep links and the public `window.HCDetail` |
 
-- `detail.js` builds one `HCDetailState` + one `HCDetailChart` per page and hands the state helpers to
+- `detail.ts` builds one `HCDetailState` + one `HCDetailChart` per page and hands the state helpers to
   `deepdive.js` (`X`).
 - Tests load the set through `DETAIL_SOURCE` (`web/test/client-util.mjs`).
 
@@ -38,7 +38,7 @@ Classic scripts inlined in this order right after `deepdive.js` (`web/src/client
   journal, journal-insights) registers with `HC.registerView(<key>, {title(), render() → {head, body,
   info?}})` (`info`: notes collapsed under the shared header ⓘ, `#dd-info`, e.g. Tonight's rule).
 - `client/util.js` is the ONLY writer of `window.HCViews` (the registry appears with the first view);
-  `detail.js` reads it through `HC.view(<key>)` (own keys only, else null).
+  `detail.ts` reads it through `HC.view(<key>)` (own keys only, else null).
 - Registering a key again replaces the view (a re-render or API reload of its own script; never a runtime
   throw).
 - Ownership is checked statically: `web/src/client/util.test.mjs` scans the client scripts and fails when
@@ -120,7 +120,7 @@ has no such key. None has a host tab except
   (`plain`: data attributes only, for a real `<button>`, an SVG cell or a table row). Never on an `<li>`:
   the button role would replace its list-item role, so a list row puts it on an inner `<div>`
   (`<li><div data-detail … role="button">`).
-- One delegated click / Enter / Space listener in `web/src/client/detail.js` handles every opener. It
+- One delegated click / Enter / Space listener in `web/src/client/detail.ts` handles every opener. It
   ignores a click / Enter on a control inside a card (a, button, summary, input, select, textarea,
   `role="button"`) other than the opener itself.
 - Every opener shows the same chevron (the one `.chev` look, `base.css`), pointer, focus ring and ≥ 44px
@@ -154,14 +154,14 @@ has no such key. None has a host tab except
 | Activity card's total and calendar | workouts (a day cell → that day; its W / M / 6M switch is outside every opener) |
 | run / ride rows | that day in `load-run` / `load-bike` (the whole list row is the button) |
 
-- client/home-week.ts, client/home-dash.ts and client/home-order.ts run in the end-of-body list BEFORE `detail.js`, so the views
+- client/home-week.ts, client/home-dash.ts and client/home-order.ts run in the end-of-body list BEFORE `detail.ts`, so the views
   exist when it reads the hash. `#tonight` / `#dash-edit` / `#home-edit` deep-link like `#hoy-session` (all `VIEW_TAB` →
   `home` in lib/nav/tabs.mjs, baked as `NAV.viewTab`, so core.js shows Home underneath instead of
   rewriting a hash it does not know).
 
 ## Dial deep-dive pages
 
-`web/src/client/deepdive.js`, inlined right before `detail.js`, which calls
+`web/src/client/deepdive.js`, inlined right before `detail.ts`, which calls
 `window.HCDeep.render(key, m, end, X)` with its own helpers `X`, so both files read one set of rules and
 copy. The copy is the dial's own (`score-templates.mjs` via `I18N_DETAIL.rec` / `load` / `deep`).
 
@@ -286,7 +286,7 @@ bottom: header → ⓘ block → hero ring → contributors → insight → week
 ### 7. History fold and the day panel
 
 - Below: the period block + chart, then the month calendar and the day panel FOLDED behind one "HISTORY ·
-  Calendar and day detail ⌄" row (`detail.js` `foldHtml`, a `.dd-fold` button with `aria-expanded` /
+  Calendar and day detail ⌄" row (`detail.ts` `foldHtml`, a `.dd-fold` button with `aria-expanded` /
   `aria-controls="dd-hist"`, `data-dt-act="hist"`, toggled in place without a re-render).
 - Collapsed by default, so the page reads like the reference; the last state is remembered for the page
   session (`sessionStorage` `hc-dd-hist`, this load only where storage is refused).
@@ -344,7 +344,7 @@ All three follow the day they were opened on (strain: `X.sel`, else the view end
 
 ## Trend view
 
-`detail.js`: one renderer, per-view try/catch with a message fallback, no NaN ever printed.
+`detail.ts`: one renderer, per-view try/catch with a message fallback, no NaN ever printed.
 
 ### Header and metric picker
 

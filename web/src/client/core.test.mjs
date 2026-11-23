@@ -655,7 +655,7 @@ test('load with a hidden or unknown tab hash falls back to the default visible t
   assert.equal(p.loc.hash, '#home', 'own keys only');
 });
 
-test('a detail deep link opens its host tab underneath and leaves the URL to detail.js', () => {
+test('a detail deep link opens its host tab underneath and leaves the URL to detail.ts', () => {
   const cases = [
     ['#detail/sleep', 'health'], ['#detail/weight/2026-09-01', 'health'], ['#detail/load-run', 'entreno'],
     ['#detail/workouts/2026-09-30', 'entreno'], ['#food-add', 'nutricion'], ['#profile', 'home'], ['#tonight', 'home'], ['#dash-edit', 'home'],
@@ -697,7 +697,7 @@ test('jump(\'monitor\') (the Inicio summary tile) switches to Salud and scrolls 
   assert.equal(p.monitor._scrolledIntoView, true);
 });
 
-test('HCNav.hash() is the current tab hash (detail.js restores it when the sheet closes)', () => {
+test('HCNav.hash() is the current tab hash (detail.ts restores it when the sheet closes)', () => {
   const p = routedPage({ hash: '#detail/sleep' });
   assert.equal(p.window.HCNav.hash(), '#health');
   p.window.setTab('nutricion');
@@ -709,7 +709,7 @@ test('hashchange / popstate to a tab hash switches tab; detail, hidden and unkno
   const p = routedPage({ hash: '#home', hide: ['health'] });
   p.navTo('#nutricion');
   assert.deepEqual(p.shown(), ['nutricion']);
-  p.navTo('#detail/load-gym'); // a Forward into a sheet: detail.js opens it over the current tab
+  p.navTo('#detail/load-gym'); // a Forward into a sheet: detail.ts opens it over the current tab
   p.navTo('#health');
   p.navTo('#bogus');
   p.navTo('');

@@ -229,7 +229,7 @@ var HC = (function () {
     var d = parseIso(iso);
     return format(N.monthTpl, { month: N.monthsLong[d.getMonth()], year: d.getFullYear() });
   }
-  // The ONE opener markup of the detail sheet (client/detail.js listens for [data-detail] clicks and
+  // The ONE opener markup of the detail sheet (client/detail.ts listens for [data-detail] clicks and
   // Enter / Space): data-detail="<metric>" [data-date="<iso>"] plus a button role and a tab stop;
   // opts.plain = only the data attributes (a real <button>, or a mouse-only target such as an SVG
   // calendar cell or a table row whose keyboard path is another opener). '' when the sheet is not baked.
@@ -438,7 +438,7 @@ var HC = (function () {
   function cta(label, attrs) {
     return '<button type="button" class="cta"' + (attrs || '') + '>' + esc(label) + '<span aria-hidden="true"> →</span></button>';
   }
-  // the ONE detail-sheet header (dial deep-dives and metric details, client/detail.js): "‹" back =
+  // the ONE detail-sheet header (dial deep-dives and metric details, client/detail.ts): "‹" back =
   // the sheet's close button, the title centred (the dialog's label, #dt-title), and on the right
   // either the ⓘ (the same SVG as infoBtn; toggles o.info.controls via data-dt-act="info") or an
   // equal-width spacer so the title stays centred
@@ -451,7 +451,7 @@ var HC = (function () {
         : '<span class="sh-pad" aria-hidden="true"></span>') + '</div>';
   }
   // the detail sheet's registered views (window.HCViews: {<key>: {title(), render()}}, opened by
-  // client/detail.js, deep link #<key>). The ONE writer; the registry appears with the first view. A
+  // client/detail.ts, deep link #<key>). The ONE writer; the registry appears with the first view. A
   // script registering its key again (a re-render, a reload of its API) replaces its view and never
   // throws on the live page; two scripts claiming one key is caught statically (util.test.mjs scan).
   function registerView(name, view) {

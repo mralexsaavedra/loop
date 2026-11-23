@@ -1,10 +1,10 @@
 /* Keyboard shortcuts for the whole page (no modifier keys, GitHub / Gmail style) and the "?" help sheet.
- * Module script (bundled into the page, docs/plan-page.md → Module scripts), inlined before deepdive.js / detail.js so the help sheet is a registered view
- * (window.HCViews.shortcuts, deep link #shortcuts) when detail.js reads the URL at load.
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts), inlined before deepdive.js / detail.ts so the help sheet is a registered view
+ * (window.HCViews.shortcuts, deep link #shortcuts) when detail.ts reads the URL at load.
  *   1 … 4          the visible tabs in nav order (presses the tab bar's button: client/core.js)
  *   a              add food (window.HCActions.run('food'), client/nav-actions.ts; LAN only)
  *   d              the journal (window.HCActions.run('journal'); LAN only)
- *   ?              this list (the add sheet's own keys too: client/food-sheet.js)
+ *   ?              this list (the add sheet's own keys too: client/food-sheet.ts)
  * A key is ignored while typing (input, textarea, select, contenteditable), with Ctrl / Cmd / Alt (so the
  * browser keeps Cmd+1 etc.), while a sheet or the "+" popover is open, and once something else handled it.
  * Copy: I18N_DETAIL.shortcuts (web/src/i18n/detail-templates.mjs). */

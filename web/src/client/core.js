@@ -133,11 +133,11 @@
 
   /* Hash routing. A tab hash opens that tab; no hash, or a hidden or unknown one, opens the default
    * visible tab and the URL is replaced to match. A detail-sheet deep link (#detail/<metric>[/<date>], #<view>) is left
-   * to detail.js (inlined later), which opens the sheet; underneath it the HOST tab is shown when one is
+   * to detail.ts (inlined later), which opens the sheet; underneath it the HOST tab is shown when one is
    * known and visible (DETAIL_TAB / VIEW_TAB; profile = none), so closing the sheet lands there and
-   * detail.js rewrites the URL to HCNav.hash(). Later hash navigation (an edited URL, a bookmark, Back
+   * detail.ts rewrites the URL to HCNav.hash(). Later hash navigation (an edited URL, a bookmark, Back
    * onto a tab entry) switches to a visible tab hash and ignores everything else: a sheet's hash is
-   * detail.js's popstate, never a tab switch, so the two listeners never fight. */
+   * detail.ts's popstate, never a tab switch, so the two listeners never fight. */
   var DETAIL_HASH_RE = /^#detail\/([A-Za-z-]+)(?:\/|$)/;
   var KEY_HASH_RE = /^#([a-z][a-z-]*)$/;
   // null = no hash; {deep: true, tab} = a sheet deep link (tab = its host, or null); {deep: false, tab}
@@ -308,7 +308,7 @@
   window.jumpOr = jumpOr;
   // client/today-date.js: is Inicio the shown tab
   window.currentTab = currentTab;
-  // detail.js: the hash a closed sheet returns to ('' when no visible tab is shown)
+  // detail.ts: the hash a closed sheet returns to ('' when no visible tab is shown)
   window.HCNav = {
     hash: function () {
       var t = currentTab();

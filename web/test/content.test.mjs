@@ -236,7 +236,7 @@ test('example build: Inicio reads today top to bottom — dials, monitor tiles, 
   assert.match(home, /<section class="home-sec" id="my-plan" aria-labelledby="my-plan-h" hidden>\s*<h2 class="hs-lbl home-h" id="my-plan-h">My plan<\/h2>/);
   assert.doesNotMatch(home, /<script/, 'no script inside the Inicio panel');
   // home-week.ts + home-dash.ts run in the end-of-body list, after their globals and before
-  // deepdive.js / detail.js, so their views (tonight, dash-edit) exist when detail.js runs
+  // deepdive.js / detail.ts, so their views (tonight, dash-edit) exist when detail.ts runs
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((x) => x[1]);
   const idx = (re) => scripts.findIndex((x) => re.test(x));
   const week = idx(/window\.HCWeekPlan\s*=/), dash = idx(/window\.HCDash\s*=/), deep = idx(/window\.HCDeep\s*=/), detail = idx(/window\.HCDetailState\s*=/);
@@ -382,7 +382,7 @@ test('example build: the shared client helpers (util.js) are inlined FIRST, righ
   assert.ok(fmtIdx !== -1 && fmtIdx < utilIdx, 'the one number formatter (HC_FMT) is inlined before util.js');
 });
 
-test('example build: the detail sheet ships hidden OUTSIDE .wrap (so the page can go inert), with DETAIL baked for every demo metric and detail.js before freshness.ts', () => {
+test('example build: the detail sheet ships hidden OUTSIDE .wrap (so the page can go inert), with DETAIL baked for every demo metric and detail.ts before freshness.ts', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   const sheet = /<div id="detail" class="dt-sheet"[^>]*>/.exec(html);
   assert.ok(sheet, 'sheet host present');
@@ -404,7 +404,7 @@ test('example build: the detail sheet ships hidden OUTSIDE .wrap (so the page ca
   assert.ok(detail.sessions.length > 0);
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((x) => x[1]);
   const detailIdx = scripts.findIndex((s) => /window\.HCDetail\s*=/.test(s));
-  assert.ok(detailIdx !== -1 && detailIdx === scripts.length - 2, 'detail.js runs after every card renderer, right before freshness.ts');
+  assert.ok(detailIdx !== -1 && detailIdx === scripts.length - 2, 'detail.ts runs after every card renderer, right before freshness.ts');
 });
 
 test('example build: the freshness line + Sync button ship HIDDEN (shown only when /api/sync/status answers), copy baked, script last', () => {

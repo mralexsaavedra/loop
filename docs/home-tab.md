@@ -60,8 +60,8 @@ Order, top to bottom (`web/src/tabs/Home.astro`, which also renders `components/
 - Little text on the tab: each block's explanation lives in the detail sheet it opens.
 - The full health monitor list is NOT on Home: it leads Salud ([below](#health-monitor-on-salud)).
 - `client/home-week.ts` and `client/home-dash.ts` load in `layouts/Plan.astro`'s end-of-body script
-  list (after `HC`, the baked globals and `adherence.js`, right before `deepdive.js` / `detail.js`).
-  They render at once and register their sheets (`tonight`, `dash-edit`) before `detail.js` runs;
+  list (after `HC`, the baked globals and `adherence.js`, right before `deepdive.js` / `detail.ts`).
+  They render at once and register their sheets (`tonight`, `dash-edit`) before `detail.ts` runs;
   `#tonight` / `#dash-edit` deep-link to them (`NAV.viewTab` → `home`). Without their hosts they
   render nothing.
 - Data: `lib/score/*` (single-source pattern). `buildScoresFrom(inputs, {sex})` (pure, over
@@ -430,7 +430,7 @@ What it shows: user-chosen metric cards with the latest value vs a 30-day baseli
 
 ### Customize sheet
 
-- "Customize" opens the registered `dash-edit` sheet (`detail.js` modal): the list straight away, no
+- "Customize" opens the registered `dash-edit` sheet (`detail.ts` modal): the list straight away, no
   intro paragraph, 48 px rows (the 44 px buttons centred).
 - Per metric: its SHORT name (the trend sheet's title: "HRV", "Resting HR", so a row fits 1–2 lines at
   360 px; the full name stays in the buttons' accessible names), THE switch (`HC.switchBtn`,

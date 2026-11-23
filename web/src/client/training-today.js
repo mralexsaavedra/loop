@@ -34,7 +34,7 @@
     return '<div class="train-block"><div class="train-block-top">' + label + '<h3>' + esc(b.title) + '</h3></div><ul>' + lines + '</ul></div>';
   }
   // Inicio shows the programmed session as a row of "Today's activities" (client/timeline.ts reads
-  // window.HCProgram) and opens this markup as a registered detail view ('hoy-session', client/detail.js);
+  // window.HCProgram) and opens this markup as a registered detail view ('hoy-session', client/detail.ts);
   // #sec-hoy is a hidden source, and page.hideTabs ["hoy"] (the section `hidden`) turns both off.
   function expose(today, s, host) {
     if (typeof window === 'undefined') return;

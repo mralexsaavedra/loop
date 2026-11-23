@@ -1,7 +1,7 @@
 /* Build-output guard for Progreso (weight vs the goal), Constancia (food log adherence) and the
  * server-side settings: the hosts sit after the day's blocks in the dia section, Constancia ships
  * hidden (LAN page only), the thresholds are baked from lib/, and the three scripts are inlined after
- * food-*.js (whose API client they reuse) and before intake.js / profile.ts / detail.js. Reads the fixture
+ * food-*.js (whose API client they reuse) and before intake.js / profile.ts / detail.ts. Reads the fixture
  * built by `npm run pretest`. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
@@ -19,7 +19,7 @@ const htmlPath = path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.html');
 const html = fs.existsSync(htmlPath) ? fs.readFileSync(htmlPath, 'utf8') : '';
 // the bytes the page inlines: a classic script as is, a module script (*.ts) bundled
 const src = (name) => clientScriptSource(name);
-const NAMES = ['food-core.js', 'food-sheet.js', 'food-catalog.js', 'food-log.js', 'settings.js', 'progress.js', 'adherence.js', 'intake.js', 'profile.ts', 'detail-state.js', 'detail-chart.js', 'detail.js'];
+const NAMES = ['food-core.js', 'food-sheet.ts', 'food-catalog.ts', 'food-log.js', 'settings.js', 'progress.js', 'adherence.js', 'intake.js', 'profile.ts', 'detail-state.js', 'detail-chart.js', 'detail.ts'];
 const at = (name) => {
   const i = html.indexOf(slimScript(src(name)));
   assert.ok(i > 0, `${name} is not inlined whole (as slimScript emits it) in ${htmlPath}`);

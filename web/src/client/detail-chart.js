@@ -1,12 +1,12 @@
 /* Detail sheet, the trend chart (no DOM: markup only). detail-state.js (the data / state helpers) ->
- * detail-chart.js (this file) -> detail.js (the sheet shell). Classic scripts (is:inline), inlined in
+ * detail-chart.js (this file) -> detail.ts (the sheet shell). Classic scripts (is:inline), inlined in
  * that order right after deepdive.js (web/src/client/manifest.mjs).
  *
  * window.HCDetailChart(T, DS) builds the chart over the sheet's copy (I18N_DETAIL) and one
  * HCDetailState (DS): chartHtml = the window's SVG (daily points or bars, the 7-day line, the personal
  * band / target / typical lines, three round Y ticks, the newest value labelled, a missing day is a gap,
  * never 0) + its key; selX = the x of a day's slot from the geometry the last chart recorded;
- * breakdownHtml = the window's days by state as one stacked bar + counts. detail.js calls it once.
+ * breakdownHtml = the window's days by state as one stacked bar + counts. detail.ts calls it once.
  * Reads window.HC (util.js) and, at call time, I18N_DATE (the weekday labels of a week's bars). */
 window.HCDetailChart = function (T, DS) {
   var esc = HC.esc, format = HC.format, parseIso = HC.parseIso, shiftIso = HC.shiftIso;

@@ -256,7 +256,7 @@ test('weekdayIndex is Monday-first (0 = Monday … 6 = Sunday)', () => {
 
 test('the client scripts share HC instead of redefining the helpers or hard-coding the baked constants', () => {
   const dir = path.dirname(fileURLToPath(import.meta.url));
-  for (const f of ['timeline.ts', 'training-activity.ts', 'monitor.ts', 'score.ts', 'health.ts', 'intake.js', 'food-core.js', 'food-sheet.js', 'food-catalog.js', 'food-log.js']) {
+  for (const f of ['timeline.ts', 'training-activity.ts', 'monitor.ts', 'score.ts', 'health.ts', 'intake.js', 'food-core.js', 'food-sheet.ts', 'food-catalog.ts', 'food-log.js']) {
     const src = fs.readFileSync(path.join(dir, f), 'utf8');
     for (const name of ['esc', 'format', 'daysOld', 'todayIso', 'isoDate', 'nf']) {
       assert.doesNotMatch(src, new RegExp(`function ${name}\\(`), `${f} redefines ${name}()`);

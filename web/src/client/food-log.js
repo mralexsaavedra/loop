@@ -2,7 +2,7 @@
  * rule), the shared event listeners (click actions registered by every food script, input / change /
  * Enter), the boot (GET /api/food/products reveals the hosts) and the public hooks: window.foodTotals,
  * window.HCFood (groupTotals, recentDay, products, addGuide, showDay, the formula port, api). Classic
- * script (is:inline), the LAST food script: inlined after food-catalog.js and before settings.js.
+ * script (is:inline), the LAST food script: inlined after food-catalog.ts and before settings.js.
  * See food-core.js for the whole food log. */
 (function () {
   var FI = window.HCFoodInternal;
@@ -289,7 +289,7 @@
     S.ok = true;
     bootDone();
     S.products = Array.isArray(data.products) ? data.products : [];
-    // detail.js asks for the title after render(), so it names the sheet's own day when it is not today
+    // detail.ts asks for the title after render(), so it names the sheet's own day when it is not today
     HC.registerView('food-add', { title: sheetTitle, render: renderSheet });
     // the dock's "+" can now offer "add food" (client/nav-actions.ts)
     if (window.HCActions) {

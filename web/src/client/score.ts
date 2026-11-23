@@ -50,7 +50,7 @@ type DialParts = { fill?: string | null; mid?: { x: number; y: number } | null }
 // the same data-dmod items, so it follows too. A missing host is skipped. No bare page global: the setter is
 // window.HCScore.setMod (deepdive.js feature-detects it), and the load pages' pills carry data-mod="<modality>"
 // (no inline onclick: the page's CSP blocks them); a click on one follows Inicio's dial through the delegated
-// listener below, the pill's own data-detail still opens its page (detail.js)
+// listener below, the pill's own data-detail still opens its page (detail.ts)
 (function () {
   function setMod(key: string | null) {
     ['home-dials', 'home-advice', 'home-mini'].forEach(function (id) {
@@ -380,7 +380,7 @@ type DialParts = { fill?: string | null; mid?: { x: number; y: number } | null }
     out.push('</svg>');
     return out.join('');
   }
-  // Whoop-style drill-down: the dial is the glance, a tap opens its detail sheet (client/detail.js);
+  // Whoop-style drill-down: the dial is the glance, a tap opens its detail sheet (client/detail.ts);
   // a load dial opens its own modality (detailKey), the no-load placeholder opens training time
   var DIAL_DETAIL: Record<string, string> = { 'dial-sleep': 'sleep', 'dial-rec': 'recovery', 'dial-load': 'workouts' };
   // Collapsed dial row (Inicio, shown once the dials scroll away): every dialFig call also queues a
@@ -396,7 +396,7 @@ type DialParts = { fill?: string | null; mid?: { x: number; y: number } | null }
   }
   // One dial = the ring with its value INSIDE (big number, small unit) and its label BELOW ("SLEEP ›",
   // uppercase in CSS). No caption under it: "last night" / the night's date, the 7-day trend, the sleep
-  // target, the load scale and acute/chronic context live in the dial's detail sheet (client/detail.js)
+  // target, the load scale and acute/chronic context live in the dial's detail sheet (client/detail.ts)
   // and in the accessible name.
   function dialFig(cls: string, stale: boolean, extra: string, aria: string, svg: string, centre: string, label: string, detailKey?: string) {
     var to = detailKey || DIAL_DETAIL[cls.split(' ')[0]];

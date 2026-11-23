@@ -1,4 +1,4 @@
-/* Detail sheet (web/src/client/detail.js): full-screen on phones, a large centred panel from 900px.
+/* Detail sheet (web/src/client/detail.ts): full-screen on phones, a large centred panel from 900px.
  * Colour = meaning only: state tokens (--good / --mid / --low) against the personal band or target,
  * --trend for neutral data (points, the 7-day line, the band), --strain for training volume, --sleep
  * for the target line, --accent for actions (buttons, focus). */
@@ -183,7 +183,7 @@ html.dt-lock body {
   background: var(--track);
   color: var(--ink);
 }
-/* full width, one equal column per option (the food sheet's source tabs, food-sheet.js) */
+/* full width, one equal column per option (the food sheet's source tabs, food-sheet.ts) */
 .dt-range-fill {
   display: grid;
   grid-auto-flow: column;
@@ -435,7 +435,7 @@ html.dt-lock body {
   border-radius: 3px;
   background: var(--trend);
 }
-/* the daily / out-of-range key: the chart's own marks, one per state drawn (detail.js keyMarks) */
+/* the daily / out-of-range key: the chart's own marks, one per state drawn (detail.ts keyMarks) */
 .dt-k-pts::before {
   content: none;
 }
@@ -678,7 +678,7 @@ button.dt-day {
   font-size: var(--fs-xs);
 }
 
-/* per-workout HR zones in a session (detail.js zonesHtml): ZONE 5…0 tiles, each with its bpm range,
+/* per-workout HR zones in a session (detail.ts zonesHtml): ZONE 5…0 tiles, each with its bpm range,
  * % of the zoned time, duration and a bar in the zone's colour, warm (5) -> cool (0) */
 .dt-zones {
   display: flex;
