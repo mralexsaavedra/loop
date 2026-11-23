@@ -202,7 +202,7 @@ type Summary = {
       '<div class="hs-info" id="act-info" hidden><p>' + esc(T.help) + '</p><p>' + esc(T.note) + '</p><p>' + esc(T.labelsNote) + '</p></div>';
     if (!A || !A.hasData || !Array.isArray(A.days)) return '<section class="hs-sec act" aria-labelledby="act-h">' + head + '<div class="train-empty">' + T.empty + '</div></section>';
     var today = HC.todayIso();
-    var age = HC.daysOld(A.asOf);
+    var age = HC.daysOld(A.asOf)!;
     var stale = age > HC.STALE_DAYS;
     var end = stale || age < 0 ? A.asOf : today;
     var byDate: ByDate = {};

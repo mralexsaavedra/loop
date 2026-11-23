@@ -177,7 +177,7 @@ type DetailSession = { d: string; m: string; min: number; re?: number | null; n?
     out.push('<ul class="tl-list">' + list.join('') + '</ul>');
     // THE carried-value rule (HC.carried): today's activities not in yet -> the newest earlier day,
     // dated in the heading (above) and dimmed; stale (> STALE_DAYS) stays the stronger grey
-    var stale = !!day && daysOld(day.date) > HC.STALE_DAYS;
+    var stale = !!day && daysOld(day.date)! > HC.STALE_DAYS;
     return card(out.join(''), stale, day && !ahead ? HC.carried(day.date, today, { stale: stale }).cls : '');
   }
 

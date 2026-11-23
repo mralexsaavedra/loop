@@ -49,7 +49,7 @@ window.HCDetailState = function (T: Baked, D: Baked) {
   }
   // views registered by other scripts before detail.ts: {<key>: {title(): string, render(): {head, body}}}
   function viewOf(key: string) {
-    var v = HC.view(key);
+    var v = HC.view(key) as Partial<{ title: unknown; render: unknown }> | null;
     return v && typeof v.render === 'function' ? v : null;
   }
   function metric(key: string): Metric | null {
@@ -102,7 +102,7 @@ window.HCDetailState = function (T: Baked, D: Baked) {
   function viewEnd() {
     var today = HC.todayIso(), asOf = isoDate(D.asOf);
     if (!asOf) return { end: today, stale: false };
-    var age = HC.daysOld(asOf);
+    var age = HC.daysOld(asOf)!;
     if (age > HC.STALE_DAYS) return { end: asOf, stale: true };
     return { end: age < 0 ? asOf : today, stale: false };
   }

@@ -52,7 +52,7 @@ type EnergyDay = { date: string; wake: string; start: number; now: { lv: number;
       if (sel ? x.date === sel : !out || x.date > out.date) out = x;
     });
     var found = out as EnergyDay | null;
-    if (found && !sel && !(HC.daysOld(found.date) <= HC.STALE_DAYS)) return null;
+    if (found && !sel && !(HC.daysOld(found.date)! <= HC.STALE_DAYS)) return null;
     return found;
   }
   // wake -> latest hour, 0-100 up: the line + a soft area under it (viewBox units, stretched to fit)

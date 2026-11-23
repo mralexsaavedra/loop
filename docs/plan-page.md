@@ -182,8 +182,9 @@ directly (`home-week.ts` imports `fin` from `lib/nutrition/num.mjs` instead of r
 minification). `astro.config.mjs` exposes the result as the virtual module `virtual:client-modules`, and
 `layouts/Plan.astro` inlines it at the module's place in the manifest, exactly like a classic script, so the page
 stays one file and the CSP hashes it like any other script. The tests run the same bytes
-(`clientScriptSource(file)`). The page globals a module reads are typed in `web/src/client/page-globals.d.ts`
-(`any` until each gets its own type). Every client script is a module script now (the last, `util.ts`, sets `globalThis.HC` itself: once bundled into an IIFE its `var HC` is no longer a page global).
+(`clientScriptSource(file)`). The page globals a module reads are typed in `web/src/client/page-globals.d.ts`:
+`HC` with util.ts's own inferred API (`HCApi`), so every call into it is checked; the baked data globals stay `any` until
+each gets its own type. Every client script is a module script now (the last, `util.ts`, sets `globalThis.HC` itself: once bundled into an IIFE its `var HC` is no longer a page global).
 
 ESLint lints only `*.js` / `*.mjs`: for a module script `tsc` takes its place (`strict` for undefined names and
 shapes, `noUnusedLocals` for ESLint's `no-unused-vars`; unused parameters stay allowed, as ESLint's `args: 'none'`).

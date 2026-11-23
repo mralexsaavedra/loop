@@ -198,7 +198,7 @@ type WeekInputs = {
           (state ? '<span class="tn-lbl tn-state">' + esc(state) + '</span>' : '') + '<span class="tn-lbl">' + esc(lbl) + '</span></div>';
       };
       var wakeLbl = fin(tn.nights) && TT.nights ? format(TT.nights, { n: tn.nights }) : TT.wake;
-      var stale = HC.daysOld(tn.asOf) > HC.STALE_DAYS;
+      var stale = HC.daysOld(tn.asOf)! > HC.STALE_DAYS;
       // named by its content (WCAG 2.5.3): "Tonight's sleep 23:24 Recommended bedtime 06:54 Usual wake …"
       return '<div class="sc-card tn' + (stale ? ' sc-stale' : '') + '"' + HC.detailAttrs('tonight') + '>' +
         '<h3 class="tn-h">' + esc(TT.heading) + '</h3>' +

@@ -22,7 +22,7 @@ type DateOpts = { weekday?: boolean } | null;
 type View = { title: () => string; render: () => unknown };
 type MetricRowOpts = {
   key: string; cls?: string; attrs?: string; sr?: string | null; name: string; value: string | number; unit?: string;
-  numCls?: string; arrow?: string; tone?: string; base?: string | null; base2?: string;
+  numCls?: string; arrow?: string | null; tone?: string | null; base?: string | null; base2?: string;
 };
 type ContribRowOpts = {
   row?: string; icon: string; label: string; sub?: string; value: string | number;
@@ -205,7 +205,7 @@ var HC = (function () {
     return HC_FMT.fmtRaw(n, loc());
   }
   // fixed decimals, optional leading "+"; a value that rounds to zero carries no sign
-  function num(x: number | null | undefined, dec: number, signed?: boolean): string {
+  function num(x: number | null | undefined, dec?: number, signed?: boolean): string {
     return HC_FMT.fmtNumber(x, dec, loc(), signed);
   }
   // a whole number, grouped ("13.463")
@@ -344,7 +344,7 @@ var HC = (function () {
   // typical / steady; the tone class colours it — good / bad / watch by the metric's direction,
   // `neutral` (--ink) for a change with no good direction, `flat` (grey) ONLY for the • (no grey arrow)
   var ARROWS: Record<string, string> = { up: '▲', down: '▼', flat: '•' };
-  function trendTone(arrow?: string, tone?: string | null): string {
+  function trendTone(arrow?: string | null, tone?: string | null): string {
     if (arrow === 'flat') return 'flat';
     return !tone || tone === 'flat' || tone === 'normal' ? 'neutral' : tone;
   }
@@ -733,3 +733,6 @@ var HC = (function () {
 // bundled into an IIFE (web/src/client-bundle.mjs), where it is local, so the global is set explicitly. globalThis is
 // window in the page and the context's global in the tests' vm.
 globalThis.HC = HC;
+
+/** HC's public API, as the other client scripts read it (web/src/client/page-globals.d.ts types the global with it). */
+export type HCApi = typeof HC;
