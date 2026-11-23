@@ -179,7 +179,7 @@ type View = { head: { date: string; r: DayScore } | null; run: DayScore | null; 
   function closedDay(s: Series) {
     var best = null as string | null;
     s.dates.forEach(function (d: string) { if (s.days[d] && !s.days[d].partial) best = d; });
-    return best && HC.daysOld(best) <= HC.STALE_DAYS ? best : null;
+    return best && HC.daysOld(best)! <= HC.STALE_DAYS ? best : null;
   }
   // what a card shows: a stepped-to past day = that day's score; else the newest closed day + today's progress
   function view(s: Series, sel: string | null): View | null {

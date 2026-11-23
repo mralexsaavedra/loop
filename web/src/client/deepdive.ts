@@ -81,7 +81,7 @@ type Card = { title: string; get: (iso: string) => unknown; text: (v: number) =>
   }
   function stale(iso: string | null | undefined): boolean {
     var d = isoDate(iso);
-    return !!d && HC.daysOld(d) > HC.STALE_DAYS;
+    return !!d && HC.daysOld(d)! > HC.STALE_DAYS;
   }
   function isNum(v: unknown): v is number {
     return typeof v === 'number' && isFinite(v);
@@ -222,7 +222,7 @@ type Card = { title: string; get: (iso: string) => unknown; text: (v: number) =>
     var pct = pctOf(h);
     // with a % headline the night's SD value moves under ⓘ (infoHtml), so the card carries ONE band
     var band = pct != null ? W.recBands[dials().recovery.band] : W.recSd[h.band];
-    var night = format(W.rec, { when: whenOf(isoDate(h.date), X, h.sleep), band: band || '' });
+    var night = format(W.rec, { when: whenOf(isoDate(h.date)!, X, h.sleep), band: band || '' });
     return prose([adv, night, h.sleep === false ? W.noSleep : '', adv ? '' : format(W.recTrend, trendVars)]);
   }
   // the measured sleep debt over the DEBT_NIGHTS nights ending at `iso`: Σ (target − asleep) over the
@@ -344,7 +344,7 @@ type Card = { title: string; get: (iso: string) => unknown; text: (v: number) =>
     var marked = shown.some(function (r) { return r.cmp && r.cmp.side != null; });
     // no name on the <section> (a named section is a region landmark): the list carries it
     return '<section class="dd-contrib"><ul class="dd-rows" aria-label="' + esc(P.aria) + '">' + shown.map(function (r) {
-      return HC.contribRow({ row: r.k, icon: r.k, label: P.rows[r.k], value: r.val, mark: markOf(r.cmp, X) });
+      return HC.contribRow({ row: r.k, icon: r.k, label: P.rows[r.k], value: r.val!, mark: markOf(r.cmp, X) });
     }).join('') + '</ul>' +
       (marked ? '<p class="dd-legend"><span class="dd-mk dd-better" aria-hidden="true">▲</span><span class="dd-mk dd-worse" aria-hidden="true">▼</span><b>' +
         esc(day || P.legendToday) + '</b> ' + esc(P.legendRest) + '</p>' : '') + '</section>';

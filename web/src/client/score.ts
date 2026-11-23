@@ -417,7 +417,7 @@ type DialParts = { fill?: string | null; mid?: { x: number; y: number } | null }
   // (no weekday: it must fit a 360 px ring) and is dimmed, the mini ring too; `stale` (> STALE_DAYS,
   // the stronger grey) keeps the date without stacking the dim
   function carry(iso: string | null, stale: boolean) {
-    var c = HC.carried(iso, dayIso(), { weekday: false, stale: stale });
+    var c = HC.carried(iso, dayIso(), { weekday: false, stale: stale }) as ReturnType<typeof HC.carried> & { html: string };
     c.html = c.carried ? '<span class="carried-date">' + esc(c.label) + '</span>' : '';
     return c;
   }

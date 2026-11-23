@@ -58,7 +58,7 @@ type Progress = {
     return weightProgress(weightMetric(), { goal: goal(), target: target() });
   }
   function stale(p: Progress) {
-    return HC.daysOld(p.current.date) > P.staleDays;
+    return HC.daysOld(p.current.date)! > P.staleDays;
   }
   function kg(v: number | null) { return HC.num(v, 1); }
   function rateText(p: Progress) { return format(T.rate, { rate: HC.num(p.rate, 2, true) }); }

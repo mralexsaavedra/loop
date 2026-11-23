@@ -31,7 +31,7 @@ type Metric = { start: string; v: (number | null)[]; week?: unknown; kind?: stri
 type Arrow = 'up' | 'down' | 'flat';
 type Tone = 'good' | 'bad' | 'flat';
 /** One SCORES.stress day with a latest scored hour (`now`: value + hour clock). */
-type StressDay = { date: string; now: { v: number; t: unknown }; hours: unknown };
+type StressDay = { date: string; now: { v: number; t: unknown }; hours: { t: string; v: number | null; hr?: number | null }[] | null };
 type RowValue = { value: number; date: string; base: number | null; arrow: Arrow | null; tone: Tone };
 
 (function () {
@@ -136,7 +136,7 @@ type RowValue = { value: number; date: string; base: number | null; arrow: Arrow
     }
     function rowHtml(key: string, m: Metric, r: RowValue): string {
       var unit = key === 'sleep' || m.week ? '' : unitOf(key);
-      var stale = HC.daysOld(r.date) > HC.STALE_DAYS;
+      var stale = HC.daysOld(r.date)! > HC.STALE_DAYS;
       // named by its content (name + value); the date, the 30-day average and the trend in words after them
       var sr = [HC.fmtDate(r.date)].concat(r.base != null ? [format(TS.baseAria, { base: fmt(key, m, r.base) + (unit ? ' ' + unit : '') }), TS.dirs[r.arrow as Arrow]] : []).join(' · ');
       return HC.metricRow({ key: key, cls: stale ? 'db-stale' : '', attrs: HC.detailAttrs(key), sr: sr, name: titleOf(key), value: fmt(key, m, r.value), unit: unit,
@@ -158,7 +158,7 @@ type RowValue = { value: number; date: string; base: number | null; arrow: Arrow
         // the chevron is the shared opener's (base.css [data-detail][role=button]:after)
         '<div class="db-card-head"><span class="db-card-t">' + esc(titleOf('stress')) + '</span></div>' +
         '<div class="db-card-sub"><span class="db-card-when">' + esc(when) + '</span><span><span class="ds-band">' + esc(P.bands[band]) + '</span><b class="db-card-v">' + esc(value) + '</b></span></div>' +
-        HC.stressChart(d.hours, P, function (v: number, dec: number) { return HC.num(v, dec); }, true) + '</div></li>';
+        HC.stressChart(d.hours, P, function (v: number | null | undefined, dec: number) { return HC.num(v, dec); }, true) + '</div></li>';
     }
     function available() {
       var out = D ? CATALOG.filter(function (k) { return own(D.metrics, k) && D.metrics[k] && Array.isArray(D.metrics[k].v); }) : [];

@@ -1,7 +1,8 @@
 /* The shapes of the page globals the module client scripts (*.ts) read. A spike: the globals are `any` until each
  * gets its own type (most are baked JSON whose shapes live in lib/). Classic scripts (*.js) are not type-checked. */
 export type PageGlobals = {
-  HC: any;
+  /** util.ts's helper library (its own inferred type: every helper's parameters and result). */
+  HC: import('./util').HCApi;
   DETAIL: any;
   SCORES: any;
   TRAINING: any;

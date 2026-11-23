@@ -373,7 +373,7 @@ type Sub = { cls?: string; text: string };
     var band = dayState(m, v).slice(1), d = null as Baked;
     var S = stressMetric() ? SCORES.stress : null;
     ((S && S.days) || []).forEach(function (x: Baked) { if (x && x.date === iso) d = x; });
-    var sub = d && d.mins ? ['low', 'medium', 'high'].map(function (b) { return P.bands[b] + ' ' + HC.duration(d.mins[b], P.units); }).join(' · ') : '';
+    var sub = d && d.mins ? ['low', 'medium', 'high'].map(function (b) { return P.bands[b] + ' ' + (HC.duration as (min: number | null | undefined, units?: unknown) => string)(d.mins[b], P.units); }).join(' · ') : '';
     return row(P.avgLbl, fmt(v, 1) + ' · ' + (P.bands[band] || ''), sub);
   }
   // an energy day: its latest level + band, and the start and low when the day is baked

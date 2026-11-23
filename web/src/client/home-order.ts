@@ -37,8 +37,8 @@ type BlockKey = 'day' | 'eat' | 'tonight' | 'journal' | 'plan' | 'dash';
       var anchor = document.getElementById('home-cust');
       if (!anchor || !anchor.parentNode) return;
       var at: HTMLElement = anchor;
-      OL.current().forEach(function (p: { key: BlockKey; on: boolean }) {
-        var n = el(p.key);
+      OL.current().forEach(function (p: { key: string; on: boolean }) {
+        var n = el(p.key as BlockKey);
         if (!n) return;
         (at.parentNode as ParentNode).insertBefore(n, at);
         n.classList.toggle('home-off', !p.on);
@@ -47,7 +47,7 @@ type BlockKey = 'day' | 'eat' | 'tonight' | 'journal' | 'plan' | 'dash';
     var OL = HC.orderList({
       view: 'home-edit', attr: 'home', key: PREFS_KEY, catalog: CATALOG, defaultOn: CATALOG, available: available,
       title: function () { return T.editTitle; },
-      row: function (key: BlockKey) { return { icon: HC.metricIcon(ICONS[key]), name: T.names[key], full: T.names[key] }; },
+      row: function (key: string) { return { icon: HC.metricIcon(ICONS[key as BlockKey]), name: T.names[key as BlockKey], full: T.names[key as BlockKey] }; },
       aria: { show: T.showAria, up: T.upAria, down: T.downAria },
       changed: function () { try { apply(); } catch (e) { /* the page keeps its current order */ } },
     });

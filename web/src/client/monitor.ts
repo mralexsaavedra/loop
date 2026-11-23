@@ -132,7 +132,7 @@ type Carried = { carried: boolean; label: string; cls: string; html: string };
   // dated before the shown day (`day`, null = the viewer's today) is dimmed and names that date, short
   // (no weekday: a half-width tile)
   function carry(iso: string | null, day: string | null): Carried {
-    var c: Carried = HC.carried(iso, day, { weekday: false });
+    var c = HC.carried(iso, day, { weekday: false }) as Carried;
     c.html = c.carried ? '<span class="carried-date">' + esc(c.label) + '</span>' : '';
     return c;
   }
@@ -193,7 +193,7 @@ type Carried = { carried: boolean; label: string; cls: string; html: string };
       if (!x || !x.now || !isoDate(x.date)) return;
       if (day ? x.date === day : !out || x.date > out.date) out = x;
     });
-    if (out && !day && !(daysOld(out.date) <= STALE_DAYS)) return null;
+    if (out && !day && !(daysOld(out.date)! <= STALE_DAYS)) return null;
     return out;
   }
   function stressTile(d: StressDay, day: string | null): string {
