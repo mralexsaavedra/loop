@@ -473,7 +473,7 @@
       '<p class="fuel-note">' + esc(F.inDay) + '</p>' +
       '<p class="fuel-note fuel-disclaimer">' + esc(F.disclaimer) + '</p>';
   }
-  // Inicio's day stepping (window.HCDay, client/today-date.js): on a PAST day the card shows THAT day's
+  // Inicio's day stepping (window.HCDay, client/today-date.ts): on a PAST day the card shows THAT day's
   // detected day type (dayInput + detectDayType, as HCNutri.targetFor) and its plan targets with the
   // current goal, under "Target for <date>"; a day whose type cannot be told (no session, sleep or
   // programmed session) hides the card. Today renders exactly as before.

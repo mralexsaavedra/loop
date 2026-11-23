@@ -212,7 +212,7 @@ type AdherenceStore = {
     F.showDay(cell.getAttribute('data-adh-day'));
   });
 
-  // a page left open past midnight: core.js reloads it when it becomes visible on another day, but waits
+  // a page left open past midnight: core.ts reloads it when it becomes visible on another day, but waits
   // while the page is busy (a sheet open); this re-reads the window meanwhile so the strip ends at today
   if (document.addEventListener) {
     document.addEventListener('visibilitychange', function () {

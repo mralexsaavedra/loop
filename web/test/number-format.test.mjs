@@ -24,9 +24,9 @@ const hits = (files, re) =>
 
 // `.toFixed(` that only places SVG / CSS geometry (coordinates, widths, dash arrays) — never text
 const GEOMETRY_TOFIXED = {
-  'web/src/client/deepdive.js': 7, // energy-bank chart and the stress gauge: points, rects, label positions
+  'web/src/client/deepdive.ts': 7, // energy-bank chart and the stress gauge: points, rects, label positions
   'web/src/client/util.js': 8, // HC.stressChart (the stress sheet + Mi panel card): points, rects, label positions
-  'web/src/client/detail-chart.js': 4, // trend chart: svg coordinates, % positions of the labels
+  'web/src/client/detail-chart.ts': 4, // trend chart: svg coordinates, % positions of the labels
   'web/src/client/detail.ts': 1, // the chart's selection rect, moved on a day tap
   'web/src/client/energy.ts': 2, // the energy-bank line's x / y
   'web/src/client/health.ts': 2, // the macro-split bar's rect x / width

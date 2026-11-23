@@ -441,7 +441,7 @@ hand-computed tests).
 - ⓘ `#nutri-progress-info` (written by progress.ts): the status why, the rate window and "the series mixes
   scales"; the ⓘ hides when there is nothing behind it, and a re-render (a settings change) keeps the block
   open or closed as the viewer left it.
-- The card opens the weight sheet, which draws the target dashed (`detail-state.js` `targetOf`). Its accessible
+- The card opens the weight sheet, which draws the target dashed (`detail-state.ts` `targetOf`). Its accessible
   name carries what it shows (a `role="button"` hides its children): `7-day average 78.0 kg, -0.35 kg/wk. On pace.
   Target weight: … . Estimated arrival … . See the weight history` (`I18N_NUTRI.progress.aria` + the card's lines + `open`).
 
@@ -464,7 +464,7 @@ descriptor) `isComplete` / `dayState` / `adherence` as `HC_ADH` (inlined before 
 - ⓘ `#adh-info` (the first child of `#food-adherence`; a re-render keeps it open if it was): every note (no
   comparison, minimums, unknown / assumed days), the complete-day rule and the goal note.
 - Re-read debounced (`reloadMs`) after every add / delete, and on `visibilitychange` when the day changed
-  (the midnight reload of core.js waits while the page is busy).
+  (the midnight reload of core.ts waits while the page is busy).
 
 ## Nutrition score
 

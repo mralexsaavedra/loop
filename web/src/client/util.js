@@ -387,7 +387,7 @@ var HC = (function () {
   }
   // THE stress chart (lib/score/stress.mjs hours: [{t: 'HH', v: 0-3, hr}]): 24 h across, 0-3 up, the three
   // bands shaded, one point per scored hour (its middle), joined while the hours are consecutive. Drawn by
-  // the stress sheet (client/deepdive.js) and Mi panel's stress card (client/home-dash.ts); P = the
+  // the stress sheet (client/deepdive.ts) and Mi panel's stress card (client/home-dash.ts); P = the
   // I18N_DETAIL.deep.stress copy, fmt(v, dec) = the page's number format; decorative = aria-hidden
   var STRESS_BANDS = ['low', 'medium', 'high'];
   var SCV = { w: 320, h: 150, l: 22, r: 6, t: 8, b: 20 };

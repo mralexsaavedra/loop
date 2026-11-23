@@ -4,8 +4,8 @@
  * missing day is a gap, never 0), a Monday-first month calendar coloured by state tokens against that
  * band / target, and the picked day's detail underneath.
  *
- * Module script (bundled into the page, docs/plan-page.md → Module scripts), the sheet's shell: detail-state.js (the data / state
- * helpers, window.HCDetailState) and detail-chart.js (the trend chart, window.HCDetailChart) are inlined
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts), the sheet's shell: detail-state.ts (the data / state
+ * helpers, window.HCDetailState) and detail-chart.ts (the trend chart, window.HCDetailChart) are inlined
  * right before it. Reads DETAIL (lib/detail/detail.mjs) + I18N_DETAIL, both
  * baked by components/DetailSheet.astro, and the shared helpers of util.js (window.HC). Openers are any
  * element with data-detail="<metric>" [data-date="<iso>"] (HC.detailAttrs writes them): one delegated
@@ -13,7 +13,7 @@
  * today (Date.now(), never baked), or at the data's own asOf when that is stale or ahead of the clock.
  *
  * The header never contradicts the card it opens from. The three dial views (sleep, recovery,
- * load-<m>) are laid out by client/deepdive.js (inlined right before this script): "‹ TODAY ⓘ", the
+ * load-<m>) are laid out by client/deepdive.ts (inlined right before this script): "‹ TODAY ⓘ", the
  * hero ring = the dial's own baked arcs, an insight card with the dial's captions; weight /
  * energy = the cards' 7-day rolling average (baked `roll`), and a daily total's newest day, when it is
  * the viewer's today, is "today, in progress" (neutral colour, never compared). Band colours are static
@@ -24,9 +24,9 @@
  * and focus returns to the opener (no opener, e.g. a deep link: the visible tab's heading). History:
  * opening pushes #detail/<metric>[/<date>] so browser Back closes it; a page opened with that hash opens
  * the view (deep link; the metric must be an own key of DETAIL and the copy, a bad date falls back and
- * the URL follows). The entry underneath is the open tab's hash (#nutricion, core.js), so Back lands
+ * the URL follows). The entry underneath is the open tab's hash (#nutricion, core.ts), so Back lands
  * there; closing a deep-linked sheet (no entry of ours) rewrites the URL to that tab hash
- * (window.HCNav.hash(), core.js shows the deep link's host tab underneath). A re-open while the close's history.back() is in flight waits for its popstate
+ * (window.HCNav.hash(), core.ts shows the deep link's host tab underneath). A re-open while the close's history.back() is in flight waits for its popstate
  * before writing history. Every view renders inside a try/catch with a message fallback; no NaN is ever
  * printed (non-finite values render as a dash). A day tap re-renders only the calendar + day panel.
  *
@@ -54,7 +54,7 @@ type Baked = any;
 type Metric = Baked;
 /** One baked session (DETAIL.sessions, lib/detail/detail.mjs). */
 type Session = Baked;
-/** A window's stats (client/detail-state.js periodStats). */
+/** A window's stats (client/detail-state.ts periodStats). */
 type PeriodStats = Baked;
 /** The open sheet's state (window.HCDetail.state()). */
 type DetailState = {
@@ -105,7 +105,7 @@ type Sub = { cls?: string; text: string };
   var opener = null as Opener | null;
   // true between close()'s history.back() and its popstate: history must not be written meanwhile
   var pendingBack = false;
-  // the data / state helpers (client/detail-state.js) over this sheet's copy and data
+  // the data / state helpers (client/detail-state.ts) over this sheet's copy and data
   var DS = window.HCDetailState(T, D);
   var RANGES = DS.RANGES, RANGE_KEY = DS.RANGE_KEY;
   var dayDiff = DS.dayDiff, own = DS.own, viewOf = DS.viewOf, metric = DS.metric, stressMetric = DS.stressMetric, energyMetric = DS.energyMetric;
@@ -115,7 +115,7 @@ type Sub = { cls?: string; text: string };
   var titleOf = DS.titleOf, valUnit = DS.valUnit, dayState = DS.dayState, legendItems = DS.legendItems;
   var windowFrom = DS.windowFrom, periodStats = DS.periodStats, windowEnd = DS.windowEnd;
   var monthOf = DS.monthOf, addMonths = DS.addMonths;
-  // the trend chart + the window's breakdown bar (client/detail-chart.js)
+  // the trend chart + the window's breakdown bar (client/detail-chart.ts)
   var DC = window.HCDetailChart(T, DS);
 
   host!.setAttribute('role', 'dialog');
@@ -203,7 +203,7 @@ type Sub = { cls?: string; text: string };
     if (!ref) return noneHtml(T.noData) + subsHtml(subs);
     return bigHtml(fmt(at(m.roll, m, ref), m.dec), 'normal', u, format(T.roll7Lbl, { date: HC.fmtDate(ref) }), '', subs);
   }
-  // the dial views (sleep, recovery, load-<m>) lay their top out in client/deepdive.js
+  // the dial views (sleep, recovery, load-<m>) lay their top out in client/deepdive.ts
   function latestHtml(key: string, m: Metric, end: string): string {
     if (Array.isArray(m.roll) && (key === 'weight' || key === 'energy')) return rollLatest(key, m, end);
     var d = lastDataDate(m, end);
@@ -522,8 +522,8 @@ type Sub = { cls?: string; text: string };
     return '<section class="dt-dayd" aria-live="polite"><h3 class="dt-day-h">' + esc(format(T.day.heading, { date: HC.fmtDate(iso) })) + '</h3>' + body + '</section>';
   }
 
-  /* ---------- dial deep-dive pages (client/deepdive.js) ---------- */
-  // the sheet's own helpers, handed to deepdive.js so the dial pages read the same rules and copy
+  /* ---------- dial deep-dive pages (client/deepdive.ts) ---------- */
+  // the sheet's own helpers, handed to deepdive.ts so the dial pages read the same rules and copy
   var X: { [k: string]: unknown; sel?: string | null } = {
     T: T, D: D, at: at, valueOf: valueOf, lastDataDate: lastDataDate, dayDiff: dayDiff, modOf: modOf,
     fmt: fmt, fmtM: fmtM, signed: signed, signedM: signedM, pct: pct, clock: clock, unitOf: unitOf, titleOf: titleOf, bandText: bandText,
@@ -773,7 +773,7 @@ type Sub = { cls?: string; text: string };
       try { history.back(); } catch (e) { pendingBack = false; }
       return;
     }
-    // a deep-linked sheet (no entry of ours): the URL goes back to the tab underneath (core.js)
+    // a deep-linked sheet (no entry of ours): the URL goes back to the tab underneath (core.ts)
     try { history.replaceState(null, '', location.pathname + location.search + tabHash()); } catch (e) { /* see setHash */ }
   }
   function tabHash() {

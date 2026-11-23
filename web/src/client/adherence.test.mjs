@@ -181,7 +181,7 @@ test('an ASSUMED rest day (sleep only, no session) is labelled in the strip and 
   assert.match(h, /Assumed rest/, 'in the legend');
 });
 
-test('back on the page on another day (core.js waits while busy): the window is re-read so the strip ends at today', async () => {
+test('back on the page on another day (core.ts waits while busy): the window is re-read so the strip ends at today', async () => {
   const t = setup({ days: [] });
   await flush();
   t.visible();

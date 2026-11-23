@@ -1,4 +1,4 @@
-/* Unit tests for web/src/client/core.js — runs the actual classic-script
+/* Unit tests for web/src/client/core.ts — runs the actual classic-script
  * source through node:vm against web/test/dom-stub.mjs, so these tests
  * exercise the SAME text that gets embedded via `is:inline set:html` in
  * the built page (see astro.config.mjs / layouts/Plan.astro).
@@ -9,19 +9,16 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB, ANCHOR_TAB, DAY_HASH } from '../../../lib/nav/tabs.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'core.js'), 'utf8');
+const source = clientScriptSource('core.ts');
 
 function makeContext(doc, extra = {}) {
   const window = { scrollTo: () => { window._scrolledTop = true; }, ...extra };
-  // the page bakes NAV from lib/nav/tabs.mjs (layouts/Plan.astro) before core.js runs
+  // the page bakes NAV from lib/nav/tabs.mjs (layouts/Plan.astro) before core.ts runs
   const NAV = { tabs: [...TAB_KEYS], sectionTab: { ...SECTION_TAB } };
   const ctx = { document: doc, window, setTimeout, console, Math, Number, String, NAV };
   vm.createContext(ctx);
@@ -46,7 +43,7 @@ function makeTabPage(doc) {
   return { navIds, panels, sections };
 }
 
-test('core.js keeps no hand-copied SECTION_TAB: it reads the baked NAV', () => {
+test('core.ts keeps no hand-copied SECTION_TAB: it reads the baked NAV', () => {
   assert.doesNotMatch(source, /hoy:\s*'home'/);
   assert.doesNotMatch(source, /'t-health'/);
 });
@@ -214,7 +211,7 @@ test('a click on a [data-jump] link jumps to its target (opens its tab and fold)
   assert.doesNotThrow(() => p.click(null));
 });
 
-test('core.js keeps its helpers private: only setTab, jump, jumpOr, currentTab and HCNav are page globals', () => {
+test('core.ts keeps its helpers private: only setTab, jump, jumpOr, currentTab and HCNav are page globals', () => {
   const doc = new StubDocument();
   makeTabPage(doc);
   const ctx = makeContext(doc);
@@ -317,7 +314,7 @@ test('jumpOr() jumps to a reachable target, else falls back to opening the given
   assert.equal(panels.entreno.hidden, false, 'target in a hidden section: open the tab instead');
 });
 
-test('the train/rest toggle is gone: core.js exposes no setDay (Resumen de hoy picks the day type)', () => {
+test('the train/rest toggle is gone: core.ts exposes no setDay (Resumen de hoy picks the day type)', () => {
   const doc = new StubDocument();
   makeTabPage(doc);
   const { window } = makeContext(doc);
@@ -547,7 +544,7 @@ test('rollover: a deferred reload also happens on the next visibility change wit
   assert.equal(p.reloads.length, 1);
 });
 
-test('rollover: without the shared helpers (HC) core.js wires nothing and never throws', () => {
+test('rollover: without the shared helpers (HC) core.ts wires nothing and never throws', () => {
   const doc = new StubDocument();
   const { window } = makeContext(doc);
   assert.equal(typeof window.setTab, 'function');
@@ -578,13 +575,13 @@ function routedPage({ hash = '', hide = [], hideSections = [], throws = false, s
       const i = String(url).indexOf('#');
       loc.hash = i === -1 ? '' : String(url).slice(i);
     },
-    pushState() { throw new Error('core.js never pushes: Back must not walk through tabs'); },
+    pushState() { throw new Error('core.ts never pushes: Back must not walk through tabs'); },
   };
   const winL = {};
   const window = { scrollTo() {}, addEventListener: (t, fn) => { (winL[t] = winL[t] || []).push(fn); } };
   const monitor = doc.el('monitor', { parent: panels.health });
   const NAV = { tabs: [...TAB_KEYS], sectionTab: { ...SECTION_TAB }, detailTab: { ...DETAIL_TAB }, viewTab: { ...VIEW_TAB }, anchorTab: { ...ANCHOR_TAB }, day: { ...DAY_HASH } };
-  // today-date.js (inlined after core.js) owns the selected day: a stand-in with the same hash()
+  // today-date.ts (inlined after core.ts) owns the selected day: a stand-in with the same hash()
   if (day !== null) window.HCDay = { hash: () => (day.sel ? '#d=' + day.sel : '') };
   const ctx = { document: doc, window, history, location: loc, setTimeout, console, Math, Number, String, Object, NAV };
   vm.createContext(ctx);
@@ -740,7 +737,7 @@ test('without history / location (old harnesses, odd frames) setTab keeps workin
 test('#d=YYYY-MM-DD (Inicio day stepping) opens Inicio and keeps the hash, on load and on hashchange', () => {
   let p = routedPage({ hash: '#d=2026-09-24' });
   assert.deepEqual(p.shown(), ['home']);
-  assert.equal(p.calls.length, 0, 'the day hash stays (today-date.js validates the day)');
+  assert.equal(p.calls.length, 0, 'the day hash stays (today-date.ts validates the day)');
   p = routedPage({ hash: '#health' });
   p.navTo('#d=2026-09-24');
   assert.deepEqual(p.shown(), ['home']);

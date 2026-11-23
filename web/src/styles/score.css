@@ -366,7 +366,7 @@
 .dial-off .dial-lbl {
   color: var(--muted);
 }
-/* compact gym / run / bike pills, centred under the contributors of a load deep-dive (deepdive.js
+/* compact gym / run / bike pills, centred under the contributors of a load deep-dive (deepdive.ts
    modSwitch) */
 .dial-switch {
   display: flex;
@@ -1017,7 +1017,7 @@ details.rec-raw[open] > summary::after {
   outline-offset: 2px;
 }
 
-/* Inicio "Energy bank" (client/energy.ts; also the energy bank page, deepdive.js energyPage): the
+/* Inicio "Energy bank" (client/energy.ts; also the energy bank page, deepdive.ts energyPage): the
    level's thirds colour --ds (high = good, middle = mid, low = low); the card reuses .tn's header,
    big D-DIN number and captions, plus a stretched curve from wake to the latest hour */
 .de-hi { --ds: var(--good); }

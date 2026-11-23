@@ -83,6 +83,11 @@ declare global {
     intakeRefresh?: any;
     intakeWaiting?: any;
     nutriTarget?: any;
+    HC?: any;
+    currentTab?: any;
+    jump?: any;
+    jumpOr?: any;
+    setTab?: any;
   }
   var HCDay: any;
 }

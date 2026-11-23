@@ -1,4 +1,4 @@
-/* Tests for the detail sheet's data / state helpers (web/src/client/detail-state.js,
+/* Tests for the detail sheet's data / state helpers (web/src/client/detail-state.ts,
  * window.HCDetailState): the classic script runs in a vm after util.js, over small hand-made series and
  * a fixed clock, so the window maths, the 7-day line, the partial-today rule and the formatting are
  * checked without the sheet. The sheet itself (periodStats and dayState through window.HCDetail, the
@@ -6,14 +6,11 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { en as enT } from '../i18n/detail-templates.mjs';
 import { loadUtil, HC_CONST_BAKE } from '../../test/client-util.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'detail-state.js'), 'utf8');
+const source = clientScriptSource('detail-state.ts');
 const TODAY = '2026-10-10';
 
 function load({ now = TODAY, D = { asOf: TODAY, metrics: {}, sessions: [] }, settings = null } = {}) {
@@ -32,7 +29,7 @@ function load({ now = TODAY, D = { asOf: TODAY, metrics: {}, sessions: [] }, set
 // a dense daily series ending on TODAY (index 0 = start)
 const series = (v, extra = {}) => ({ start: '2026-10-01', v, dec: 0, kind: 'signal', dir: 1, ...extra });
 
-test('detail-state.js defines only window.HCDetailState, and reads nothing else at load', () => {
+test('detail-state.ts defines only window.HCDetailState, and reads nothing else at load', () => {
   const ctx = vm.createContext({ window: {} });
   vm.runInContext(source, ctx);
   assert.equal(typeof ctx.window.HCDetailState, 'function');

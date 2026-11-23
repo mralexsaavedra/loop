@@ -87,7 +87,7 @@ from `web/src/csp.mjs`, as a `<meta http-equiv="Content-Security-Policy">` right
 | `connect-src` | `'self'` | the LAN APIs (`/api/*`, `/status.json`, the `/manuales/` probe) are same-origin |
 | `base-uri`, `form-action`, `object-src` | `'none'` | no `<base>`, no native form submit, no plugins |
 
-- No inline `on*=` handler anywhere: navigation is delegated. `client/core.js` listens on the document for
+- No inline `on*=` handler anywhere: navigation is delegated. `client/core.ts` listens on the document for
   `data-tab-go="<tab>"` (empty = the default tab: the wordmark) and `data-jump="<id>"` (in-page links);
   `client/score.ts` for the load pages' `data-mod="<modality>"` pills (it exposes the setter as `window.HCScore.setMod`, never a bare global).
 - The personal plan's trusted notes (`page.notes`) may still write the legacy `onclick="jump('<id>')"` /
@@ -183,7 +183,7 @@ minification). `astro.config.mjs` exposes the result as the virtual module `virt
 `layouts/Plan.astro` inlines it at the module's place in the manifest, exactly like a classic script, so the page
 stays one file and the CSP hashes it like any other script. The tests run the same bytes
 (`clientScriptSource(file)`). The page globals a module reads are typed in `web/src/client/page-globals.d.ts`
-(`any` until each gets its own type). Modules so far: `home-week.ts`, `freshness.ts`, `nav-actions.ts`, `home-order.ts`, `training-dash.ts`, `energy.ts`, `shortcuts.ts`, `journal.ts`, `profile.ts`, `onboarding.ts`, `training-activity.ts`, `timeline.ts`, `home-dash.ts`, `health.ts`, `score.ts`, `monitor.ts`, `food-sheet.ts`, `food-catalog.ts`, `detail.ts`, `settings.ts`, `progress.ts`, `adherence.ts`, `intake.ts`, `training-today.ts`, `nutri-score.ts`.
+(`any` until each gets its own type). Modules so far: `home-week.ts`, `freshness.ts`, `nav-actions.ts`, `home-order.ts`, `training-dash.ts`, `energy.ts`, `shortcuts.ts`, `journal.ts`, `profile.ts`, `onboarding.ts`, `training-activity.ts`, `timeline.ts`, `home-dash.ts`, `health.ts`, `score.ts`, `monitor.ts`, `food-sheet.ts`, `food-catalog.ts`, `detail.ts`, `settings.ts`, `progress.ts`, `adherence.ts`, `intake.ts`, `training-today.ts`, `nutri-score.ts`, `today-date.ts`, `core.ts`, `deepdive.ts`, `detail-state.ts`, `detail-chart.ts`.
 
 ESLint lints only `*.js` / `*.mjs`: for a module script `tsc` takes its place (`strict` for undefined names and
 shapes, `noUnusedLocals` for ESLint's `no-unused-vars`; unused parameters stay allowed, as ESLint's `args: 'none'`).
@@ -212,7 +212,7 @@ inlines every `web/src/client/*.js` (`import.meta.glob` `?raw`) in that order, a
   the example page (`web/test/script-trace.mjs`: plain load + the `#profile`, `#tonight`, `#detail/sleep`
   deep links) that fails on any undeclared load-time read or `window` write.
 - A new script goes into the manifest at its place; the test names what to declare.
-- A factory-only script (`detail-state.js`, `detail-chart.js`: one `window.X = function`, nothing read at
+- A factory-only script (`detail-state.ts`, `detail-chart.ts`: one `window.X = function`, nothing read at
   load) declares `requires: []`: its reads happen when its caller invokes it, so the trace counts them on
   the caller (`detail.ts`), and a load-time read added to the factory itself fails the trace as an
   undeclared require.
@@ -265,7 +265,7 @@ Every nutrition global is emitted by `lib/nutrition/client.mjs` `clientSource()`
 
 ### Midnight rollover
 
-- core.js captures the viewer's day at load and, when the page becomes visible on another day, reloads
+- core.ts captures the viewer's day at load and, when the page becomes visible on another day, reloads
   once, so the dials, top-bar date, timeline, day type and rings move to the new day.
 - While the page is BUSY — the detail sheet `#detail` open, a My products / My recipes editor open (a
   form field inside `#fp-body` / `#fr-body`) or a text field focused — it waits: a 1 s watcher runs only
@@ -276,7 +276,7 @@ Every nutrition global is emitted by `lib/nutrition/client.mjs` `clientSource()`
 ### New publish reload
 
 - A page kept open shows the publish it loaded; a home-screen web app on iOS comes back exactly as it was left.
-  core.js reads `/status.json` at load (the baseline `publishedAt`) and again on every `visibilitychange` /
+  core.ts reads `/status.json` at load (the baseline `publishedAt`) and again on every `visibilitychange` /
   `pageshow` while visible; a later `publishedAt` (a Sync from the Shortcut, the hourly rebuild, another device)
   reloads the page once.
 - Same path as the midnight rollover: `HC.publishAction` answers `reload` / `defer` / `none`, the busy rule and the
@@ -339,7 +339,7 @@ in tracked Astro/JS source, which stays fully generic.
 - **Date pill** (`.date-pill`, uppercase, letter-spaced): "‹ HOY ›" / "‹ TODAY ›". Home only:
   `.wrap:has(> main > .tab-panel[data-tab="home"][hidden]) > .topbar > .date-pill` hides it, and the other tabs
   show their centred title under the header row. Inside it, `<time id="today-date">` holds the viewer's
-  full date ("mié 30 sept" / "Wed 30 Sep"), written client-side by `web/src/client/today-date.js` with
+  full date ("mié 30 sept" / "Wed 30 Sep"), written client-side by `web/src/client/today-date.ts` with
   `HC.fmtDate`, for assistive tech only (nothing time-based baked: builds stay byte-identical).
 - **Freshness**: status dot (worst source level) + `#fresh-sum` (the Shortcut age); tap = the per-source
   popover `#fresh-pop`, right-aligned under the bar, capped at its width.
@@ -350,7 +350,7 @@ in tracked Astro/JS source, which stays fully generic.
 
 ### Day stepping
 
-`client/today-date.js`, `window.HCDay`.
+`client/today-date.ts`, `window.HCDay`.
 
 - `#day-prev` ‹ / `#day-next` › (44 px targets overhanging the 32 px pill, line chevrons) step Home one day
   back / forward.
@@ -381,7 +381,7 @@ in tracked Astro/JS source, which stays fully generic.
   (active white, inactive `--faint`) that fit a 360 px phone next to the "+", safe-area insets on
   bottom/left/right.
 - Markup: a labelled `<nav class="tabnav">` of plain `<button type="button" id="t-<tab>" data-tab-go="<tab>">`;
-  the shown tab's button carries `aria-current="page"` (moved by `client/core.js` `showTab`). No
+  the shown tab's button carries `aria-current="page"` (moved by `client/core.ts` `showTab`). No
   `role="tab"` / `aria-pressed` (that mix is invalid ARIA); `web/test/nav-shell.test.mjs` pins it.
 - No top nav at any width, so jump targets only clear the collapsed dial row (`scroll-margin-top: 64px`).
 - `--dock-room` (`calc(96px + env(safe-area-inset-bottom))`: the 64 px bar, its 10 px lift, 22 px of air,
@@ -412,7 +412,7 @@ in tracked Astro/JS source, which stays fully generic.
 ### Keyboard shortcuts
 
 `client/shortcuts.ts` adds single keys with no modifier, like GitHub or Gmail. It is inlined before
-`deepdive.js` / `detail.ts` so its help sheet is a registered view (`HC.registerView('shortcuts')`, deep link
+`deepdive.ts` / `detail.ts` so its help sheet is a registered view (`HC.registerView('shortcuts')`, deep link
 `#shortcuts`, `VIEW_TAB` null) when detail.ts reads the URL.
 
 | Key | Does |
@@ -437,7 +437,7 @@ bottom dock. Blocks inside a tab are SECTIONS (`data-section="<key>"`,
   (`layouts/Plan.astro`; the dock and the footer stay outside it), and each panel is a `role="region"` named
   by its nav button (`aria-labelledby="t-<key>"`); a tab `page.hideTabs` removes has no button, so its panel
   gets neither attribute (`web/test/nav-shell.test.mjs`, `hide-tabs.test.mjs`).
-- **Focus on a tab switch**: only a USER's switch (`client/core.js`, the delegated `data-tab-go` click) moves
+- **Focus on a tab switch**: only a USER's switch (`client/core.ts`, the delegated `data-tab-go` click) moves
   focus to the new panel's first visible `h1`–`h3` (made `tabindex="-1"`, focused with `preventScroll`), or the
   panel itself without one; the initial load, a hash restore and Back never move focus.
 - **Live regions**: never on a whole card re-rendered with `innerHTML` (`#eat-body`, `#nutri-target`,
@@ -456,7 +456,7 @@ bottom dock. Blocks inside a tab are SECTIONS (`data-section="<key>"`,
 
 - `lib/nav/tabs.mjs` is the ONE source of the tab keys (`TAB_KEYS`) and of the legacy-section map
   (`SECTION_TAB`); the page derives each tab's section list from it (`sectionsOf`) and bakes both as `NAV`
-  for core.js.
+  for core.ts.
 - Panels, sections, baked globals and scripts always stay in the build (the shared
   `components/Bake.astro` renders once from `web/pages/index.astro`, outside every section; Tablas is
   server-rendered from `lib/nutrition/reference.mjs` and needs no bake or script).
@@ -478,20 +478,20 @@ bottom dock. Blocks inside a tab are SECTIONS (`data-section="<key>"`,
 - The intake rings read today's target from Resumen de hoy ([`nutrition.md`](nutrition.md)), whatever
   `page.hideTabs` hides; the "today you eat" card drops its link when Nutrition is hidden.
 - Taps open the **detail sheet** ([`detail-views.md`](detail-views.md)), never a jump into another tab,
-  so they work whatever `page.hideTabs` hides (core.js `jumpOr` remains as API, unused by any card).
+  so they work whatever `page.hideTabs` hides (core.ts `jumpOr` remains as API, unused by any card).
 
 ## URL hash & navigation
 
 ### Tab hash
 
 - The open tab lives in the hash (`#home` / `#entreno` / `#health` / `#nutricion`), so a reload, a
-  bookmark and the midnight rollover reopen it. core.js `setTab` writes it with `history.replaceState`
+  bookmark and the midnight rollover reopen it. core.ts `setTab` writes it with `history.replaceState`
   (never `pushState`: Back does not walk through tabs, it keeps closing the detail sheet).
 - A legacy section key writes its HOSTING tab's hash; a hidden tab (no nav button) is never written;
   nothing is written while the sheet is open (its `#detail/…` owns the URL).
 - `window.HCNav.hash()` = the current tab's hash, read by detail.ts.
-- core.js runs in one function scope; its page globals are only `setTab`, `jump`, `jumpOr`, `currentTab`
-  (read by today-date.js) and `HCNav`.
+- core.ts runs in one function scope; its page globals are only `setTab`, `jump`, `jumpOr`, `currentTab`
+  (read by today-date.ts) and `HCNav`.
 - `jump(id)` scrolls smoothly, instantly when the viewer prefers reduced motion
   (`prefers-reduced-motion: reduce`, read per jump).
 - Every history / location access is in a try/catch (a sandboxed frame still switches tabs).
@@ -517,7 +517,7 @@ bottom dock. Blocks inside a tab are SECTIONS (`data-section="<key>"`,
 ### Past day of Home
 
 - `#d=YYYY-MM-DD` (`DAY_HASH` in `lib/nav/tabs.mjs`, baked as `NAV.day`; `parseDayHash` / `dayHash` for
-  tests). client/today-date.js validates the day and replaces an out-of-reach one with `#home`.
+  tests). client/today-date.ts validates the day and replaces an out-of-reach one with `#home`.
 - While a past day is selected Home's hash is that day — `setTab('home')` and `HCNav.hash()` (a closed
   sheet) write `#d=…`, not `#home` — so a reload, Back to Home and the midnight rollover keep the day.
 

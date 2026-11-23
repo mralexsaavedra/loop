@@ -1,6 +1,6 @@
 /* Navigation shell (web/layouts/Plan.astro + web/src/tabs/Home.astro) on the built example page:
  * - top bar: avatar left · LOOP wordmark · centred date pill "‹ Today ›" (the client-filled <time> inside; the day
- *   stepping chevrons ship hidden, client/today-date.js shows them) · freshness / Sync right;
+ *   stepping chevrons ship hidden, client/today-date.ts shows them) · freshness / Sync right;
  * - the bottom dock: the tab bar (a labelled <nav> of four plain buttons, aria-current="page" on the
  *   active one; never role=tab + aria-pressed, an invalid mix) and, outside it, the "+" action button +
  *   its popover (a labelled group, not a dialog), shipped HIDDEN (nav-actions.ts

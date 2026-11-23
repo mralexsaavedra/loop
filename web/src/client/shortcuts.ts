@@ -1,7 +1,7 @@
 /* Keyboard shortcuts for the whole page (no modifier keys, GitHub / Gmail style) and the "?" help sheet.
- * Module script (bundled into the page, docs/plan-page.md → Module scripts), inlined before deepdive.js / detail.ts so the help sheet is a registered view
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts), inlined before deepdive.ts / detail.ts so the help sheet is a registered view
  * (window.HCViews.shortcuts, deep link #shortcuts) when detail.ts reads the URL at load.
- *   1 … 4          the visible tabs in nav order (presses the tab bar's button: client/core.js)
+ *   1 … 4          the visible tabs in nav order (presses the tab bar's button: client/core.ts)
  *   a              add food (window.HCActions.run('food'), client/nav-actions.ts; LAN only)
  *   d              the journal (window.HCActions.run('journal'); LAN only)
  *   ?              this list (the add sheet's own keys too: client/food-sheet.ts)

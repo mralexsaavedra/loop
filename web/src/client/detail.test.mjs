@@ -5,7 +5,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { detailFrom } from '../../../lib/detail/detail.mjs';
@@ -29,8 +28,8 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 // a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
 const source = clientScriptSource('detail.ts');
 // the dial deep-dive pages (sleep, recovery, load-<m>): inlined right before detail.ts on the page
-const deepSource = fs.readFileSync(path.join(here, 'deepdive.js'), 'utf8');
-const coreSource = fs.readFileSync(path.join(here, 'core.js'), 'utf8');
+const deepSource = clientScriptSource('deepdive.ts');
+const coreSource = clientScriptSource('core.ts');
 // the synthetic demo extract, read once (lib/extract/read.mjs) like the page build
 const DEMO_INPUTS = readExtract(path.join(here, '..', '..', '..', 'data', 'demo', 'extract'));
 const DEMO = detailFrom(DEMO_INPUTS);
@@ -86,7 +85,7 @@ function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync =
     },
   };
   const pendingPops = [];
-  // withCore: the real core.js runs first over four tab panels + nav buttons (home shown, as served)
+  // withCore: the real core.ts runs first over four tab panels + nav buttons (home shown, as served)
   const ids = { detail: host };
   const tabPanels = withCore ? TAB_KEYS.map((t) => {
     ids['t-' + t] = new StubElement('button', { attrs: t === 'home' ? { 'aria-current': 'page' } : {} });
@@ -558,7 +557,7 @@ const headOf = (html) => html.split('<div class="dt-body">')[0];
 const sgn = (v, dec) => (v > 0 ? '+' : '') + v.toFixed(dec);
 const copy = () => JSON.parse(JSON.stringify(DEMO));
 
-// the dial deep-dive pages (client/deepdive.js): the top of the body, its insight card, its ⓘ block
+// the dial deep-dive pages (client/deepdive.ts): the top of the body, its insight card, its ⓘ block
 const insightOf = (html) => (html.split('<div class="dd-insight">')[1] || '').split('</div>')[0];
 const infoOf = (html) => (html.split('<div class="dd-info" id="dd-info" hidden>')[1] || '').split('</div><section')[0];
 const heroOf = (html) => (html.split('<section class="dd-hero')[1] || '').split('</section>')[0];
@@ -1202,7 +1201,7 @@ test('HCDetail.open(key, date, {focus}) moves focus to that control of the view 
   assert.equal(t.closeBtn.focused, before + 1, 'no such control: the close button');
 });
 
-/* ---------- with core.js: the open tab lives in the URL hash underneath the sheet ---------- */
+/* ---------- with core.ts: the open tab lives in the URL hash underneath the sheet ---------- */
 
 test('Back after opening a sheet from a tab closes it and leaves #<tab>; so does the close button', () => {
   const s = setup({ withCore: true, hash: '#nutricion' });
@@ -1242,7 +1241,7 @@ test('a #profile deep link keeps the default tab; closing it names that tab', ()
   assert.equal(s.loc.hash, '#home');
 });
 
-test('without core.js (no HCNav) a closed deep link clears the hash as before', () => {
+test('without core.ts (no HCNav) a closed deep link clears the hash as before', () => {
   const s = setup({ hash: '#detail/sleep' });
   s.key('Escape');
   assert.equal(s.loc.hash, '');
@@ -1276,7 +1275,7 @@ test('a deep link that opens no sheet does not leave a stale hash: it becomes th
   assert.equal(s.loc.hash, '#health');
   s = setup({ withCore: true, hash: '#profile' }); // no profile view on this page
   assert.equal(s.loc.hash, '#home');
-  s = setup({ hash: '#detail/nope' }); // without core.js: cleared
+  s = setup({ hash: '#detail/nope' }); // without core.ts: cleared
   assert.equal(s.loc.hash, '');
 });
 
@@ -2149,8 +2148,8 @@ test('trend view breakdown: one stacked bar of the window\'s days by calendar st
 });
 
 test('no region landmarks inside the sheet: a <section> of a deep dive or the trend chart carries no accessible name (its <h3> names the part; a list keeps its own label)', () => {
-  const chartSource = fs.readFileSync(path.join(here, 'detail-chart.js'), 'utf8');
-  for (const [f, src] of [['deepdive.js', deepSource], ['detail-chart.js', chartSource]]) {
+  const chartSource = clientScriptSource('detail-chart.ts');
+  for (const [f, src] of [['deepdive.ts', deepSource], ['detail-chart.ts', chartSource]]) {
     const named = [...src.matchAll(/<section\b[^>]*?(aria-label|aria-labelledby)=/g)].map((m) => m[0]);
     assert.deepEqual(named, [], f);
   }

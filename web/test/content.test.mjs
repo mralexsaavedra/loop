@@ -236,13 +236,13 @@ test('example build: Inicio reads today top to bottom — dials, monitor tiles, 
   assert.match(home, /<section class="home-sec" id="my-plan" aria-labelledby="my-plan-h" hidden>\s*<h2 class="hs-lbl home-h" id="my-plan-h">My plan<\/h2>/);
   assert.doesNotMatch(home, /<script/, 'no script inside the Inicio panel');
   // home-week.ts + home-dash.ts run in the end-of-body list, after their globals and before
-  // deepdive.js / detail.ts, so their views (tonight, dash-edit) exist when detail.ts runs
+  // deepdive.ts / detail.ts, so their views (tonight, dash-edit) exist when detail.ts runs
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((x) => x[1]);
   const idx = (re) => scripts.findIndex((x) => re.test(x));
   const week = idx(/window\.HCWeekPlan\s*=/), dash = idx(/window\.HCDash\s*=/), deep = idx(/window\.HCDeep\s*=/), detail = idx(/window\.HCDetailState\s*=/);
   const adherence = idx(/window\.HCAdherence\s*=/), util = idx(/var HC\s*=\s*\(function/);
   assert.ok(util !== -1 && adherence !== -1 && week > adherence && week > util, 'after util.js and adherence.ts');
-  assert.ok(dash > week && deep > dash && detail === deep + 1, 'home-week → home-dash → deepdive → the detail sheet (detail-state.js first)');
+  assert.ok(dash > week && deep > dash && detail === deep + 1, 'home-week → home-dash → deepdive → the detail sheet (detail-state.ts first)');
   assert.match(home, /<section class="home-sec" id="my-dash" aria-labelledby="my-dash-h" hidden>[\s\S]*?My dashboard<\/h2>\s*<button type="button" class="db-cust" id="dash-edit" data-detail="dash-edit"/);
   assert.match(html, /"tonight":\{"asOf":"\d{4}-\d{2}-\d{2}","wake":/, 'demo data bakes a bedtime');
 });
@@ -259,7 +259,7 @@ test('example build: the health monitor list leads Salud (before the sections ho
   assert.ok(salud.indexOf('<div id="monitor"></div>') !== -1, 'the monitor host is in Salud');
   assert.ok(salud.indexOf('<div id="monitor"></div>') < salud.indexOf('<div id="health-body"></div>'), 'monitor first');
   assert.equal(html.split('id="monitor"').length - 1, 1, 'one monitor host on the page');
-  assert.match(html, /data-jump=\\?"monitor\\?"/, 'the tile still jumps to #monitor (delegated, client/core.js)');
+  assert.match(html, /data-jump=\\?"monitor\\?"/, 'the tile still jumps to #monitor (delegated, client/core.ts)');
   assert.match(html, /"anchorTab":\{"monitor":"health"\}/, '#monitor deep-links to Salud');
 });
 
@@ -374,7 +374,7 @@ test('example build: the shared client helpers (util.js) are inlined FIRST, righ
   const constIdx = scripts.findIndex((s) => /\bvar HC_CONST = \{"staleDays":\d+\}/.test(s));
   const coreIdx = scripts.findIndex((s) => /function setTab\(/.test(s));
   assert.ok(constIdx !== -1 && utilIdx !== -1 && coreIdx !== -1, `HC_CONST ${constIdx}, util ${utilIdx}, core ${coreIdx}`);
-  assert.ok(constIdx <= utilIdx && utilIdx < coreIdx, 'HC_CONST, then util.js, then core.js and the rest');
+  assert.ok(constIdx <= utilIdx && utilIdx < coreIdx, 'HC_CONST, then util.js, then core.ts and the rest');
   assert.match(html, /var ACTIVITY = \{[^;]*"windowDays":30,"periods":\[7,30,182\],"bakeDays":367,"levelMin":\[1,30,60,90\]\}/, 'calendar + window constants baked from lib');
   const dateIdx = scripts.findIndex((s) => /\bvar I18N_DATE = \{"weekdays":\["Mon"/.test(s));
   assert.ok(dateIdx !== -1 && dateIdx <= utilIdx, 'the date names of HC.fmtDate are baked before util.js');

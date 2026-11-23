@@ -31,7 +31,7 @@ import { sleepPerformance } from '../../../lib/score/sleep.mjs';
 // 120-unit viewBox, 54-unit radius, 9.5-unit stroke (~8 % of the 120-unit dial): a full ring that
 // starts at 12 o'clock (-90 degrees) and fills clockwise; the midpoint (0.5) sits at 6 o'clock.
 export const DIAL = { c: 60, r: 54, stroke: 9.5, start: -90, sweep: 360 };
-// the deep-dive hero ring (client/deepdive.js, styles/detail.css .dd-track): the same circle with a
+// the deep-dive hero ring (client/deepdive.ts, styles/detail.css .dd-track): the same circle with a
 // lighter 7.5-unit stroke, so its typical-day tick crosses THAT stroke
 export const HERO = { ...DIAL, stroke: 7.5 };
 // Load: the ring midpoint is the typical training day (1x), the end is 2x.

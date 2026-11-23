@@ -140,7 +140,7 @@ type Carried = { carried: boolean; label: string; cls: string; html: string };
     return '<span class="hmt-lbl">' + esc(text) + '<span class="chev" aria-hidden="true">›</span></span>';
   }
   // tile 1: out-of-range count (teal check "within range" when none), "n/total metrics" in range; a
-  // tap jumps to the full monitor grid (core.js jump: opens its fold / switches to its tab)
+  // tap jumps to the full monitor grid (core.ts jump: opens its fold / switches to its tab)
   // the status chip (Inicio's summary tile and the Salud list header): out-of-range count, teal check
   // "within range" when none, "building baseline" when the only fresh cards have no band yet, "no
   // data" when nothing is fresh; + the in-range count
@@ -165,7 +165,7 @@ type Carried = { carried: boolean; label: string; cls: string; html: string };
   }
   // tile 1: a square status icon (✓ teal: every fresh signal in range; ! orange: one or more out; none
   // without fresh data) left of the chip + "n/total metrics" in range; a tap jumps to the full monitor
-  // list at the top of Salud (core.js jump: switches to the tab that holds #monitor and scrolls to it)
+  // list at the top of Salud (core.ts jump: switches to the tab that holds #monitor and scrolls to it)
   // `asOf` = the newest night it counts (today only; a past day's summary is that day's): carried when
   // earlier than today, its date on a line of its own under the count (a ' · ' join wraps at 360 px)
   function sumTile(n: Counts, total: number, asOf: string | null): string {

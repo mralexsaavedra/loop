@@ -835,7 +835,7 @@ button.dt-day {
   margin-left: auto;
 }
 
-/* Dial deep-dive pages (client/deepdive.js): the shared sheet header (‹ · metric · ⓘ), the hero ring (≈ 67 % of the width, stroke
+/* Dial deep-dive pages (client/deepdive.ts): the shared sheet header (‹ · metric · ⓘ), the hero ring (≈ 67 % of the width, stroke
  * 6.4 / 108 ≈ 5.9 % of the diameter, the dial's own baked arcs), the insight card and the ⓘ notes. */
 .dd-info {
   background: var(--surface);
@@ -1304,7 +1304,7 @@ button.dt-day {
   cursor: pointer;
 }
 
-/* ---------- stress monitor page (key 'stress', client/deepdive.js stressPage): low = light blue
+/* ---------- stress monitor page (key 'stress', client/deepdive.ts stressPage): low = light blue
    (--strain-ink), medium = teal (--up), high = orange (--down) on the gauge, curve, bar and calendar */
 .ds-low, .dt-s-slow { --ds: var(--strain-ink); }
 .ds-medium, .dt-s-smedium { --ds: var(--up); }
