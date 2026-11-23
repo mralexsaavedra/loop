@@ -4,9 +4,9 @@
  *     GET /api/food/products answered — LAN only) opened through the detail sheet (window.HCDetail);
  *   - journal: the journal sheet (window.HCViews.journal, registered by client/journal.js once
  *     GET /api/journal/settings answered — LAN only);
- *   - sync: the top bar's Sync button (#sync-btn, client/freshness.js), available while the freshness
+ *   - sync: the top bar's Sync button (#sync-btn, client/freshness.ts), available while the freshness
  *     group is shown (/api/sync/status answered — LAN only).
- * Both answer asynchronously, so freshness.js and food-log.js call window.HCActions.refresh() when they
+ * Both answer asynchronously, so freshness.ts and food-log.js call window.HCActions.refresh() when they
  * change; the root (#act) ships hidden and stays hidden while no action is available (example build,
  * file://, a static copy): never a dead control.
  * Open: the popover + a blurred scrim, the "+" turns into a close "x" (CSS on aria-expanded, the label

@@ -1,18 +1,16 @@
-/* web/src/client/freshness.js — header freshness line + Sync button. Runs the real classic script in
+/* web/src/client/freshness.ts — header freshness line + Sync button. Runs the real (bundled) script in
  * node:vm against web/test/dom-stub.mjs with a stubbed fetch, a controllable clock and collected
  * timers (nothing real is requested, nothing waits). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { en as enSync, es as esSync } from '../i18n/sync-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'freshness.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('freshness.ts');
 
 const NOW = Date.parse('2030-01-10T12:00:00Z');
 const MIN = 60_000;

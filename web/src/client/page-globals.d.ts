@@ -6,10 +6,11 @@ export type PageGlobals = {
   SCORES: any;
   TRAINING: any;
   I18N_SCORE: any;
+  I18N_SYNC: any;
 };
 
 // the window.* namespaces other scripts hand this one (and the one it hands back)
 declare global {
-  interface Window { HCAdherence?: any; HCNutri?: any; HCWeekPlan?: unknown }
+  interface Window { HCAdherence?: any; HCNutri?: any; HCWeekPlan?: unknown; HCActions?: { refresh(): void } }
   var HCDay: any;
 }

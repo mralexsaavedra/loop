@@ -119,5 +119,5 @@ export const CLIENT_SCRIPTS = [
       'LOCALE', 'NAV', 'SCORES'
     ],
   },
-  { file: 'freshness.js', provides: [], requires: ['HC', 'I18N_SYNC'] },
+  { file: 'freshness.ts', provides: [], requires: ['HC', 'I18N_SYNC'] },
 ];

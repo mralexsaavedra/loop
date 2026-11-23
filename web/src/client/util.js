@@ -66,7 +66,7 @@ var HC = (function () {
       });
     };
   }
-  // The ONE timed fetch (jsonApi above, client/freshness.js, client/profile.js): fetch(url, init) that rejects
+  // The ONE timed fetch (jsonApi above, client/freshness.ts, client/profile.js): fetch(url, init) that rejects
   // with {name: 'TimeoutError'} once `ms` pass without an answer, aborting the request (AbortController,
   // when the browser has it). `read(res)` (optional) reads the body INSIDE the same timeout and its result
   // is what resolves, so a stalled body is covered too. The caller's init is copied, never mutated; a
@@ -112,7 +112,7 @@ var HC = (function () {
     });
   }
   // fetchTimeout + the JSON body of a 2xx answer (null for any other answer), the body read inside the
-  // timeout (client/freshness.js: the status and sync replies)
+  // timeout (client/freshness.ts: the status and sync replies)
   function fetchJson(url, init, ms) {
     return fetchTimeout(url, init, ms, function (r) { return r && r.ok ? r.json() : null; });
   }
