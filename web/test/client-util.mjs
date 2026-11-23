@@ -10,6 +10,7 @@ import { clientSource } from '../../lib/format/numbers.mjs';
 import { clientSource as bandSource } from '../../lib/score/recovery.mjs';
 import { clientSource as nutriSource } from '../../lib/nutrition/client.mjs';
 import { es as esDate, en as enDate } from '../src/i18n/date-templates.mjs';
+import { clientScriptSource } from '../src/client-bundle.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 export const HC_CONST_BAKE = hcConst();
@@ -30,19 +31,22 @@ export function loadUtil(ctx) {
   return ctx;
 }
 
-/** The food log's four classic scripts in their page order (layouts/Plan.astro): food-core.js (the
+/** The food log's four scripts in their page order (layouts/Plan.astro): food-core.js (the
  * formula from HC_FOODLOG, the API client, shared state → window.HCFoodInternal), then the add sheet, Mis productos
  * / Mis recetas, and food-log.js (Registrar, events, boot, window.HCFood). FOOD_SOURCE = the four
  * joined: each is its own IIFE, so running the joined text equals running them one after another. */
-export const FOOD_SCRIPTS = ['food-core.js', 'food-sheet.js', 'food-catalog.js', 'food-log.js'];
-export const FOOD_SOURCES = FOOD_SCRIPTS.map((f) => fs.readFileSync(path.join(here, '..', 'src', 'client', f), 'utf8'));
+export const FOOD_SCRIPTS = ['food-core.js', 'food-sheet.ts', 'food-catalog.ts', 'food-log.js'];
+// the bytes the page inlines: a classic script as is, a module script (*.ts) bundled (web/src/client-bundle.mjs).
+// Joined, a module's leading "use strict" is a plain expression unless it comes first: the page runs each script
+// on its own (strict for a module), which the browser e2e cover.
+export const FOOD_SOURCES = FOOD_SCRIPTS.map((f) => clientScriptSource(f));
 export const FOOD_SOURCE = FOOD_SOURCES.join('\n');
 
-/** The detail sheet's classic scripts in their page order (web/src/client/manifest.mjs): the data /
- * state helpers (window.HCDetailState), the trend chart (window.HCDetailChart), then detail.js (the
+/** The detail sheet's scripts in their page order (web/src/client/manifest.mjs): the data /
+ * state helpers (window.HCDetailState), the trend chart (window.HCDetailChart), then detail.ts (the
  * sheet shell, window.HCDetail).
  * DETAIL_SOURCE = them joined: each is self-contained, so running the joined text equals running them
  * one after another. */
-const DETAIL_SCRIPTS = ['detail-state.js', 'detail-chart.js', 'detail.js'];
-const DETAIL_SOURCES = DETAIL_SCRIPTS.map((f) => fs.readFileSync(path.join(here, '..', 'src', 'client', f), 'utf8'));
+const DETAIL_SCRIPTS = ['detail-state.js', 'detail-chart.js', 'detail.ts'];
+const DETAIL_SOURCES = DETAIL_SCRIPTS.map((f) => clientScriptSource(f));
 export const DETAIL_SOURCE = DETAIL_SOURCES.join('\n');

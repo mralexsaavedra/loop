@@ -14,7 +14,7 @@
  * watch / normal), never the raw direction: respiratory rate and wrist temp only ever reach
  * "watch". A row whose OWN date is more than STALE_DAYS old drops its tone, marker and status ("no
  * recent data"), whatever the other rows say. One row throwing never blanks the block: it falls back
- * to its empty state. A tap on any row opens its detail sheet (HC.detailAttrs -> client/detail.js).
+ * to its empty state. A tap on any row opens its detail sheet (HC.detailAttrs -> client/detail.ts).
  *
  * Tile 2 is the stress monitor (SCORES.stress, lib/score/stress.mjs: a heart-rate-only estimate per
  * waking hour) when the day has a value, else the HRV signal.
@@ -66,7 +66,7 @@ type Carried = { carried: boolean; label: string; cls: string; html: string };
   function num(x: number | null, dec: number): string {
     return HC.num(x, dec, false);
   }
-  // every row opens its detail sheet (client/detail.js); the monitor keys are the detail metric keys
+  // every row opens its detail sheet (client/detail.ts); the monitor keys are the detail metric keys
   function linkAttrs(key: string): string {
     return HC.detailAttrs(key);
   }

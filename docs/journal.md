@@ -142,7 +142,7 @@ Like the food log:
    `HC.jsonApi` wrapper, [`plan-page.md`](plan-page.md)).
 2. On an answer, `GET /api/journal/summary` for the 7 days ending on the viewer's today (`Date.now()`, never
    baked).
-3. Only then: the sheet registers (`HCViews.journal`, deep link `#journal`, an ASYNC view in `detail.js`), the
+3. Only then: the sheet registers (`HCViews.journal`, deep link `#journal`, an ASYNC view in `detail.ts`), the
    "+" popover lists "Complete your journal" (`nav-actions.ts`) and the card renders.
 
 No API (example build, `file://`, a static copy, an old service) → nothing new shows and nothing is stored in the

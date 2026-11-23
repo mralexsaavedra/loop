@@ -1,4 +1,4 @@
-/* Detail sheet copy (web/src/client/detail.js), es/en, baked as I18N_DETAIL by
+/* Detail sheet copy (web/src/client/detail.ts), es/en, baked as I18N_DETAIL by
  * components/DetailSheet.astro. {name} placeholders are filled client-side. Neutral Spanish.
  * Every metric key of lib/detail/detail.mjs DETAIL_KEYS has a title + unit here (a test pins it). */
 import { en as enS, es as esS, RECOVERY_UNIT } from './score-templates.mjs';
@@ -38,7 +38,7 @@ export const en = {
     nextWin: 'Later period',
     typical: 'Typical range',
     baseline: 'Baseline range',
-    // the window's days by range (detail.js breakdownHtml): one stacked bar + a count per state
+    // the window's days by range (detail.ts breakdownHtml): one stacked bar + a count per state
     brk: { title: 'Days in this period', count: '{n}x', learn: 'Learn more' },
     span: { w: 'this week', m: 'these 30 days', m6: 'these 6 months', y: 'this year' },
     // a window clipped to the data's first day: the sentence names that day, never "these 30 days"
@@ -266,7 +266,7 @@ export const en = {
       },
     },
     weekly: { title: 'Weekly trends', aria: '{title}, last 7 days', minutes: 'Minutes', perf: 'Sleep performance (%)', restor: 'REM + deep' },
-    // the fold holding a deep-dive's month calendar + day panel (detail.js foldHtml)
+    // the fold holding a deep-dive's month calendar + day panel (detail.ts foldHtml)
     hist: { title: 'History', sub: 'Calendar and day detail' },
     // the sleep page's stages bar (awake / REM / core / deep + the unspecified remainder)
     stages: { aria: 'Sleep stages', awake: 'Awake', rem: 'REM', core: 'Core', deep: 'Deep', unspec: 'Unspecified' },

@@ -1,5 +1,5 @@
 /* Profile sheet: registers the `profile` view of the detail sheet (window.HCViews.profile, rendered by
- * client/detail.js in its modal, deep link #profile), opened by the avatar button in the top bar
+ * client/detail.ts in its modal, deep link #profile), opened by the avatar button in the top bar
  * (components/Avatar.astro, data-detail="profile"). Strava-style card, honest data only:
  *   header  — photo (or initials, or a generic icon), full name, age, location;
  *   Goal    — Mantener / Bajar / Ganar radios, each with its kcal/day change vs maintain (PROFILE.goals,
@@ -26,7 +26,7 @@
  *   Strava  — focus + the snapshot date.
  * Nothing known at all -> the onboarding hint.
  *
- * Module script (bundled into the page, docs/plan-page.md → Module scripts), inlined BEFORE detail.js. Reads PROFILE (lib/profile/read.mjs
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts), inlined BEFORE detail.ts. Reads PROFILE (lib/profile/read.mjs
  * loadProfile -> profile.mjs buildProfile, baked by Avatar.astro with `photo` as a flag: the data URI
  * is baked ONCE, in the button's <img id="avatar-img">, and copied from there) + I18N_PROFILE, and
  * window.HC (util.js). The age is computed here on the viewer's clock, so builds stay byte-identical.
@@ -351,7 +351,7 @@ type SettingsState = { pending?: boolean; last?: SaveStatus | null } | null | un
   function redrawIfEarly() {
     var D = window.HCDetail, open = D && typeof D.state === 'function' ? D.state() : null;
     if (drawnWithSettings || !settings() || !open || open.key !== 'profile') return;
-    // reopening the open sheet re-renders it in place (no history entry: detail.js only replaces the hash)
+    // reopening the open sheet re-renders it in place (no history entry: detail.ts only replaces the hash)
     var focus = focusSelector(document.activeElement);
     D.open('profile', null, focus ? { focus: focus } : {});
   }

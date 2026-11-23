@@ -24,8 +24,8 @@ A Strava / WHOOP-style profile, honest data only.
   phone, at the right end beside Sync from 900 px. Shows the photo, else the initials, else a generic person
   icon; ≥ 44px; NOT a tab. Its name is "Open profile", or with initials "SS, open profile" (`openIni`: the name
   starts with the text it shows, WCAG 2.5.3 Label in Name).
-- **The view**: `web/src/client/profile.ts` (inlined before detail.js) registers `window.HCViews.profile`;
-  detail.js renders any registered view in the same modal (focus, inert, Esc, Back).
+- **The view**: `web/src/client/profile.ts` (inlined before detail.ts) registers `window.HCViews.profile`;
+  detail.ts renders any registered view in the same modal (focus, inert, Esc, Back).
 - **Deep link**: `#profile` (instead of `#detail/<metric>`). The sheet it opens on load can render before the LAN
   settings answer (`HCSettings.ready()` still false), without the target weight field and the Language section;
   when they arrive and the sheet is still open, profile.ts draws it again (keeping the focused control), once.

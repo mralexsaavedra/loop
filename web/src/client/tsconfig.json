@@ -7,6 +7,7 @@
     "lib": ["es2023", "dom"],
     "types": [],
     "strict": true,
+    "noUnusedLocals": true,
     "allowJs": true,
     "checkJs": false,
     "allowImportingTsExtensions": true,

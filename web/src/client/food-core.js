@@ -4,8 +4,8 @@
  * add sheet (a view of the detail sheet modal), Mis productos and Mis recetas (folds before Tablas).
  * Four classic scripts (is:inline), inlined in this order after nutri-day.js and before intake.js:
  * food-core.js (this file: the formula from HC_FOODLOG, parseNum, the API client, the shared state S and the
- * small helpers, handed to the others as window.HCFoodInternal), food-sheet.js (the add sheet),
- * food-catalog.js (Mis productos / Mis recetas) and food-log.js (Registrar + its day navigator, the
+ * small helpers, handed to the others as window.HCFoodInternal), food-sheet.ts (the add sheet),
+ * food-catalog.ts (Mis productos / Mis recetas) and food-log.js (Registrar + its day navigator, the
  * events, the boot and the public window.HCFood / window.foodTotals). Reads
  * I18N_FOOD + FOOD_CONST (meal slots / stores / units from lib/nutrition/foodlog.mjs), baked by
  * web/src/tabs/Dia.astro, and window.HC (util.js).
@@ -340,7 +340,7 @@
     for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ACTS[k] = o[k];
   }
 
-  // the internal namespace of food-sheet.js / food-catalog.js / food-log.js (absent when this script
+  // the internal namespace of food-sheet.ts / food-catalog.ts / food-log.js (absent when this script
   // bailed out above, so they bail out too). pendingMeal = the group the next add sheet opens on;
   // renderLog / loadDay are added by food-log.js (the sheet calls them only after boot)
   window.HCFoodInternal = {

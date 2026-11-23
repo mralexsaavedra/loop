@@ -1,7 +1,46 @@
 /* Nutrición food log — Mis productos (list by store, Open Food Facts lookup, the product form, archive)
  * and Mis recetas (list, the editor with its ingredient search over products + basics, the live preview).
- * Classic script (is:inline), inlined after food-sheet.js and before food-log.js, which renders both
- * at boot. See food-core.js for the whole food log. */
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts), after food-sheet.ts and before
+ * food-log.js, which renders both at boot. See food-core.js for the whole food log. */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads by bare name (manifest.mjs); window.HCFoodInternal is typed by the Window interface
+declare const HC: PageGlobals['HC'];
+
+/** Per-100 macros (lib/nutrition/foodlog.mjs Macros). */
+type Macros = { kcal: number | null; protein: number | null; carbs: number | null; fat: number | null };
+/** A product as the service lists it (lib/nutrition/foodlog.mjs Product). */
+type Product = {
+  id: number; name: string; brand: string | null; store: string; barcode: string | null; unit: string; per100: Macros;
+  servingSize: number | null; servingDefault: boolean; source: string; offCode: string | null; archived?: boolean;
+};
+/** A recipe ingredient (lib/nutrition/foodlog.mjs Ingredient): a product {productId, amount} or a basic snapshot. */
+type Ingredient = { amount: number | null; productId?: number | null; basic?: string; name?: string; unit?: string; per100?: Macros };
+/** A recipe as the service lists it (lib/nutrition/foodlog.mjs Recipe + the computed basis). */
+type Recipe = {
+  id: number; name: string; kind: string; servings: number | null; cookedWeightG: number | null; ingredients: Ingredient[];
+  complete?: boolean; perServing?: Macros | null; per100?: Macros | null;
+};
+/** One Open Food Facts result (GET /food/off). */
+type OffResult = { code?: string; name?: string; brand?: string; stores?: string; unit?: string; per100?: Partial<Macros>; servingSize?: number | null };
+/** A basics-table entry (FOOD_BASICS): key, name, unit, [kcal, protein, carbs, fat] per 100, optional piece size. */
+type Basic = { k: string; n: string; u: string; m: (number | null)[]; pc?: number };
+/** A basic's snapshot inside a recipe row / ingredient. */
+type BasicSnap = { basic: string; name: string; unit: string; per100: Macros };
+/** One row of the recipe editor (see the comment above rowPicked). */
+type IngRow = { productId?: string; amount: string; q?: string; basic?: BasicSnap; mode?: string; pname?: string; punit?: string };
+/** One invalid field for showErrs. */
+type FieldErr = { id: string; key: string; kind: string };
+/** The product form's POST / PUT body. */
+type ProductBody = {
+  name: string; brand?: string; store?: string; barcode?: string; unit?: string; per100?: Record<string, number | null>;
+  servingSize?: number | null; servingDefault?: boolean; source?: string; offCode?: string; force?: boolean;
+};
+/** The recipe editor's POST / PUT body. */
+type RecipeBody = {
+  name: string; kind: string; servings?: number | null; cookedWeightG?: number | null; ingredients: Ingredient[]; force?: boolean;
+};
+
 (function () {
   var FI = window.HCFoodInternal;
   if (!FI) return;
@@ -19,12 +58,12 @@
 
   /* ---------- Mis productos ---------- */
   var PF = [['fpf-kcal', 'kcal', 'per100.kcal'], ['fpf-p', 'protein', 'per100.protein'], ['fpf-c', 'carbs', 'per100.carbs'], ['fpf-f', 'fat', 'per100.fat']];
-  function productRow(p) {
+  function productRow(p: Product) {
     var name = p.name;
     var armed = S.confirm === 'p:' + p.id;
     return '<li class="fp-item"><div class="fp-main"><span class="fe-label">' + esc(name) + (p.brand ? ' <span class="fa-item-brand">' + esc(p.brand) + '</span>' : '') + '</span>' +
       '<span class="fe-pcf">' + macroLine(p.per100) + ' ' + esc(format(T.products.per100, { unit: T.units[p.unit] })) +
-      (p.servingSize > 0 ? ' · ' + esc(format(T.products.serving, { n: nf(p.servingSize), unit: T.units[p.unit] })) : '') + '</span></div>' +
+      ((p.servingSize as number) > 0 ? ' · ' + esc(format(T.products.serving, { n: nf(p.servingSize), unit: T.units[p.unit] })) : '') + '</span></div>' +
       '<div class="fp-acts"><button type="button" class="food-btn food-btn-ghost" data-food-act="p-edit" data-id="' + esc(p.id) + '" aria-label="' + esc(format(T.products.editAria, { name: name })) + '">' + esc(T.products.edit) + '</button>' +
       (armed
         ? '<button type="button" class="food-btn food-btn-warn" data-food-act="p-archive-ok" data-id="' + esc(p.id) + '" aria-label="' + esc(format(T.products.confirmAria, { name: name })) + '">' + esc(T.products.confirm) + '</button>'
@@ -33,31 +72,31 @@
   }
   function productListHtml() {
     if (!S.products.length) return '<p class="food-note">' + esc(T.products.empty) + '</p>';
-    return K.stores.map(function (s) {
-      var list = S.products.filter(function (p) { return p.store === s; });
+    return K.stores.map(function (s: string) {
+      var list = S.products.filter(function (p: Product) { return p.store === s; });
       if (!list.length) return '';
       return '<h3 class="fp-store">' + esc(T.stores[s]) + '</h3><ul class="fp-list">' + list.map(productRow).join('') + '</ul>';
     }).join('');
   }
-  function offCardHtml(r, i) {
+  function offCardHtml(r: OffResult, i: number) {
     var P = r.per100 || {};
-    var cell = function (label, v) {
+    var cell = function (label: string, v: number | null | undefined) {
       return '<span class="' + (v == null ? 'is-missing' : '') + '">' + esc(label) + ' ' + (v == null ? esc(T.products.missingShort) : esc(nf(v))) + '</span>';
     };
     return '<li class="off-card"><div class="fe-label">' + esc(r.name || r.code) + (r.brand ? ' <span class="fa-item-brand">' + esc(r.brand) + '</span>' : '') + '</div>' +
       (r.stores ? '<div class="fa-item-sub">' + esc(r.stores) + '</div>' : '') +
       '<div class="off-vals">' + cell(T.kcal, P.kcal) + cell(T.macroAbbr.p, P.protein) + cell(T.macroAbbr.c, P.carbs) + cell(T.macroAbbr.f, P.fat) +
-      ' <span class="fa-item-sub">' + esc(format(T.products.per100, { unit: T.units[r.unit] || r.unit })) + '</span></div>' +
+      ' <span class="fa-item-sub">' + esc(format(T.products.per100, { unit: T.units[r.unit as string] || r.unit })) + '</span></div>' +
       '<button type="button" class="food-btn food-btn-ghost" data-food-act="p-use" data-i="' + i + '">' + esc(T.products.use) + '</button></li>';
   }
   function productFormHtml() {
     var f = S.pform.form || {};
     var miss = S.pform.missing || {};
-    var opt = function (list, cur, labels) {
-      return list.map(function (v) { return '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + esc(labels[v]) + '</option>'; }).join('');
+    var opt = function (list: string[], cur: string, labels: Record<string, string>) {
+      return list.map(function (v: string) { return '<option value="' + v + '"' + (v === cur ? ' selected' : '') + '>' + esc(labels[v]) + '</option>'; }).join('');
     };
     var unit = f.unit === 'ml' ? 'ml' : 'g';
-    var pf = function (id, label, key, o) {
+    var pf = function (id: string, label: string, key: string, o?: { unit?: string; ph?: string; miss?: string }) {
       o = o || {};
       if (miss[key]) o.miss = T.products.offMissing;
       return numField(id, label, f[key], o);
@@ -93,7 +132,7 @@
       formMsgHtml('fp-form-msg') + '</div>';
   }
   // a form's own status line, right under its buttons (save results stay announced: role="status")
-  function formMsgHtml(id) {
+  function formMsgHtml(id: string) {
     return '<p class="food-msg" id="' + id + '" role="status" aria-live="polite"></p>';
   }
   function renderProducts() {
@@ -111,7 +150,7 @@
   /** one status line per section: inside the open form / search panel (formId, next to its buttons),
    * else the section's own line (listId, above the list); the other one is cleared. `force` = the
    * "save anyway" action (data-food-act) next to the text */
-  function sectionMsg(formId, listId, open, s, force, forceLabel) {
+  function sectionMsg(formId: string, listId: string, open: boolean, s: string, force: string | null, forceLabel: string) {
     var el = open ? $(formId) || $(listId) : $(listId);
     var other = el === $(listId) ? $(formId) : $(listId);
     if (other) other.textContent = '';
@@ -119,31 +158,31 @@
     if (force) el.innerHTML = esc(s) + ' <button type="button" class="food-btn food-btn-ghost" data-food-act="' + force + '">' + esc(forceLabel) + '</button>';
     else el.textContent = s;
   }
-  function prodMsg(s, force) {
+  function prodMsg(s: string, force?: boolean | null) {
     sectionMsg('fp-form-msg', 'fp-msg', !!S.pform, s, force ? 'p-save-force' : null, T.products.saveAnyway);
   }
-  function openProductForm(source, form, missing, editId, offCode) {
+  function openProductForm(source: string, form: Record<string, unknown> | null, missing?: Record<string, boolean> | null, editId?: number | null, offCode?: string | null) {
     S.pform = { mode: 'form', source: source, form: form || {}, missing: missing || {}, editId: editId || null, offCode: offCode || null };
     renderProducts();
     prodMsg('');
     focus('fpf-name');
   }
-  function offLookup(kind) {
+  function offLookup(kind: 'code' | 'q') {
     var q = kind === 'code' ? val('fp-code').replace(/\s+/g, '') : val('fp-q').replace(/\s+/g, ' ').trim();
     if (kind === 'code' && !BARCODE_RE.test(q)) { prodMsg(format(T.errors.invalid, { field: T.fields.barcode })); return; }
     if (kind === 'q' && (q.length < LIM.queryMin || q.length > LIM.queryMax)) { prodMsg(format(T.errors.invalid, { field: T.fields.name })); return; }
     prodMsg(T.products.searching);
-    api('GET', '/off?' + (kind === 'code' ? 'barcode=' : 'q=') + encodeURIComponent(q)).then(function (data) {
+    api('GET', '/off?' + (kind === 'code' ? 'barcode=' : 'q=') + encodeURIComponent(q)).then(function (data: { product?: OffResult | null; results?: OffResult[] }) {
       var list = kind === 'code' ? (data.product ? [data.product] : []) : data.results || [];
       S.pform.results = list;
       setHtml('fp-results', list.length ? list.map(offCardHtml).join('') : '<li class="food-note">' + esc(T.products.noResults) + '</li>');
       prodMsg('');
-    }, function (err) {
+    }, function (err: unknown) {
       prodMsg(errText(err));
     });
   }
-  function useOff(i) {
-    var r = S.pform && S.pform.results && S.pform.results[i];
+  function useOff(i: number) {
+    var r: OffResult | undefined = S.pform && S.pform.results && S.pform.results[i];
     if (!r) return;
     var P = r.per100 || {};
     var missing = { kcal: P.kcal == null, protein: P.protein == null, carbs: P.carbs == null, fat: P.fat == null };
@@ -154,11 +193,11 @@
     }, missing, null, /^[0-9]{1,14}$/.test(r.code || '') ? r.code : null);
   }
   // every invalid field at once ({errs: [{id, key, kind}]}), else {body}
-  function readProductForm() {
-    var errs = [];
+  function readProductForm(): { errs: FieldErr[]; body?: undefined } | { errs?: undefined; body: ProductBody } {
+    var errs: FieldErr[] = [];
     var name = val('fpf-name').replace(/\s+/g, ' ').trim();
     if (!name) errs.push({ id: 'fpf-name', key: 'name', kind: 'required' });
-    var body = { name: name, store: val('fpf-store'), unit: val('fpf-unit'), per100: {}, source: S.pform.source };
+    var body: ProductBody = { name: name, store: val('fpf-store'), unit: val('fpf-unit'), per100: {}, source: S.pform.source };
     var brand = val('fpf-brand').replace(/\s+/g, ' ').trim();
     if (brand) body.brand = brand;
     var code = val('fpf-code').replace(/\s+/g, '');
@@ -167,7 +206,7 @@
       body.barcode = code;
     }
     // body key order: name, brand, store, barcode, unit, per100, servingSize, servingDefault (only when on), source, offCode
-    var ordered = { name: body.name };
+    var ordered: ProductBody = { name: body.name };
     if (body.brand) ordered.brand = body.brand;
     ordered.store = body.store;
     if (body.barcode) ordered.barcode = body.barcode;
@@ -189,9 +228,9 @@
     if (S.pform.offCode) ordered.offCode = S.pform.offCode;
     return errs.length ? { errs: errs } : { body: ordered };
   }
-  var PRODUCT_FIELDS = { name: 'fpf-name', brand: 'fpf-brand', barcode: 'fpf-code', store: 'fpf-store', unit: 'fpf-unit', 'per100.kcal': 'fpf-kcal', 'per100.protein': 'fpf-p', 'per100.carbs': 'fpf-c', 'per100.fat': 'fpf-f', servingSize: 'fpf-serv', servingDefault: 'fpf-sdef' };
+  var PRODUCT_FIELDS: Record<string, string> = { name: 'fpf-name', brand: 'fpf-brand', barcode: 'fpf-code', store: 'fpf-store', unit: 'fpf-unit', 'per100.kcal': 'fpf-kcal', 'per100.protein': 'fpf-p', 'per100.carbs': 'fpf-c', 'per100.fat': 'fpf-f', servingSize: 'fpf-serv', servingDefault: 'fpf-sdef' };
   var PRODUCT_IDS = Object.keys(PRODUCT_FIELDS).map(function (k) { return PRODUCT_FIELDS[k]; });
-  function saveProduct(force) {
+  function saveProduct(force: boolean) {
     if (!S.pform || S.pform.busy) return;
     clearErrs(PRODUCT_IDS);
     var r = readProductForm();
@@ -199,21 +238,21 @@
     if (force) r.body.force = true;
     var edit = S.pform.editId;
     S.pform.busy = true;
-    api(edit ? 'PUT' : 'POST', edit ? '/products/' + encodeURIComponent(edit) : '/products', r.body).then(function (data) {
+    api(edit ? 'PUT' : 'POST', edit ? '/products/' + encodeURIComponent(edit) : '/products', r.body).then(function (data: { product?: Product }) {
       var p = data.product;
-      if (p) S.products = S.products.filter(function (x) { return String(x.id) !== String(p.id); }).concat([p]);
-      S.products.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
+      if (p) S.products = S.products.filter(function (x: Product) { return String(x.id) !== String((p as Product).id); }).concat([p]);
+      S.products.sort(function (a: Product, b: Product) { return String(a.name).localeCompare(String(b.name)); });
       S.pform = null;
       renderProducts();
       prodMsg(T.products.saved);
-    }, function (err) {
+    }, function (err: { code?: string } | null) {
       S.pform.busy = false;
       prodMsg(errText(err), err && err.code === 'atwater');
       serverFieldErr(err, PRODUCT_FIELDS);
     });
   }
-  function editProduct(id) {
-    var p = find(S.products, id);
+  function editProduct(id: string | null) {
+    var p: Product | null = find(S.products, id);
     if (!p) return;
     openProductForm(p.source, {
       name: p.name, brand: p.brand || '', store: p.store, unit: p.unit, barcode: p.barcode || '',
@@ -221,35 +260,35 @@
       servingDefault: p.servingDefault === true,
     }, null, p.id, p.offCode);
   }
-  function archive(kind, id) {
+  function archive(kind: 'p' | 'r', id: string | null) {
     var isP = kind === 'p';
-    api('DELETE', (isP ? '/products/' : '/recipes/') + encodeURIComponent(id)).then(function () {
+    api('DELETE', (isP ? '/products/' : '/recipes/') + encodeURIComponent(id as string)).then(function () {
       S.confirm = null;
       if (isP) {
-        S.products = S.products.filter(function (x) { return String(x.id) !== String(id); });
+        S.products = S.products.filter(function (x: Product) { return String(x.id) !== String(id); });
         renderProducts();
         setText('fp-msg', T.products.archived); // about the list, not the open form
         renderRecipes(); // a recipe editor lists products
       } else {
-        S.recipes = S.recipes.filter(function (x) { return String(x.id) !== String(id); });
+        S.recipes = S.recipes.filter(function (x: Recipe) { return String(x.id) !== String(id); });
         renderRecipes();
         setText('fr-msg', T.recipes.archived);
       }
-    }, function (err) {
+    }, function (err: unknown) {
       S.confirm = null;
       if (isP) { renderProducts(); setText('fp-msg', errText(err)); } else { renderRecipes(); setText('fr-msg', errText(err)); }
     });
   }
 
   /* ---------- Mis recetas ---------- */
-  function recMsg(s, force) { sectionMsg('fr-form-msg', 'fr-msg', !!S.rform, s, force ? 'r-save-force' : null, T.recipes.saveAnyway); }
+  function recMsg(s: string, force?: boolean | null) { sectionMsg('fr-form-msg', 'fr-msg', !!S.rform, s, force ? 'r-save-force' : null, T.recipes.saveAnyway); }
   // one listed ingredient: "Avena 80 g", a basic "Huevo 2 ud" + the average-value tag (amount in its own unit)
-  function ingText(i) {
-    var u = T.units[i.unit] || i.unit || '';
+  function ingText(i: Ingredient) {
+    var u = T.units[i.unit as string] || i.unit || '';
     return esc((i.name || '—') + ' ' + (fin(i.amount) ? nf(i.amount) : '—') + (u ? ' ' + u : '')) +
       (i.basic != null ? ' <span class="food-tag">' + esc(T.recipes.avgTag) + '</span>' : '');
   }
-  function recipeRow(r) {
+  function recipeRow(r: Recipe) {
     var b = r.kind === 'serving' ? r.perServing : r.per100;
     var basis = r.kind === 'serving' ? T.recipes.perServing : T.recipes.per100;
     var armed = S.confirm === 'r:' + r.id;
@@ -264,49 +303,49 @@
   }
   // an ingredient row = {productId, amount} (a product), {basic: snapshot, mode, amount} (a basic of the
   // public food DB) or {productId: '', q} (not picked yet: its search)
-  function rowPicked(row) { return !!row && (!!row.basic || (row.productId !== '' && row.productId != null)); }
-  function rowProduct(row) { return row && !row.basic && rowPicked(row) ? find(S.products, row.productId) : null; }
+  function rowPicked(row: IngRow | null | undefined) { return !!row && (!!row.basic || (row.productId !== '' && row.productId != null)); }
+  function rowProduct(row: IngRow | null | undefined): Product | null { return row && !row.basic && rowPicked(row) ? find(S.products, row.productId) : null; }
   // the unit of a product row (g / ml), null until one is picked; an archived product keeps the unit the server listed
-  function rowUnit(row) {
+  function rowUnit(row: IngRow | null | undefined) {
     var p = rowProduct(row);
     return p ? p.unit : row && !row.basic && row.punit ? row.punit : null;
   }
   // a basic row as a basics-table entry: the stored SNAPSHOT's name / unit / macros (never refreshed from
   // FOOD_BASICS), plus the CURRENT table's piece when that food still exists in that unit (pieces <-> g)
-  function rowBasic(row) {
+  function rowBasic(row: IngRow | null | undefined): Basic | null {
     var sn = row && row.basic;
     if (!sn || !sn.per100) return null;
-    var b = { k: sn.basic, n: sn.name, u: sn.unit, m: [sn.per100.kcal, sn.per100.protein, sn.per100.carbs, sn.per100.fat] };
+    var b: Basic = { k: sn.basic, n: sn.name, u: sn.unit, m: [sn.per100.kcal, sn.per100.protein, sn.per100.carbs, sn.per100.fat] };
     var cur = findBasic(sn.basic);
     if (cur && cur.u === sn.unit && cur.pc) b.pc = cur.pc;
     return b;
   }
-  function snapOf(b) {
+  function snapOf(b: Basic): BasicSnap {
     return { basic: b.k, name: String(b.n).slice(0, LIM.nameMax || 120), unit: b.u, per100: { kcal: b.m[0], protein: b.m[1], carbs: b.m[2], fat: b.m[3] } };
   }
-  function modeWord(mode) { return mode === 'piece' ? T.units.ud : T.units[mode] || mode; }
+  function modeWord(mode: string) { return mode === 'piece' ? T.units.ud : T.units[mode] || mode; }
   // the picker list of row i: the user's products ("Mis productos") first, then — once they type — the
   // matching basics ("Básicos · valor medio"), the add sheet's search rules (accent- and case-insensitive)
-  function ingListHtml(i, query) {
+  function ingListHtml(i: number, query: string) {
     var R = T.recipes, q = norm(query).trim();
-    var item = function (kind, id, name, sub) {
+    var item = function (kind: string, id: string | number, name: string, sub: string) {
       return '<li><button type="button" class="fa-item" data-food-act="r-pick" data-i="' + i + '" data-kind="' + kind + '" data-id="' + esc(id) + '">' +
         '<span class="fa-item-name">' + name + '</span><span class="fa-item-sub">' + esc(sub) + '</span></button></li>';
     };
-    var prods = q ? S.products.filter(function (p) { return norm(p.name + ' ' + (p.brand || '')).indexOf(q) >= 0; }) : S.products;
+    var prods = q ? S.products.filter(function (p: Product) { return norm(p.name + ' ' + (p.brand || '')).indexOf(q) >= 0; }) : S.products;
     var basics = q ? basicMatches(q) : [];
-    var html = prods.length ? '<h4 class="fa-store">' + esc(R.mine) + '</h4><ul class="fa-items">' + prods.map(function (p) {
+    var html = prods.length ? '<h4 class="fa-store">' + esc(R.mine) + '</h4><ul class="fa-items">' + prods.map(function (p: Product) {
       return item('product', p.id, esc(p.name) + (p.brand ? ' <span class="fa-item-brand">' + esc(p.brand) + '</span>' : ''),
         kf(p.per100.kcal) + ' ' + T.kcal + ' ' + format(T.sheet.per100, { unit: T.units[p.unit] }));
     }).join('') + '</ul>' : '';
     if (!q) return (html || '<p class="food-note">' + esc(T.sheet.noProducts) + '</p>') + (BASICS.length ? '<p class="food-note">' + esc(T.sheet.typeToSearch) + '</p>' : '');
     if (!prods.length && !basics.length) return '<p class="food-note">' + esc(R.noMatch) + '</p>';
-    if (basics.length) html += '<h4 class="fa-store">' + esc(R.basics) + '</h4><ul class="fa-items">' + basics.map(function (b) {
+    if (basics.length) html += '<h4 class="fa-store">' + esc(R.basics) + '</h4><ul class="fa-items">' + basics.map(function (b: Basic) {
       return item('basic', b.k, esc(b.n), kf(b.m[0]) + ' ' + T.kcal + ' ' + basicSub(b));
     }).join('') + '</ul>';
     return html;
   }
-  function ingRowHtml(row, i) {
+  function ingRowHtml(row: IngRow, i: number) {
     var R = T.recipes, n = i + 1;
     var del = '<button type="button" class="food-icon-btn" data-food-act="r-del-ing" data-i="' + i + '" aria-label="' + esc(format(R.removeAria, { n: n })) + '">' + DEL_SVG + '</button>';
     if (!rowPicked(row)) {
@@ -324,14 +363,14 @@
       var modes = basicModes(b);
       if (modes.length > 1) {
         amt = numField('frf-amt-' + i, format(R.amount, { n: n }), row.amount);
-        mode = field('frf-mode-' + i, format(R.mode, { n: n }), '<select class="food-in" id="frf-mode-' + i + '">' + modes.map(function (u) {
+        mode = field('frf-mode-' + i, format(R.mode, { n: n }), '<select class="food-in" id="frf-mode-' + i + '">' + modes.map(function (u: string) {
           return '<option value="' + u + '"' + (u === row.mode ? ' selected' : '') + '>' + esc(basicModeText(b, u)) + '</option>';
         }).join('') + '</select>');
       } else {
         amt = numField('frf-amt-' + i, format(R.amount, { n: n }), row.amount, { unit: modeWord(modes[0]) });
       }
     } else {
-      amt = numField('frf-amt-' + i, format(R.amount, { n: n }), row.amount, { unit: rowUnit(row) ? T.units[rowUnit(row)] : '' });
+      amt = numField('frf-amt-' + i, format(R.amount, { n: n }), row.amount, { unit: rowUnit(row) ? T.units[rowUnit(row) as string] : '' });
     }
     return '<div class="fr-ing fr-ing-picked">' + head + '<div class="food-row">' + amt + mode + '</div>' + del + '</div>';
   }
@@ -352,12 +391,12 @@
       formMsgHtml('fr-form-msg') + '</div>';
   }
   // the field to focus in row i: its search when nothing is picked, else its amount
-  function rowFocusId(i) {
+  function rowFocusId(i: number) {
     var row = S.rform && S.rform.rows[i];
     return (rowPicked(row) ? 'frf-amt-' : 'frf-ing-') + i;
   }
   // pieces <-> grams of a basic row keeps the same food amount (the add sheet's switchBasicMode)
-  function switchRowMode(i) {
+  function switchRowMode(i: number) {
     var row = S.rform.rows[i], b = rowBasic(row);
     if (!b) return;
     var to = val('frf-mode-' + i);
@@ -395,7 +434,7 @@
     if ($('frf-kind')) f.kind = val('frf-kind') === 'batch' ? 'batch' : 'serving';
     if ($('frf-serv')) f.servings = val('frf-serv');
     if ($('frf-cooked')) f.cooked = val('frf-cooked');
-    f.rows.forEach(function (row, i) {
+    f.rows.forEach(function (row: IngRow, i: number) {
       if (!rowPicked(row)) {
         if ($('frf-ing-' + i)) row.q = val('frf-ing-' + i);
         return;
@@ -407,18 +446,18 @@
       if ($('frf-amt-' + i)) row.amount = val('frf-amt-' + i);
     });
   }
-  function recipeFromForm() {
+  function recipeFromForm(): RecipeBody {
     var f = S.rform;
-    var r = { name: String(f.name || '').replace(/\s+/g, ' ').trim(), kind: f.kind };
+    var r = { name: String(f.name || '').replace(/\s+/g, ' ').trim(), kind: f.kind } as RecipeBody;
     if (f.kind === 'serving') r.servings = parseNum(f.servings, null);
     else r.cookedWeightG = parseNum(f.cooked, ['g']);
-    r.ingredients = f.rows.map(function (row) {
+    r.ingredients = f.rows.map(function (row: IngRow): Ingredient {
       var b = rowBasic(row);
       if (b) {
         // the snapshot in the basic's own unit (basicIngredient); an unusable amount keeps its error kind
         var n = parseNum(row.amount, modeUnits(row.mode));
         var ing = fin(n) && n > 0 ? basicIngredient(b, n, row.mode) : null;
-        var sn = row.basic;
+        var sn = row.basic as BasicSnap;
         return ing || { basic: sn.basic, name: sn.name, unit: sn.unit, amount: n == null || !fin(n) ? n : 0, per100: sn.per100 };
       }
       var u = rowUnit(row);
@@ -437,11 +476,11 @@
   }
   // a saved ingredient back in the editor: a basic keeps its snapshot and opens in its own unit (a 'ud'
   // food in pieces); a product keeps the name / unit the server listed (an archived one is not in the list)
-  function editRow(i) {
-    if (i.basic != null) return { basic: { basic: i.basic, name: i.name, unit: i.unit, per100: i.per100 }, mode: i.unit === 'ud' ? 'piece' : i.unit, amount: String(i.amount) };
+  function editRow(i: Ingredient): IngRow {
+    if (i.basic != null) return { basic: { basic: i.basic, name: i.name as string, unit: i.unit as string, per100: i.per100 as Macros }, mode: i.unit === 'ud' ? 'piece' : i.unit, amount: String(i.amount) };
     return { productId: String(i.productId), amount: String(i.amount), pname: i.name, punit: i.unit };
   }
-  function openRecipeForm(r) {
+  function openRecipeForm(r: Recipe | null) {
     S.rform = r
       ? { editId: r.id, name: r.name, kind: r.kind, servings: r.servings == null ? '' : String(r.servings), cooked: r.cookedWeightG == null ? '' : String(r.cookedWeightG), rows: r.ingredients.map(editRow) }
       : { editId: null, name: '', kind: 'serving', servings: '1', cooked: '', rows: [{ productId: '', amount: '', q: '' }] };
@@ -449,39 +488,39 @@
     recMsg('');
     focus('frf-name');
   }
-  function saveRecipe(force) {
+  function saveRecipe(force: boolean) {
     var f = S.rform;
     if (!f || f.busy) return;
     syncRecipeForm();
     var r = recipeFromForm();
     var ids = ['frf-name', 'frf-serv', 'frf-cooked'];
-    f.rows.forEach(function (row, i) { ids.push('frf-ing-' + i, 'frf-amt-' + i); });
+    f.rows.forEach(function (row: IngRow, i: number) { ids.push('frf-ing-' + i, 'frf-amt-' + i); });
     clearErrs(ids);
-    var errs = [];
+    var errs: FieldErr[] = [];
     if (!r.name) errs.push({ id: 'frf-name', key: 'name', kind: 'required' });
     if (r.kind === 'serving') {
-      var sk = numKind(r.servings, true, true) || (r.servings === Math.round(r.servings) ? null : 'whole');
+      var sk = numKind(r.servings, true, true) || (r.servings === Math.round(r.servings as number) ? null : 'whole');
       if (sk) errs.push({ id: 'frf-serv', key: 'servings', kind: sk });
     } else {
       var ck = numKind(r.cookedWeightG, true, true);
       if (ck) errs.push({ id: 'frf-cooked', key: 'cookedWeightG', kind: ck });
     }
-    r.ingredients.forEach(function (ing, i) {
-      if (ing.basic == null && !(ing.productId > 0)) { errs.push({ id: 'frf-ing-' + i, key: 'ingredients.productId', kind: 'required' }); return; }
+    r.ingredients.forEach(function (ing: Ingredient, i: number) {
+      if (ing.basic == null && !((ing.productId as number) > 0)) { errs.push({ id: 'frf-ing-' + i, key: 'ingredients.productId', kind: 'required' }); return; }
       var ak = numKind(ing.amount, true, true);
       if (ak) errs.push({ id: 'frf-amt-' + i, key: 'ingredients.amount', kind: ak });
     });
     if (errs.length) { recMsg(showErrs(errs)); return; }
     if (force) r.force = true;
     f.busy = true;
-    api(f.editId ? 'PUT' : 'POST', f.editId ? '/recipes/' + encodeURIComponent(f.editId) : '/recipes', r).then(function (data) {
+    api(f.editId ? 'PUT' : 'POST', f.editId ? '/recipes/' + encodeURIComponent(f.editId) : '/recipes', r).then(function (data: { recipe?: Recipe }) {
       var saved = data.recipe;
-      if (saved) S.recipes = S.recipes.filter(function (x) { return String(x.id) !== String(saved.id); }).concat([saved]);
-      S.recipes.sort(function (a, b) { return String(a.name).localeCompare(String(b.name)); });
+      if (saved) S.recipes = S.recipes.filter(function (x: Recipe) { return String(x.id) !== String((saved as Recipe).id); }).concat([saved]);
+      S.recipes.sort(function (a: Recipe, b: Recipe) { return String(a.name).localeCompare(String(b.name)); });
       S.rform = null;
       renderRecipes();
       recMsg(T.recipes.saved);
-    }, function (err) {
+    }, function (err: { code?: string } | null) {
       f.busy = false;
       recMsg(errText(err), err && err.code === 'atwater');
       serverFieldErr(err, { name: 'frf-name', servings: 'frf-serv', cookedWeightG: 'frf-cooked' });
@@ -493,24 +532,24 @@
     'p-search': function () { offLookup('q'); },
     // a new product starts on the FIRST configured store (FOOD_CONST.stores), never a hard-coded one
     'p-label': function () { openProductForm('label', { store: K.stores[0], unit: 'g' }); },
-    'p-use': function (el) { useOff(Number(el.getAttribute('data-i'))); },
+    'p-use': function (el: Element) { useOff(Number(el.getAttribute('data-i'))); },
     'p-save': function () { saveProduct(false); },
     'p-save-force': function () { saveProduct(true); },
     // the "log by serving" switch: flips the form state and its own aria-checked (no re-render, typed values stay)
-    'p-sdef': function (el) {
+    'p-sdef': function (el: Element) {
       if (!S.pform) return;
       S.pform.form = S.pform.form || {};
       S.pform.form.servingDefault = !S.pform.form.servingDefault;
       el.setAttribute('aria-checked', S.pform.form.servingDefault ? 'true' : 'false');
     },
     'p-cancel': function () { S.pform = null; renderProducts(); prodMsg(''); },
-    'p-edit': function (el) { editProduct(el.getAttribute('data-id')); },
-    'p-archive': function (el) { S.confirm = 'p:' + el.getAttribute('data-id'); renderProducts(); },
-    'p-archive-ok': function (el) { archive('p', el.getAttribute('data-id')); },
+    'p-edit': function (el: Element) { editProduct(el.getAttribute('data-id')); },
+    'p-archive': function (el: Element) { S.confirm = 'p:' + el.getAttribute('data-id'); renderProducts(); },
+    'p-archive-ok': function (el: Element) { archive('p', el.getAttribute('data-id')); },
     'r-new': function () { openRecipeForm(null); },
-    'r-edit': function (el) { var r = find(S.recipes, el.getAttribute('data-id')); if (r) openRecipeForm(r); },
+    'r-edit': function (el: Element) { var r = find(S.recipes, el.getAttribute('data-id')); if (r) openRecipeForm(r); },
     'r-add-ing': function () { syncRecipeForm(); S.rform.rows.push({ productId: '', amount: '', q: '' }); renderRecipes(); focus('frf-ing-' + (S.rform.rows.length - 1)); },
-    'r-pick': function (el) {
+    'r-pick': function (el: Element) {
       syncRecipeForm();
       var i = Number(el.getAttribute('data-i'));
       if (!S.rform.rows[i]) return;
@@ -525,7 +564,7 @@
       renderRecipes();
       focus('frf-amt-' + i);
     },
-    'r-unpick': function (el) {
+    'r-unpick': function (el: Element) {
       syncRecipeForm();
       var i = Number(el.getAttribute('data-i'));
       if (!S.rform.rows[i]) return;
@@ -533,7 +572,7 @@
       renderRecipes();
       focus('frf-ing-' + i);
     },
-    'r-del-ing': function (el) {
+    'r-del-ing': function (el: Element) {
       syncRecipeForm();
       var i = Number(el.getAttribute('data-i'));
       if (S.rform.rows.length > 1) S.rform.rows.splice(i, 1);
@@ -543,8 +582,8 @@
     'r-save': function () { saveRecipe(false); },
     'r-save-force': function () { saveRecipe(true); },
     'r-cancel': function () { S.rform = null; renderRecipes(); recMsg(''); },
-    'r-archive': function (el) { S.confirm = 'r:' + el.getAttribute('data-id'); renderRecipes(); },
-    'r-archive-ok': function (el) { archive('r', el.getAttribute('data-id')); },
+    'r-archive': function (el: Element) { S.confirm = 'r:' + el.getAttribute('data-id'); renderRecipes(); },
+    'r-archive-ok': function (el: Element) { archive('r', el.getAttribute('data-id')); },
   });
   FI.renderProducts = renderProducts;
   FI.renderRecipes = renderRecipes;

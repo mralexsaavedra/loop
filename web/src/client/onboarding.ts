@@ -9,7 +9,7 @@
  * The numbers, screen and bounds are HC_ENERGY = lib/nutrition/energy.mjs (one formula for the page and the
  * build). Opened from the profile sheet ([data-onb-open]) and, once, on its own when the server has neither a
  * profile nor a goal yet ("Later" is remembered in localStorage, a convenience only). Registers the
- * `onboarding` view of the detail sheet (client/detail.js: ASYNC_VIEWS, deep link #onboarding).
+ * `onboarding` view of the detail sheet (client/detail.ts: ASYNC_VIEWS, deep link #onboarding).
  * Module script (bundled into the page, docs/plan-page.md → Module scripts). */
 import type { PageGlobals } from './page-globals';
 

@@ -177,8 +177,8 @@ calling the service directly is trusted (the LAN-only model).
 
 - `web/src/client/food-*.js`, four classic scripts inlined in this order after nutri-day.js, before
   intake.js: `food-core.js` (the formula from `HC_FOODLOG`, `parseNum`, the API client, the shared state
-  `S` + helpers, handed to the others as `window.HCFoodInternal`), `food-sheet.js` (the add sheet),
-  `food-catalog.js` (My products / My recipes), `food-log.js` (Log food + navigator, the event listeners,
+  `S` + helpers, handed to the others as `window.HCFoodInternal`), `food-sheet.ts` (the add sheet),
+  `food-catalog.ts` (My products / My recipes), `food-log.js` (Log food + navigator, the event listeners,
   the boot, the public `window.HCFood` / `window.foodTotals`). Tests load them with
   `web/test/client-util.mjs` `FOOD_SOURCE`.
 - Copy: `web/src/i18n/food-templates.mjs` es / en, baked as `I18N_FOOD` + `FOOD_CONST` in `Dia.astro`.
@@ -230,7 +230,7 @@ food-log.js).
 A registered detail-sheet view (`window.HCViews['food-add']`, deep link `#food-add`, registered only once
 the API answered).
 
-- Focus trap / Esc / Back from detail.js (its Tab trap includes form fields; `HCDetail.open(key, date,
+- Focus trap / Esc / Back from detail.ts (its Tab trap includes form fields; `HCDetail.open(key, date,
   {opener})` returns focus to the tapped button). Opens with focus in the search field — `#fa-q`, or the
   quick label `#fa-label` on the Quick tab — never on the meal select.
 - **Meal select** = the four groups (main groups stored as their slot, Extras as `snack`); a fresh sheet
@@ -250,8 +250,8 @@ the API answered).
 
 ### Keyboard
 
-`food-sheet.js` listens for keys inside the sheet (`.fa`). Its listener runs before detail.js's, and
-detail.js ignores a key that was already `preventDefault()`ed. Keys with Ctrl / Cmd / Alt are ignored.
+`food-sheet.ts` listens for keys inside the sheet (`.fa`). Its listener runs before detail.ts's, and
+detail.ts ignores a key that was already `preventDefault()`ed. Keys with Ctrl / Cmd / Alt are ignored.
 
 - **↑ / ↓** on the list view (the search, a tab or an item) move a highlight over the items that can be picked
   (`S.sheet.hi`, an index into `pickable()`, in list order: products by store, then basics; an incomplete recipe is

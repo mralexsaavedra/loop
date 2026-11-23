@@ -8,11 +8,11 @@
  * here, only read from DETAIL / DIALS and laid out (the sleep page only adds REM + deep and stage
  * shares of the baked stage hours).
  *
- * Classic script (is:inline), inlined right BEFORE client/detail.js, which calls it: window.HCDeep =
+ * Classic script (is:inline), inlined right BEFORE client/detail.ts, which calls it: window.HCDeep =
  * {isDial(key), render(key, m, end, X) -> {head, top}}. X = the sheet's own helpers (copy, series
  * access, number formatting, the band notes), injected so both files read one set of rules. The
  * header's back button is the sheet's close button (data-dt-act="close"); ⓘ (data-dt-act="info") and
- * the CTA (data-dt-act="trend") are handled by detail.js's one delegated listener.
+ * the CTA (data-dt-act="trend") are handled by detail.ts's one delegated listener.
  */
 (function () {
   var esc = HC.esc, format = HC.format, isoDate = HC.isoDate, shiftIso = HC.shiftIso;
@@ -246,7 +246,7 @@
     var trend = dm && dm.state === 'ok' && isNum(dm.trendPct) && L.bands[dm.band] ? format(W.loadTrend, { band: L.bands[dm.band], pct: X.pct(dm.trendPct) }) : '';
     return prose([day, trend]);
   }
-  // the notes that are not essential: the band / cut rules (detail.js bandText) and, for load, the
+  // the notes that are not essential: the band / cut rules (detail.ts bandText) and, for load, the
   // sessions-without-effort count
   function infoHtml(key, m, X) {
     var extra = '';

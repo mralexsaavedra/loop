@@ -8,7 +8,7 @@
  * today's programmed session, client/timeline.ts), the "today you eat" card (components/EatCard.astro,
  * client/nutri-day.js). The full health monitor list leads Salud (tabs/Salud.astro); the summary
  * tile jumps there (jump('monitor') switches tab and scrolls). The detail behind each
- * dial, tile and row opens in the detail sheet (client/detail.js). Everything is client-rendered from
+ * dial, tile and row opens in the detail sheet (client/detail.ts). Everything is client-rendered from
  * the globals baked by <Bake> (web/pages/index.astro) and Dia's NUTRI. The programmed session's own
  * section (tabs/Hoy.astro) follows as a hidden source inside the same `home` panel.
  * After the eat card: "Tonight" (#home-tonight: recommended bedtime ↔ usual wake time) and "My plan"
@@ -16,8 +16,8 @@
  * client/journal.ts, LAN page only) between them, then "My dashboard" (#my-dash: metric
  * rows + "Customize", client/home-dash.ts), then "Customize Home" (#home-cust: the user's order and show / hide
  * of the blocks from "My day" to "My dashboard", client/home-order.ts, which moves them right before it). Those scripts run in layouts/Plan.astro's end-of-body
- * list (after HC, the baked globals and adherence.js, before deepdive.js / detail.js), so their sheets
- * (tonight, dash-edit) are registered before detail.js runs.
+ * list (after HC, the baked globals and adherence.js, before deepdive.js / detail.ts), so their sheets
+ * (tonight, dash-edit) are registered before detail.ts runs.
  * #home-mini = the collapsed dial row (fixed at the top, shown by score.ts once the dials scroll away:
  * the same three rings small, with their labels; a tap opens the same detail as the dial).
  */

@@ -170,7 +170,7 @@ type RowFn = () => string;
   // A run's HR, effort and watch dynamics stay in the screen-reader words and the day the row opens (they would
   // wrap to 2-3 lines at 390 px). A dash never stands in for a missing value: a field the source did not
   // record is left out (the ⓘ says which source records what). The row opens that day in its load view
-  // (client/detail.js); without the detail sheet it is a plain row (no fake link).
+  // (client/detail.ts); without the detail sheet it is a plain row (no fake link).
   function parts(list: Array<string | null | undefined>): string {
     return list.filter(function (x) { return x != null && x !== ''; }).join(' · ');
   }

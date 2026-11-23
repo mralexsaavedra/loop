@@ -8,7 +8,7 @@
  *
  * Day stepping (window.HCDay): a PAST day shows that day's bake and opens the page on it; a day
  * without a value (no recovery %, no wake time) hides the card, as does a newest valued day more than
- * STALE_DAYS old on today. Module script (bundled into the page, docs/plan-page.md → Module scripts); a tap opens the energy page (client/detail.js
+ * STALE_DAYS old on today. Module script (bundled into the page, docs/plan-page.md → Module scripts); a tap opens the energy page (client/detail.ts
  * + deepdive.js energyPage, key 'energy-bank').
  */
 import type { PageGlobals } from './page-globals';

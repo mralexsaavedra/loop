@@ -10,12 +10,12 @@
  * up, and so does day strain); baseline = the mean of the BASE_DAYS (30) days before that day, with at least MIN_BASE (7) days
  * of data (MIN_BASE_SPARSE (2) readings for a sparse series such as weight); no baseline → no arrow.
  *
- * "Customize ✎" opens a registered sheet ('dash-edit', client/detail.js modal) to show / hide and move
+ * "Customize ✎" opens a registered sheet ('dash-edit', client/detail.ts modal) to show / hide and move
  * rows: the shared HC.orderList (client/util.js) — the switch, ↑ / ↓ and the ≡ drag; preferences in
  * localStorage (PREFS_KEY) as {order, hidden}, working the same without storage (in memory).
  *
  * Module script (bundled into the page, docs/plan-page.md → Module scripts) in layouts/Plan.astro's end-of-body list, right after client/home-week.ts and before
- * detail.js (its `dash-edit` sheet is registered before detail.js runs); its own try/catch hides the section on a throw. */
+ * detail.ts (its `dash-edit` sheet is registered before detail.ts runs); its own try/catch hides the section on a throw. */
 import { fin } from '../../../lib/nutrition/num.mjs';
 import type { PageGlobals } from './page-globals';
 

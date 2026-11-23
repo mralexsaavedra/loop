@@ -1,8 +1,21 @@
-/* Nutrición food log — the add sheet (window.HCViews['food-add'], rendered by detail.js): meal group,
+/* Nutrición food log — the add sheet (window.HCViews['food-add'], rendered by detail.ts): meal group,
  * Mis productos (products + basics search) / Mis recetas / Rápido tabs, the live preview and the save
- * (request id kept across ambiguous retries). Classic script (is:inline), inlined after food-core.js
+ * (request id kept across ambiguous retries). Module script (bundled into the page, docs/plan-page.md → Module scripts), after food-core.js
  * (window.HCFoodInternal) and before food-log.js, which registers the view at boot and provides
  * renderLog / loadDay. See food-core.js for the whole food log. */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads by bare name (baked by components/Bake.astro or an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+
+// the food log's shapes this sheet reads (mirroring lib/nutrition/foodlog.mjs Macros / Product; a listed
+// recipe row carries the server's computed basis; a basic is a FOOD_BASICS row, lib/nutrition/basics.mjs)
+type Macros = { kcal: number | null; protein: number | null; carbs: number | null; fat: number | null };
+type Product = { id: number; name: string; brand: string | null; store: string; unit: string; per100: Macros;
+  servingSize: number | null; servingDefault: boolean };
+type RecipeRow = { id: number; name: string; kind: string; complete: boolean; perServing: Macros | null; per100: Macros | null };
+type Basic = { k: string; n: string; m: number[]; v?: unknown; h?: unknown };
+
 (function () {
   var FI = window.HCFoodInternal;
   if (!FI) return;
@@ -22,8 +35,8 @@
     modeUnits = FI.modeUnits, modeDefault = FI.modeDefault, field = FI.field, numField = FI.numField,
     addActs = FI.addActs;
 
-  /* ---------- add sheet (window.HCViews['food-add'], rendered by detail.js) ---------- */
-  function newSheet(meal) {
+  /* ---------- add sheet (window.HCViews['food-add'], rendered by detail.ts) ---------- */
+  function newSheet(meal?: string | null) {
     var m = asGroup(meal) || guessMeal();
     // a sheet opened on a past day keeps that date; one opened on "today" stays null and logs to the
     // today of the save (a sheet opened at 23:58 and saved at 00:02 logs to the new day)
@@ -43,36 +56,36 @@
     var hint = BASICS.length ? T.sheet.typeToSearch : null;
     // an empty search lists the user's products only (the basics appear once they type, so the list stays short)
     if (!q) return S.products.length ? { shown: S.products, basics: [], hint: hint } : { note: T.sheet.noProducts, hint: hint };
-    var shown = S.products.filter(function (p) { return norm(p.name + ' ' + (p.brand || '')).indexOf(q) >= 0; });
+    var shown = S.products.filter(function (p: Product) { return norm(p.name + ' ' + (p.brand || '')).indexOf(q) >= 0; });
     var basics = basicMatches(q);
     if (!shown.length && !basics.length) return { note: T.sheet.noMatch };
     return { shown: shown, basics: basics };
   }
-  function byStore(shown) {
-    var out = [];
-    K.stores.forEach(function (s) { shown.forEach(function (p) { if (p.store === s) out.push(p); }); });
+  function byStore(shown: Product[]): Product[] {
+    var out: Product[] = [];
+    K.stores.forEach(function (s: string) { shown.forEach(function (p) { if (p.store === s) out.push(p); }); });
     return out;
   }
   /** The items Enter / the arrow keys can pick, in list order ({ kind, id }; an incomplete recipe is skipped). */
   function pickable() {
     var d = listData();
-    if (d.recipes) return d.recipes.filter(function (r) { return r.complete; }).map(function (r) { return { kind: 'recipe', id: String(r.id) }; });
+    if (d.recipes) return d.recipes.filter(function (r: RecipeRow) { return r.complete; }).map(function (r: RecipeRow) { return { kind: 'recipe', id: String(r.id) }; });
     if (d.note) return [];
     return byStore(d.shown).map(function (p) { return { kind: 'product', id: String(p.id) }; })
-      .concat(d.basics.map(function (b) { return { kind: 'basic', id: String(b.k) }; }));
+      .concat(d.basics.map(function (b: Basic) { return { kind: 'basic', id: String(b.k) }; }));
   }
   // the attributes of a pickable item's button: its option id (the search's aria-activedescendant) and the
   // highlight of the arrow keys (S.sheet.hi, an index into pickable())
-  function optAttrs(n) {
+  function optAttrs(n: number) {
     return ' id="fa-opt-' + n + '"' + (n === S.sheet.hi ? ' data-active="true"' : '');
   }
   function listHtml() {
     var d = listData();
     var n = 0;
-    var note = function (s) { return s ? '<p class="food-note">' + esc(s) + '</p>' : ''; };
+    var note = function (s?: string | null) { return s ? '<p class="food-note">' + esc(s) + '</p>' : ''; };
     if (d.note) return note(d.note) + note(d.hint);
     if (d.recipes) {
-      return '<ul class="fa-items">' + d.recipes.map(function (r) {
+      return '<ul class="fa-items">' + d.recipes.map(function (r: RecipeRow) {
         var b = r.kind === 'serving' ? r.perServing : r.per100;
         var basis = r.kind === 'serving' ? T.sheet.perServing : T.sheet.per100Cooked;
         return '<li><button type="button" class="fa-item"' + (r.complete ? optAttrs(n++) : '') + ' data-food-act="pick" data-kind="recipe" data-id="' + esc(r.id) + '"' + (r.complete ? '' : ' disabled') + '>' +
@@ -80,16 +93,16 @@
           (b && r.complete ? esc(kf(b.kcal)) + ' ' + esc(T.kcal) + ' ' + esc(basis) : esc(T.sheet.incomplete)) + '</span></button></li>';
       }).join('') + '</ul>';
     }
-    var products = K.stores.map(function (s) {
-      var list = d.shown.filter(function (p) { return p.store === s; });
+    var products = K.stores.map(function (s: string) {
+      var list = d.shown.filter(function (p: Product) { return p.store === s; });
       if (!list.length) return '';
-      return '<h4 class="fa-store">' + esc(T.stores[s]) + '</h4><ul class="fa-items">' + list.map(function (p) {
+      return '<h4 class="fa-store">' + esc(T.stores[s]) + '</h4><ul class="fa-items">' + list.map(function (p: Product) {
         return '<li><button type="button" class="fa-item"' + optAttrs(n++) + ' data-food-act="pick" data-kind="product" data-id="' + esc(p.id) + '">' +
           '<span class="fa-item-name">' + esc(p.name) + (p.brand ? ' <span class="fa-item-brand">' + esc(p.brand) + '</span>' : '') + '</span>' +
           '<span class="fa-item-sub">' + esc(kf(p.per100.kcal)) + ' ' + esc(T.kcal) + ' ' + esc(format(T.sheet.per100, { unit: T.units[p.unit] })) + '</span></button></li>';
       }).join('') + '</ul>';
     }).join('');
-    var basics = !d.basics.length ? '' : '<h4 class="fa-store">' + esc(T.sheet.basics) + '</h4><ul class="fa-items">' + d.basics.map(function (b) {
+    var basics = !d.basics.length ? '' : '<h4 class="fa-store">' + esc(T.sheet.basics) + '</h4><ul class="fa-items">' + d.basics.map(function (b: Basic) {
       return '<li><button type="button" class="fa-item"' + optAttrs(n++) + ' data-food-act="pick" data-kind="basic" data-id="' + esc(b.k) + '">' +
         '<span class="fa-item-name">' + esc(b.n) + '</span>' +
         '<span class="fa-item-sub">' + esc(kf(b.m[0])) + ' ' + esc(T.kcal) + ' ' + esc(basicSub(b)) + '</span></button></li>';
@@ -102,7 +115,7 @@
     if (pk.kind === 'basic') return findBasic(pk.id);
     return pk.kind === 'recipe' ? find(S.recipes, pk.id) : find(S.products, pk.id);
   }
-  function basicPickHtml(b) {
+  function basicPickHtml(b: Basic) {
     var modes = basicModes(b);
     var per = { kcal: b.m[0], protein: b.m[1], carbs: b.m[2], fat: b.m[3] };
     S.sheet.basicMode = modes[0];
@@ -110,7 +123,7 @@
       '<div class="fa-item-sub">' + macroLine(per) + ' ' + esc(basicSub(b)) + '</div></div>' +
       '<button type="button" class="food-btn food-btn-ghost" data-food-act="unpick">' + esc(T.sheet.change) + '</button></div>' +
       '<div class="food-row">' + numField('fa-amt', T.sheet.amount, modeDefault(modes[0], b)) +
-      field('fa-unit', T.sheet.unit, '<select class="food-in" id="fa-unit">' + modes.map(function (u, i) {
+      field('fa-unit', T.sheet.unit, '<select class="food-in" id="fa-unit">' + modes.map(function (u: string, i: number) {
         return '<option value="' + u + '"' + (i === 0 ? ' selected' : '') + '>' + esc(basicModeText(b, u)) + '</option>';
       }).join('') + '</select>') + '</div>' +
       '<p class="fa-prev" id="fa-prev" aria-live="polite"></p>' +
@@ -141,7 +154,7 @@
   }
   // the units a picked item can be logged in: a product in its own unit (+ servings when it states a
   // serving size), a per-serving recipe in servings, a batch recipe in grams of cooked food
-  function unitsOf(kind, item) {
+  function unitsOf(kind: string, item: any): string[] {
     if (kind === 'recipe') return item.kind === 'serving' ? ['serving'] : ['g'];
     if (!(item.servingSize > 0)) return [item.unit];
     // a product marked "log by serving" (servingDefault) starts in servings: units[0] is the sheet's default
@@ -192,7 +205,7 @@
     S.sheet = newSheet(FI.pendingMeal);
     FI.pendingMeal = null;
     var sh = S.sheet;
-    var meals = '<select class="food-in" id="fa-meal">' + GROUPS.map(function (m) {
+    var meals = '<select class="food-in" id="fa-meal">' + GROUPS.map(function (m: string) {
       return '<option value="' + m + '"' + (m === sh.meal ? ' selected' : '') + '>' + esc(T.groupOption[m]) + '</option>';
     }).join('') + '</select>';
     return {
@@ -202,7 +215,7 @@
         '<p class="food-msg" id="fa-msg" role="status" aria-live="polite"></p></div>',
     };
   }
-  function redrawPanel(focusId) {
+  function redrawPanel(focusId: string | null) {
     S.sheet.reqId = null; // another item or tab: a new add
     setHtml('fa-panel', panelHtml());
     var tabs = document.querySelectorAll ? document.querySelectorAll('.fa-tab') : [];
@@ -231,11 +244,11 @@
     setHtml('fa-prev', p && p.m ? (p.label ? '<span class="fa-prev-lbl">' + esc(p.label) + '</span> ' : '') + macroLine(p.m) : '');
   }
   // a basic entry over what one quick entry may hold (the server's quick limits, or the amount cap)
-  function tooBig(p) {
+  function tooBig(p: { amount: number; m: Record<string, number> }) {
     if (p.amount > (LIM.amountMax || 5000) || p.m.kcal > (LIM.quickKcalMax || 5000)) return true;
-    return MACROS.some(function (k) { return p.m[k] > (LIM.quickMacroMax || 500); });
+    return MACROS.some(function (k: string) { return p.m[k] > (LIM.quickMacroMax || 500); });
   }
-  function sheetMsg(s, force) {
+  function sheetMsg(s: string, force?: boolean) {
     var el = $('fa-msg');
     if (!el) return;
     if (force) el.innerHTML = esc(s) + ' <button type="button" class="food-btn food-btn-ghost" data-food-act="save-force">' + esc(T.sheet.saveAnyway) + '</button>';
@@ -243,13 +256,13 @@
   }
   var SHEET_FIELDS = { amount: 'fa-amt', label: 'fa-label', kcal: 'fa-kcal', protein: 'fa-p', carbs: 'fa-c', fat: 'fa-f' };
   var SHEET_IDS = ['fa-amt', 'fa-label', 'fa-kcal', 'fa-p', 'fa-c', 'fa-f'];
-  function saveSheet(force) {
+  function saveSheet(force: boolean) {
     var sh = S.sheet;
     if (!sh || sh.busy) return;
     var group = asGroup(val('fa-meal')) || sh.meal;
     var meal = slotFor(group);
     var date = sh.date || HC.todayIso(); // resolved at EVERY save / retry: a "today" sheet follows the clock
-    var body;
+    var body: Record<string, unknown>;
     clearErrs(SHEET_IDS);
     if (sh.tab === 'quick') {
       var label = val('fa-label').replace(/\s+/g, ' ').trim();
@@ -259,7 +272,7 @@
       var kk = numKind(kcal, true, false);
       if (kk) errs.push({ id: 'fa-kcal', key: 'kcal', kind: kk });
       body = { date: date, meal: meal, refType: 'quick', label: label, kcal: kcal };
-      [['protein', 'fa-p'], ['carbs', 'fa-c'], ['fat', 'fa-f']].forEach(function (x) {
+      [['protein', 'fa-p'], ['carbs', 'fa-c'], ['fat', 'fa-f']].forEach(function (x: string[]) {
         var v = parseNum(val(x[1]), ['g']);
         var k = numKind(v, false, false);
         if (k) errs.push({ id: x[1], key: x[0], kind: k });
@@ -289,7 +302,7 @@
     sh.busy = true;
     var btn = $('fa-save');
     if (btn) btn.disabled = true;
-    api('POST', '/log', body).then(function (data) {
+    api('POST', '/log', body).then(function (data: any) {
       sh.busy = false;
       sh.reqId = null;
       var e = data.entry;
@@ -298,7 +311,7 @@
       var L = logFor(date);
       if (L && e) {
         // a replayed add (same request id) may already be in the list from a re-read: replace it
-        L.entries = L.entries.filter(function (x) { return String(x.id) !== String(e.id); }).concat([e]);
+        L.entries = L.entries.filter(function (x: { id?: number | string }) { return String(x.id) !== String(e.id); }).concat([e]);
         L.totals = data.totals || dayTotals(L.entries);
       }
       if (window.HCDetail && typeof window.HCDetail.close === 'function') window.HCDetail.close();
@@ -308,7 +321,7 @@
       setText('food-msg', e ? format(T.added, { label: e.label, k: kf(e.kcal) }) : '');
       focus('food-add-' + group);
       if (!L) FI.loadDay(date);
-    }, function (err) {
+    }, function (err: any) {
       sh.busy = false;
       if (btn) btn.disabled = false;
       sheetMsg(errText(err), err && err.code === 'atwater');
@@ -321,18 +334,18 @@
     var d = S.sheet && S.sheet.date;
     return d && d !== HC.todayIso() ? format(T.sheet.titleDate, { date: HC.fmtDate(d) }) : T.sheet.title;
   }
-  function setSheetTab(k, focusTab) {
+  function setSheetTab(k: string, focusTab: boolean) {
     if (!S.sheet || tabKeys().indexOf(k) < 0) return;
     S.sheet.tab = k;
     S.sheet.pick = null;
     S.sheet.hi = -1;
     redrawPanel(focusTab ? null : k === 'quick' ? 'fa-label' : k === 'products' ? 'fa-q' : null);
     if (focusTab) {
-      var tabs = document.querySelectorAll ? document.querySelectorAll('.fa-tab') : [];
+      var tabs = document.querySelectorAll ? document.querySelectorAll<HTMLElement>('.fa-tab') : [];
       for (var i = 0; i < tabs.length; i++) if (tabs[i].getAttribute('data-tab') === k && typeof tabs[i].focus === 'function') tabs[i].focus();
     }
   }
-  function pickItem(kind, id) {
+  function pickItem(kind: string | null, id: string | null) {
     if (!S.sheet) return;
     S.sheet.pick = { kind: kind === 'recipe' || kind === 'basic' ? kind : 'product', id: id };
     redrawPanel('fa-amt');
@@ -347,7 +360,7 @@
   /** Moves the arrow-key highlight by one (wrapping) and redraws the list. From the search the focus stays
    * in the field (aria-activedescendant names the item); from anywhere else in the sheet (the Recetas tab
    * has no search) the highlighted item takes the focus, so Enter / Space press it like a click. */
-  function moveHighlight(step, fromSearch) {
+  function moveHighlight(step: number, fromSearch: boolean) {
     var n = pickable().length;
     if (!n) return;
     var hi = S.sheet.hi;
@@ -359,16 +372,16 @@
     if (fromSearch) { if (q) q.setAttribute('aria-activedescendant', 'fa-opt-' + S.sheet.hi); }
     else focus('fa-opt-' + S.sheet.hi);
   }
-  var TAB_KEY_STEP = { ArrowLeft: -1, ArrowRight: 1, Left: -1, Right: 1 };
-  /* The add sheet's keys (it is a detail.js view; this listener is registered before detail.js's, so a key
-   * handled here is preventDefault()ed and detail.js leaves it alone):
+  var TAB_KEY_STEP: Record<string, number> = { ArrowLeft: -1, ArrowRight: 1, Left: -1, Right: 1 };
+  /* The add sheet's keys (it is a detail.ts view; this listener is registered before detail.ts's, so a key
+   * handled here is preventDefault()ed and detail.ts leaves it alone):
    * - ArrowDown / ArrowUp on the list view (the search, a tab or an item) move the highlight;
    * - Enter in the search picks the highlighted item, or the first one when none is highlighted;
    * - ArrowLeft / ArrowRight on a tab switch to the previous / next tab, the focus stays on the tabs;
    * - Escape with an item picked goes back to the list (a second Escape closes the sheet). */
-  function onSheetKey(e) {
+  function onSheetKey(e: KeyboardEvent) {
     var sh = S.sheet;
-    var t = e && e.target;
+    var t = e && (e.target as Element | null);
     if (!sh || !t || e.defaultPrevented || e.altKey || e.ctrlKey || e.metaKey) return;
     var inSheet = t.closest ? t.closest('.fa') : null;
     if (!inSheet) return;
@@ -403,8 +416,8 @@
   }
   document.addEventListener('keydown', onSheetKey);
   addActs({
-    tab: function (el) { setSheetTab(el.getAttribute('data-tab'), false); },
-    pick: function (el) { pickItem(el.getAttribute('data-kind'), el.getAttribute('data-id')); },
+    tab: function (el: Element) { setSheetTab(el.getAttribute('data-tab') as string, false); },
+    pick: function (el: Element) { pickItem(el.getAttribute('data-kind'), el.getAttribute('data-id')); },
     unpick: unpick,
     save: function () { saveSheet(false); },
     'save-force': function () { saveSheet(true); },

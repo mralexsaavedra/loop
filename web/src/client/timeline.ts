@@ -50,7 +50,7 @@ type DetailSession = { d: string; m: string; min: number; re?: number | null; n?
   if (!TL || !T) return;
   // shared helpers (web/src/client/util.js); HC.num reads LOCALE at call time, inside the try below
   var esc = HC.esc, format = HC.format, num = HC.num, isoDate = HC.isoDate, todayIso = HC.todayIso, daysOld = HC.daysOld;
-  // a row opens the detail sheet on its day (client/detail.js): sleep -> the sleep view, a scored
+  // a row opens the detail sheet on its day (client/detail.ts): sleep -> the sleep view, a scored
   // modality -> its load view, anything else -> training time
   function modDetail(mod: string): string {
     return mod === 'gym' || mod === 'run' || mod === 'bike' ? 'load-' + mod : 'workouts';

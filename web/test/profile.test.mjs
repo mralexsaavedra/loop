@@ -58,7 +58,7 @@ test('profile-templates.mjs has identical key trees in es/en and no empty string
   for (const dict of [esP, enP]) for (const k of keyTree(dict)) assert.notEqual(String(k.split('.').reduce((o, p) => o[p], dict)).trim(), '', k);
 });
 
-test('example build: ONE avatar button in the top bar (initials, no photo) opening the profile view; PROFILE baked, profile.ts before detail.js', () => {
+test('example build: ONE avatar button in the top bar (initials, no photo) opening the profile view; PROFILE baked, profile.ts before detail.ts', () => {
   const html = exampleHtml();
   const bar = topbar(html);
   assert.equal((html.match(/id="avatar-btn"/g) || []).length, 1);
@@ -76,8 +76,8 @@ test('example build: ONE avatar button in the top bar (initials, no photo) openi
   assert.ok(!p.devices.some((d) => d.name === 'Demo Phone App'));
   assert.equal(p.devices.find((d) => d.manual).manual, 'sample-bike-computer-manual.pdf', 'only the manual file name is baked');
   const reg = html.search(/HC\.registerView\(["']profile["']/), viewRe = html.indexOf('var VIEW_HASH_RE');
-  assert.ok(reg >= 0 && viewRe >= 0, 'profile.ts registration and detail.js both inlined');
-  assert.ok(reg < viewRe, 'profile.ts registers its view before detail.js runs');
+  assert.ok(reg >= 0 && viewRe >= 0, 'profile.ts registration and detail.ts both inlined');
+  assert.ok(reg < viewRe, 'profile.ts registers its view before detail.ts runs');
   const { plan } = loadInputs({ repoRoot: REPO_ROOT, dataMode: 'example' });
   assert.deepEqual(p.goals, goalOptions(resolveTargets(plan)), 'the goal setting\'s options are the lib\'s own');
   assert.equal(p.goals.length, 3);
