@@ -197,7 +197,11 @@ has the full table; `lib/paths.test.mjs` pins both layouts path by path.
   scripts (`web/src/client/*.js`) are classic scripts sharing one global scope: a new global another script or
   the build provides goes into `BAKED` / `SHARED` in `eslint.config.mjs`, never an `eslint-disable`.
 - Shared helpers have one home: calendar dates (`dayDiff`, `addDays`, `weekStart`, `isIsoDate`, UTC math) are
-  [`lib/date.mjs`](../lib/date.mjs); `lib/` never imports from `data/` (`lib/fs-boundary.test.mjs`). The page's
+  [`lib/date.mjs`](../lib/date.mjs), the series stats (`roundTo`, `meanOf`, `median`, `rollAvg`…)
+  [`lib/stats.mjs`](../lib/stats.mjs); `lib/` never imports from `data/` (`lib/fs-boundary.test.mjs`). The views'
+  areas are layered: kernel (`lib/*.mjs`, `format`, `build`, `extract`) < `training` < `score` < `health` / `journal`,
+  each importing only from lower layers; `lib/layers.test.mjs` pins it and lists the imports that still go up a layer
+  (a list that only shrinks). The page's
   classic client scripts cannot import modules: they keep their local-calendar twins in `web/src/client/util.js`.
 - If you run the LAN services from this clone, keep it on `main`: the refresh only publishes from `main`. Do
   feature work in a separate `git worktree`.
