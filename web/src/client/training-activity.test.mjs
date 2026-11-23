@@ -1,19 +1,17 @@
-/* Tests for Entreno's Activity card (web/src/client/training-activity.js): totals + W / M / 6M switch,
+/* Tests for Entreno's Activity card (web/src/client/training-activity.ts): totals + W / M / 6M switch,
  * modality split, 30-day calendar. The classic script in a vm with baked ACTIVITY / I18N_ACTIVITY /
  * LOCALE and a controllable clock. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { activityFromRows, activityBake } from '../../../lib/training/activity.mjs';
 import { es as esT, en as enT } from '../i18n/activity-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { addDays } from '../../../lib/date.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'training-activity.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('training-activity.ts');
 const ASOF = '2026-09-29';
 
 // every 2nd day in the last 30 (60 min run), every 3rd day in the previous 30 (30 min gym)

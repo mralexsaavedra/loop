@@ -1,18 +1,16 @@
-/* Tests for Inicio's "today" timeline renderer (web/src/client/timeline.js): runs the classic script
+/* Tests for Inicio's "today" timeline renderer (web/src/client/timeline.ts): runs the classic script
  * in a vm with baked SCORES/I18N_SCORE/LOCALE globals and a controllable clock. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { timelineFromInputs } from '../../../lib/score/timeline.mjs';
 import { detailFromInputs } from '../../../lib/detail/detail.mjs';
 import { es as esT, en as enT } from '../i18n/score-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'timeline.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('timeline.ts');
 const ASOF = '2026-09-29';
 
 const w = (date, type, dur, re = null) => ({ date, type, dur, hrAvg: null, re, kj: null });

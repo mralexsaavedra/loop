@@ -9,7 +9,7 @@
  * content; a workout's chip is read in words after the name ("Run RE 94 0:45"). Matching a programmed session
  * to a done workout is not done anywhere yet, so the plan row is only listed, never ticked.
  *
- * Classic script (is:inline, no module scope). The build bakes only the last few data days; the
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts). The build bakes only the last few data days; the
  * VIEWER's today is picked here from Date.now(), so consecutive builds stay byte-identical. When
  * today has nothing yet, the newest earlier day is shown under its date (no filler line); data older
  * than STALE_DAYS is greyed. When the viewer's clock is EARLIER than every
@@ -25,9 +25,25 @@
  * RE, parts) — under "Activities · <date>", never greyed, without the programmed row; every row opens
  * its sheet on that day. Nothing that day → "Nothing logged that day". Today renders as before.
  */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads (baked by the build or provided by an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+declare const DETAIL: PageGlobals['DETAIL'];
+declare const SCORES: PageGlobals['SCORES'];
+declare const I18N_SCORE: PageGlobals['I18N_SCORE'];
+declare const LOCALE: PageGlobals['LOCALE'];
+
+// SCORES.timeline's day shape (lib/score/timeline.mjs), also built from DETAIL by pastDay
+type TimelineItem = { modality: string; dur: number; re: number | null; sessions: number };
+type TimelineDay = { date: string; sleep: number | null; bed?: number | null; wake?: number | null; items: TimelineItem[] };
+// one DETAIL.sessions entry (date, modality, minutes, Relative Effort, merged parts)
+type DetailSession = { d: string; m: string; min: number; re?: number | null; n?: number };
+
 (function () {
   var host = document.getElementById('timeline');
   if (!host) return;
+  var hostEl: HTMLElement = host;
   var S = typeof SCORES === 'undefined' ? null : SCORES;
   var TL = S && S.timeline;
   var T = typeof I18N_SCORE === 'undefined' || !I18N_SCORE ? null : I18N_SCORE.timeline;
@@ -36,42 +52,42 @@
   var esc = HC.esc, format = HC.format, num = HC.num, isoDate = HC.isoDate, todayIso = HC.todayIso, daysOld = HC.daysOld;
   // a row opens the detail sheet on its day (client/detail.js): sleep -> the sleep view, a scored
   // modality -> its load view, anything else -> training time
-  function modDetail(mod) {
+  function modDetail(mod: string): string {
     return mod === 'gym' || mod === 'run' || mod === 'bike' ? 'load-' + mod : 'workouts';
   }
   // 24-unit line icons (stroke = currentColor), inline so the page stays self-contained
-  var ICON = {
+  var ICON: Record<string, string> = {
     sleep: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
     gym: '<path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/>',
     run: '<circle cx="14" cy="4.5" r="1.8"/><path d="M8 21l3-6 3 2v5M6 12l3-4h4l3 4 3 1M11 15l-1-4"/>',
     bike: '<circle cx="6" cy="16" r="3.5"/><circle cx="18" cy="16" r="3.5"/><path d="M6 16l4-7h5l3 7M10 9l2 7h-6M14 6h3"/>',
     other: '<path d="M3 12h4l2-6 4 12 2-6h6"/>',
   };
-  function icon(key) {
+  function icon(key: string): string {
     return '<svg class="tl-ico" viewBox="0 0 24 24" aria-hidden="true">' + (ICON[key] || ICON.other) + '</svg>';
   }
   // A row is a list item holding the opener (<li><div role="button">: a list keeps only <li> children), named
   // by its own content (WCAG 2.5.3 Label in Name: what it shows is what it is called). sr: the chip read in
   // words after the name (a workout's "RE 94" or its duration): the chip's bare number is then hidden from the
   // name, so it reads "Run RE 94 0:45" in the old label's order.
-  function row(cls, link, ico, chip, name, side, sideCls, sr) {
+  function row(cls: string, link: string, ico: string, chip: string, name: string, side: string[], sideCls?: string, sr?: string): string {
     return '<li><div class="tl-row ' + cls + '"' + link + '><span class="tl-chip"' + (sr ? ' aria-hidden="true"' : '') + '>' + icon(ico) + '<b>' + esc(chip) + '</b></span>' +
       '<span class="tl-name">' + esc(name) + '</span>' + (sr ? '<span class="sr-only">' + esc(sr) + '</span>' : '') +
-      (side && side.length ? '<span class="tl-side' + (sideCls ? ' ' + sideCls : '') + '">' + side.map(function (x) { return '<span>' + esc(x) + '</span>'; }).join('') + '</span>' : '') +
+      (side && side.length ? '<span class="tl-side' + (sideCls ? ' ' + sideCls : '') + '">' + side.map(function (x: string) { return '<span>' + esc(x) + '</span>'; }).join('') + '</span>' : '') +
       '</div></li>';
   }
   // decimal hours (sleep-daily.csv bed / wake) -> "23:07"; past-midnight values wrap
-  function clock(h) {
+  function clock(h: unknown): string | null {
     if (typeof h !== 'number' || !isFinite(h)) return null;
     var m = Math.round((((h % 24) + 24) % 24) * 60) % 1440;
     var H = Math.floor(m / 60), M = m % 60;
     return (H < 10 ? '0' : '') + H + ':' + (M < 10 ? '0' : '') + M;
   }
-  function card(inner, stale, cls) {
+  function card(inner: string, stale: boolean, cls?: string): string {
     return '<div class="sc-card tl' + (stale ? ' sc-stale' : cls || '') + '" role="group" aria-label="' + esc(T.ariaLabel) + '">' + inner + '</div>';
   }
   // today's programmed session (client/training-today.js), only on the viewer's today
-  function programRow(today) {
+  function programRow(today: string): string {
     var P = typeof window !== 'undefined' && window.HCProgram ? window.HCProgram : null;
     if (!P || P.date !== today) return '';
     var kind = String(P.kind || 'gym').replace(/[^a-z]/g, '');
@@ -81,7 +97,7 @@
   }
 
   // DETAIL dense series value on `iso` ({start, v}: one slot per day), else null
-  function at(m, arr, iso) {
+  function at(m: { start?: unknown } | null | undefined, arr: ArrayLike<unknown> | null | undefined, iso: string): number | null {
     if (!m || !isoDate(m.start) || !arr) return null;
     var i = Math.round((Date.parse(iso + 'T00:00:00Z') - Date.parse(m.start + 'T00:00:00Z')) / HC.MS_PER_DAY);
     var v = i >= 0 && i < arr.length ? arr[i] : null;
@@ -89,19 +105,19 @@
   }
   // a past day in SCORES.timeline's day shape, from DETAIL (null when nothing was logged that day)
   var MODS = ['gym', 'run', 'bike', 'other'];
-  function pastDay(iso) {
+  function pastDay(iso: string): TimelineDay | null {
     var X = typeof DETAIL !== 'undefined' && DETAIL ? DETAIL : {};
     var sl = X.metrics && X.metrics.sleep;
     var hours = at(sl, sl && sl.v, iso);
-    var items = [];
-    (Array.isArray(X.sessions) ? X.sessions : []).forEach(function (x) {
+    var items: TimelineItem[] = [];
+    (Array.isArray(X.sessions) ? X.sessions : []).forEach(function (x: DetailSession | null) {
       if (x && x.d === iso && MODS.indexOf(x.m) !== -1) items.push({ modality: x.m, dur: x.min, re: x.re == null ? null : x.re, sessions: x.n || 1 });
     });
     items.sort(function (a, b) { return MODS.indexOf(a.modality) - MODS.indexOf(b.modality); });
     if (hours == null && !items.length) return null;
     return { date: iso, sleep: hours, bed: at(sl, sl && sl.bed, iso), wake: at(sl, sl && sl.wake, iso), items: items };
   }
-  function pastHtml(iso) {
+  function pastHtml(iso: string): string {
     var day = pastDay(iso);
     var title = format(T.pastHeading, { date: HC.fmtDate(iso) });
     var note = !!(day && day.items.length && T.note);
@@ -112,18 +128,18 @@
     return card(out.join(''), false);
   }
   // the night + the workouts of one day (SCORES.timeline day shape), each opening its sheet on that day
-  function dayRows(day) {
-    var list = [];
+  function dayRows(day: TimelineDay): string[] {
+    var list: string[] = [];
     var sleepLink = HC.detailAttrs('sleep', day.date);
-    var times = [clock(day.bed), clock(day.wake)].filter(function (x) { return x; });
+    var times = [clock(day.bed), clock(day.wake)].filter(function (x): x is string { return !!x; });
     list.push(day.sleep != null
       ? row('tl-sleep', sleepLink, 'sleep', format(T.sleepVal, { hours: HC.hours(day.sleep) }), T.sleep, times.length === 2 ? times : [], 'tl-times')
       : row('tl-sleep tl-none', sleepLink, 'sleep', '—', T.noSleep, []));
-    day.items.forEach(function (it) {
+    day.items.forEach(function (it: TimelineItem) {
       // the chip carries the score (RE) when the source recorded one, the duration (h:mm) moves to the right
       var mins = HC.duration(it.dur);
       var hasRe = it.re != null;
-      var side = hasRe ? [mins] : [];
+      var side: string[] = hasRe ? [mins] : [];
       if (it.sessions > 1) side.push(format(T.parts, { n: it.sessions }));
       var mod = String(it.modality).replace(/[^a-z]/g, '');
       var name = T.modalities[mod] || mod;
@@ -133,12 +149,12 @@
     return list;
   }
 
-  function html() {
+  function html(): string {
     var past = DAY && typeof DAY.sel === 'function' ? DAY.sel() : null;
     if (past) return pastHtml(past);
     var today = todayIso();
-    var day = null, newest = null;
-    (TL.days || []).forEach(function (d) {
+    var day = null as TimelineDay | null, newest = null as TimelineDay | null;
+    (TL.days || []).forEach(function (d: TimelineDay) {
       if (!isoDate(d.date)) return;
       if (!newest || d.date > newest.date) newest = d;
       if (d.date <= today && (!day || d.date > day.date)) day = d;
@@ -151,7 +167,7 @@
     var isToday = !day || day.date === today;
     // the same-day merge note: behind the header's ⓘ (client/health.js toggles [data-hs-info]), only
     // when the day lists workouts
-    var title = isToday ? T.heading : format(T.dateHeading, { date: HC.fmtDate(day.date) });
+    var title = isToday ? T.heading : format(T.dateHeading, { date: HC.fmtDate(day!.date) });
     var note = !!(day && day.items.length && T.note);
     var out = ['<div class="sc-head"><h3>' + esc(title) + '</h3>' + (note ? HC.infoBtn('tl-info', format(T.infoLbl || '{section}', { section: title })) : '') + '</div>' +
       (note ? '<div class="hs-info" id="tl-info" hidden><p>' + esc(T.note) + '</p></div>' : '')];
@@ -169,9 +185,9 @@
   function paint() {
     try {
       if (typeof LOCALE === 'undefined') throw new Error('LOCALE is not baked');
-      host.innerHTML = html();
+      hostEl.innerHTML = html();
     } catch (e) {
-      host.innerHTML = '<div class="sc-card sc-card-error">' + esc((I18N_SCORE.recovery && I18N_SCORE.recovery.cardError) || '') + '</div>';
+      hostEl.innerHTML = '<div class="sc-card sc-card-error">' + esc((I18N_SCORE.recovery && I18N_SCORE.recovery.cardError) || '') + '</div>';
     }
   }
   paint();

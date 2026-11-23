@@ -5,7 +5,7 @@
  * the detail sheet (client/detail.js: same modal, focus handling and deep link #profile). Bakes PROFILE
  * (lib/profile/read.mjs loadProfile -> profile.mjs buildProfile) with `photo` reduced to a flag,
  * since the data URI already sits in the <img> once, I18N_PROFILE and I18N_ONB (the in-page onboarding,
- * client/onboarding.js). With initials, the button's name starts with them ("SS, open profile": WCAG 2.5.3
+ * client/onboarding.ts). With initials, the button's name starts with them ("SS, open profile": WCAG 2.5.3
  * Label in Name, the visible text is part of the accessible name).
  */
 import { jsonForScript } from '../../../lib/serialize.mjs';

@@ -27,7 +27,7 @@ The single-file build carries two training data sets, same single-source pattern
 | --- | --- | --- | --- |
 | Programmed sessions | `lib/training/program.mjs` | page-level JSON global | `web/src/tabs/Hoy.astro`, `client/training-today.js` |
 | Executed-workout aggregation | `lib/training/dashboard.mjs` (pure `dashboardFrom(inputs)`) | `DASH` | `web/src/tabs/Entrenos.astro`, `client/training-dash.ts` |
-| Activity card | `lib/training/activity.mjs` (pure `activityFrom(inputs)`) | `ACTIVITY` + `I18N_ACTIVITY` | `client/training-activity.js` |
+| Activity card | `lib/training/activity.mjs` (pure `activityFrom(inputs)`) | `ACTIVITY` + `I18N_ACTIVITY` | `client/training-activity.ts` |
 
 - Executed workouts come from `lib/extract/read.mjs` `readExtract`'s `trainingRows`, the build's one
   `workouts.csv` read; `lib/training/read.mjs` holds the training file reads `readExtract` calls.
@@ -43,7 +43,7 @@ Hosts live in `web/src/tabs/TrainingDetail.astro` (hosts only) and `Entrenos.ast
 | --- | --- | --- | --- | --- |
 | 1 | Title + ⓘ | — | `#tr-intro` | — |
 | 2 | Load summary | `load` | `#score-load` | `score.js` `loadHtml` |
-| 3 | Activity card | `calendar` | `#train-activity` | `training-activity.js` |
+| 3 | Activity card | `calendar` | `#train-activity` | `training-activity.ts` |
 | 4 | Running, cycling, load vs recovery | `sessions` | `#health-train` | `health.js` |
 | 5 | Intensity (HR) | `dash` | `#train-dash` | `training-dash.ts` |
 
@@ -93,7 +93,7 @@ calendar.
 
 - Source: `#train-activity`, `lib/training/activity.mjs` → `ACTIVITY`, read by the pure
   `activityFrom(inputs)` over the same `readExtract` inputs, baked in TrainingDetail with `I18N_ACTIVITY`;
-  `client/training-activity.js` renders it.
+  `client/training-activity.ts` renders it.
 - Header: "ACTIVITY" with an ⓘ (`#act-info`): how each number is counted, the distinct-days / duration
   note, the Watch-label caveat.
 - Body, top to bottom:
@@ -237,7 +237,7 @@ What it shows: the programmed session for today, as a row of Home's "Today's act
 
 - `client/training-today.js` renders the session into `#train-today` inside the `hoy` section
   (`tabs/Hoy.astro`, a hidden source: `.hoy-src`).
-- It sets `window.HCProgram = {date, kind, focus}` for `client/timeline.js` (the row) and registers the
+- It sets `window.HCProgram = {date, kind, focus}` for `client/timeline.ts` (the row) and registers the
   `hoy-session` detail view (the same markup in the sheet; deep link `#hoy-session`, `VIEW_TAB` → home).
 - `page.hideTabs: ["hoy"]` hides the section; then neither the row nor the view exist.
 - Source: `loop-data/cache/training.json` (GITIGNORED, personal, and OPTIONAL — see below): the

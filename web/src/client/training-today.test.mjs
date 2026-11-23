@@ -104,7 +104,7 @@ test('no host element: renders nothing and does not throw', () => {
   assert.equal(render(EXAMPLE, '2026-01-05', { host: false }), null);
 });
 
-/* Inicio "Actividades de hoy": the programmed session is a row there (client/timeline.js reads
+/* Inicio "Actividades de hoy": the programmed session is a row there (client/timeline.ts reads
  * window.HCProgram) and its blocks open as a registered view (window.HCViews['hoy-session']) */
 test('a programmed day exposes {date, kind, focus} for the activities card and registers the session view', () => {
   const win = {};

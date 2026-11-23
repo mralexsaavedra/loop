@@ -221,7 +221,7 @@
   background: rgba(var(--strain-rgb), 0.8);
 }
 
-/* wide screens (>= 900 px): client/training-activity.js renders the calendar as an HTML grid — 7 equal
+/* wide screens (>= 900 px): client/training-activity.ts renders the calendar as an HTML grid — 7 equal
  * columns, at most 640 px wide and centred in the card, tiles capped at 48 px tall so the month stays a
  * compact block (~250 px) instead of towering; the phone keeps the fixed-size SVG above */
 @media (min-width: 900px) {
@@ -273,7 +273,7 @@
   background: var(--card-bg);
 }
 
-/* Entreno Activity card (client/training-activity.js): total + W / M / 6M switch, stats, the modality
+/* Entreno Activity card (client/training-activity.ts): total + W / M / 6M switch, stats, the modality
  * split bar, the compact calendar */
 .act-card {
   padding: var(--card-pad);

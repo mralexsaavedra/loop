@@ -1189,7 +1189,7 @@ details.rec-raw[open] > summary::after {
   background: var(--down);
 }
 
-/* Inicio "My dashboard" (client/home-dash.js): Title Case heading + "CUSTOMIZE ✎" on one line, then
+/* Inicio "My dashboard" (client/home-dash.ts): Title Case heading + "CUSTOMIZE ✎" on one line, then
    single-row metric cards — icon · UPPERCASE name · value (D-DIN) + arrow, the 30-day baseline under it */
 .home-hrow {
   display: flex;
@@ -1239,7 +1239,7 @@ details.rec-raw[open] > summary::after {
 .home-off {
   display: none !important;
 }
-/* Mi panel's stress monitor card (client/home-dash.js stressCard): a caps title + chevron, the latest
+/* Mi panel's stress monitor card (client/home-dash.ts stressCard): a caps title + chevron, the latest
    hour and its band word + value, then the hourly chart (HC.stressChart, the .ds-* look of detail.css) */
 .db-card {
   list-style: none;

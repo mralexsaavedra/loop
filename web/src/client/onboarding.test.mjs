@@ -1,19 +1,17 @@
-/* Tests for the in-page onboarding (web/src/client/onboarding.js): runs the classic script in a vm with
+/* Tests for the in-page onboarding (web/src/client/onboarding.ts): runs the classic script in a vm with
  * HC_ENERGY emitted from lib/nutrition/energy.mjs (the page's own global), I18N_ONB, a stub HCFood.api /
  * HCSettings / HCDetail and a fixed clock, then drives the steps through its delegated listeners. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { energySource } from '../../../lib/nutrition/client.mjs';
 import { computeTargets, SPORTS } from '../../../lib/nutrition/energy.mjs';
 import { es as esO, en as enO } from '../i18n/onboarding-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'onboarding.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('onboarding.ts');
 
 function setup({ locale = 'en', profile = null, settings = { goal: null }, protocol = 'http:', later = false, putFails = false, hash = '', statusNode = null } = {}) {
   const listeners = {};

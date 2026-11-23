@@ -38,7 +38,7 @@ declare const HC: PageGlobals['HC'];
 declare const I18N_PROFILE: PageGlobals['I18N_PROFILE'];
 declare const LOCALE: PageGlobals['LOCALE'];
 declare const PROFILE: PageGlobals['PROFILE'];
-// the onboarding copy (baked for client/onboarding.js; not in PageGlobals): only its `edit` label is read here
+// the onboarding copy (baked for client/onboarding.ts; not in PageGlobals): only its `edit` label is read here
 declare const I18N_ONB: { edit: string } | undefined;
 
 /** A Strava bike or shoe (PROFILE.bikes / PROFILE.shoes, lib/profile/profile.mjs). */
@@ -403,7 +403,7 @@ type SettingsState = { pending?: boolean; last?: SaveStatus | null } | null | un
     }).catch(function () { /* the status line says why */ });
   }
 
-  // the in-page onboarding's entry (client/onboarding.js registers the view; LAN page only)
+  // the in-page onboarding's entry (client/onboarding.ts registers the view; LAN page only)
   // the in-page onboarding's opener: a short chip at the end of the header row (LAN page only: it saves to
   // the ingest service)
   function onbHtml() {

@@ -16,6 +16,12 @@ export type PageGlobals = {
   I18N_PROFILE: any;
   LOCALE: any;
   PROFILE: any;
+  ACTIVITY: any;
+  HC_FMT: any;
+  HC_ENERGY: any;
+  I18N_ACTIVITY: any;
+  I18N_ONB: any;
+  HCProgram: any;
 };
 
 // the window.* namespaces other scripts hand this one (and the one it hands back)
@@ -32,6 +38,12 @@ declare global {
     HCProfile?: unknown;
     HCProgress?: any;
     HCSettings?: any;
+    HCActivity?: unknown;
+    HCDash?: unknown;
+    HCDay?: any;
+    HCFood?: any;
+    HCOnboarding?: unknown;
+    HCProgram?: any;
   }
   var HCDay: any;
 }

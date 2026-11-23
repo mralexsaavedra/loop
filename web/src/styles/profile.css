@@ -346,7 +346,7 @@
   text-align: right;
 }
 
-/* The in-page onboarding (client/onboarding.js): full screen in the detail sheet (a `bare` view, own header),
+/* The in-page onboarding (client/onboarding.ts): full screen in the detail sheet (a `bare` view, own header),
  * one question per screen — the back arrow + segmented progress, a large question, option cards (the .seg
  * chip radios / checkboxes stretched into cards: outlined, a check on the picked one), large centred numbers,
  * (.onb .onb-big out-specifies base.css's 16px phone input rule), the CTA pinned at the bottom, the summary's average inside a ring (.kcal) and its day rows (.db-row). */
