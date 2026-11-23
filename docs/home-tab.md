@@ -46,9 +46,9 @@ Order, top to bottom (`web/src/tabs/Home.astro`, which also renders `components/
 | 4c | Nutrition score | `#home-nscore` | `nutri-score.js` |
 | 4d | Today's activities | `#timeline` | `timeline.js` |
 | 5 | Today you eat | `EatCard.astro` | `nutri-day.js` |
-| 6 | Tonight | `#home-tonight` | `home-week.js` |
+| 6 | Tonight | `#home-tonight` | `home-week.ts` |
 | 7 | My journal | `#my-journal` | `journal.js` |
-| 8 | My plan | `#my-plan` | `home-week.js` |
+| 8 | My plan | `#my-plan` | `home-week.ts` |
 | 9 | My dashboard | `#my-dash` | `home-dash.js` |
 | 9a | "Customize Home ✎" | `#home-cust` | `home-order.js` (moves blocks 4–9 right before it) |
 | 10 | The programmed session's hidden source section | `hoy` | — |
@@ -59,7 +59,7 @@ Order, top to bottom (`web/src/tabs/Home.astro`, which also renders `components/
   the built (default) order. The dials, the tiles and the hidden Hoy source never move.
 - Little text on the tab: each block's explanation lives in the detail sheet it opens.
 - The full health monitor list is NOT on Home: it leads Salud ([below](#health-monitor-on-salud)).
-- `client/home-week.js` and `client/home-dash.js` load in `layouts/Plan.astro`'s end-of-body script
+- `client/home-week.ts` and `client/home-dash.js` load in `layouts/Plan.astro`'s end-of-body script
   list (after `HC`, the baked globals and `adherence.js`, right before `deepdive.js` / `detail.js`).
   They render at once and register their sheets (`tonight`, `dash-edit`) before `detail.js` runs;
   `#tonight` / `#dash-edit` deep-link to them (`NAV.viewTab` → `home`). Without their hosts they
@@ -329,7 +329,7 @@ What it shows: today's day type, goal and target (`components/EatCard.astro`, `#
 ## Tonight
 
 What it shows: the recommended bedtime and the usual wake time (`#home-tonight`,
-`lib/score/tonight.mjs` baked as `SCORES.tonight`, `client/home-week.js`).
+`lib/score/tonight.mjs` baked as `SCORES.tonight`, `client/home-week.ts`).
 
 - Bedtime (moon icon) and usual wake (alarm icon) joined by a dashed line; D-DIN clocks
   (`--fs-num-card`, 28 px), uppercase captions.
@@ -357,7 +357,7 @@ What it shows: the last 7 days' journaling (`#my-journal`, `client/journal.js`, 
 
 ## My plan
 
-What it shows: the viewer's weekly goals (`#my-plan`, `client/home-week.js`,
+What it shows: the viewer's weekly goals (`#my-plan`, `client/home-week.ts`,
 `window.HCWeekPlan.weekGoals`).
 
 - One collapsible `<details>` card, flat (no border, no open-state ring): "Weekly plan · N days left ·

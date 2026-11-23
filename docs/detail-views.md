@@ -143,7 +143,7 @@ has no such key. None has a host tab except
 | "My day" outlook bar (advice) | recovery |
 | activity rows | that day (sleep, or `load-<m>` / `workouts` for "other") |
 | programmed-session row | the registered `hoy-session` view (client/training-today.js) |
-| "Tonight" card | the registered `tonight` view (the bedtime + a button to the sleep sheet, the rule behind its ⓘ, client/home-week.js) |
+| "Tonight" card | the registered `tonight` view (the bedtime + a button to the sleep sheet, the rule behind its ⓘ, client/home-week.ts) |
 | "My plan" rows | sleep / workouts |
 | each "My dashboard" row; "Customize" | its metric; the registered `dash-edit` view (client/home-dash.js; its buttons re-open the view through `HCDetail.open` with `focus` on the control just used) |
 | "Customize Home" | the registered `home-edit` view (client/home-order.js; the same re-open with `focus` as `dash-edit`) |
@@ -154,7 +154,7 @@ has no such key. None has a host tab except
 | Activity card's total and calendar | workouts (a day cell → that day; its W / M / 6M switch is outside every opener) |
 | run / ride rows | that day in `load-run` / `load-bike` (the whole list row is the button) |
 
-- client/home-week.js, client/home-dash.js and client/home-order.js run in the end-of-body list BEFORE `detail.js`, so the views
+- client/home-week.ts, client/home-dash.js and client/home-order.js run in the end-of-body list BEFORE `detail.js`, so the views
   exist when it reads the hash. `#tonight` / `#dash-edit` / `#home-edit` deep-link like `#hoy-session` (all `VIEW_TAB` →
   `home` in lib/nav/tabs.mjs, baked as `NAV.viewTab`, so core.js shows Home underneath instead of
   rewriting a hash it does not know).

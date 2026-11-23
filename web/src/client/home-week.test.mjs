@@ -1,18 +1,16 @@
-/* Tests for Inicio's "Tonight" + "My plan" (web/src/client/home-week.js): the weekly goal computations
+/* Tests for Inicio's "Tonight" + "My plan" (web/src/client/home-week.ts): the weekly goal computations
  * (week boundaries, programmed vs usual week, stale / missing data → row hidden, % = mean completion)
  * and the two renderers, run as the classic script in a vm with a fixed clock. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import fs from 'node:fs';
-import path from 'node:path';
-import { fileURLToPath } from 'node:url';
 import { es as esT, en as enT } from '../i18n/score-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 import { addDays } from '../../../lib/date.mjs';
 
-const here = path.dirname(fileURLToPath(import.meta.url));
-const source = fs.readFileSync(path.join(here, 'home-week.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs bundles home-week.ts into one IIFE)
+const source = clientScriptSource('home-week.ts');
 
 // 2026-09-30 is a Wednesday: the week is Mon 28 Sep – Sun 4 Oct, 3 days elapsed, 4 left
 const WED = '2026-09-30';

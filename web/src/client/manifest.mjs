@@ -90,7 +90,7 @@ export const CLIENT_SCRIPTS = [
   { file: 'onboarding.js', provides: ['HCOnboarding'], requires: ['HC', 'HCViews', 'HC_ENERGY', 'I18N_ONB', 'PROFILE'] },
   { file: 'nav-actions.js', provides: ['HCActions'], requires: [] },
   {
-    file: 'home-week.js',
+    file: 'home-week.ts',
     provides: ['HCWeekPlan'],
     requires: ['DETAIL', 'HC', 'HCAdherence', 'HCDay', 'HCViews', 'I18N_SCORE', 'SCORES', 'TRAINING'],
   },

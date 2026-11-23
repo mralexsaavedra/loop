@@ -230,12 +230,12 @@ test('example build: Inicio reads today top to bottom — dials, monitor tiles, 
   assert.match(html, /"timeline":\{"asOf":"\d{4}-\d{2}-\d{2}","days":\[\{"date"/, 'demo data fills the timeline');
   assert.match(html, /getElementById\(["']timeline["']\)/, 'timeline.js is inlined');
   assert.match(html, /getElementById\(["']home-tiles["']\)/, 'monitor.js writes the tiles');
-  // Tonight + My plan ship hidden; client/home-week.js (an end-of-body script) reveals them
+  // Tonight + My plan ship hidden; client/home-week.ts (an end-of-body script) reveals them
   assert.match(home, /<div id="home-tonight" hidden><\/div>/);
   assert.match(home, /<div id="my-journal" hidden><\/div>/, 'My journal ships hidden (client/journal.js)');
   assert.match(home, /<section class="home-sec" id="my-plan" aria-labelledby="my-plan-h" hidden>\s*<h2 class="hs-lbl home-h" id="my-plan-h">My plan<\/h2>/);
   assert.doesNotMatch(home, /<script/, 'no script inside the Inicio panel');
-  // home-week.js + home-dash.js run in the end-of-body list, after their globals and before
+  // home-week.ts + home-dash.js run in the end-of-body list, after their globals and before
   // deepdive.js / detail.js, so their views (tonight, dash-edit) exist when detail.js runs
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((x) => x[1]);
   const idx = (re) => scripts.findIndex((x) => re.test(x));

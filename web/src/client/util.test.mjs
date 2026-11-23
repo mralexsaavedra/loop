@@ -437,7 +437,8 @@ function registerViewArgs(src) {
   return [...stripComments(src).matchAll(/\bregisterView\s*\(\s*([^,)]*)/g)].map((m) => m[1].trim());
 }
 
-/** Every client script under web/src/client, subdirectories included (tests and util.js excluded),
+/** Every client script (classic *.js and module *.ts) under web/src/client, subdirectories included (tests, type
+ * declarations and util.js excluded),
  * as paths relative to it. */
 function clientScripts() {
   const dir = path.dirname(fileURLToPath(import.meta.url));
@@ -446,7 +447,7 @@ function clientScripts() {
     return e.isDirectory() ? walk(p) : [p];
   });
   return walk(dir).map((p) => path.relative(dir, p).split(path.sep).join('/'))
-    .filter((f) => f.endsWith('.js') && !/\.test\.m?js$/.test(f) && f !== 'util.js').sort()
+    .filter((f) => (f.endsWith('.js') || (f.endsWith('.ts') && !f.endsWith('.d.ts'))) && !/\.test\.m?js$/.test(f) && f !== 'util.js').sort()
     .map((f) => ({ f, src: fs.readFileSync(path.join(dir, f), 'utf8') }));
 }
 

@@ -5,6 +5,22 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { slimHtmlStyles } from './src/slim-script.mjs';
 import { addCsp, delegateLegacyHandlers, inlineHandlers } from './src/csp.mjs';
+import { clientScriptSource, isModuleScript } from './src/client-bundle.mjs';
+import { CLIENT_SCRIPTS } from './src/client/manifest.mjs';
+
+// `virtual:client-modules`: the module client scripts (web/src/client/*.ts) of the manifest, each BUNDLED into one
+// classic IIFE by web/src/client-bundle.mjs (types stripped, imports inlined), keyed by file name. layouts/Plan.astro
+// inlines them like the classic *.js scripts, so the page stays one file and the CSP hashes every script.
+const CLIENT_MODULES_ID = 'virtual:client-modules';
+const clientModules = {
+  name: 'client-modules',
+  resolveId: (id) => (id === CLIENT_MODULES_ID ? '\0' + CLIENT_MODULES_ID : null),
+  load(id) {
+    if (id !== '\0' + CLIENT_MODULES_ID) return null;
+    const entries = CLIENT_SCRIPTS.filter((e) => isModuleScript(e.file)).map((e) => [e.file, clientScriptSource(e.file)]);
+    return 'export default ' + JSON.stringify(Object.fromEntries(entries)) + ';';
+  },
+};
 
 // Post-processes every built page once Astro wrote it, so it sees the final markup whatever Vite /
 // Astro did: (1) slims the inlined CSS (comments + whitespace only, see slimStyle); (2) turns the
@@ -52,6 +68,7 @@ export default defineConfig({
   devToolbar: { enabled: false },
   integrations: [postBuild],
   vite: {
+    plugins: [clientModules],
     server: {
       fs: {
         // allow Vite dev-server file access outside web/ (e.g. ../lib,

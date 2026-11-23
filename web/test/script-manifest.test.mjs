@@ -1,6 +1,7 @@
 /* The client script manifest (web/src/client/manifest.mjs) is the ONE list of the page's classic
  * scripts and their order (layouts/Plan.astro renders from it). These checks keep it true:
- * - every web/src/client/*.js is listed exactly once, and the built page inlines them in that order;
+ * - every web/src/client/*.js (classic) and *.ts (module, bundled) is listed exactly once, and the built page
+ *   inlines them in that order;
  * - `provides` equals a static scan of the file (top-level declarations + `window.X =` writes);
  * - every `requires` is a bake or an EARLIER script's provide, every `probes` a LATER one's;
  * - a load-time trace (web/test/script-trace.mjs) finds no read the manifest does not declare. */
@@ -10,6 +11,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { CLIENT_SCRIPTS } from '../src/client/manifest.mjs';
+import { clientScriptSource } from '../src/client-bundle.mjs';
 import { slimScript } from '../src/slim-script.mjs';
 import { declaredGlobals, windowWrites, traceLoad } from './script-trace.mjs';
 
@@ -17,15 +19,16 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT = path.join(here, '..', 'src', 'client');
 const PAGE = path.join(here, '..', '.test-dist', 'en-example', 'index.html');
 const files = CLIENT_SCRIPTS.map((e) => e.file);
-const src = Object.fromEntries(files.map((f) => [f, fs.readFileSync(path.join(CLIENT, f), 'utf8')]));
+// the bytes the page inlines: a classic script as is, a module script bundled (web/src/client-bundle.mjs)
+const src = Object.fromEntries(files.map((f) => [f, clientScriptSource(f)]));
 const sorted = (a) => [...new Set(a)].sort();
 const inline = [...fs.readFileSync(PAGE, 'utf8').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
 const bakes = inline.slice(0, inline.length - files.length);
 const providerAt = new Map();
 CLIENT_SCRIPTS.forEach((e, i) => e.provides.forEach((n) => { if (!providerAt.has(n)) providerAt.set(n, i); }));
 
-test('manifest: every web/src/client/*.js is listed exactly once', () => {
-  const onDisk = fs.readdirSync(CLIENT).filter((f) => f.endsWith('.js')).sort();
+test('manifest: every web/src/client/*.js and *.ts (not *.d.ts) is listed exactly once', () => {
+  const onDisk = fs.readdirSync(CLIENT).filter((f) => f.endsWith('.js') || (f.endsWith('.ts') && !f.endsWith('.d.ts'))).sort();
   assert.deepEqual([...files].sort(), onDisk);
   assert.equal(new Set(files).size, files.length, 'no file listed twice');
 });

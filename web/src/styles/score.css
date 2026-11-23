@@ -930,7 +930,7 @@ details.rec-raw[open] > summary::after {
   color: var(--muted);
 }
 
-/* Inicio "Tonight" (client/home-week.js): recommended bedtime ↔ usual wake time joined by a dashed
+/* Inicio "Tonight" (client/home-week.ts): recommended bedtime ↔ usual wake time joined by a dashed
    line; D-DIN clocks, uppercase captions; the generic opener chevron sits in the header row */
 .tn-h {
   margin: 0 0 var(--sp-5);
@@ -1049,7 +1049,7 @@ details.rec-raw[open] > summary::after {
 .ns-now .en-num { color: var(--ink); }
 .en-num small { font-size: var(--fs-lg); }
 
-/* Inicio "My plan" (client/home-week.js): one collapsible weekly card — title + chevron, days left,
+/* Inicio "My plan" (client/home-week.ts): one collapsible weekly card — title + chevron, days left,
    "X % accomplished", a teal progress bar; expanded: the goal rows (label + basis, done/target, ▲▼,
    a small bar) */
 /* flat like the other cards: no border, no open-state ring (tablas.css styles bare details) */
