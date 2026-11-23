@@ -183,7 +183,7 @@ minification). `astro.config.mjs` exposes the result as the virtual module `virt
 `layouts/Plan.astro` inlines it at the module's place in the manifest, exactly like a classic script, so the page
 stays one file and the CSP hashes it like any other script. The tests run the same bytes
 (`clientScriptSource(file)`). The page globals a module reads are typed in `web/src/client/page-globals.d.ts`
-(`any` until each gets its own type). Modules so far: `home-week.ts`, `freshness.ts`.
+(`any` until each gets its own type). Modules so far: `home-week.ts`, `freshness.ts`, `nav-actions.ts`, `home-order.ts`, `training-dash.ts`, `energy.ts`, `shortcuts.ts`.
 
 ### Script order: one manifest
 
