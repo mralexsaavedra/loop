@@ -1,6 +1,6 @@
 /* Copy for the Nutrición day blocks — Resumen de hoy, Plan de hoy, Avituallamiento — and Inicio's
  * "today you eat" card. Server-rendered by web/src/tabs/Dia.astro (headings, control labels) and
- * baked as I18N_NUTRI for web/src/client/nutri-day.js. JSON-safe only: `{placeholder}` strings,
+ * baked as I18N_NUTRI for web/src/client/nutri-day.ts. JSON-safe only: `{placeholder}` strings,
  * substituted client-side; `...Html` entries are trusted, tracked, generic markup. Neutral Spanish. */
 export const es = {
   headings: { summary: 'Resumen de hoy', plan: 'Plan de hoy', fuel: 'Avituallamiento', progress: 'Progreso', adherence: 'Constancia', score: 'Puntuación' },

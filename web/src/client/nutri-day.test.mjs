@@ -1,4 +1,4 @@
-/* web/src/client/nutri-day.js — Nutrición Resumen de hoy / Plan de hoy / Avituallamiento + Inicio's
+/* web/src/client/nutri-day.ts — Nutrición Resumen de hoy / Plan de hoy / Avituallamiento + Inicio's
  * "today you eat" card. Runs the real classic script in node:vm against web/test/dom-stub.mjs with a
  * fixed clock and a NUTRI baked from the tracked example plan (lib/nutrition/today.mjs). */
 import { test } from 'node:test';
@@ -23,10 +23,12 @@ import { LINE, floorToStep, GRID_EPS } from '../../../lib/nutrition/amounts.mjs'
 import { MAIN_SLOTS } from '../../../lib/nutrition/slots.mjs';
 import { buildBasics } from '../../../lib/nutrition/basics.mjs';
 import { guideBudgets, exampleAmount, remaining, mealState, isCovered, dayRemaining, DAYCAP_CASES, roleOptions, GUIDE_CASES, GUIDE_GRID } from '../../../lib/nutrition/guide.mjs';
+import { clientScriptSource } from '../client-bundle.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.resolve(here, '..', '..', '..');
-const source = fs.readFileSync(path.join(here, 'nutri-day.js'), 'utf8');
+// a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
+const source = clientScriptSource('nutri-day.ts');
 const ING = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/nutrition/ingredients.json'), 'utf8')).ingredients;
 const PLAN = JSON.parse(fs.readFileSync(path.join(ROOT, 'data/nutrition/plan-data.example.json'), 'utf8'));
 const SUPPS = [
@@ -632,7 +634,7 @@ test('the page food log (window.foodTotals) fills the ring + rows first, labelle
   const miss = run({ hooks: { foodTotals: () => ({ ...food, missing: { protein: true, carbs: false, fat: true } }) } }).els['nutri-sum-info'].innerHTML;
   assert.ok(miss.includes(enN.target.loggedFoodMissing));
   // no entries today (null) or a throwing hook: the Apple Health intake as before (foodTotals already
-  // returns null for any day but today, so nutri-day.js does not re-check the date)
+  // returns null for any day but today, so nutri-day.ts does not re-check the date)
   for (const foodTotals of [() => null, () => { throw new Error('x'); }]) {
     const f = run({ intake, hooks: { foodTotals } });
     assert.match(f.els['nutri-target'].innerHTML, /aria-label="Logged today: 1,800 of 2,300 kcal"/);

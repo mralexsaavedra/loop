@@ -22,7 +22,7 @@ function fixedDate(iso) {
   };
 }
 
-// nutriTarget = today's target (client/nutri-day.js); with it the page also has HCNutri.targetFor
+// nutriTarget = today's target (client/nutri-day.ts); with it the page also has HCNutri.targetFor
 // (that date's target), here by default the same target unless the test passes its own.
 function run({ latest, today, locale = 'en', nutriTarget = null, targetFor, foodTotals = null, hcFood = null, nutriRefresh = null }) {
   const doc = new StubDocument();
@@ -272,7 +272,7 @@ test('no food API (HCFood absent or not ready): the Apple Health day as before',
   assert.match(html, /1,200<\/b>/);
 });
 
-/* The food API boot request (GET /api/food/products, client/food-log.js) decides which source the rings
+/* The food API boot request (GET /api/food/products, client/food-log.ts) decides which source the rings
  * use: while it is in flight they render nothing (never a flash of the Apple Health day), an answer
  * means the LAN path, a failure the Apple Health path; after INTAKE.bootGraceMs without an answer the
  * Apple Health path renders anyway and a late answer still switches to the food log. */

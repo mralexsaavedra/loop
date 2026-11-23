@@ -217,7 +217,7 @@ test('intake-templates.mjs (Mi día intake rings) has identical key trees in es/
   }
 });
 
-test('nutri-templates.mjs (Resumen de hoy / Plan de hoy / Avituallamiento) has identical key trees in es/en, every goal / day type / meal slot, and the placeholders nutri-day.js relies on', () => {
+test('nutri-templates.mjs (Resumen de hoy / Plan de hoy / Avituallamiento) has identical key trees in es/en, every goal / day type / meal slot, and the placeholders nutri-day.ts relies on', () => {
   assert.deepEqual(keyTree(esNutri), keyTree(enNutri));
   for (const [locale, dict] of [['es', esNutri], ['en', enNutri]]) {
     for (const [p, value] of leaves(dict)) {

@@ -1,6 +1,6 @@
 /* web/src/client/settings.ts — the server-side goal + target weight (LAN page). Runs the real food scripts (food-*.js)
  * (its API client: X-HC-Food, JSON, coarse codes) and settings.ts in node:vm with a stubbed fetch and a
- * stand-in for nutri-day.js's window.HCNutri; nothing real is requested. */
+ * stand-in for nutri-day.ts's window.HCNutri; nothing real is requested. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';

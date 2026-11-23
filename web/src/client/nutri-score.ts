@@ -1,7 +1,7 @@
 /* Nutrition score — a day's 0-100 adherence to the viewer's own targets. The math is
  * lib/nutrition/nutri-score.mjs itself: its clientSource() emits HC_NSCORE (inlined with HC_FMT before
  * util.js), so nothing here re-implements it; NSCORE_CASES test it. Module script (bundled into the page, docs/plan-page.md → Module scripts), after
- * nutri-day.js, adherence.ts and today-date.ts.
+ * nutri-day.ts, adherence.ts and today-date.ts.
  *
  * Inputs: the baked food log (INTAKE.log.days: the synced foodlog-daily.csv, the example's demo data)
  * with, on the LAN page, each day of Constancia's live summary (HCAdherence.state().days) in its place;

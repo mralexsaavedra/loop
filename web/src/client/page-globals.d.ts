@@ -49,6 +49,16 @@ export type PageGlobals = {
   NUTRI_ARC: any;
   TRAINING_META: any;
   nutriTarget: any;
+  HC_DAYTYPE: any;
+  HC_FUEL: any;
+  HC_GUIDE: any;
+  HC_SCALE: any;
+  intakeWaiting: any;
+  foodTotals: any;
+  intakeRefresh: any;
+  HCNutriScore: any;
+  HC_FOODLOG: any;
+  I18N_FOOD: any;
 };
 
 // the window.* namespaces other scripts hand this one (and the one it hands back)

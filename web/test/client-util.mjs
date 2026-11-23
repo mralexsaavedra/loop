@@ -31,11 +31,11 @@ export function loadUtil(ctx) {
   return ctx;
 }
 
-/** The food log's four scripts in their page order (layouts/Plan.astro): food-core.js (the
+/** The food log's four scripts in their page order (layouts/Plan.astro): food-core.ts (the
  * formula from HC_FOODLOG, the API client, shared state → window.HCFoodInternal), then the add sheet, Mis productos
- * / Mis recetas, and food-log.js (Registrar, events, boot, window.HCFood). FOOD_SOURCE = the four
+ * / Mis recetas, and food-log.ts (Registrar, events, boot, window.HCFood). FOOD_SOURCE = the four
  * joined: each is its own IIFE, so running the joined text equals running them one after another. */
-export const FOOD_SCRIPTS = ['food-core.js', 'food-sheet.ts', 'food-catalog.ts', 'food-log.js'];
+export const FOOD_SCRIPTS = ['food-core.ts', 'food-sheet.ts', 'food-catalog.ts', 'food-log.ts'];
 // the bytes the page inlines: a classic script as is, a module script (*.ts) bundled (web/src/client-bundle.mjs).
 // Joined, a module's leading "use strict" is a plain expression unless it comes first: the page runs each script
 // on its own (strict for a module), which the browser e2e cover.

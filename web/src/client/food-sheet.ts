@@ -1,8 +1,8 @@
 /* Nutrición food log — the add sheet (window.HCViews['food-add'], rendered by detail.ts): meal group,
  * Mis productos (products + basics search) / Mis recetas / Rápido tabs, the live preview and the save
- * (request id kept across ambiguous retries). Module script (bundled into the page, docs/plan-page.md → Module scripts), after food-core.js
- * (window.HCFoodInternal) and before food-log.js, which registers the view at boot and provides
- * renderLog / loadDay. See food-core.js for the whole food log. */
+ * (request id kept across ambiguous retries). Module script (bundled into the page, docs/plan-page.md → Module scripts), after food-core.ts
+ * (window.HCFoodInternal) and before food-log.ts, which registers the view at boot and provides
+ * renderLog / loadDay. See food-core.ts for the whole food log. */
 import type { PageGlobals } from './page-globals';
 
 // the page globals this script reads by bare name (baked by components/Bake.astro or an earlier script; manifest.mjs)

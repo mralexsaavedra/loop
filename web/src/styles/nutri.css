@@ -321,7 +321,7 @@ details.sec-fold.nutri-fold {
   color: var(--faint);
 }
 /* the select asks for the width of its chosen food's name (--pick = its length in characters, set by
-   nutri-day.js; ~0.58em a character, a slight over-estimate for the UI font) plus its 52px padding,
+   nutri-day.ts; ~0.58em a character, a slight over-estimate for the UI font) plus its 52px padding,
    never more than the row; when that and the amount do not fit one row the amount wraps under it,
    right-aligned, so the name is never cut by the amount beside it */
 .gd-ex {

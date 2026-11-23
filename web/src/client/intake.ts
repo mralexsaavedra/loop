@@ -1,5 +1,5 @@
 /* Nutrición intake rings — the most recent logged day's intake (INTAKE.latest, from
- * dietary-daily.csv) against THAT day's target (window.HCNutri.targetFor(date), client/nutri-day.js:
+ * dietary-daily.csv) against THAT day's target (window.HCNutri.targetFor(date), client/nutri-day.ts:
  * the day's own detected day type x the current goal, its recorded ride minutes; today = Resumen de
  * hoy's nutriTarget; on bike days the MEALS target, with the ride fuel shown as its own line). A past
  * day whose type cannot be determined (targetFor -> null) renders NO rings: there is no honest target
@@ -11,14 +11,14 @@
  * Data honesty: a ring fills ONLY from logged intake. No fresh intake (never logged, or nothing in
  * the last INTAKE.freshDays days) -> the block renders NOTHING (host hidden, no help text); a macro missing on the logged day -> an empty ring with a dash, never a ring drawn
  * from the target. Intake logged TODAY is shown by Resumen de hoy's kcal dial + macro bars
- * (client/nutri-day.js), so with Nutrición on the page the rings then step aside (host hidden). nutri-day.js calls window.intakeRefresh() after every goal / day type / ride change.
+ * (client/nutri-day.ts), so with Nutrición on the page the rings then step aside (host hidden). nutri-day.ts calls window.intakeRefresh() after every goal / day type / ride change.
  * On the LAN page (the food API answered: HCFood.ready(), client/food-*.js) the page's food log is the ONE
  * source: today's log (window.foodTotals, labelled "Logged today") when it has entries, else the most
  * recent food-log day in the same window (HCFood.recentDay(INTAKE.freshDays), labelled by its date),
  * else nothing — never the Apple Health day there (nor while today's log is not loaded: HCFood.groupTotals()
  * null). While the food API boot request is in flight (HCFood.pending()) the rings render nothing; past
  * INTAKE.bootGraceMs without an answer the Apple Health day renders, and a late answer still switches.
- * That wait is shared (window.intakeWaiting) with Resumen de hoy's dial + bars (nutri-day.js), which
+ * That wait is shared (window.intakeWaiting) with Resumen de hoy's dial + bars (nutri-day.ts), which
  * this script re-renders at load and at the grace's end (HCNutri.refresh) — one timer for both. */
 import type { PageGlobals } from './page-globals';
 
@@ -68,7 +68,7 @@ declare const INTAKE: PageGlobals['INTAKE'];
     var L = INTAKE.latest;
     var F = window.HCFood, lan = lanReady();
     // the food API boot request is still in flight: no source yet, so no rings (never a flash of the
-    // Apple Health day) — until it answers / fails (food-log.js re-renders us) or the grace period ends
+    // Apple Health day) — until it answers / fails (food-log.ts re-renders us) or the grace period ends
     if (waiting()) {
       host.innerHTML = '';
       host.hidden = true;
@@ -103,7 +103,7 @@ declare const INTAKE: PageGlobals['INTAKE'];
       return;
     }
     var t = INTAKE.target.train, lbl = T.targetLbl.train, fuelK = 0;
-    // Nutrición's target for THAT day (client/nutri-day.js HCNutri.targetFor: the logged day's own
+    // Nutrición's target for THAT day (client/nutri-day.ts HCNutri.targetFor: the logged day's own
     // detected day type x the current goal); else the plan total
     var N = window.HCNutri;
     if (N && typeof N.targetFor === 'function') {
@@ -132,7 +132,7 @@ declare const INTAKE: PageGlobals['INTAKE'];
       '</div>';
   }
 
-  // HCFood.pending(): the food API boot request has not answered yet (client/food-log.js)
+  // HCFood.pending(): the food API boot request has not answered yet (client/food-log.ts)
   function booting() {
     var F = window.HCFood;
     try { return !!(F && typeof F.pending === 'function' && F.pending()); } catch (e) { return false; }
@@ -144,7 +144,7 @@ declare const INTAKE: PageGlobals['INTAKE'];
     var F = window.HCFood;
     try { return !!(F && typeof F.ready === 'function' && F.ready()); } catch (e) { return false; }
   }
-  // the ONE boot wait, shared with Resumen de hoy's dial + bars (client/nutri-day.js intakeToday): no
+  // the ONE boot wait, shared with Resumen de hoy's dial + bars (client/nutri-day.ts intakeToday): no
   // source yet while the boot request is in flight and the grace has not elapsed
   function waiting() { return !lanReady() && !graceOver && booting(); }
   // HCNutri.refresh re-renders Resumen de hoy, which re-renders the rings itself (refreshDependents)
@@ -159,7 +159,7 @@ declare const INTAKE: PageGlobals['INTAKE'];
   window.intakeWaiting = waiting;
   if (booting() && typeof setTimeout === 'function') {
     setTimeout(function () { graceOver = true; renderAll(); }, INTAKE.bootGraceMs);
-    // nutri-day.js rendered before the food scripts existed (it may show the Apple Health day): it
+    // nutri-day.ts rendered before the food scripts existed (it may show the Apple Health day): it
     // re-renders now, in the wait state. Consecutive inline scripts run before the first paint, so the
     // Apple Health day never reaches the screen.
     renderAll();

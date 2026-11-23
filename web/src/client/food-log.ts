@@ -1,9 +1,27 @@
 /* Nutrición food log — Registrar (one day's log in four groups, the ‹ date › navigator, the late-night
  * rule), the shared event listeners (click actions registered by every food script, input / change /
  * Enter), the boot (GET /api/food/products reveals the hosts) and the public hooks: window.foodTotals,
- * window.HCFood (groupTotals, recentDay, products, addGuide, showDay, the formula port, api). Classic
- * script (is:inline), the LAST food script: inlined after food-catalog.ts and before settings.ts.
- * See food-core.js for the whole food log. */
+ * window.HCFood (groupTotals, recentDay, products, addGuide, showDay, the formula port, api). Module
+ * script (bundled into the page, docs/plan-page.md → Module scripts), the LAST food script: after food-catalog.ts and before settings.ts.
+ * See food-core.ts for the whole food log. */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads by bare name (baked by components/Bake.astro or an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+
+// the food log's shapes this script reads (mirroring lib/nutrition/foodlog.mjs Macros / Product / LogEntry; a
+// summary day is a row of GET /api/food/log/summary; a basic is a FOOD_BASICS row, lib/nutrition/basics.mjs)
+type Macros = { kcal: number | null; protein: number | null; carbs: number | null; fat: number | null };
+type Product = { id: number; name: string; brand: string | null; unit: string; per100: Macros | null };
+type LogEntry = Macros & { id: number; date: string; meal: string; label: string; amount: number; unit: string };
+type SummaryDay = { date: string; k: number; p: number | null; c: number | null; f: number | null; n: number;
+  missing?: { p?: boolean; c?: boolean; f?: boolean } };
+type Sums = { k: number; p: number; c: number; f: number };
+// a rejected request (HC.jsonApi): the server's coarse code, or 'offline' with status 0
+type ApiError = { code?: string; field?: string; status: number } | null | undefined;
+type GuideBody = { date: string; meal: string; refType?: string; label?: string; kcal?: number | null; protein?: number | null;
+  carbs?: number | null; fat?: number | null; force?: boolean; refId?: number; amount?: number; unit?: string; requestId?: string };
+
 (function () {
   var FI = window.HCFoodInternal;
   if (!FI) return;
@@ -30,7 +48,7 @@
   FI.loadDay = loadDay;
 
   /* ---------- today's totals for Resumen de hoy + the rings ---------- */
-  /** THE contract nutri-day.js and intake.ts rely on (they do not re-check it): null unless the food API
+  /** THE contract nutri-day.ts and intake.ts rely on (they do not re-check it): null unless the food API
    * answered AND today (the viewer's local date) has >= 1 entry. Otherwise {date: today, k, p, c, g,
    * n (entries), missing, src: 'log'}: a macro NO entry states is null (a dash, never 0); missing[m] is
    * true when at least one entry lacks it, so a non-null value is then a minimum. */
@@ -38,14 +56,14 @@
     var L = S.log;
     if (!S.ok || !L || L.date !== HC.todayIso() || !L.entries.length) return null;
     var t = L.totals;
-    var known = function (k) { return L.entries.some(function (e) { return fin(e[k]); }) ? t[k] : null; };
+    var known = function (k: keyof Macros) { return L.entries.some(function (e: LogEntry) { return fin(e[k]); }) ? t[k] : null; };
     return { date: L.date, k: t.kcal, p: known('protein'), c: known('carbs'), g: known('fat'), n: t.count, missing: t.missing, src: 'log' };
   };
   /* ---------- the intake rings' past day (intake.ts) ---------- */
-  function loadRecent(from, to) {
+  function loadRecent(from: string, to: string) {
     var mine = ++R.seq;
     R.key = from + '|' + to;
-    api('GET', '/log/summary?from=' + from + '&to=' + to).then(function (d) {
+    api('GET', '/log/summary?from=' + from + '&to=' + to).then(function (d: { days?: unknown } | null) {
       if (mine !== R.seq) return;
       R.days = d && Array.isArray(d.days) ? d.days : [];
       if (typeof window.intakeRefresh === 'function') {
@@ -60,26 +78,26 @@
    * (today included), in foodTotals()'s shape ({date, k, p, c, g, n, missing, src: 'log'}), or null:
    * no food API, nothing logged in the window, or the summary not read yet (it is then read once and
    * the rings re-render when it answers). */
-  function recentDay(days) {
+  function recentDay(days: number) {
     if (!S.ok) return null;
     var n = days >= 0 ? Math.floor(days) : 3;
     var to = HC.todayIso(), from = HC.shiftIso(to, -n);
     if (R.key !== from + '|' + to) loadRecent(from, to);
-    var best = null;
-    (R.days || []).forEach(function (d) {
+    var best = null as SummaryDay | null;
+    (R.days || []).forEach(function (d: SummaryDay | null) {
       if (!d || typeof d.date !== 'string' || d.date < from || d.date > to || !(d.n > 0) || !fin(d.k)) return;
       if (!best || d.date > best.date) best = d;
     });
     if (!best) return null;
-    var m = best.missing || {};
-    var num = function (v) { return fin(v) ? v : null; };
+    var m: { p?: boolean; c?: boolean; f?: boolean } = best.missing || {};
+    var num = function (v: number | null) { return fin(v) ? v : null; };
     return { date: best.date, k: best.k, p: num(best.p), c: num(best.c), g: num(best.f), n: best.n, missing: { protein: !!m.p, carbs: !!m.c, fat: !!m.f }, src: 'log' };
   }
   /* ---------- Registrar ---------- */
   // a list row: the name with the amount as secondary text (an add-on entry also carries its stored
   // slot as a tiny muted tag: Pre-entreno, Snack…) and the macros as the small line under them; the kcal
   // alone on the right, then the delete button
-  function entryHtml(e) {
+  function entryHtml(e: LogEntry) {
     var tag = groupOf(e.meal) === ADDON && T.meals[e.meal] ? '<span class="fe-slot">' + esc(T.meals[e.meal]) + '</span>' : '';
     return '<li class="fe"><div class="fe-main"><span class="fe-label">' + esc(e.label) + '</span>' + tag +
       '<span class="fe-amt">' + esc(amountText(e.amount, e.unit)) + '</span><span class="fe-pcf">' + esc(pcf(e)) + '</span></div>' +
@@ -95,7 +113,7 @@
     if (back) back.hidden = on;
   }
   // show a day (null / today or later = today): today's log is already there, a past day is read each time
-  function goDay(date, auto) {
+  function goDay(date: string | null, auto?: boolean) {
     S.view = date && date < HC.todayIso() ? date : null;
     S.autoView = !!auto && S.view != null; // set by the late-night rule, cleared by any other move
     S.dayFail = null;
@@ -125,9 +143,9 @@
       var html = '<div class="food-sum"><span class="food-sum-lbl">' + esc(on ? T.dayTotal : T.dayTotalPast) + '</span> ' + macroLine(t) + '</div>' +
         (miss ? '<p class="food-note">' + esc(T.missingNote) + '</p>' : '') +
         (L.entries.length ? '' : '<p class="food-note">' + esc(on ? T.empty : T.emptyPast) + '</p>');
-      html += '<div class="food-meals">' + GROUPS.map(function (m) {
-        var list = L.entries.filter(function (e) { return groupOf(e.meal) === m; });
-        var k = list.reduce(function (s, e) { return s + (fin(e.kcal) ? e.kcal : 0); }, 0);
+      html += '<div class="food-meals">' + GROUPS.map(function (m: string) {
+        var list = L.entries.filter(function (e: LogEntry) { return groupOf(e.meal) === m; });
+        var k = list.reduce(function (s: number, e: LogEntry) { return s + (fin(e.kcal) ? e.kcal! : 0); }, 0);
         return '<section class="food-meal" aria-labelledby="fm-h-' + m + '"><div class="food-meal-top">' +
           '<h3 class="food-meal-name" id="fm-h-' + m + '">' + esc(T.groups[m]) + '</h3>' +
           (list.length ? '<span class="food-meal-kcal"><b>' + esc(kf(k)) + '</b> ' + esc(T.kcal) + '</span>' : '') + '</div>' +
@@ -139,7 +157,7 @@
       host.innerHTML = '<p class="food-note">' + esc(T.errors.generic) + '</p>';
     }
   }
-  function delEntry(el) {
+  function delEntry(el: HTMLButtonElement) {
     var id = el.getAttribute('data-id');
     var L = viewLog(); // the day on screen (today's log, or a past day's)
     var e = L && find(L.entries, id);
@@ -150,16 +168,16 @@
       // the day may have been re-read while the delete was in flight: drop the row from the CURRENT log
       var C = logFor(date);
       if (!C) { renderLog(); return; }
-      C.entries = C.entries.filter(function (x) { return String(x.id) !== String(id); });
+      C.entries = C.entries.filter(function (x: LogEntry) { return String(x.id) !== String(id); });
       C.totals = dayTotals(C.entries);
       renderLog();
       if (C === S.log) refreshDependents(); // only today's log feeds Resumen de hoy / the guide
       logChanged();
     };
-    api('DELETE', '/log/' + encodeURIComponent(id)).then(function () {
+    api('DELETE', '/log/' + encodeURIComponent(id!)).then(function () {
       drop();
       setText('food-msg', format(T.deleted, { label: e.label }));
-    }, function (err) {
+    }, function (err: ApiError) {
       // 404: it is already gone (a double tap, another device): just drop the row
       if (err && err.status === 404) { drop(); return; }
       el.disabled = false;
@@ -168,7 +186,7 @@
   }
   /* ---------- events ---------- */
   addActs({
-    add: function (el) {
+    add: function (el: HTMLElement) {
       FI.pendingMeal = el.getAttribute('data-meal');
       if (window.HCDetail && typeof window.HCDetail.open === 'function') window.HCDetail.open('food-add', null, { opener: el, focus: '#fa-q, #fa-label' });
     },
@@ -192,11 +210,11 @@
       focus('food-day-prev'); // the button just hid itself
     },
   });
-  function idOf(t) {
+  function idOf(t: Element | null) {
     return t && t.getAttribute ? t.getAttribute('id') || '' : '';
   }
-  function onInput(e) {
-    var id = idOf(e && e.target);
+  function onInput(e: Event) {
+    var id = idOf(e && e.target as Element | null);
     if (!id) return;
     // a search list redraws on typing (`input`) only: the `change` its blur fires when a result is pressed would
     // replace that result between mousedown and mouseup, and the click would never pick it
@@ -228,10 +246,10 @@
     }
   }
   document.addEventListener('click', function (e) {
-    var t = e && e.target;
-    var el = t && t.closest ? t.closest('[data-food-act]') : null;
+    var t = e && e.target as Element | null;
+    var el: (Element & { disabled?: boolean }) | null = t && t.closest ? t.closest('[data-food-act]') : null;
     if (!el || !S.ok || el.disabled) return;
-    var fn = ACTS[el.getAttribute('data-food-act')];
+    var fn = ACTS[el.getAttribute('data-food-act')!];
     if (!fn) return;
     if (e.preventDefault) e.preventDefault();
     try { fn(el); } catch (err) { setText('food-msg', T.errors.generic); }
@@ -241,7 +259,7 @@
   // Enter in a single-line field runs its form's action
   document.addEventListener('keydown', function (e) {
     if (!e || e.key !== 'Enter' || !S.ok) return;
-    var id = idOf(e.target);
+    var id = idOf(e.target as Element | null);
     var quick = ['fa-label', 'fa-kcal', 'fa-p', 'fa-c', 'fa-f'].indexOf(id) >= 0;
     var act = id === 'fp-code' ? 'p-code' : id === 'fp-q' ? 'p-search' : id === 'fa-amt' || quick ? 'save' : null;
     if (!act) return;
@@ -252,11 +270,11 @@
   /** Read one day's log. Today's goes to S.log (foodTotals / groupTotals / the portion guide) and
    * refreshes Resumen de hoy; a past day's goes to S.dayLog only while that day is still on screen and
    * this is its newest read (a slower answer for a day already left never overwrites the view). */
-  function loadDay(date) {
+  function loadDay(date: string) {
     var today = date === HC.todayIso();
     var seq = today ? 0 : ++viewSeq;
     var current = function () { return seq === viewSeq && !onToday() && S.view === date; };
-    return api('GET', '/log?date=' + date).then(function (data) {
+    return api('GET', '/log?date=' + date).then(function (data: { entries?: LogEntry[]; totals?: unknown }) {
       var L = { date: date, entries: Array.isArray(data.entries) ? data.entries : [], totals: data.totals || dayTotals(data.entries) };
       if (today) {
         S.log = L;
@@ -267,7 +285,7 @@
         S.dayFail = null;
         renderLog();
       }
-    }, function (err) {
+    }, function (err: ApiError) {
       if (!today && !current()) return;
       if (!today) {
         S.dayFail = { date: date, msg: errText(err) };
@@ -277,7 +295,7 @@
     });
   }
   function loadLog() { return loadDay(HC.todayIso()); }
-  function show(id) { var el = $(id); if (el) el.hidden = false; }
+  function show(id: string) { var el = $(id); if (el) el.hidden = false; }
   // the rings (intake.ts) wait for this boot answer (HCFood.pending()) instead of flashing the Apple Health day
   function bootDone() {
     S.boot = false;
@@ -285,7 +303,7 @@
       try { window.intakeRefresh(); } catch (e) { /* the rings keep their last state */ }
     }
   }
-  api('GET', '/products').then(function (data) {
+  api('GET', '/products').then(function (data: { products?: unknown }) {
     S.ok = true;
     bootDone();
     S.products = Array.isArray(data.products) ? data.products : [];
@@ -301,10 +319,10 @@
     else renderLog();
     renderProducts();
     renderRecipes();
-    api('GET', '/recipes').then(function (d) {
+    api('GET', '/recipes').then(function (d: { recipes?: unknown }) {
       S.recipes = Array.isArray(d.recipes) ? d.recipes : [];
       renderRecipes();
-    }, function (err) { recMsg(errText(err)); });
+    }, function (err: ApiError) { recMsg(errText(err)); });
     // a page left open past midnight starts the new day's log when it comes back: a viewer on "today"
     // moves to the new today (S.view is null; before LATE_NIGHT_HOUR to the evening before), one looking at a past day stays there
     if (document.addEventListener) {
@@ -328,7 +346,7 @@
     refreshDependents();
   });
 
-  /* ---------- Plan de hoy's portion guide (nutri-day.js) ---------- */
+  /* ---------- Plan de hoy's portion guide (nutri-day.ts) ---------- */
   function zero4() { return { k: 0, p: 0, c: 0, f: 0 }; }
   /** Today's logged sums per Registrar group, {meals: {breakfast, lunch, dinner: {k, p, c, f}}, addon} (a
    * macro an entry lacks counts as 0; kcal whole, macros to 1 decimal), or null unless the food API
@@ -336,41 +354,41 @@
   function groupTotals() {
     var L = S.log;
     if (!S.ok || !L || L.date !== HC.todayIso()) return null;
-    var out = { meals: {}, addon: zero4() };
-    MAIN.forEach(function (m) { out.meals[m] = zero4(); });
-    L.entries.forEach(function (e) {
+    var out = { meals: {} as Record<string, Sums>, addon: zero4() };
+    MAIN.forEach(function (m: string) { out.meals[m] = zero4(); });
+    L.entries.forEach(function (e: LogEntry) {
       var g = groupOf(e.meal), t = g === ADDON ? out.addon : out.meals[g];
       if (!t) return;
-      t.k += fin(e.kcal) ? e.kcal : 0;
-      t.p += fin(e.protein) ? e.protein : 0;
-      t.c += fin(e.carbs) ? e.carbs : 0;
-      t.f += fin(e.fat) ? e.fat : 0;
+      t.k += fin(e.kcal) ? e.kcal! : 0;
+      t.p += fin(e.protein) ? e.protein! : 0;
+      t.c += fin(e.carbs) ? e.carbs! : 0;
+      t.f += fin(e.fat) ? e.fat! : 0;
     });
-    var tidy = function (t) { return { k: Math.round(t.k), p: round1(t.p), c: round1(t.c), f: round1(t.f) }; };
-    MAIN.forEach(function (m) { out.meals[m] = tidy(out.meals[m]); });
+    var tidy = function (t: Sums) { return { k: Math.round(t.k), p: round1(t.p), c: round1(t.c), f: round1(t.f) }; };
+    MAIN.forEach(function (m: string) { out.meals[m] = tidy(out.meals[m]); });
     out.addon = tidy(out.addon);
     return out;
   }
   /** The user's active products (a copy: id, name, brand, unit, per100), or null without the food API. */
   function guideProducts() {
     if (!S.ok) return null;
-    return S.products.map(function (p) {
-      var v = p.per100 || {};
+    return S.products.map(function (p: Product) {
+      var v: Partial<Macros> = p.per100 || {};
       return { id: p.id, name: p.name, brand: p.brand || null, unit: p.unit, per100: { kcal: v.kcal, protein: v.protein, carbs: v.carbs, fat: v.fat } };
     });
   }
-  var guidePending = {}; // one request id per pending guide add (same meal, food and amount), kept across ambiguous retries
+  var guidePending: Record<string, string> = {}; // one request id per pending guide add (same meal, food and amount), kept across ambiguous retries
   /** Log a guide example: {group: a main meal, food: 'b:<basic key>' | 'p:<product id>', amt (the food's
    * amount scale: g / ml, a 'ud' food 100 per unit)}. A basic is ONE quick entry (basicEntry / basicLabel,
    * in pieces when the food has them); a product a product entry (the server applies the formula).
    * Resolves the saved entry; rejects on a refusal (one line in Registrar's status). */
-  function addGuide(o) {
-    var fail = function (code) { setText('food-msg', T.errors[code] || T.errors.generic); return Promise.reject({ code: code }); };
+  function addGuide(o: { group?: string; food?: unknown; amt?: unknown } | null | undefined) {
+    var fail = function (code: string) { setText('food-msg', T.errors[code] || T.errors.generic); return Promise.reject({ code: code }); };
     if (!S.ok || !o) return fail('generic');
     var group = asGroup(o.group);
     var id = String(o.food || ''), amt = Number(o.amt);
     if (!group || group === ADDON || !(amt > 0) || amt > (LIM.amountMax || 5000)) return fail('generic');
-    var body = { date: HC.todayIso(), meal: slotFor(group) };
+    var body: GuideBody = { date: HC.todayIso(), meal: slotFor(group) };
     if (id.indexOf('b:') === 0) {
       var b = findBasic(id.slice(2));
       if (!b) return fail('generic');
@@ -396,11 +414,11 @@
     } else return fail('generic');
     var key = body.meal + '|' + id + '|' + amt;
     body.requestId = guidePending[key] || (guidePending[key] = newRequestId());
-    return api('POST', '/log', body).then(function (data) {
+    return api('POST', '/log', body).then(function (data: { entry?: LogEntry; totals?: unknown }) {
       delete guidePending[key];
       var e = data.entry;
       if (S.log && S.log.date === body.date && e) {
-        S.log.entries = S.log.entries.filter(function (x) { return String(x.id) !== String(e.id); }).concat([e]);
+        S.log.entries = S.log.entries.filter(function (x: LogEntry) { return String(x.id) !== String(e!.id); }).concat([e]);
         S.log.totals = data.totals || dayTotals(S.log.entries);
       }
       renderLog();
@@ -409,7 +427,7 @@
       setText('food-msg', e ? format(T.added, { label: e.label, k: kf(e.kcal) }) : '');
       if (!S.log || S.log.date !== body.date) loadLog();
       return e;
-    }, function (err) {
+    }, function (err: ApiError) {
       setText('food-msg', errText(err));
       // it may have been saved after all: re-read, and keep the id so a retry is the same add
       if (ambiguous(err)) loadLog();
@@ -420,7 +438,7 @@
 
   /** Constancia's day cells (client/adherence.ts): Registrar shows `date` (a past day, or today) and
    * scrolls into view; false without the food API. */
-  function showDay(date) {
+  function showDay(date: string) {
     var d = HC.isoDate(date);
     if (!S.ok || !d) return false;
     goDay(d);

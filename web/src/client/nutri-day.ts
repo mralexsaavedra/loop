@@ -1,6 +1,6 @@
 /* Nutrición day blocks — Resumen de hoy (day type + today's target), Plan de hoy (a PORTION GUIDE for
  * today's target) and Avituallamiento (bike day types only) — plus Inicio's "today you eat" card.
- * Classic script (is:inline). Reads NUTRI (lib/nutrition/today.mjs: the 12 goal × day type targets, one
+ * Module script (bundled into the page, docs/plan-page.md → Module scripts). Reads NUTRI (lib/nutrition/today.mjs: the 12 goal × day type targets, one
  * scaling model per base day, the guide's defaults, fuelling rates, detection thresholds, latest
  * weigh-in) + I18N_NUTRI, baked by web/src/tabs/Dia.astro, FOOD_BASICS (the public food DB, the guide's
  * example foods; baked once for the food log too) and SCORES.timeline / TRAINING (Bake.astro) for
@@ -42,6 +42,43 @@
  *   LAN page only) when it has entries, else from the Apple Health day (INTAKE); HCNutri.refresh() is
  *   the food log's hook after every add / delete, and re-renders the guide too.
  * Each block renders in its own try/catch: a failure shows a one-line message there, never a blank tab. */
+import type { PageGlobals } from './page-globals';
+
+// the page globals this script reads (baked by the build or provided by an earlier script; manifest.mjs)
+declare const HC: PageGlobals['HC'];
+declare const NUTRI: PageGlobals['NUTRI'];
+declare const I18N_NUTRI: PageGlobals['I18N_NUTRI'];
+declare const HC_DAYTYPE: PageGlobals['HC_DAYTYPE'];
+declare const HC_FUEL: PageGlobals['HC_FUEL'];
+declare const HC_SCALE: PageGlobals['HC_SCALE'];
+declare const HC_GUIDE: PageGlobals['HC_GUIDE'];
+declare const SCORES: PageGlobals['SCORES'];
+declare const DETAIL: PageGlobals['DETAIL'];
+declare const TRAINING: PageGlobals['TRAINING'];
+declare const INTAKE: PageGlobals['INTAKE'];
+declare const NUTRI_ARC: PageGlobals['NUTRI_ARC'];
+declare const FOOD_BASICS: PageGlobals['FOOD_BASICS'];
+
+/** A detected day type (lib/nutrition/daytype.mjs detectDayType). */
+type Auto = { type: string; why: string; rideMin: number | null };
+/** kcal + P / C / F grams (a guide budget, a logged group: lib/nutrition/guide.mjs). */
+type Macro4 = { k: number; p: number; c: number; f: number };
+/** A plan target (NUTRI.plans[goal][dayType].t). */
+type Target = { kcal: number; p: number; c: number; f: number };
+/** Intake logged today (window.foodTotals or INTAKE.latest); g = fat. */
+type Intake = { k: number; p: number; c: number; g: number; src?: string; date?: string; missing?: Record<string, boolean> };
+/** planFor's result (lib/nutrition/scale.mjs): the meals target, the ride fuel, the base day. */
+type Plan = { mt: Macro4; fuelK: number; base: string };
+/** One example food of a guide row (lib/nutrition/guide.mjs roleOptions). */
+type Opt = { id: string; n: string; food: any };
+type Opts = { basics: Opt[]; products: Opt[] };
+/** The day's cap for the guide rows (dayRemaining + the day total). */
+type DayCap = { left: Record<string, number>; total: Record<string, number> };
+/** A supplement (NUTRI.supplements). */
+type Supp = { name: string; dose?: string; meal: string };
+/** The intake rings' target (nutriTarget / HCNutri.targetFor). */
+type RingTarget = { k: number; p: number; c: number; g: number; fatMax: number; fuelK: number; day: string; dayType: string; label: string; inferred?: boolean };
+
 (function () {
   var N = typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI;
   var T = typeof I18N_NUTRI === 'undefined' || !I18N_NUTRI ? null : I18N_NUTRI;
@@ -55,26 +92,26 @@
   var RANK = HC_DAYTYPE.RANK; // how demanding a day type is (the override rule below)
   // icons (inline SVG line icons, no emoji): the supplement pill of Plan de hoy
   var PILL_SVG = '<svg class="supp-ico" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-45 12 12)"><rect x="3" y="8.5" width="18" height="7" rx="3.5"/><path d="M12 8.5v7"/></g></svg>';
-  var state = { goal: N.goal, override: null, auto: null, ride: null, raised: null, guide: {} };
+  var state = { goal: N.goal, override: null as string | null, auto: null as Auto | null, ride: null as { type: string; min: number } | null, raised: null as string | null, guide: {} as Record<string, string> };
 
-  function $(id) { return document.getElementById(id); }
-  function kf(n) { // a whole number, grouped: 3.050 (es) / 3,050 (en) — the one formatter (HC.int)
+  function $(id: string) { return document.getElementById(id); }
+  function kf(n: number) { // a whole number, grouped: 3.050 (es) / 3,050 (en) — the one formatter (HC.int)
     return HC.int(n);
   }
-  function dur(min) { return HC.duration(min); }
+  function dur(min: number) { return HC.duration(min); }
   var isBike = HC_FUEL.isBikeDay;
 
   /* ---------- storage (per-viewer convenience, never required) ---------- */
   function store() {
     try { return window.localStorage || null; } catch (e) { return null; }
   }
-  function load(key) {
+  function load(key: string) {
     try { var s = store(); return s ? s.getItem(key) : null; } catch (e) { return null; }
   }
-  function save(key, value) {
+  function save(key: string, value: string | null) {
     try { var s = store(); if (!s) return; if (value == null) s.removeItem(key); else s.setItem(key, value); } catch (e) { /* ignored */ }
   }
-  function loadToday(key, today) { // a {date, …} value stored today, else null (yesterday's has expired)
+  function loadToday(key: string, today: string) { // a {date, …} value stored today, else null (yesterday's has expired)
     try {
       var o = JSON.parse(load(key) || 'null');
       return o && typeof o === 'object' && o.date === today ? o : null;
@@ -88,7 +125,7 @@
   var detectDayType = HC_DAYTYPE.detectDayType, dayInputFor = HC_DAYTYPE.dayInputFor;
   // the person's endurance modalities besides bike (NUTRI.detect.endurance, from the onboarding's sports)
   var endurance = N && N.detect && N.detect.endurance ? N.detect.endurance : null;
-  function dayInput(date) {
+  function dayInput(date: string) {
     var S = typeof SCORES === 'undefined' ? null : SCORES;
     var D = typeof DETAIL === 'undefined' || !DETAIL ? null : DETAIL;
     var input = dayInputFor(date, {
@@ -121,7 +158,7 @@
 
   /* ---------- state ---------- */
   function dayType() { return state.override || (state.auto ? state.auto.type : 'rest'); }
-  function recordedMin(d) { return state.auto && state.auto.rideMin && state.auto.type === d ? state.auto.rideMin : null; }
+  function recordedMin(d: string) { return state.auto && state.auto.rideMin && state.auto.type === d ? state.auto.rideMin : null; }
   function rideMinutes() {
     var d = dayType();
     if (!isBike(d)) return null;
@@ -142,12 +179,12 @@
     var g = load(KEY_GOAL);
     if (N.goals.indexOf(g) >= 0) state.goal = g;
     var o = loadToday(KEY_DAY, today);
-    if (o && N.dayTypes.indexOf(o.type) >= 0 && o.type !== state.auto.type) {
-      var detectedLater = !(o.auto in RANK) || RANK[state.auto.type] > RANK[o.auto];
-      if (RANK[o.type] < RANK[state.auto.type] && detectedLater) {
+    if (o && N.dayTypes.indexOf(o.type) >= 0 && o.type !== state.auto!.type) {
+      var detectedLater = !(o.auto in RANK) || RANK[state.auto!.type] > RANK[o.auto];
+      if (RANK[o.type] < RANK[state.auto!.type] && detectedLater) {
         // picked gym, then a long ride synced: the detected (more demanding) type wins
         save(KEY_DAY, null);
-        state.raised = state.auto.type;
+        state.raised = state.auto!.type;
       } else state.override = o.type;
     }
     var r = loadToday(KEY_RIDE, today);
@@ -157,7 +194,7 @@
     try {
       var gp = JSON.parse(load(KEY_GUIDE) || 'null');
       var picks = gp && typeof gp === 'object' && gp.picks && typeof gp.picks === 'object' ? gp.picks : {};
-      Object.keys(picks).forEach(function (k) { if (typeof picks[k] === 'string') state.guide[k] = picks[k]; });
+      Object.keys(picks).forEach(function (k: string) { if (typeof picks[k] === 'string') state.guide[k] = picks[k]; });
     } catch (e) { /* a broken value is ignored */ }
   }
   function saveGuide() {
@@ -165,12 +202,12 @@
   }
 
   /* ---------- blocks ---------- */
-  function guard(host, fn) {
+  function guard(host: HTMLElement | null, fn: (host: HTMLElement) => void) {
     if (!host) return;
     try { fn(host); } catch (e) { host.innerHTML = '<p class="nutri-failed">' + esc(T.failed) + '</p>'; }
   }
-  function setChecked(name, value) {
-    (document.querySelectorAll('[name="' + name + '"]') || []).forEach(function (inp) {
+  function setChecked(name: string, value: string) {
+    (document.querySelectorAll<HTMLInputElement>('[name="' + name + '"]') || []).forEach(function (inp) {
       inp.checked = inp.getAttribute('value') === value;
     });
   }
@@ -179,17 +216,17 @@
     // the DETECTED type's segment carries a subtle mark (a dot), whichever type is picked
     (document.querySelectorAll('[name="nutri-day"]') || []).forEach(function (inp) {
       var lab = inp.parentElement;
-      if (lab && lab.classList) lab.classList.toggle('seg-auto', inp.getAttribute('value') === state.auto.type);
+      if (lab && lab.classList) lab.classList.toggle('seg-auto', inp.getAttribute('value') === state.auto!.type);
     });
     var src = $('nutri-daytype-src');
     if (src) src.textContent = state.override ? T.chosen : T.auto;
     var btn = $('nutri-auto');
     if (btn) {
       btn.hidden = !state.override;
-      btn.textContent = format(T.backToAuto, { type: T.dayTypes[state.auto.type] });
+      btn.textContent = format(T.backToAuto, { type: T.dayTypes[state.auto!.type] });
     }
     var why = $('nutri-why');
-    if (why) why.textContent = format(T.why[state.auto.why], { dur: state.auto.rideMin ? dur(state.auto.rideMin) : '' });
+    if (why) why.textContent = format(T.why[state.auto!.why], { dur: state.auto!.rideMin ? dur(state.auto!.rideMin) : '' });
     var note = $('nutri-note');
     if (note) {
       note.hidden = !state.raised;
@@ -204,7 +241,7 @@
   // On the LAN page the food API boot decides, exactly as for the rings (client/intake.ts): while it
   // is in flight and INTAKE.bootGraceMs has not elapsed (window.intakeWaiting) nothing; once it
   // answered (HCFood.ready) the food log only, never the Apple Health day; a failure or the grace's end
-  // -> the Apple Health day (a late answer still switches: food-log.js refreshes us).
+  // -> the Apple Health day (a late answer still switches: food-log.ts refreshes us).
   function intakeToday() {
     var W = window.intakeWaiting, H = window.HCFood, lan, F = null;
     try { if (typeof W === 'function' && W()) return null; } catch (e) { /* no wait known: go on */ }
@@ -218,17 +255,17 @@
     var L = I && I.latest;
     return L && L.date === todayIso() && L.k > 0 ? L : null;
   }
-  function pctOf(v, t) { return Math.round(Math.min(1, Math.max(0, v / t)) * 100); }
+  function pctOf(v: number, t: number) { return Math.round(Math.min(1, Math.max(0, v / t)) * 100); }
   // The kcal ring = the Inicio dial language: the full ring baked as NUTRI_ARC (view/dial.mjs
   // arcPath(0, 1), starts at 12 o'clock, clockwise, round caps; .dial-* in styles/score.css). Inside:
   // the kcal EATEN today (a dash with no intake) over "/ target kcal". ONE state colour (nutri.css):
   // none = the track only, ok = eaten <= 110 % of the target (--up), over = past it (--down, full ring).
   // The fill reuses the track path with pathLength 100, so any fraction needs no geometry here.
-  function ringState(t, L) {
+  function ringState(t: Target, L: Intake | null) {
     if (!L) return 'none';
     return L.k / t.kcal > OVER_RATIO ? 'over' : 'ok';
   }
-  function ringHtml(t, L) {
+  function ringHtml(t: Target, L: Intake | null) {
     var arc = typeof NUTRI_ARC === 'string' ? NUTRI_ARC : '';
     var k = kf(t.kcal);
     var aria = L ? format(T.target.loggedAria, { v: kf(L.k), k: k }) : format(T.target.dialAria, { k: k });
@@ -244,15 +281,15 @@
   // one macro row: UPPERCASE label, "eaten / target g" in --num on the right, a thin bar under it
   // (filled only from intake logged today; > 110 % flagged). min = some of today's food-log entries
   // lack this macro: the logged sum is a minimum ("≥"); a macro no entry states is a dash.
-  function macroRow(label, target, L, logged, min) {
+  function macroRow(label: string, target: number, L: Intake | null, logged: number | null, min: boolean) {
     var has = L && logged != null && target > 0;
-    var over = has && logged / target > OVER_RATIO;
-    var pct = has ? pctOf(logged, target) : 0;
+    var over = has && logged! / target > OVER_RATIO;
+    var pct = has ? pctOf(logged!, target) : 0;
     return '<li class="nt-mac' + (over ? ' nt-mac-over' : '') + '"><span class="nt-mac-lbl">' + esc(label) + '</span>' +
-      '<span class="nt-mac-val"><b>' + (has ? (min ? '≥ ' : '') + esc(kf(logged)) : '—') + '</b><small> / ' + esc(kf(target)) + ' g</small></span>' +
+      '<span class="nt-mac-val"><b>' + (has ? (min ? '≥ ' : '') + esc(kf(logged!)) : '—') + '</b><small> / ' + esc(kf(target)) + ' g</small></span>' +
       '<span class="nt-mac-track">' + (pct > 0 ? '<i style="width:' + pct + '%"></i>' : '') + '</span></li>';
   }
-  function minOf(L, macro) {
+  function minOf(L: Intake | null, macro: string) {
     return !!(L && L.missing && L.missing[macro]);
   }
   function target() { return N.plans[state.goal][dayType()].t; }
@@ -264,7 +301,7 @@
   // the ring + goal chip (.nt-top) and the macro rows (.nt-side): stacked on phones, two columns >= 900 px
   // (nutri.css). The notes (where the intake comes from, "carbs are the rest") go behind the section's
   // ⓘ (#nutri-sum-info, Dia.astro); the bike-day split stays a short line of numbers.
-  function renderTarget(host, x) {
+  function renderTarget(host: HTMLElement, x: Plan | null) {
     var t = target(), L = intakeToday();
     // bike days: the guide's meals target + the ride fuel = the day target (Avituallamiento below)
     var line = x && x.fuelK > 0 ? format(T.planLineBike, { k: kf(x.mt.k), fuel: kf(x.fuelK), total: kf(x.mt.k + x.fuelK) }) : '';
@@ -279,24 +316,24 @@
         '<p>' + esc(T.target.cNote) + '</p>';
     }
   }
-  function suppLine(text) {
+  function suppLine(text: string) {
     return '<div class="meal-supp">' + PILL_SVG + '<span>' + esc(text) + '</span></div>';
   }
   // the food log's hooks (client/food-*.js, LAN page only): null when the API is not reachable here
-  function foodHook(name) {
+  function foodHook(name: string) {
     var F = window.HCFood;
     if (!F || typeof F[name] !== 'function') return null;
     try { return F[name](); } catch (e) { return null; }
   }
   function basicsList() { return typeof FOOD_BASICS !== 'undefined' && Array.isArray(FOOD_BASICS) ? FOOD_BASICS : []; }
-  function findOpt(o, id) {
+  function findOpt(o: Opts, id: string) {
     var all = o.basics.concat(o.products);
     for (var i = 0; i < all.length; i++) if (all[i].id === id) return all[i];
     return null;
   }
   // the example of a role in a main meal: the viewer's pick while it is listed (a product only when the
   // food API answered), else the food the base plan uses there (NUTRI.guide.defaults), else the fallback
-  function exampleFor(slot, role, o, day) {
+  function exampleFor(slot: string, role: string, o: Opts, day: string) {
     var picked = state.guide[slot + '.' + role];
     var hit = typeof picked === 'string' ? findOpt(o, picked) : null;
     if (hit) return hit;
@@ -304,12 +341,12 @@
     return (d && findOpt(o, 'b:' + d)) || findOpt(o, 'b:' + G.fallback[role]) || o.basics[0] || null;
   }
   // an example amount as a person reads it: pieces with the grams reference, else "~120 g"
-  function amountText(food, amt) {
+  function amountText(food: any, amt: number) {
     if (food.pc) return fmtPieces(amt, food.u, food.pc);
     return '~' + fmtAmt(amt, food.u, N.fmt.units, null);
   }
-  function optionsHtml(o, cur) {
-    var opt = function (x) { return '<option value="' + esc(x.id) + '"' + (x.id === cur ? ' selected' : '') + '>' + esc(x.n) + '</option>'; };
+  function optionsHtml(o: Opts, cur: string) {
+    var opt = function (x: Opt) { return '<option value="' + esc(x.id) + '"' + (x.id === cur ? ' selected' : '') + '>' + esc(x.n) + '</option>'; };
     if (!o.products.length) return o.basics.map(opt).join('');
     return '<optgroup label="' + esc(T.guide.basics) + '">' + o.basics.map(opt).join('') + '</optgroup>' +
       '<optgroup label="' + esc(T.guide.products) + '">' + o.products.map(opt).join('') + '</optgroup>';
@@ -318,7 +355,7 @@
   // food (a select) and the amount of it that supplies that; covered when <= 10 % is left
   // With the food log the row is also capped by the DAY (capByDay over dayRemaining): never more than
   // the day still allows, and covered by the day (no example, no "+") when the day has <= 10 % left.
-  function roleRowHtml(slot, role, budgetG, mealLeftG, logged, o, day, canAdd, dayCap) {
+  function roleRowHtml(slot: string, role: string, budgetG: number, mealLeftG: number, logged: Macro4 | null, o: Opts, day: string, canAdd: boolean, dayCap: DayCap | null) {
     var G2 = T.guide, mealName = T.plan.meals[slot];
     var head = '<div class="gd-top"><span class="gd-l">' + esc(G2.roles[role]) + '</span>';
     if (!(budgetG > 0)) return '<li class="gd-row">' + head + '<span class="gd-g">—</span></div></li>';
@@ -341,40 +378,40 @@
       (a ? '<span class="gd-amt">' + esc(amt) + (a.capped ? ' <span class="gd-max">' + esc(G2.max) + '</span>' : '') + '</span>' : '') + add + '</div>' +
       (a && a.capped ? '<p class="gd-more">' + esc(G2.more) + '</p>' : '') + '</li>';
   }
-  function pcfHtml(m) {
+  function pcfHtml(m: Macro4) {
     var A = T.plan.macroAbbr;
     return '<div class="meal-pcf"><span><b>' + m.p + '</b> ' + A.p + '</span><span><b>' + m.c + '</b> ' + A.c + '</span><span><b>' + m.f + '</b> ' + A.f + '</span></div>';
   }
-  function suppText(s, withSlot) {
+  function suppText(s: Supp, withSlot: boolean) {
     return s.name + (s.dose ? ' ' + s.dose : '') + (withSlot ? ' (' + (T.plan.meals[s.meal] || s.meal) + ')' : '');
   }
-  function mealGuideHtml(slot, b, logged, opts, day, canAdd, dayCap) {
+  function mealGuideHtml(slot: string, b: Macro4, logged: Macro4 | null, opts: Record<string, Opts>, day: string, canAdd: boolean, dayCap: DayCap | null) {
     var G2 = T.guide, st = mealState(b, logged), left = remaining(b, logged);
-    var status = st === 'done' ? '<p class="gd-state gd-state-done">' + esc(format(G2.done, { k: kf(logged.k) })) + '</p>'
-      : st === 'partial' ? '<p class="gd-state">' + esc(format(G2.partial, { k: kf(logged.k) })) + '</p>' : '';
+    var status = st === 'done' ? '<p class="gd-state gd-state-done">' + esc(format(G2.done, { k: kf(logged!.k) })) + '</p>'
+      : st === 'partial' ? '<p class="gd-state">' + esc(format(G2.partial, { k: kf(logged!.k) })) + '</p>' : '';
     var rows = roleRowHtml(slot, 'p', b.p, left.p, logged, opts.p, day, canAdd, dayCap) +
       roleRowHtml(slot, 'c', b.c, left.c, logged, opts.c, day, canAdd, dayCap) +
       '<li class="gd-row gd-veg"><div class="gd-top"><span class="gd-l">' + esc(G2.roles.v) + '</span><span class="gd-free">' + esc(G2.free) + '</span></div></li>' +
       roleRowHtml(slot, 'f', b.f, left.f, logged, opts.f, day, canAdd, dayCap);
-    var supps = (N.supplements || []).filter(function (s) { return s.meal === slot; }).map(function (s) { return suppLine(suppText(s, false)); }).join('');
+    var supps = (N.supplements || []).filter(function (s: Supp) { return s.meal === slot; }).map(function (s: Supp) { return suppLine(suppText(s, false)); }).join('');
     return '<div class="meal gd-meal" data-slot="' + esc(slot) + '"><div class="meal-top"><div class="meal-name">' + esc(T.plan.meals[slot]) + '</div>' +
       '<div class="meal-kcal"><b>' + esc(kf(b.k)) + '</b> kcal</div></div>' + status +
       '<ul class="gd-rows">' + rows + '</ul>' + pcfHtml(b) + supps + '</div>';
   }
   // Extras: with the food log, what is left of it capped by the day (covered by the day at <= 10 % of the
   // day's kcal left); its P / C / G line then shows that capped remainder too.
-  function extrasHtml(B, logged, d, dayCap) {
+  function extrasHtml(B: any, logged: Macro4 | null, d: string, dayCap: DayCap | null) {
     var G2 = T.guide, e = B.extras, pcf = e, budget;
     if (logged) {
       var r = remaining(e, logged);
-      if (dayCap) MACS.forEach(function (m) { r[m] = capByDay(r[m], dayCap.left[m], dayCap.total[m]).left; });
+      if (dayCap) MACS.forEach(function (m: string) { r[m] = capByDay(r[m], dayCap.left[m], dayCap.total[m]).left; });
       pcf = r;
       budget = dayCap && capByDay(r.k, dayCap.left.k, dayCap.total.k).byDay ? G2.coveredDay
         : format(G2.extrasLeft, { k: kf(r.k), total: kf(e.k) });
     } else budget = format(G2.extrasBudget, { k: kf(e.k) });
-    var items = (G.extras || []).map(function (x) { return format(G2.extrasItem, { name: G2.extrasItems[x.id] || x.id, k: kf(x.k) }); });
+    var items = (G.extras || []).map(function (x: { id: string; k: number }) { return format(G2.extrasItem, { name: G2.extrasItems[x.id] || x.id, k: kf(x.k) }); });
     var mains = N.mainSlots || [];
-    var supps = (N.supplements || []).filter(function (s) { return mains.indexOf(s.meal) < 0; }).map(function (s) { return suppLine(suppText(s, true)); }).join('');
+    var supps = (N.supplements || []).filter(function (s: Supp) { return mains.indexOf(s.meal) < 0; }).map(function (s: Supp) { return suppLine(suppText(s, true)); }).join('');
     return '<div class="meal gd-extras"><div class="meal-top"><div class="meal-name">' + esc(G2.extras) + '</div>' +
       '<div class="meal-kcal"><b>' + esc(kf(e.k)) + '</b> kcal</div></div>' +
       '<p class="gd-budget">' + esc(budget) + '</p>' +
@@ -386,7 +423,7 @@
   }
   // Plan de hoy: the same four meal groups every day (breakfast, lunch, dinner, Extras); the day type and
   // the goal only change the amounts. With today's food log (LAN page) each group shows what is left.
-  function renderGuide(host, x) {
+  function renderGuide(host: HTMLElement, x: Plan) {
     var base = N.base[x.base];
     if (!G || !base || !base.sl || !base.sl.length) { host.innerHTML = '<p class="nutri-empty">' + esc(T.plan.empty) + '</p>'; return; }
     var mains = N.mainSlots || [];
@@ -394,11 +431,11 @@
     var L = foodHook('groupTotals'); // {meals: {<slot>: {k, p, c, f}}, addon} | null (no food log here)
     var canAdd = !!L && !!window.HCFood && typeof window.HCFood.addGuide === 'function';
     var prods = L ? foodHook('products') : null;
-    var opts = {};
-    ROLE_KEYS.forEach(function (r) { opts[r] = roleOptions(basicsList(), prods, r); });
+    var opts: Record<string, Opts> = {};
+    ROLE_KEYS.forEach(function (r: string) { opts[r] = roleOptions(basicsList(), prods, r); });
     var dayLeft = dayRemaining(B.total, L, mains); // the "Left today" line; null without the food log
     var dayCap = dayLeft ? { left: dayLeft, total: B.total } : null;
-    var html = mains.map(function (slot) { return mealGuideHtml(slot, B.meals[slot], L ? L.meals[slot] || zero4() : null, opts, x.base, canAdd, dayCap); }).join('');
+    var html = mains.map(function (slot: string) { return mealGuideHtml(slot, B.meals[slot], L ? L.meals[slot] || zero4() : null, opts, x.base, canAdd, dayCap); }).join('');
     html += extrasHtml(B, L ? L.addon || zero4() : null, dayType(), dayCap);
     if (L) {
       var left = dayLeft, A = T.plan.macroAbbr;
@@ -408,7 +445,7 @@
     html += '<p class="nutri-factor">' + esc(T.guide.note) + '</p>';
     host.innerHTML = html;
   }
-  function renderRidePicker(host) {
+  function renderRidePicker(host: HTMLElement) {
     var d = dayType(), rec = recordedMin(d);
     if (rec) {
       host.innerHTML = '<p class="fuel-dur">' + esc(T.fuel.durationLabel + ': ' + format(T.fuel.recorded, { dur: dur(rec) })) + '</p>';
@@ -416,13 +453,13 @@
     }
     var sel = rideMinutes();
     var opts = '';
-    N.fuel.durations.forEach(function (m) {
+    N.fuel.durations.forEach(function (m: number) {
       opts += '<option value="' + m + '"' + (sel === m ? ' selected' : '') + '>' + esc(dur(m)) + '</option>';
     });
     host.innerHTML = '<label class="fuel-dur" for="nutri-ride">' + esc(T.fuel.durationLabel) + '</label><select id="nutri-ride" class="fuel-select sel">' + opts + '</select><span class="chev sel-chev" aria-hidden="true">›</span>';
   }
-  function li(text) { return '<li>' + esc(text) + '</li>'; }
-  function renderFuelBody(host) {
+  function li(text: string) { return '<li>' + esc(text) + '</li>'; }
+  function renderFuelBody(host: HTMLElement) {
     var f = fuelNow(), F = T.fuel, U = N.fuel.rates.units;
     var b = f.before, du = f.during, a = f.after;
     var before = b.carbsG
@@ -445,7 +482,7 @@
     var bLo = du.equiv.bottles[0], bHi = du.equiv.bottles[1];
     var duringUnits;
     if (own) {
-      var segs = own.slots.map(function (sl) {
+      var segs = own.slots.map(function (sl: { count: number; i: number; fromMin: number; everyMin: number }) {
         return format(sl.count > 1 ? F.ownSegMany : F.ownSegOne, { count: sl.count, name: items[sl.i].n, from: sl.fromMin, every: sl.everyMin });
       }).join(F.ownThen);
       duringUnits = li(format(F.ownMix, { mix: segs, total: nf(own.totalG) })) +
@@ -457,7 +494,7 @@
         li(format(F.duringMix, { bottles: du.mix.bottles, gels: du.mix.gels }));
     }
     // Antes -> Durante -> Después as a 3-step timeline, one key number per step
-    function step(key, title, num, items) {
+    function step(key: string, title: string, num: string, items: string) {
       return '<li class="fuel-step fuel-step-' + key + '"><div class="fuel-step-head"><h3>' + esc(title) + '</h3><b class="fuel-key">' + esc(num) + '</b></div><ul>' + items + '</ul></li>';
     }
     host.innerHTML =
@@ -481,8 +518,8 @@
     var D = typeof HCDay !== 'undefined' && HCDay ? HCDay : null;
     return D && typeof D.sel === 'function' ? D.sel() || null : null;
   }
-  function renderEat(host) {
-    var card = host.closest ? host.closest('.eat-card') : null;
+  function renderEat(host: HTMLElement) {
+    var card = host.closest ? host.closest<HTMLElement>('.eat-card') : null;
     var h = card && card.querySelector ? card.querySelector('h3') : null;
     var E = T.eat, past = eatDay(), d, t, how;
     if (past) {
@@ -514,18 +551,18 @@
       try { window.intakeRefresh(); } catch (e) { var h = $('intake'); if (h) h.innerHTML = '<p class="nutri-failed">' + esc(T.failed) + '</p>'; }
     }
   }
-  function renderFuel(picker) {
+  function renderFuel(picker: boolean) {
     var block = $('nutri-fuel-block'), bike = isBike(dayType());
     if (block) block.hidden = !bike;
     if (!bike) return;
     if (picker) guard($('nutri-ride-wrap'), renderRidePicker);
     guard($('nutri-fuel-body'), renderFuelBody);
   }
-  function refresh(picker) {
+  function refresh(picker?: boolean) {
     try { renderControls(); } catch (e) { /* controls keep their server-rendered state */ }
-    var x = null;
+    var x: Plan | null = null;
     try { x = current(); } catch (e) { x = null; }
-    var withPlan = function (fn) { return function (host) { if (!x) throw new Error('no plan'); fn(host, x); }; };
+    var withPlan = function (fn: (host: HTMLElement, x: Plan) => void) { return function (host: HTMLElement) { if (!x) throw new Error('no plan'); fn(host, x); }; };
     guard($('nutri-target'), function (host) { renderTarget(host, x); }); // the target shows even without a plan
     guard($('nutri-plan'), withPlan(renderGuide));
     var pk = $('nutri-plan-kcal');
@@ -535,28 +572,28 @@
     refreshDependents();
     // Progreso, Constancia and the nutrition score read the goal (client/progress.ts, client/adherence.ts,
     // client/nutri-score.ts; absent before load)
-    ['HCProgress', 'HCAdherence', 'HCNutriScore'].forEach(function (k) {
+    (['HCProgress', 'HCAdherence', 'HCNutriScore'] as const).forEach(function (k) {
       var v = window[k];
       if (v && typeof v.render === 'function') { try { v.render(); } catch (e) { /* each block guards its own host */ } }
     });
   }
 
   /* ---------- events ---------- */
-  function on(id, evt, fn) {
+  function on(id: string, evt: string, fn: (e: Event) => void) {
     var el = $(id);
     if (el && el.addEventListener) el.addEventListener(evt, fn);
   }
   // the goal is changed from the profile sheet (client/profile.ts); false = not a known goal. With the
   // settings API (client/settings.ts, LAN page) the server copy is the source of truth: the goal is
   // saved there too, and hc.nutri.goal stays the offline cache / fallback
-  function applyGoal(v) {
+  function applyGoal(v: string) {
     if (N.goals.indexOf(v) < 0) return false;
     state.goal = v;
     save(KEY_GOAL, v);
     refresh();
     return true;
   }
-  function setGoal(v) {
+  function setGoal(v: string) {
     if (!applyGoal(v)) return false;
     // pending until the server confirms it: settings.ts retries it on its next load / visibility and
     // prefers it over the server's goal meanwhile
@@ -575,7 +612,7 @@
     return N.goals.indexOf(g) >= 0 ? g : null;
   }
   // the server stored `g`: a pending goal equal to it is done (a newer pick stays pending)
-  function clearPending(g) {
+  function clearPending(g: string) {
     if (pendingGoal() === g) save(KEY_GOAL_PENDING, null);
   }
   // the goal this viewer stored (hc.nutri.goal), or null: settings.ts pushes it once to a server that has none
@@ -584,17 +621,17 @@
     return N.goals.indexOf(g) >= 0 ? g : null;
   }
   on('nutri-target', 'click', function (e) {
-    var t = e && e.target;
+    var t = e && e.target as Element | null;
     var chip = t && t.closest ? t.closest('#nutri-goal-chip') : null;
     if (!chip || !window.HCDetail || typeof window.HCDetail.open !== 'function') return;
     window.HCDetail.open('profile', null, { focus: '#pf-goal input:checked' });
   });
   on('nutri-daytype', 'change', function (e) {
-    var v = e && e.target && e.target.value;
+    var v = e && e.target && (e.target as HTMLInputElement).value;
     if (N.dayTypes.indexOf(v) < 0) return;
-    state.override = v === state.auto.type ? null : v;
+    state.override = v === state.auto!.type ? null : v;
     state.raised = null;
-    save(KEY_DAY, state.override ? JSON.stringify({ date: todayIso(), type: state.override, auto: state.auto.type }) : null);
+    save(KEY_DAY, state.override ? JSON.stringify({ date: todayIso(), type: state.override, auto: state.auto!.type }) : null);
     refresh();
   });
   on('nutri-auto', 'click', function () {
@@ -604,7 +641,7 @@
     refresh();
   });
   // an example pick (the food a macro row shows): a per-viewer preference, not daily; focus stays on it
-  function setGuidePick(key, id) {
+  function setGuidePick(key: string, id: string) {
     var parts = String(key).split('.');
     if (parts.length !== 2 || (N.mainSlots || []).indexOf(parts[0]) < 0 || ROLE_KEYS.indexOf(parts[1]) < 0) return false;
     if (!/^[bp]:/.test(id)) return false;
@@ -613,22 +650,22 @@
     refresh(false);
     return true;
   }
-  function refocus(sel) {
+  function refocus(sel: string) {
     try {
-      var el = document.querySelector ? document.querySelector(sel) : null;
+      var el = document.querySelector ? document.querySelector<HTMLElement>(sel) : null;
       if (el && el.focus) el.focus();
     } catch (e) { /* focus is a convenience */ }
   }
   on('nutri-plan', 'change', function (e) {
-    var t = e && e.target;
+    var t = e && e.target as HTMLSelectElement | null;
     var key = t && t.getAttribute ? t.getAttribute('data-guide') : null;
-    if (!key || typeof t.value !== 'string') return;
-    if (setGuidePick(key, t.value)) refocus('select[data-guide="' + key.replace(/["\\]/g, '') + '"]');
+    if (!key || typeof t!.value !== 'string') return;
+    if (setGuidePick(key, t!.value)) refocus('select[data-guide="' + key.replace(/["\\]/g, '') + '"]');
   });
   // "+": log the example amount (for what is left) into that meal through the food log's add flow
   on('nutri-plan', 'click', function (e) {
-    var t = e && e.target;
-    var btn = t && t.closest ? t.closest('[data-guide-add]') : null;
+    var t = e && e.target as Element | null;
+    var btn = t && t.closest ? t.closest<HTMLButtonElement>('[data-guide-add]') : null;
     var F = window.HCFood;
     if (!btn || btn.disabled || !F || typeof F.addGuide !== 'function') return;
     var amt = Number(btn.getAttribute('data-amt'));
@@ -636,20 +673,20 @@
     btn.disabled = true;
     var p;
     try { p = F.addGuide({ group: btn.getAttribute('data-meal'), food: btn.getAttribute('data-food'), amt: amt }); } catch (err) { p = null; }
-    var undo = function () { btn.disabled = false; };
+    var undo = function () { btn!.disabled = false; };
     if (p && typeof p.then === 'function') p.then(null, undo);
     else undo();
   });
   // Plan de hoy is a native <details>, collapsed by default; its open state is a per-viewer convenience
   // (hc.nutri.planOpen = '1' / '0'). The guide is rendered either way.
   function initPlanFold() {
-    var fold = $('nutri-plan-fold');
+    var fold = $('nutri-plan-fold') as HTMLDetailsElement | null;
     if (!fold) return;
     fold.open = load(KEY_PLAN_OPEN) === '1';
-    if (fold.addEventListener) fold.addEventListener('toggle', function () { save(KEY_PLAN_OPEN, fold.open ? '1' : '0'); });
+    if (fold.addEventListener) fold.addEventListener('toggle', function () { save(KEY_PLAN_OPEN, fold!.open ? '1' : '0'); });
   }
   on('nutri-ride-wrap', 'change', function (e) {
-    var v = e && e.target ? Number(e.target.value) : NaN;
+    var v = e && e.target ? Number((e.target as HTMLSelectElement).value) : NaN;
     var d = dayType();
     if (!(v > 0) || !isBike(d)) return;
     state.ride = { type: d, min: v };
@@ -660,7 +697,7 @@
   /** Today's MEALS target for the intake rings: on bike days the day target minus the ride fuel (all
    * carbs), with the fuel handed over separately; `day` = the base day (train / rest); fatMax = the
    * fat target + the plan tolerance. */
-  function ringTarget(x, d, past) {
+  function ringTarget(x: Plan, d: string, past: boolean): RingTarget {
     var head = x.fuelK > 0 ? (past ? T.target.pastMealsHeading : T.target.mealsHeading) : past ? T.target.pastHeading : T.target.heading;
     return {
       k: x.mt.k, p: x.mt.p, c: x.mt.c, g: x.mt.f, fatMax: x.mt.f + N.macroTol, fuelK: x.fuelK,
@@ -672,7 +709,7 @@
    * a past day = THAT day's detected day type (its recorded ride minutes, else the default) with the
    * current goal — today's override and picked ride minutes never apply to it. null when the day type
    * cannot be determined (no timeline row and no programmed session), for a future or a non-ISO date. */
-  function targetFor(date) {
+  function targetFor(date: string) {
     var iso = HC.isoDate(date), today = todayIso();
     if (!iso || iso > today) return null;
     if (iso === today) return window.nutriTarget();
@@ -714,7 +751,7 @@
     capByDay: capByDay,
     roleOptions: roleOptions,
     LINE: LINE,
-    setGuidePick: function (key, id) { return typeof key === 'string' && typeof id === 'string' ? setGuidePick(key, id) : false; },
+    setGuidePick: function (key: unknown, id: unknown) { return typeof key === 'string' && typeof id === 'string' ? setGuidePick(key, id) : false; },
     state: function () { return { goal: state.goal, dayType: dayType(), override: state.override, auto: state.auto, rideMin: rideMinutes(), raised: state.raised, guide: JSON.parse(JSON.stringify(state.guide)) }; },
   };
 

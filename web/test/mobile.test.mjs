@@ -71,7 +71,8 @@ function formControlClasses() {
     for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
       const p = path.join(dir, f.name);
       if (f.isDirectory()) walk(p);
-      else if (/\.(js|astro)$/.test(f.name) && !/\.test\./.test(f.name)) {
+      // classic *.js, module *.ts (their type declarations hold no markup) and Astro templates
+      else if (/\.(js|ts|astro)$/.test(f.name) && !/\.d\.ts$/.test(f.name) && !/\.test\./.test(f.name)) {
         const src = fs.readFileSync(p, 'utf8');
         for (const m of src.matchAll(/<(input|select|textarea)\b([^>]*)>/g)) {
           if (/type=\\?["']?radio/.test(m[2])) continue;

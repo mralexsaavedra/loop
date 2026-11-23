@@ -44,7 +44,7 @@ test('esc: an absent value (null / undefined) renders as empty, never "null" / "
   assert.equal(HC.esc(false), 'false');
 });
 
-/* HC.jsonApi(base, header, timeoutMs): the ONE fetch wrapper of the LAN APIs (food-core.js, journal.ts) */
+/* HC.jsonApi(base, header, timeoutMs): the ONE fetch wrapper of the LAN APIs (food-core.ts, journal.ts) */
 function apiCtx({ fetch, protocol = 'http:', anySignal = true } = {}) {
   const ctx = { LOCALE: 'en', HC_CONST: HC_CONST_BAKE, I18N_DATE: enDate, Math, String, Number, Array, Object, JSON, Promise, setTimeout, clearTimeout, AbortController, fetch, location: { protocol } };
   // anySignal false: a browser without AbortSignal.any (the caller's signal is relayed by hand)
@@ -161,8 +161,8 @@ test('freshness.ts and profile.ts fetch only through HC.fetchTimeout / HC.fetchJ
   assert.doesNotMatch(fr, /\.json\(\)/, 'no res.json() outside the timeout');
 });
 
-test('food-core.js and journal.ts share HC.jsonApi: no fetch of their own', () => {
-  for (const f of ['food-core.js', 'journal.ts']) {
+test('food-core.ts and journal.ts share HC.jsonApi: no fetch of their own', () => {
+  for (const f of ['food-core.ts', 'journal.ts']) {
     const src = stripComments(fs.readFileSync(path.join(path.dirname(fileURLToPath(import.meta.url)), f), 'utf8'));
     assert.doesNotMatch(src, /\bfetch\(/, f);
     assert.match(src, /HC\.jsonApi\(/, f);
@@ -256,7 +256,7 @@ test('weekdayIndex is Monday-first (0 = Monday … 6 = Sunday)', () => {
 
 test('the client scripts share HC instead of redefining the helpers or hard-coding the baked constants', () => {
   const dir = path.dirname(fileURLToPath(import.meta.url));
-  for (const f of ['timeline.ts', 'training-activity.ts', 'monitor.ts', 'score.ts', 'health.ts', 'intake.ts', 'food-core.js', 'food-sheet.ts', 'food-catalog.ts', 'food-log.js']) {
+  for (const f of ['timeline.ts', 'training-activity.ts', 'monitor.ts', 'score.ts', 'health.ts', 'intake.ts', 'food-core.ts', 'food-sheet.ts', 'food-catalog.ts', 'food-log.ts']) {
     const src = fs.readFileSync(path.join(dir, f), 'utf8');
     for (const name of ['esc', 'format', 'daysOld', 'todayIso', 'isoDate', 'nf']) {
       assert.doesNotMatch(src, new RegExp(`function ${name}\\(`), `${f} redefines ${name}()`);

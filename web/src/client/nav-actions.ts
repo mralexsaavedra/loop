@@ -1,12 +1,12 @@
 /* The bottom dock's "+" action button and its popover (markup: layouts/Plan.astro, #act). Module script
  * (bundled into the page, docs/plan-page.md → Module scripts). It lists only REAL actions that already exist on this page, decided at view time:
- *   - food: the food log's add sheet (window.HCViews['food-add'], registered by food-log.js once
+ *   - food: the food log's add sheet (window.HCViews['food-add'], registered by food-log.ts once
  *     GET /api/food/products answered — LAN only) opened through the detail sheet (window.HCDetail);
  *   - journal: the journal sheet (window.HCViews.journal, registered by client/journal.ts once
  *     GET /api/journal/settings answered — LAN only);
  *   - sync: the top bar's Sync button (#sync-btn, client/freshness.ts), available while the freshness
  *     group is shown (/api/sync/status answered — LAN only).
- * Both answer asynchronously, so freshness.ts and food-log.js call window.HCActions.refresh() when they
+ * Both answer asynchronously, so freshness.ts and food-log.ts call window.HCActions.refresh() when they
  * change; the root (#act) ships hidden and stays hidden while no action is available (example build,
  * file://, a static copy): never a dead control.
  * Open: the popover + a blurred scrim, the "+" turns into a close "x" (CSS on aria-expanded, the label

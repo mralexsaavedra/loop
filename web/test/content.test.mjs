@@ -101,7 +101,7 @@ test('example build: Nutrición opens like Salud / Entreno (centred title + ⓘ)
   assert.match(nutricion, /<div class="hs-info" id="nu-intro" hidden><p>[^<]+<\/p><p>[^<]*not medical advice\.[^<]*<\/p><\/div>/);
   assert.ok(nutricion.indexOf('id="nu-intro"') < nutricion.indexOf('data-section="dia"'), 'the header leads the tab');
   assert.match(nutricion, /<h2 class="hs-lbl">Today(&#39;|')s summary<\/h2>\s*<button type="button" class="hs-i" data-hs-info="nutri-sum-info"[^>]*aria-label="About Today(&#39;|')s summary"/);
-  assert.match(nutricion, /<div class="hs-info" id="nutri-sum-info" hidden><\/div>/, 'filled by nutri-day.js');
+  assert.match(nutricion, /<div class="hs-info" id="nutri-sum-info" hidden><\/div>/, 'filled by nutri-day.ts');
   assert.match(html, /var NUTRI_ARC = "M60 6A54 54 0 0 1 60 114A54 54 0 0 1 60 6";/, 'the full ring of view/dial.mjs, no 270° arc');
 });
 

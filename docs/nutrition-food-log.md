@@ -41,7 +41,7 @@ food-calc.js.
 
 - **Page** — `lib/nutrition/client.mjs` emits the functions (the module's `CLIENT` descriptor) as
   `HC_FOODLOG` (inlined with HC_FMT before util.js, + `num.mjs` `fin` / `roundEps`), read by
-  `web/src/client/food-core.js` (`window.HCFood`, no copy). The add sheet's preview uses the same
+  `web/src/client/food-core.ts` (`window.HCFood`, no copy). The add sheet's preview uses the same
   functions: a recipe whose products are all listed uses `recipeBasis`, one with an archived product the
   server's computed basis on the recipe row, both through `entryFromBasis` — no fourth copy.
 - **Service** — a GENERATED copy, `services/loop-ingest/src/food-calc.js` (built from its own directory, so
@@ -70,7 +70,7 @@ u (a `ud` food: per unit), pc?: {a, r, o, m}, v?: 1 = a verified label}`.
   piece states grams; never g ↔ ml.
 - Label = "<name> · <amount> ud (~<g> g)" for pieces, "<name> · <amount> <g|ml>" otherwise (es "ud", en
   "pc", decimal comma in es), capped at `nameMax`.
-- ONE implementation, run by food-core.js through `HC_FOODLOG` (`BASIC_CASES` / `runBasicCase` pin its bytes
+- ONE implementation, run by food-core.ts through `HC_FOODLOG` (`BASIC_CASES` / `runBasicCase` pin its bytes
   in the lib, the page and the built page). The server never computes a quick entry, so food-calc.js has
   none.
 - A HIDDEN basic (`h: 1`, from `basic: false` in `ingredients.json`: a food you log as your own product,
@@ -175,10 +175,10 @@ calling the service directly is trusted (the LAN-only model).
 
 ### Scripts and bake
 
-- `web/src/client/food-*.js`, four classic scripts inlined in this order after nutri-day.js, before
-  intake.ts: `food-core.js` (the formula from `HC_FOODLOG`, `parseNum`, the API client, the shared state
+- `web/src/client/food-*.js`, four classic scripts inlined in this order after nutri-day.ts, before
+  intake.ts: `food-core.ts` (the formula from `HC_FOODLOG`, `parseNum`, the API client, the shared state
   `S` + helpers, handed to the others as `window.HCFoodInternal`), `food-sheet.ts` (the add sheet),
-  `food-catalog.ts` (My products / My recipes), `food-log.js` (Log food + navigator, the event listeners,
+  `food-catalog.ts` (My products / My recipes), `food-log.ts` (Log food + navigator, the event listeners,
   the boot, the public `window.HCFood` / `window.foodTotals`). Tests load them with
   `web/test/client-util.mjs` `FOOD_SOURCE`.
 - Copy: `web/src/i18n/food-templates.mjs` es / en, baked as `I18N_FOOD` + `FOOD_CONST` in `Dia.astro`.
@@ -193,7 +193,7 @@ calling the service directly is trusted (the LAN-only model).
 
 On the block's heading line (`.food-head`: the shared sentence-case heading `.hs-lbl` left, the navigator
 right; a row too narrow wraps the navigator under the title; static markup in `Dia.astro`, driven by
-food-log.js).
+food-log.ts).
 
 - `‹ <date> ›` = real 44 px buttons (the shared `.nav-btn` with a `.chev`; aria-label `Día anterior` /
   `Día siguiente`), the date in an `aria-live` label (`Hoy` on the viewer's today, else `HC.fmtDate`); next
@@ -341,7 +341,7 @@ The search box also looks in `FOOD_BASICS` (it shows even with no product yet).
 ## Wiring
 
 - `window.foodTotals()` = `{date, k, p, c, g, n, missing, src: 'log'}` when the API answered and TODAY (the
-  viewer's local date) has ≥ 1 entry, else null — the one contract; nutri-day.js and intake.ts do not
+  viewer's local date) has ≥ 1 entry, else null — the one contract; nutri-day.ts and intake.ts do not
   re-check the date. TODAY-only whatever day the navigator shows.
 - A macro NO entry states is `null` (a dash, never "0 / 150 g" or 0 %); `missing[m]` = at least one entry
   lacks it, so a non-null value is a minimum and the bar / ring shows "≥ 40" (the rings add a one-line

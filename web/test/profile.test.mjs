@@ -82,8 +82,8 @@ test('example build: ONE avatar button in the top bar (initials, no photo) openi
   assert.deepEqual(p.goals, goalOptions(resolveTargets(plan)), 'the goal setting\'s options are the lib\'s own');
   assert.equal(p.goals.length, 3);
   const nutri = html.search(/window\.HCNutri\s*=\s*\{/);
-  assert.ok(nutri >= 0, 'nutri-day.js inlined');
-  assert.ok(nutri < reg, 'nutri-day.js (the goal\'s owner) runs before profile.ts');
+  assert.ok(nutri >= 0, 'nutri-day.ts inlined');
+  assert.ok(nutri < reg, 'nutri-day.ts (the goal\'s owner) runs before profile.ts');
   const nav = (html.match(/<nav class="tabnav"[\s\S]*?<\/nav>/) || [''])[0];
   assert.ok(nav && !nav.includes('profile'), 'not a tab');
 });

@@ -51,7 +51,7 @@ The FIRST section under the header (also on the onboarding sheet), heading `Obje
 - **The kcal**: `lib/profile/goal.mjs` `goalOptions(resolveTargets(plan))` — mean goal − maintain over rest +
   gym, rounded to 10; "bike days untouched" only when bike / bikeLong equal maintain. Baked as
   `PROFILE.goals` by `web/pages/index.astro`, never typed.
-- **Ownership**: the goal belongs to Nutrition (`client/nutri-day.js`, inlined before profile.ts).
+- **Ownership**: the goal belongs to Nutrition (`client/nutri-day.ts`, inlined before profile.ts).
   - The checked radio is `HCNutri.state().goal`.
   - A change calls `HCNutri.setGoal`, which writes the key `hc.nutri.goal` (fallback `page.goal`) and refreshes
     the summary, plan, fuelling, Home card, rings and the kcal chip at once.
