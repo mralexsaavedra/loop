@@ -53,7 +53,7 @@ const WORKOUTS_CSV = 'workouts.csv'
 // a Watch copy and a Strava copy of one session land in the SAME physical modality and
 // lib/training/sessions.mjs mergeSameDay counts them once). Racket, team and outdoor sports map to
 // the Apple type the Watch writes (Tennis, Soccer…; Padel has no Apple type and keeps its name): all
-// land in the `other` modality (lib/score/modality.mjs), never gym. Strava's generic "Workout" (where
+// land in the `other` modality (lib/training/modality.mjs), never gym. Strava's generic "Workout" (where
 // a Watch "Other" workout lands when it syncs) maps to "Other", the Watch's generic label that
 // modality.mjs counts as gym. Anything not in this table lands on FALLBACK_TYPE "Unmapped" (a
 // non-gym type -> `other`; not "Other", which would file every unknown sport, e.g. tennis, as

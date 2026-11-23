@@ -110,7 +110,7 @@ test('translateType maps known Strava sport types to the HealthKit-style type', 
 });
 
 test('translateType falls back to a NON-gym type for an unmapped sport_type without throwing', async () => {
-  const { scoreModality } = await import('../../lib/score/modality.mjs');
+  const { scoreModality } = await import('../../lib/training/modality.mjs');
   const { modalityGroup } = await import('../../lib/training/dashboard.mjs');
   assert.equal(FALLBACK_TYPE, 'Unmapped');
   for (const t of ['SomeNewSport', null, undefined]) assert.equal(translateType(t), FALLBACK_TYPE);
@@ -120,7 +120,7 @@ test('translateType falls back to a NON-gym type for an unmapped sport_type with
 });
 
 test('racket and team sports map to Apple-style types in the `other` modality', async () => {
-  const { scoreModality } = await import('../../lib/score/modality.mjs');
+  const { scoreModality } = await import('../../lib/training/modality.mjs');
   const { modalityGroup } = await import('../../lib/training/dashboard.mjs');
   assert.equal(translateType('Tennis'), 'Tennis', 'the Watch exports tennis as "Tennis"');
   for (const sport of ['Tennis', 'TableTennis', 'Squash', 'Badminton', 'Racquetball', 'Padel', 'Pickleball', 'Soccer', 'Basketball', 'Volleyball', 'Golf']) {
@@ -132,13 +132,13 @@ test('racket and team sports map to Apple-style types in the `other` modality', 
 });
 
 test('Strava "Workout" (its generic type, where a Watch "Other" workout lands) keeps the Watch\'s gym label', async () => {
-  const { scoreModality } = await import('../../lib/score/modality.mjs');
+  const { scoreModality } = await import('../../lib/training/modality.mjs');
   assert.equal(translateType('Workout'), 'Other');
   assert.equal(scoreModality('Other'), 'gym');
 });
 
 test('every mapped type lands where its name says: no racket/outdoor sport is ever gym, run or bike by accident', async () => {
-  const { scoreModality } = await import('../../lib/score/modality.mjs');
+  const { scoreModality } = await import('../../lib/training/modality.mjs');
   const GYMISH = new Set(['WeightTraining', 'HighIntensityIntervalTraining', 'Crossfit', 'Workout']);
   for (const [sport, t] of Object.entries(SPORT_TYPE_MAP)) {
     const m = scoreModality(t);
