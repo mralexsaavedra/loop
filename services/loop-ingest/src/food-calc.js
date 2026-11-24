@@ -76,13 +76,13 @@ export function ingredientBasis(ing, byId) {
     var ud = ing.unit === 'ud';
     return { per100: ing.per100, amount: ud ? ing.amount * BASIC_UD_AMT : ing.amount, weight: ud ? 0 : ing.amount };
   }
-  var p = byId ? byId[ing.productId] : null;
+  var p = byId ? byId[/** @type {number} */ (ing.productId)] : null;
   if (!p || !p.per100) return null;
   return { per100: p.per100, amount: ing.amount, weight: ing.amount };
 }
 export function recipeBasis(recipe, byId) {
   var totals = { kcal: 0, protein: 0, carbs: 0, fat: 0 };
-  var missing = [];
+  var missing = /** @type {(string | number | undefined)[]} */ ([]);
   var raw = 0;
   var n = 0;
   (recipe && recipe.ingredients ? recipe.ingredients : []).forEach(function (ing) {
@@ -126,17 +126,17 @@ export function dayTotals(entries) {
   return t;
 }
 export function daySummaries(entries) {
-  var byDate = {};
+  var byDate = /** @type {{ [date: string]: NonNullable<typeof entries>[number][] }} */ ({});
   (entries || []).forEach(function (e) {
     if (!e || typeof e.date !== 'string') return;
     (byDate[e.date] = byDate[e.date] || []).push(e);
   });
   return Object.keys(byDate).sort().map(function (date) {
     var list = byDate[date], t = dayTotals(list);
-    var groups = {};
+    var groups = /** @type {{ [group: string]: number }} */ ({});
     SUMMARY_GROUPS.forEach(function (g) { groups[g] = 0; });
     list.forEach(function (e) { var g = FOOD_GROUP_OF[e.meal]; if (g) groups[g]++; });
-    var known = function (k) { return list.some(function (e) { return fin(e[k]); }) ? t[k] : null; };
+    var known = function (/** @type {'protein' | 'carbs' | 'fat'} */ k) { return list.some(function (e) { return fin(e[k]); }) ? t[k] : null; };
     return {
       date: date, k: t.kcal, p: known('protein'), c: known('carbs'), f: known('fat'), n: t.count,
       missing: { p: t.missing.protein, c: t.missing.carbs, f: t.missing.fat }, groups: groups,
