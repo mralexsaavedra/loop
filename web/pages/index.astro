@@ -37,7 +37,7 @@ const trainMeta = trainingMeta(training);
 // Astro-free function the golden guard runs too (web/src/bakes.mjs)
 const { nut, dash, activity, health, profile, scores, detail, intake } = computeBakes(env);
 
-const navTab = (key: string) => ({ key, label: dict.strings.nav.tabs[key].label });
+const navTab = (key: string) => ({ key, label: dict.strings.nav.tabs[key as keyof typeof dict.strings.nav.tabs].label });
 // `sections` = the section keys a tab is made of ENTIRELY (hiding all of them drops the tab):
 // Nutrición and Entreno; Inicio and Salud hold blocks beyond their sections.
 const SECTION_ONLY_TABS = ['entreno', 'nutricion'];
@@ -52,7 +52,7 @@ const isHidden = (key: string) => hiddenSections.includes(key);
 const isTabVisible = (key: string) => TABS.some((t) => t.key === key);
 // each panel is a region named by its nav button (#t-<key>); a tab hidden by hideTabs has no button, so its
 // panel gets neither (no dangling aria-labelledby)
-const panelA11y = (key: string) => (isTabVisible(key) ? { role: 'region', 'aria-labelledby': `t-${key}` } : {});
+const panelA11y = (key: string): { role?: 'region'; 'aria-labelledby'?: string } => (isTabVisible(key) ? { role: 'region' as const, 'aria-labelledby': `t-${key}` } : {});
 
 const title = plan.page?.title || 'Plan';
 ---

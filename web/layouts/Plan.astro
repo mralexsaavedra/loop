@@ -28,7 +28,7 @@ import { CLIENT_SCRIPTS } from '../src/client/manifest.mjs';
 // every client script (*.ts), bundled into an IIFE by astro.config.mjs's virtual module, inlined in CLIENT_SCRIPTS
 // order below (the markup keeps </body> on the map's line: a line break after an expression renders as a space)
 import clientModules from 'virtual:client-modules';
-const clientScript = (file) => clientModules[file];
+const clientScript = (file: string) => clientModules[file];
 import Avatar from '../src/components/Avatar.astro';
 import tokensCss from '../src/styles/tokens.css?raw';
 import { es as esSync, en as enSync } from '../src/i18n/sync-templates.mjs';
