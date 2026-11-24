@@ -174,7 +174,7 @@ export function classifyStravaError (err) {
  * the next one is requested: the caller stores it right away, and a rate limit (429) or any failure partway
  * keeps everything already stored. The next run then resumes from the newest stored activity instead of
  * starting over, so a long first history completes over a few runs. Resolves the number of activities.
- * @param {GetAccessToken} getAccessToken @param {number} sinceEpochSeconds
+ * @param {GetAccessToken} getAccessToken @param {number | null} sinceEpochSeconds (null reads as 0)
  * @param {(batch: StravaPayload[]) => unknown} onPage @param {FetchImpl} [fetchImpl] @returns {Promise<number>}
  */
 export async function pullActivitiesSince (getAccessToken, sinceEpochSeconds, onPage, fetchImpl = fetch) {
@@ -207,7 +207,7 @@ export async function pullActivitiesSince (getAccessToken, sinceEpochSeconds, on
 
 /**
  * pullActivitiesSince, collected into one array (no incremental storage).
- * @param {GetAccessToken} getAccessToken @param {number} sinceEpochSeconds @param {FetchImpl} [fetchImpl]
+ * @param {GetAccessToken} getAccessToken @param {number | null} sinceEpochSeconds @param {FetchImpl} [fetchImpl]
  */
 export async function fetchActivitiesSince (getAccessToken, sinceEpochSeconds, fetchImpl = fetch) {
   /** @type {StravaPayload[]} */

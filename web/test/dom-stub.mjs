@@ -72,6 +72,10 @@ export class StubElement {
     // escaped form, matching the browser's actual text-node serialization.
     // `configurable: true` lets a test override either property later (a
     // <select> stub redefines them).
+    /** The text, as the DOM's property (an accessor defined below). @type {string} */
+    this.textContent;
+    /** The markup, as the DOM's property (an accessor defined below). @type {string} */
+    this.innerHTML;
     Object.defineProperty(this, 'textContent', {
       configurable: true,
       enumerable: true,
