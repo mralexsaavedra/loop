@@ -1,5 +1,5 @@
 /* The shapes of the page globals the module client scripts (*.ts) read: HC, LOCALE, the copy tables (I18N_*) and
- * SCORES (inferred from lib/score/index.mjs) are typed; the baked data globals are `any` until each gets its own type (their shapes live in lib/). */
+ * SCORES / DETAIL (from their lib/ builders) are typed; the baked data globals are `any` until each gets its own type (their shapes live in lib/). */
 /** A copy table the scripts also index by a runtime key (a kind, a range, a metric): each nested table keeps its
  * named keys and also takes any string key (an unknown key reads `undefined` at runtime, as before). */
 type Lookup<T> = T extends readonly unknown[]
@@ -15,7 +15,7 @@ type Copy<M extends { en: unknown }> = Lookup<M['en']>;
 export type PageGlobals = {
   /** util.ts's helper library (its own inferred type: every helper's parameters and result). */
   HC: import('./util').HCApi;
-  DETAIL: any;
+  DETAIL: ReturnType<typeof import('../../../lib/detail/detail.mjs').detailFrom>;
   SCORES: ReturnType<typeof import('../../../lib/score/index.mjs').buildScoresFrom>;
   TRAINING: any;
   I18N_SCORE: Copy<typeof import('../i18n/score-templates.mjs')>;

@@ -288,7 +288,7 @@ type RowFn = () => string;
      uncoloured and uncounted. A "met of n" line leads; the sources and the zone approximation sit under ⓘ.
      Never folded into an age (that needs weights nobody publishes). */
   function habitsSection(SC: any): string {
-    var H = typeof DETAIL !== 'undefined' && DETAIL && DETAIL.habits ? DETAIL.habits : null, TH = T.habits;
+    var H = (typeof DETAIL !== 'undefined' && DETAIL && DETAIL.habits ? DETAIL.habits : null)!, TH = T.habits;
     if (!H || !H.ref || !TH) return '';
     var R = H.ref, U = TH.units, P = typeof PROFILE === 'undefined' || !PROFILE ? {} : PROFILE;
     var age = HC.ageOn(P.birthdate, HC.todayIso());
@@ -316,7 +316,7 @@ type RowFn = () => string;
       add('fitness', F.age <= age, { icon: 'fitnessAge', detail: 'fitnessAge', value: shown, unit: U.years, base: format(TH.ref.fitness, { age: age }) });
     }
     [['rhr', 'rhr', 'rhr', U.bpm], ['cons', 'cons', 'sleep', U.min]].forEach(function (x) {
-      var h = H[x[0]];
+      var h = H[x[0] as 'rhr' | 'cons'];
       if (!h || !fin(h.now)) return;
       add(x[0], fin(h.base) ? h.now <= h.base : null, { icon: x[1], detail: x[2], value: HC.num(h.now, 0), unit: x[3],
         base: fin(h.base) ? format(TH.ref.before, { value: HC.num(h.base, 0) + ' ' + x[3] }) : TH.ref.noBase });
