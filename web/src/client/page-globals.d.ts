@@ -33,6 +33,7 @@ export type PageGlobals = {
   /** Plan.astro's one baked copy of lib/nav/tabs.mjs: the tab keys and the maps (section / detail metric / view /
    * anchor -> its tab) the scripts look up with a runtime key. */
   NAV: { tabs: readonly string[]; sectionTab: Readonly<Record<string, string>>; detailTab: Readonly<Record<string, string>>;
+    detailAlias: Readonly<Record<string, string>>;
     viewTab: Readonly<Record<string, string | null>>; anchorTab: Readonly<Record<string, string>>;
     day: typeof import('../../../lib/nav/tabs.mjs')['DAY_HASH'] };
   I18N_DATE: Copy<typeof import('../i18n/date-templates.mjs')>;
