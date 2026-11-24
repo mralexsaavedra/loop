@@ -11,6 +11,8 @@ import { slimScript } from '../src/slim-script.mjs';
 import { FOOD_SCRIPTS, FOOD_SOURCES, FOOD_SOURCE } from './client-util.mjs';
 import { clientScriptSource } from '../src/client-bundle.mjs';
 
+/** @typedef {import('../../lib/nutrition/basics.mjs').BasicFood} BasicFood */
+
 const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
 const htmlPath = path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.html');
@@ -20,8 +22,8 @@ const nutriDay = clientScriptSource('nutri-day.ts'); // a module script: the byt
 const intake = clientScriptSource('intake.ts'); // a module script: the bytes the page inlines
 // where a client script sits in the built page: the WHOLE script as the build inlines it (slimScript);
 // a script that is not there fails naming it, never as a bare -1 in a comparison
-const SCRIPT_NAME = new Map([...FOOD_SOURCES.map((s, i) => [s, FOOD_SCRIPTS[i]]), [nutriDay, 'nutri-day.ts'], [intake, 'intake.ts']]);
-const inlinedAt = (src) => {
+const SCRIPT_NAME = new Map(/** @type {[string, string][]} */ ([...FOOD_SOURCES.map((s, i) => [s, FOOD_SCRIPTS[i]]), [nutriDay, 'nutri-day.ts'], [intake, 'intake.ts']]));
+const inlinedAt = (/** @type {string} */ src) => {
   const at = html.indexOf(slimScript(src));
   assert.ok(at > 0, `${SCRIPT_NAME.get(src) || 'client script'} is not inlined whole (as slimScript emits it) in ${htmlPath}`);
   return at;
@@ -79,8 +81,8 @@ test('the public basics are baked once as FOOD_BASICS, localized, compact (lib/n
   assert.ok(m, 'FOOD_BASICS baked');
   const list = JSON.parse(m[1]);
   assert.ok(list.length >= 100, `${list.length} basics`);
-  assert.deepEqual(list.find((b) => b.k === 'huevo'), { k: 'huevo', n: 'Egg', u: 'ud', m: [72, 6.3, 0.4, 5], c: 'protein', pc: { a: 100, r: 50, o: 'egg', m: 'eggs' } });
-  assert.equal(list.find((b) => b.k === 'arroz').x, 150, 'the portion cap rides along for the portion guide');
+  assert.deepEqual(list.find((/** @type {BasicFood} */ b) => b.k === 'huevo'), { k: 'huevo', n: 'Egg', u: 'ud', m: [72, 6.3, 0.4, 5], c: 'protein', pc: { a: 100, r: 50, o: 'egg', m: 'eggs' } });
+  assert.equal(list.find((/** @type {BasicFood} */ b) => b.k === 'arroz').x, 150, 'the portion cap rides along for the portion guide');
   // 24 KB: ~188 basics (the 2026-10-02 Spanish basics took it to ~20 KB, ~105 B per food); still a small
   // share of the single-file page, and the budget keeps an eye on per-food growth (new baked fields).
   assert.ok(m[1].length < 24 * 1024, `FOOD_BASICS is ${m[1].length} bytes`);

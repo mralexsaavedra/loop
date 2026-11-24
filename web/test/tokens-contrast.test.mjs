@@ -13,18 +13,18 @@ import { fileURLToPath } from 'node:url';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const tokensCss = fs.readFileSync(path.join(here, '..', 'src', 'styles', 'tokens.css'), 'utf8');
-const token = (name) => {
+const token = (/** @type {string} */ name) => {
   const m = new RegExp(`--${name}:\\s*(#[0-9a-fA-F]{6})\\s*;`).exec(tokensCss);
   assert.ok(m, `--${name} must be a #rrggbb colour`);
   return m[1];
 };
 
-const lum = (hex) => {
+const lum = (/** @type {string} */ hex) => {
   const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16) / 255)
     .map((v) => (v <= 0.03928 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4));
   return 0.2126 * r + 0.7152 * g + 0.0722 * b;
 };
-const ratio = (a, b) => {
+const ratio = (/** @type {string} */ a, /** @type {string} */ b) => {
   const [x, y] = [lum(a), lum(b)];
   return (Math.max(x, y) + 0.05) / (Math.min(x, y) + 0.05);
 };
@@ -56,7 +56,7 @@ test('filled-button ink reaches AA on its fill', () => {
 });
 
 test('the tokens.css header lists the real ratio of every token on --surface', () => {
-  const head = /\/\*[\s\S]*?\*\//.exec(tokensCss)[0];
+  const head = /** @type {RegExpExecArray} */ (/\/\*[\s\S]*?\*\//.exec(tokensCss))[0];
   for (const fg of [...TEXT, ...LARGE_ONLY]) {
     const m = new RegExp(`(?:^|[\\s·*])${fg} (\\d+\\.\\d\\d)(?=[\\s·;(])`).exec(head);
     assert.ok(m, `header must list "${fg} <ratio>"`);

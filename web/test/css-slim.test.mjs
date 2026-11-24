@@ -26,6 +26,7 @@ const DIST = path.join(path.dirname(here), '.test-dist');
 const CSS_BUDGET = 110_000; // 111_000 until 2026-10-15; 108_000 until 2026-10-14 (onboarding visual pass, owner-approved)
 const FONT_FACE = /@font-face\{[^}]*\}/g;
 
+/** @param {string} html */
 function inlineCss(html) {
   return [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]);
 }

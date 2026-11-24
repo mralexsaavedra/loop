@@ -15,10 +15,11 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
 const htmlPath = path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.html');
 const html = fs.existsSync(htmlPath) ? fs.readFileSync(htmlPath, 'utf8') : '';
-const src = (name) => fs.readFileSync(path.join(WEB_ROOT, 'src', 'client', name), 'utf8');
+const src = (/** @type {string} */ name) => fs.readFileSync(path.join(WEB_ROOT, 'src', 'client', name), 'utf8');
 
 // [client file, the global it reads, the lib functions it must not re-define] (a file may read several;
 // old port names listed too; fuel.mjs `step` is left out: nutri-day.ts has its own unrelated render helper step())
+/** @type {[string, string, string[]][]} */
 const COPIES = [
   ['adherence.ts', 'HC_ADH', ['fin', 'isComplete', 'dayState', 'adherence']],
   ['progress.ts', 'HC_PROG', ['fin', 'round', 'dayNum', 'isoOf', 'rollPoints', 'weeklyRate', 'weightProgress', 'etaMonths']],

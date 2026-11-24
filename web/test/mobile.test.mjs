@@ -18,7 +18,7 @@ const htmlPath = path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.html');
 const html = () => fs.readFileSync(htmlPath, 'utf8');
 const css = () => [...html().matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
 const tokensCss = fs.readFileSync(path.join(WEB_ROOT, 'src', 'styles', 'tokens.css'), 'utf8');
-const token = (name) => {
+const token = (/** @type {string} */ name) => {
   const m = new RegExp(`--${name}:\\s*([^;]+);`).exec(tokensCss);
   return m ? m[1].trim() : null;
 };
@@ -26,9 +26,10 @@ const NARROW = '(max-width:899px)';
 
 /** [ids, classes + attributes + pseudo-classes, elements] of one compound selector; :is() / :not()
  * count their most specific argument (this project's selectors never go deeper). */
+/** @param {string} sel @returns {number[]} */
 function specificity(sel) {
   let a = 0, b = 0, c = 0;
-  const inner = (args) => splitTop(args).map((x) => specificity(x.trim())).reduce((best, x) => (cmp(x, best) > 0 ? x : best), [0, 0, 0]);
+  const inner = (/** @type {string} */ args) => splitTop(args).map((x) => specificity(x.trim())).reduce((best, x) => (cmp(x, best) > 0 ? x : best), [0, 0, 0]);
   // :is() / :not() / :where() with balanced (possibly nested) parentheses
   let s = '';
   for (let i = 0; i < sel.length;) {
@@ -48,7 +49,9 @@ function specificity(sel) {
   return [a, b, c];
 }
 /** A selector list split on its top-level commas (never inside parentheses). */
+/** @param {string} list */
 function splitTop(list) {
+  /** @type {string[]} */
   const out = [];
   let depth = 0, cur = '';
   for (const ch of list) {
@@ -59,6 +62,7 @@ function splitTop(list) {
   out.push(cur);
   return out;
 }
+/** @param {number[]} x @param {number[]} y */
 function cmp(x, y) {
   for (let i = 0; i < 3; i++) if (x[i] !== y[i]) return x[i] - y[i];
   return 0;
@@ -67,7 +71,7 @@ function cmp(x, y) {
 /** Every class a client script or template puts on an <input> / <select> / <textarea>, radios excluded. */
 function formControlClasses() {
   const out = new Set();
-  const walk = (dir) => {
+  const walk = (/** @type {string} */ dir) => {
     for (const f of fs.readdirSync(dir, { withFileTypes: true })) {
       const p = path.join(dir, f.name);
       if (f.isDirectory()) walk(p);
@@ -111,7 +115,7 @@ test('narrow screens: every text input, select and textarea is 16px, and no form
     // a LARGER size cannot trigger the zoom: the onboarding's big centred numbers (--fs-hero / --fs-num-card)
     if (r.decls.every(([p, v]) => p !== 'font' && (p !== 'font-size' || ABOVE_INPUT.includes(v)))) continue;
     for (const sel of splitTop(r.selector)) {
-      const last = sel.trim().split(/[\s>+~]+/).pop();
+      const last = /** @type {string} */ (sel.trim().split(/[\s>+~]+/).pop());
       const hits = [...classes].some((k) => new RegExp(`\\.${k}(?![\\w-])`).test(last));
       if (hits && cmp(specificity(sel.trim()), guardSpec) >= 0) offenders.push(`${r.media || ''} ${sel}`);
     }
@@ -136,7 +140,7 @@ test('specificity helper: the counts the guard test relies on', () => {
 
 test('every chip (day types, Constancia window, onboarding buttons, load pills) stays a compact 30px pill with a 44px tall hit band', () => {
   const rules = parseCssRules(css());
-  const decl = (sel, prop, media = null) => {
+  const decl = (/** @type {string} */ sel, /** @type {string} */ prop, /** @type {string | null} */ media = null) => {
     const r = rules.filter((x) => x.selector === sel && x.media === media).flatMap((x) => x.decls).filter(([p]) => p === prop);
     return r.length ? r[r.length - 1][1] : undefined;
   };
@@ -159,7 +163,7 @@ test('every chip (day types, Constancia window, onboarding buttons, load pills) 
 
 test('the date pill\'s "Today" label stays 32px tall but its hit band is 44px', () => {
   const rules = parseCssRules(css());
-  const decl = (sel, prop) => {
+  const decl = (/** @type {string} */ sel, /** @type {string} */ prop) => {
     const r = rules.filter((x) => x.selector === sel && x.media === null).flatMap((x) => x.decls).filter(([p]) => p === prop);
     return r.length ? r[r.length - 1][1] : undefined;
   };
@@ -180,14 +184,14 @@ test('dark browser chrome and form controls: color-scheme + theme-color from the
   const theme = /<meta name="theme-color" content="([^"]+)"\s*\/?>/.exec(head);
   assert.ok(theme, 'a theme-color meta');
   assert.equal(theme[1], token('ground-top'), 'the colour at the top of the page background');
-  assert.match(token('ground-top'), /^#[0-9a-f]{6}$/i);
+  assert.match(/** @type {string} */ (token('ground-top')), /^#[0-9a-f]{6}$/i);
   const root = parseCssRules(css()).filter((r) => r.selector === ':root' && r.media === null).flatMap((r) => r.decls);
   assert.ok(root.some(([p, v]) => p === 'color-scheme' && v === 'dark'), ':root { color-scheme: dark }');
 });
 
 test('the floating dock never covers the end of a tab: one --dock-room (bar + its offset + air + safe area) pads the page and every scroll target', () => {
   const rules = parseCssRules(css());
-  const decl = (sel, prop, media = null) => {
+  const decl = (/** @type {string} */ sel, /** @type {string} */ prop, /** @type {string | null} */ media = null) => {
     const r = rules.filter((x) => x.selector === sel && x.media === media).flatMap((x) => x.decls).filter(([p]) => p === prop);
     return r.length ? r[r.length - 1][1] : undefined;
   };
@@ -197,7 +201,7 @@ test('the floating dock never covers the end of a tab: one --dock-room (bar + it
   // the bar: 52px buttons + 5px padding top and bottom + 1px border each side, lifted 10px off the edge
   assert.equal(decl('.tabnav button', 'min-height'), '52px');
   assert.equal(decl('.dock', 'bottom'), 'calc(10px + env(safe-area-inset-bottom))');
-  const px = Number(/(\d+)px/.exec(room)[1]);
+  const px = Number(/** @type {RegExpExecArray} */ (/(\d+)px/.exec(room))[1]);
   assert.ok(px >= 10 + 52 + 2 * 5 + 2 + 16, `--dock-room ${px}px leaves at least 16px of air above the bar`);
   assert.equal(decl('body', 'padding-bottom'), 'var(--dock-room)', 'the last block of a tab scrolls clear of the bar');
   assert.equal(decl('html', 'scroll-padding-bottom'), 'var(--dock-room)', 'a focused / jumped-to element is never parked under the bar');
@@ -205,7 +209,7 @@ test('the floating dock never covers the end of a tab: one --dock-room (bar + it
 
 test('wide screens: the Entreno calendar grid is 7 equal columns, at most 640 px wide and centred, tiles capped at 48 px tall', () => {
   const rules = parseCssRules(css()).filter((r) => r.media === '(min-width:900px)');
-  const decl = (sel, prop) => {
+  const decl = (/** @type {string} */ sel, /** @type {string} */ prop) => {
     const d = rules.filter((x) => x.selector.split(',').map((s) => s.trim()).includes(sel)).flatMap((x) => x.decls).find(([p]) => p === prop);
     return d ? String(d[1]).replace(/\s+/g, '') : null;
   };

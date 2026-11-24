@@ -15,10 +15,11 @@ import { clientScriptSource } from '../src/client-bundle.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const clientDir = path.join(here, '..', 'src', 'client');
-const read = (f) => fs.readFileSync(path.join(clientDir, f), 'utf8');
+const read = (/** @type {string} */ f) => fs.readFileSync(path.join(clientDir, f), 'utf8');
 const EDGES = [100, 67, 66.9, 34, 33.5, 33, 0];
 
 test('no client script hardcodes a recovery band threshold (67 / 33 / 34 comparisons)', () => {
+  /** @type {string[]} */
   const hits = [];
   // classic *.js and module *.ts scripts (the source as written: the check reads the code's own literals)
   for (const f of fs.readdirSync(clientDir).filter((n) => (n.endsWith('.ts') && !n.endsWith('.d.ts')) && !n.includes('.test.'))) {
@@ -29,7 +30,8 @@ test('no client script hardcodes a recovery band threshold (67 / 33 / 34 compari
   assert.deepEqual(hits, [], 'read the thresholds from HC_BAND (lib/score/recovery.mjs), never client literals');
 });
 
-/** One band function out of a client script, run in a vm with the page's HC_BAND / HC. */
+/** One band function out of a client script, run in a vm with the page's HC_BAND / HC.
+ * @param {string} file @param {string} name */
 function bandFn(file, name) {
   // a module script (*.ts) is read as its bundle (types stripped, re-indented by esbuild): the function runs from
   // its declaration to the closing brace at the declaration's own indentation
@@ -48,7 +50,7 @@ test('deepdive.ts: the recovery % colour and the energy gauge band like lib pctB
   const map = { good: 'hi', mid: 'mid', low: 'lo' };
   for (const v of EDGES) {
     assert.equal(pct(v), pctBand(v), `pctCls(${v})`);
-    assert.equal(energy(v), map[pctBand(v)], `energyBand(${v})`);
+    assert.equal(energy(v), map[/** @type {keyof typeof map} */ (pctBand(v))], `energyBand(${v})`);
   }
 });
 
@@ -61,7 +63,7 @@ test('energy.ts: the Inicio energy bank card colours its level like lib pctBand 
     const RealDate = Date;
     class FakeDate extends RealDate { static now() { return new RealDate('2026-09-29T18:00:00').getTime(); } }
     const ctx = {
-      document: { getElementById: (id) => (id === 'home-energy' ? host : null) },
+      document: { getElementById: (/** @type {string} */ id) => (id === 'home-energy' ? host : null) },
       SCORES: { energy: { ok: true, asOf: '2026-09-29', days: [day] } }, I18N_SCORE: enScore, LOCALE: 'en',
       DETAIL: { metrics: {} }, Date: FakeDate, Math, String, Number, Array, Object, JSON,
     };
@@ -70,7 +72,7 @@ test('energy.ts: the Inicio energy bank card colours its level like lib pctBand 
     vm.runInContext(source, ctx);
     const cls = / en de-(\w+)/.exec(host.innerHTML);
     assert.ok(cls, `card rendered for ${lv}`);
-    assert.equal(cls[1], map[pctBand(lv)], `energy card at ${lv}`);
+    assert.equal(cls[1], map[/** @type {keyof typeof map} */ (pctBand(lv))], `energy card at ${lv}`);
   }
 });
 
@@ -82,7 +84,7 @@ test('detail-state.ts: the energy bank history colours its days like lib pctBand
   loadUtil(ctx);
   const f = vm.runInContext(`(function (v) { return ${m[1]}; })`, ctx);
   const map = { good: 'good', mid: 'mid', low: 'bad' };
-  for (const v of EDGES) assert.equal(f(v), map[pctBand(v)], `bank day ${v}`);
+  for (const v of EDGES) assert.equal(f(v), map[/** @type {keyof typeof map} */ (pctBand(v))], `bank day ${v}`);
   // no band (null / non-finite) stays 'bad', as before the shared thresholds, never undefined
   for (const v of [null, NaN, undefined]) assert.equal(f(v), 'bad', `bank day ${v}`);
 });

@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
+/** @param {string} outdir @returns {Promise<{code: number | null, err: string}>} */
 function build(outdir) {
   return new Promise((resolve) => {
     const child = spawn(process.execPath, [path.join(ROOT, 'scripts', 'build-web.mjs'), '--mode', 'example', '--locale', 'en', '--outdir', outdir], {

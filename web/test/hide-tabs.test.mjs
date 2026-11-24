@@ -35,13 +35,16 @@ import { dataPaths } from '../../lib/paths.mjs';
 // Every top-level nav key -> its nav <button id> (see web/pages/index.astro's TABS_ALL).
 const NAV_ID = Object.fromEntries(TAB_KEYS.map((k) => [k, 't-' + k]));
 
+/** @param {string} planPath @returns {string[]} */
 function readHideTabs(planPath) {
   const plan = JSON.parse(fs.readFileSync(planPath, 'utf8'));
   return plan.page?.hideTabs || [];
 }
 
 /** { key: isHidden } for every `class="tab-section" data-section="..."` opening tag. */
+/** @param {string} html */
 function sectionStates(html) {
+  /** @type {Record<string, boolean>} */
   const out = {};
   for (const m of html.matchAll(/<(?:section|details) class="tab-section[^"]*" data-section="([a-z]+)"[^>]*>/g)) {
     out[m[1]] = /\shidden(?=[\s>])/.test(m[0]);
@@ -50,6 +53,7 @@ function sectionStates(html) {
 }
 
 /** nav button ids in document order -> tab keys, and the keys of every panel WITHOUT `hidden`. */
+/** @param {string} html */
 function navOrderAndVisiblePanels(html) {
   const idToKey = Object.fromEntries(Object.entries(NAV_ID).map(([k, v]) => [v, k]));
   const nav = [...html.matchAll(/<button type="button" id="(t-[a-z]+)"/g)].map((m) => idToKey[m[1]]);
@@ -58,6 +62,7 @@ function navOrderAndVisiblePanels(html) {
 }
 
 /** Assert a built page honours `hideTabs` for both nav buttons and sections. */
+/** @param {string} html @param {string[]} hideTabs */
 function assertHonours(html, hideTabs) {
   const hidden = new Set(hideTabs);
   const states = sectionStates(html);
@@ -66,7 +71,7 @@ function assertHonours(html, hideTabs) {
     assert.equal(states[key], hidden.has(key), `section "${key}" hidden=${states[key]}, expected ${hidden.has(key)}`);
   }
   // Nutrición and Entreno are made ONLY of sections: hiding all of them drops the tab
-  const allSectionsGone = (tab) => ['nutricion', 'entreno'].includes(tab) && sectionsOf(tab).every((k) => hidden.has(k));
+  const allSectionsGone = (/** @type {string} */ tab) => ['nutricion', 'entreno'].includes(tab) && sectionsOf(tab).every((k) => hidden.has(k));
   for (const [key, navId] of Object.entries(NAV_ID)) {
     const expectHidden = hidden.has(key) || allSectionsGone(key);
     const re = new RegExp(`id="${navId}"`);
@@ -121,7 +126,8 @@ test('example build: exactly 4 nav items (Inicio, Entreno, Salud, Nutrición), H
   assert.deepEqual(visible, ['home']);
 });
 
-/** Build the tracked example inputs under os.tmpdir() with a given hideTabs; returns spawn result + html. */
+/** Build the tracked example inputs under os.tmpdir() with a given hideTabs; returns spawn result + html (null when the build wrote none).
+ * @param {string[]} hideTabs */
 function buildWithHideTabs(hideTabs) {
   // Throwaway repo root holding copies of the tracked example inputs; HC_REPO_ROOT points env.mjs
   // at it, so no repo file is touched.
@@ -152,7 +158,7 @@ test('build-level: legacy keys hide their sections; top-level keys hide their ta
   ]) {
     const { r, html } = buildWithHideTabs(hideTabs);
     assert.equal(r.status, 0, `build with hideTabs=${JSON.stringify(hideTabs)} failed:\n${r.stderr}`);
-    assertHonours(html, hideTabs);
+    assertHonours(/** @type {string} */ (html), hideTabs);
   }
 });
 
@@ -167,20 +173,20 @@ test('build-level: hiding EVERY top-level tab fails the Astro build with a clear
 test('build-level: with NO logged intake at all (no extract), Resumen de hoy renders no rings host and no help line (the old Registro fold hint is gone with the day builder)', () => {
   const { r, html } = buildWithHideTabs([]);
   assert.equal(r.status, 0, r.stderr);
-  assert.doesNotMatch(html, /<div id="intake">/, 'no rings host in Resumen de hoy');
-  assert.doesNotMatch(html, /class="sec-hint"|No food logged/, 'no "no intake" hint anywhere');
+  assert.doesNotMatch(/** @type {string} */ (html), /<div id="intake">/, 'no rings host in Resumen de hoy');
+  assert.doesNotMatch(/** @type {string} */ (html), /class="sec-hint"|No food logged/, 'no "no intake" hint anywhere');
 });
 
 test('build-level: "registro" in hideTabs (the removed day builder) still builds and changes nothing; Nutrición goes only with dia + tablas', () => {
   const { r, html } = buildWithHideTabs(['registro']);
   assert.equal(r.status, 0, r.stderr);
-  assert.doesNotMatch(html, /data-section="registro"|id="sec-registro"|id="bld-|bldRefresh/, 'no day builder left in the build');
-  assertHonours(html, []);
+  assert.doesNotMatch(/** @type {string} */ (html), /data-section="registro"|id="sec-registro"|id="bld-|bldRefresh/, 'no day builder left in the build');
+  assertHonours(/** @type {string} */ (html), []);
   const both = buildWithHideTabs(['dia', 'registro']);
   assert.equal(both.r.status, 0, both.r.stderr);
-  assertHonours(both.html, ['dia']);
-  assert.match(both.html, /id="t-nutricion"/, 'Tablas still visible: Nutrición stays');
+  assertHonours(/** @type {string} */ (both.html), ['dia']);
+  assert.match(/** @type {string} */ (both.html), /id="t-nutricion"/, 'Tablas still visible: Nutrición stays');
   const all = buildWithHideTabs(['dia', 'registro', 'tablas']);
   assert.equal(all.r.status, 0, all.r.stderr);
-  assert.doesNotMatch(all.html, /id="t-nutricion"/, 'every remaining section hidden: Nutrición goes');
+  assert.doesNotMatch(/** @type {string} */ (all.html), /id="t-nutricion"/, 'every remaining section hidden: Nutrición goes');
 });

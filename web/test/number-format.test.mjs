@@ -19,7 +19,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { CODE, I18N, SRC } from './display-sources.mjs';
 
-const hits = (files, re) =>
+const hits = (/** @type {string[]} */ files, /** @type {RegExp} */ re) =>
   files.flatMap((f) => SRC[f].split('\n').flatMap((line, i) => (re.test(line) ? [`${f}:${i + 1}: ${line.trim().slice(0, 120)}`] : [])));
 
 // `.toFixed(` that only places SVG / CSS geometry (coordinates, widths, dash arrays) — never text
@@ -41,6 +41,7 @@ const GEOMETRY_TOFIXED = {
 // plan's portion factor ("×1,25", lib/nutrition/scale.mjs fmtFactor with the plan's own decimal mark, run
 // as HC_SCALE) are built by the lib itself, its bytes pinned by BASIC_CASES and the planFor / solveScale
 // tests in the lib, the page and the built page. A new entry here is a design decision (see the header).
+/** @type {string[]} */
 const DECIMAL_COMMA_DATA = [];
 // "{x} h" templates that are not a value's duration: a whole-hour range before a ride ("2–4 h
 // before") and the relative age of a sync ("3 h ago")
@@ -63,6 +64,7 @@ test('no hand-made decimal comma outside the formatter (data labels listed)', ()
 });
 
 test('.toFixed( only for SVG / CSS geometry (per-file counts)', () => {
+  /** @type {Record<string, number>} */
   const counts = {};
   for (const f of CODE) {
     const n = (SRC[f].match(/\.toFixed\(/g) || []).length;

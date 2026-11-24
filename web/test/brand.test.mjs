@@ -16,7 +16,7 @@ const html = fs.readFileSync(path.join(WEB_ROOT, '.test-dist', 'en-example', 'in
 const head = html.slice(0, html.indexOf('</head>'));
 const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
 const rules = parseCssRules(css);
-const decl = (selector, prop) => rules.filter((r) => r.selector === selector).flatMap((r) => r.decls).find(([p]) => p === prop)?.[1];
+const decl = (/** @type {string} */ selector, /** @type {string} */ prop) => rules.filter((r) => r.selector === selector).flatMap((r) => r.decls).find(([p]) => p === prop)?.[1];
 
 test('the document is titled with the product name, also as the home-screen app name', () => {
   assert.match(head, /<title>LOOP<\/title>/);
@@ -45,14 +45,14 @@ test('the wordmark sits inside the top bar, between the avatar and the date pill
   assert.ok(at > html.indexOf('id="avatar-btn"') && at < html.indexOf('class="date-pill"'), 'avatar · wordmark · pill');
   assert.ok(at < html.indexOf('<div class="dock"'), 'before the dock');
   assert.ok(at < html.indexOf('class="tab-panel"'), 'before the panels');
-  const mark = /<button type="button" class="wordmark"[^>]*>([\s\S]*?)<\/button>/.exec(html)[1];
+  const mark = /** @type {RegExpExecArray} */ (/<button type="button" class="wordmark"[^>]*>([\s\S]*?)<\/button>/.exec(html))[1];
   assert.match(mark, /^<svg [^>]*role="img"[^>]*aria-label="LOOP"/);
   assert.doesNotMatch(mark, /<text\b|font-family/, 'outlines, never the font');
   assert.equal([...html.matchAll(/class="wordmark"/g)].length, 1);
 });
 
 test('the wordmark is a button back to Inicio (the default tab, scrolled to the top), named for screen readers', () => {
-  const tag = /<button type="button" class="wordmark"[^>]*>/.exec(html)[0];
+  const tag = /** @type {RegExpExecArray} */ (/<button type="button" class="wordmark"[^>]*>/.exec(html))[0];
   assert.match(tag, /data-tab-go=""/, 'empty = the default tab: the first visible one, Inicio unless page.hideTabs hides it (client/core.ts)');
   assert.doesNotMatch(tag, /onclick/);
   assert.match(tag, /aria-label="LOOP · Home"/);

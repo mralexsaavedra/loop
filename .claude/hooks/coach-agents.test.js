@@ -29,10 +29,12 @@ const COACHES = fs
 const START = '## Shared rules (identical in every coach subagent)\n';
 const END = '\n## Knowledge source\n';
 
+/** @param {string} name */
 function read(name) {
   return fs.readFileSync(path.join(AGENTS, name), 'utf8');
 }
 
+/** @param {string} text @param {string} name */
 function sharedSpan(text, name) {
   const start = text.indexOf(START);
   assert.notEqual(start, -1, `${name}: missing "${START.trim()}" heading`);
@@ -99,8 +101,9 @@ const PERSONAL_TOKEN_HASHES = new Set([
   '16fc5660368528b3c0ccb362d71b0448cfd1d1c0b1bcd3f28e23973cd69a95dc',
   '949962658bffdacc3544d80374a2550df9c001886e7872f326ca2751e444c5c2',
 ]);
-const sha256 = (t) => crypto.createHash('sha256').update(t).digest('hex');
-/** The tokens of `text` (words and adjacent-word pairs, lowercased) whose hash is in `hashes`. */
+const sha256 = (/** @type {string} */ t) => crypto.createHash('sha256').update(t).digest('hex');
+/** The tokens of `text` (words and adjacent-word pairs, lowercased) whose hash is in `hashes`.
+ * @param {string} text @param {Set<string>} [hashes] */
 function personalHits(text, hashes = PERSONAL_TOKEN_HASHES) {
   const words = text.toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
   const hits = new Set();

@@ -73,7 +73,7 @@ test('the fonts are inlined as base64 woff2 @font-face (no font request, within 
 // rules by selector, so it cannot hold two @font-face blocks
 test('the numerals font face keeps its glyph-exact unicode-range', () => {
   const html = fs.readFileSync(htmlPath, 'utf8');
-  const face = [...html.matchAll(/@font-face\{[^}]*\}/g)].map((m) => m[0]).find((f) => f.includes('"HC Num"'));
+  const face = /** @type {string} */ ([...html.matchAll(/@font-face\{[^}]*\}/g)].map((m) => m[0]).find((f) => f.includes('"HC Num"')));
   assert.ok(face.includes('unicode-range:U+20,U+25,U+2B-2E,U+30-39,U+68,U+D7'), 'HC Num unicode-range');
   assert.match(face, /font-weight:100 900/);
   assert.match(face, /font-display:swap/);

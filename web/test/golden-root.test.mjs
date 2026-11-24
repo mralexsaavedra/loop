@@ -25,7 +25,8 @@ function fakeClone() {
   return { root, golden: path.join(root, path.relative(ROOT, FIXTURES.personal)) };
 }
 
-/** Run fn with console output silenced (runPersonal reports on stdout / stderr). */
+/** Run fn with console output silenced (runPersonal reports on stdout / stderr).
+ * @template T @param {() => T} fn @returns {T} */
 function quiet(fn) {
   const { log, error, warn } = console;
   console.log = console.error = console.warn = () => {};
@@ -51,7 +52,7 @@ test('parseArgs: strict — a typo (--updte) or a stray argument is an error, --
   for (const args of [['--updte'], ['--update', 'x'], ['--persnal']]) {
     assert.match(parseArgs(args).error ?? '', /unknown argument/, args.join(' '));
   }
-  assert.match(parseArgs(['--help']).help, /^Usage: npm run golden:bake/);
+  assert.match(/** @type {string} */ (parseArgs(['--help']).help), /^Usage: npm run golden:bake/);
 });
 
 test('the CLI: --help exits 0 and a typo exits 2, both before computing anything', () => {
