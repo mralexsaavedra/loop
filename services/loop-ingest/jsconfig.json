@@ -1,8 +1,6 @@
 {
   "extends": "../../jsconfig.json",
-  // the root turned strict (lib/, data/, scripts/); the service's own src/ is not typed for it yet: it keeps the
-  // previous, non-strict check until its own pass
-  "compilerOptions": { "maxNodeModuleJsDepth": 0, "strict": false },
-  "include": ["src/**/*.js"],
+  "compilerOptions": { "maxNodeModuleJsDepth": 0 },
+  "include": ["src/**/*.js", "src/types/*.d.ts"],
   "exclude": ["src/**/*.test.js"]
 }
