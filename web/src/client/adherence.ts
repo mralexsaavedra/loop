@@ -24,21 +24,8 @@ declare const I18N_NUTRI: PageGlobals['I18N_NUTRI'];
 
 // a day's MEALS target (null = unknown day type), mirroring lib/nutrition/adherence.mjs
 type DayTarget = { k: number; p: number | null; inferred: boolean } | null;
-// lib/nutrition/adherence.mjs adherence()'s result: only the fields read here
-type AdherenceResult = {
-  days: number;
-  logged: number;
-  complete: number;
-  compared: number;
-  meanK: number;
-  meanTarget: number;
-  proteinHit: number;
-  proteinMin: boolean;
-  proteinUnknown: number;
-  unknown: number;
-  assumed: number;
-  states: Array<{ date: string; state: string }>;
-};
+// lib/nutrition/adherence.mjs adherence()'s result
+type AdherenceResult = import('../../../lib/nutrition/adherence.mjs').AdherenceResult;
 type AdherenceStore = {
   win: number;
   days: any[] | null;
@@ -135,8 +122,8 @@ type AdherenceStore = {
   function statsHtml(r: AdherenceResult) {
     var out = [stat(T.logged, String(r.logged), format(T.ofDays, { n: r.days }), r.days ? r.logged / r.days : 0),
       stat(T.complete, String(r.complete), format(T.ofDays, { n: r.days }), r.days ? r.complete / r.days : 0)];
-    if (r.compared) {
-      out.push(stat(T.kcal, k0(r.meanK), format(T.kcalVs, { t: k0(r.meanTarget), pct: k0((r.meanK / r.meanTarget) * 100) })));
+    if (r.compared) { // compared days: meanK / meanTarget are numbers (lib/nutrition/adherence.mjs)
+      out.push(stat(T.kcal, k0(r.meanK!), format(T.kcalVs, { t: k0(r.meanTarget!), pct: k0((r.meanK! / r.meanTarget!) * 100) })));
       out.push(stat(format(T.protein, { pct: pctOf(A.proteinShare) }), String(r.proteinHit), format(T.proteinOf, { n: r.compared })));
     }
     return '<div class="adh-stats">' + out.join('') + '</div>';

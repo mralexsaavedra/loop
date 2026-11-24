@@ -45,7 +45,7 @@ type Route = { deep: boolean; tab: string | null; day?: boolean; anchor?: string
     return Object.prototype.hasOwnProperty.call(o, k);
   }
   function tabVisible(key: string | null) {
-    return NAV_TABS.indexOf(key) !== -1 && !!document.getElementById('t-' + key);
+    return NAV_TABS.indexOf(key as string) !== -1 && !!document.getElementById('t-' + key);
   }
   function defaultTab() {
     for (var i = 0; i < NAV_TABS.length; i++) if (tabVisible(NAV_TABS[i])) return NAV_TABS[i];

@@ -783,7 +783,7 @@ type Card = { title: string; get: (iso: string) => unknown; text: (v: number) =>
   }
   // the recovery dial's thirds (HC_BAND, lib/score/recovery.mjs) in the energy palette
   function energyBand(v: number): string {
-    return ({ good: 'hi', mid: 'mid', low: 'lo' } as Record<string, string>)[HC_BAND.pctBand(v)] || 'mid';
+    return ({ good: 'hi', mid: 'mid', low: 'lo' } as Record<string, string>)[HC_BAND.pctBand(v) as string] || 'mid';
   }
   function wakeOf(d: Baked): number | null {
     var m = /^(\d{2}):(\d{2})$/.exec(String(d.wake || ''));

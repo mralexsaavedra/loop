@@ -55,7 +55,7 @@ type SaveStatus = { status: string; what?: string; code: string };
 type SettingsState = { pending?: boolean; last?: SaveStatus | null } | null | undefined;
 
 (function () {
-  var P = typeof PROFILE === 'undefined' || !PROFILE ? null : PROFILE;
+  var P = (typeof PROFILE === 'undefined' || !PROFILE ? null : PROFILE)!;
   var T = (typeof I18N_PROFILE === 'undefined' || !I18N_PROFILE ? null : I18N_PROFILE)!;
   if (!P || !T || typeof window === 'undefined') return;
   var esc = HC.esc, format = HC.format;

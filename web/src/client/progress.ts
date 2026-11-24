@@ -24,10 +24,7 @@ declare const HC_PROG: PageGlobals['HC_PROG'];
 declare const DETAIL: PageGlobals['DETAIL'];
 
 /** lib/nutrition/progress.mjs weightProgress's result (the fields this script reads). */
-type Progress = {
-  current: { date: string; kg: number }; rate: number | null; n: number; span: number; from: string;
-  remaining: number | null; status: string; mismatch: boolean; etaWeeks: [number, number] | null;
-};
+type Progress = import('../../../lib/nutrition/progress.mjs').WeightProgress;
 
 (function () {
   var N = (typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI)!;

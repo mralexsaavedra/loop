@@ -795,7 +795,7 @@ type Sub = { cls?: string; text: string };
     if (!mm) return null;
     // a retired key opens its replacement (lib/nav/tabs.mjs DETAIL_ALIAS: load-gym -> load-strength)
     var alias = typeof NAV !== 'undefined' && NAV && NAV.detailAlias;
-    var key = own(alias, mm[1]) ? alias[mm[1]] : mm[1];
+    var key = own(alias, mm[1]) ? (alias as Readonly<Record<string, string>>)[mm[1]] : mm[1]; // own() is false without NAV
     // own keys only (no "constructor" / "toString"), and only a metric the page has data for
     if (!own(T.metrics, key) || !metric(key)) return null;
     return { key: key, date: mm[2] || null };

@@ -19,7 +19,7 @@ declare const NAV: PageGlobals['NAV'];
   var T = (typeof I18N_DETAIL !== 'undefined' && I18N_DETAIL ? I18N_DETAIL.shortcuts : null)!;
   if (!T || typeof document.addEventListener !== 'function') return;
   var esc = HC.esc;
-  var TABS: string[] = (typeof NAV !== 'undefined' && NAV && NAV.tabs) || [];
+  var TABS: readonly string[] = (typeof NAV !== 'undefined' && NAV && NAV.tabs) || [];
   var ACTION_KEYS: Record<string, string> = { a: 'food', d: 'journal' };
 
   // the tabs this page shows, in nav order (a hidden tab has no button: layouts/Plan.astro)

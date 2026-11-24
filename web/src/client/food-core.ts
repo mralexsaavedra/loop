@@ -68,7 +68,7 @@ type Act = (el: HTMLElement) => void;
 
 (function () {
   var T = (typeof I18N_FOOD === 'undefined' || !I18N_FOOD ? null : I18N_FOOD)!;
-  var K = typeof FOOD_CONST === 'undefined' || !FOOD_CONST ? null : FOOD_CONST;
+  var K = (typeof FOOD_CONST === 'undefined' || !FOOD_CONST ? null : FOOD_CONST)!;
   // the public basics (lib/nutrition/basics.mjs): [{k, n, u, m: [kcal, p, c, f] per 100 of u, pc?, v?, h?}]
   var BASICS: Basic[] = typeof FOOD_BASICS !== 'undefined' && Array.isArray(FOOD_BASICS) ? FOOD_BASICS : [];
   var BASIC_RESULTS_MAX = 25; // a short list: typing narrows it
@@ -211,8 +211,8 @@ type Act = (el: HTMLElement) => void;
   }
   // a group key, a stored slot (mapped to its group), else null
   function asGroup(v: string | null | undefined) {
-    if (GROUPS.indexOf(v) >= 0) return v;
-    return K.meals.indexOf(v) >= 0 ? groupOf(v!) : null;
+    if (GROUPS.indexOf(v as string) >= 0) return v;
+    return (K.meals as readonly string[]).indexOf(v as string) >= 0 ? groupOf(v!) : null;
   }
   // the slot stored for a group: a main group is its slot, the add-ons group K.addonSlot
   function slotFor(group: string) {
