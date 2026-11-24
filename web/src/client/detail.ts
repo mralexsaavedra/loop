@@ -50,6 +50,9 @@ declare const SCORES: PageGlobals['SCORES'];
 
 /** A baked DETAIL / SCORES / HEALTH piece or an I18N_DETAIL copy block (lib/detail/detail.mjs): untyped until those shapes get their own types. */
 type Baked = any;
+// the stress / energy bakes once stressMetric() / energyMetric() (client/detail-state.ts) found them ok
+type StressOk = import('../../../lib/score/stress.mjs').StressOk;
+type EnergyOk = import('../../../lib/score/energy-bank.mjs').EnergyOk;
 /** A baked metric series (DETAIL.metrics[key], lib/detail/detail.mjs). */
 type Metric = Baked;
 /** One baked session (DETAIL.sessions, lib/detail/detail.mjs). */
@@ -371,7 +374,7 @@ type Sub = { cls?: string; text: string };
     var v = valueOf(m, iso), P = T.deep && T.deep.stress;
     if (v == null || !P) return '<p class="dt-nodata">' + esc(T.day.noData) + '</p>';
     var band = dayState(m, v).slice(1), d = null as Baked;
-    var S = stressMetric() ? SCORES.stress : null;
+    var S = stressMetric() ? SCORES.stress as StressOk : null;
     ((S && S.days) || []).forEach(function (x: Baked) { if (x && x.date === iso) d = x; });
     var sub = d && d.mins ? ['low', 'medium', 'high'].map(function (b) { return P.bands[b] + ' ' + (HC.duration as (min: number | null | undefined, units?: unknown) => string)(d.mins[b], P.units); }).join(' · ') : '';
     return row(P.avgLbl, fmt(v, 1) + ' · ' + (P.bands[band] || ''), sub);
@@ -380,7 +383,7 @@ type Sub = { cls?: string; text: string };
   function energyDayHtml(key: string, m: Metric, iso: string): string {
     var v = valueOf(m, iso), P = T.deep && T.deep.energy;
     if (v == null || !P) return '<p class="dt-nodata">' + esc(T.day.noData) + '</p>';
-    var S = energyMetric() ? SCORES.energy : null, d = null as Baked;
+    var S = energyMetric() ? SCORES.energy as EnergyOk : null, d = null as Baked;
     ((S && S.days) || []).forEach(function (x: Baked) { if (x && x.date === iso && x.now) d = x; });
     var b = dayState(m, v);
     var sub = d ? format(P.daySub, { start: d.start, wake: d.wake, min: d.min.lv }) : '';

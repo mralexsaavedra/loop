@@ -32,11 +32,9 @@ declare const SCORES: PageGlobals['SCORES'];
 declare const I18N_SCORE: PageGlobals['I18N_SCORE'];
 declare const I18N_DETAIL: PageGlobals['I18N_DETAIL'];
 
-// one SCORES.monitor card (lib/score/monitor.mjs)
-type MonitorCard = {
-  key: string; state: string; date: string; value: number; dec: number;
-  band?: { lo: number; hi: number } | null; status: string; tone?: string | null;
-};
+// one SCORES.monitor card (lib/score/monitor.mjs): no reading (state 'none') or its latest one (state 'ok')
+type MonitorCard = import('../../../lib/score/monitor.mjs').MonitorCard;
+type OkCard = import('../../../lib/score/monitor.mjs').MonitorCardOk;
 // what row() joins into HC.metricRow
 type RowOpts = {
   cls: string; value: string; base: string; unit?: string; numCls?: string;
@@ -44,17 +42,19 @@ type RowOpts = {
 };
 // the summary counts (counts(), or a SCORES.days entry's monitor, whose fallback has no `bld`)
 type Counts = { inR: number; out: number; bld?: number };
-type PastMonitor = Counts & { total: number; hrv: MonitorCard | null };
-// one SCORES.stress day (lib/score/stress.mjs) with its latest scored hour
-type StressDay = { date: string; now: { t: string; v: number; band: string } };
+type PastMonitor = Counts & { total: number; hrv: HrvCard | null };
+// the HRV card hrvTile() reads: today's fresh card, or a SCORES.days entry's copy of it (lib/score/days.mjs)
+type HrvCard = Pick<OkCard, 'value' | 'dec' | 'status' | 'tone' | 'date'>;
+// one SCORES.stress day (lib/score/stress.mjs); stressDay() returns only one with its latest scored hour (`now`)
+type StressDay = import('../../../lib/score/stress.mjs').StressDay;
 // HC.carried's result (util.ts), plus the date markup added here
 type Carried = { carried: boolean; label: string; cls: string; html: string };
 
 (function () {
   var host = document.getElementById('monitor');
   if (!host) return;
-  var S = typeof SCORES === 'undefined' ? null : SCORES;
-  var M = S && S.monitor;
+  var S = (typeof SCORES === 'undefined' ? null : SCORES)!;
+  var M = (S && S.monitor)!;
   var T = (typeof I18N_SCORE === 'undefined' || !I18N_SCORE ? null : I18N_SCORE.monitor)!;
   if (!M || !M.cards || !T) return;
   // the detail sheet's copy (baked before this script): a signal the device never wrote says so
@@ -123,7 +123,7 @@ type Carried = { carried: boolean; label: string; cls: string; html: string };
 
   /* ---- Inicio tiles (#home-tiles): the monitor's summary + the HRV signal, from the SAME cards ---- */
   // a card counts only with a fresh value (its own date <= STALE_DAYS old) and a status vs its band
-  function fresh(c: MonitorCard | null): boolean {
+  function fresh(c: MonitorCard | null): c is OkCard {
     var a = c && c.state === 'ok' ? daysOld(c.date) : null;
     return a != null && a <= STALE_DAYS;
   }
@@ -197,7 +197,7 @@ type Carried = { carried: boolean; label: string; cls: string; html: string };
     return out;
   }
   function stressTile(d: StressDay, day: string | null): string {
-    var ST = T.stress, n = d.now, band = ST.bands[n.band] ? n.band : 'low';
+    var ST = T.stress, n = d.now!, band = ST.bands[n.band] ? n.band : 'low';
     var time = String(n.t).slice(0, 2) + ':00';
     var c = carry(d.date, day), old = c.carried;
     // an earlier day's reading opens the stress page ON that day (tile and sheet agree), never on an
@@ -210,13 +210,13 @@ type Carried = { carried: boolean; label: string; cls: string; html: string };
       '<span class="hmt-band">' + esc(ST.bands[band]) + '</span></span>' +
       '<span class="hmt-sub">' + (old ? c.html + ' · ' : '') + esc(time) + '</span></span></div><!--/hmt-->';
   }
-  function secondTile(day: string | null, hrv: MonitorCard | null): string {
+  function secondTile(day: string | null, hrv: HrvCard | null): string {
     var d = T.stress ? stressDay(day) : null;
     return d ? stressTile(d, day) : hrvTile(hrv, day);
   }
   // HRV: a real baked value, the fallback of tile 2 without a stress value; left out without a fresh reading.
   // `day` = the past day shown (null = today): its date line and the sheet's opening day
-  function hrvTile(c: MonitorCard | null, day: string | null): string {
+  function hrvTile(c: HrvCard | null, day: string | null): string {
     if (!c) return '';
     var k = carry(c.date, day);
     return '<div class="hmt hmt-hrv hm-tone-' + esc(c.tone || 'normal') + k.cls + '"' + (day ? HC.detailAttrs('hrv', day) : linkAttrs('hrv')) + '>' + lbl(T.labels.hrv || 'HRV') +
@@ -224,7 +224,7 @@ type Carried = { carried: boolean; label: string; cls: string; html: string };
       '<span class="hmt-status">' + esc(T.status[c.status] || '') + '</span>' +
       (k.carried ? '<span class="hmt-sub">' + k.html + '</span>' : '') + '</span></div><!--/hmt-->';
   }
-  function todayHrv(): MonitorCard | null {
+  function todayHrv(): OkCard | null {
     var c = null as MonitorCard | null;
     M.cards.forEach(function (x: MonitorCard | null) { if (x && x.key === 'hrv') c = x; });
     return fresh(c) ? c : null;

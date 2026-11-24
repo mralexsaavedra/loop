@@ -57,7 +57,7 @@ type JournalState = {
 (function () {
   function boot() {
     var T = (typeof I18N_SCORE !== 'undefined' && I18N_SCORE && I18N_SCORE.home ? I18N_SCORE.home.journal : null)!;
-    var J = typeof SCORES !== 'undefined' && SCORES && SCORES.journal && Array.isArray(SCORES.journal.behaviors) ? SCORES.journal : null;
+    var J = (typeof SCORES !== 'undefined' && SCORES && SCORES.journal && Array.isArray(SCORES.journal.behaviors) ? SCORES.journal : null)!;
     if (!T || !J || typeof HC === 'undefined') return;
     var esc = HC.esc, format = HC.format;
     var API = '/api/journal', TIMEOUT_MS = 15000, WEEK = 7;
@@ -195,7 +195,7 @@ type JournalState = {
       return 'left:' + (diff >= 0 ? 50 : 50 - half).toFixed(1) + '%;width:' + half.toFixed(1) + '%';
     }
     function insightsHtml() {
-      var I = J.insights, min = (J.limits && J.limits.insightMinDays) || 5;
+      var I = J.insights!, min = (J.limits && J.limits.insightMinDays) || 5;
       var rows: InsightRow[] = insightRows(I.rows);
       var scale = Math.max(20, Math.max.apply(null, rows.map(function (r) { return typeof r.diff === 'number' ? Math.abs(r.diff) : 0; })));
       var ok = rows.filter(function (r): r is OkInsight { return r.status === 'ok'; });
