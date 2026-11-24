@@ -6,14 +6,19 @@
  * - createTokenBucket: one shared bucket that refills continuously (the Open Food Facts rate limits:
  *   search <= 10/min, product <= 100/min).
  */
+/** @param {{ limit: number, windowMs: number, now?: () => number, maxKeys?: number }} opts */
 export function createWindowLimiter ({ limit, windowMs, now = Date.now, maxKeys = 1000 }) {
+  /** @type {Map<string, { start: number, count: number }>} */
   const windows = new Map()
+  /** @param {number} t */
   function prune (t) {
     for (const [k, w] of windows) if (t - w.start >= windowMs) windows.delete(k)
-    while (windows.size >= maxKeys) windows.delete(windows.keys().next().value)
+    // the map is not empty here (size >= maxKeys >= 1), so the first key exists
+    while (windows.size >= maxKeys) windows.delete(/** @type {string} */ (windows.keys().next().value))
   }
   return {
-    /** true = allowed (and counted), false = over the limit for this window */
+    /** true = allowed (and counted), false = over the limit for this window
+     * @param {string} key */
     take (key) {
       const t = now()
       let w = windows.get(key)
@@ -29,6 +34,7 @@ export function createWindowLimiter ({ limit, windowMs, now = Date.now, maxKeys 
   }
 }
 
+/** @param {{ capacity: number, perMs: number, now?: () => number }} opts */
 export function createTokenBucket ({ capacity, perMs, now = Date.now }) {
   let tokens = capacity
   let last = now()

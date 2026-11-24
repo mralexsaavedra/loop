@@ -24,24 +24,34 @@ const NOT_FOUND_TTL_MS = 3_600_000
 // an upstream 429 / 5xx / timeout is remembered this long, so retries do not hammer OFF
 const FAILURE_TTL_MS = 60_000
 
+/** A coarse OFF failure: `upstream` = it came from OFF (cached briefly), `ttl` = cache it this long instead.
+ * @typedef {Error & { status: number, code: string, upstream?: boolean, ttl?: number }} OffError */
+/** What a lookup answers (normalizeOffProduct).
+ * @typedef {ReturnType<typeof normalizeOffProduct>} OffProduct */
+
+/** @param {number} status @param {string} code @returns {OffError} */
 function offError (status, code) {
   return Object.assign(new Error(code), { status, code })
 }
-/** A failure that came from OFF (or the way there): cached briefly, see FAILURE_TTL_MS. */
+/** A failure that came from OFF (or the way there): cached briefly, see FAILURE_TTL_MS.
+ * @param {number} status @param {string} code */
 function upstream (status, code) {
   return Object.assign(offError(status, code), { upstream: true })
 }
-/** A number in [0, max] (numeric strings accepted), else null. */
+/** A number in [0, max] (numeric strings accepted), else null. @param {unknown} v @param {number} max */
 function value (v, max) {
   const n = typeof v === 'number' ? v : typeof v === 'string' && v.trim() !== '' ? Number(v) : NaN
   return Number.isFinite(n) && n >= 0 && n <= max ? round1(n) : null
 }
+/** @param {unknown} v @param {number} max */
 function text (v, max) {
   if (typeof v !== 'string') return null
   const s = v.replace(/\s+/g, ' ').trim()
   return s ? s.slice(0, max) : null
 }
 
+// `p` is OFF's untrusted JSON: `any`, every field re-checked here
+/** @param {any} p */
 export function normalizeOffProduct (p) {
   const n = (p && p.nutriments) || {}
   let kcal = value(n['energy-kcal_100g'], 900)
@@ -65,11 +75,12 @@ export function normalizeOffProduct (p) {
     stores: text(p?.stores, 120),
     unit: liquid ? 'ml' : 'g',
     per100,
-    servingSize: serving > 0 ? serving : null,
+    servingSize: serving != null && serving > 0 ? serving : null,
     complete: name != null && Object.values(per100).every((v) => v != null)
   }
 }
 
+/** The JSON body (untrusted), at most `max` bytes. @param {Response} res @param {number} max @returns {Promise<any>} */
 async function readCapped (res, max) {
   const declared = Number(res.headers?.get?.('content-length'))
   if (Number.isFinite(declared) && declared > max) throw upstream(502, 'off_unavailable')
@@ -94,6 +105,10 @@ async function readCapped (res, max) {
   }
 }
 
+/**
+ * @param {{ fetch?: typeof globalThis.fetch, now?: () => number, timeoutMs?: number, maxBytes?: number,
+ *   cacheTtlMs?: number, cacheMax?: number }} [opts]
+ */
 export function createOffClient ({
   fetch = globalThis.fetch,
   now = Date.now,
@@ -106,8 +121,12 @@ export function createOffClient ({
     search: createTokenBucket({ capacity: 10, perMs: 60_000, now }),
     product: createTokenBucket({ capacity: 100, perMs: 60_000, now })
   }
+  /** A cached value, or a cached failure, and when it expires.
+   * @typedef {{ value?: unknown, error?: { status: number, code: string } }} CacheEntry */
+  /** @type {Map<string, CacheEntry & { expires: number }>} */
   const cache = new Map()
 
+  /** @param {string} key */
   function cached (key) {
     const hit = cache.get(key)
     if (!hit) return undefined
@@ -116,19 +135,24 @@ export function createOffClient ({
     cache.set(key, hit)
     return hit
   }
+  /** @param {string} key @param {CacheEntry} entry @param {number} ttl */
   function remember (key, entry, ttl) {
     cache.delete(key)
-    while (cache.size >= cacheMax) cache.delete(cache.keys().next().value)
+    // the map is not empty here (size >= cacheMax >= 1), so the first key exists
+    while (cache.size >= cacheMax) cache.delete(/** @type {string} */ (cache.keys().next().value))
     cache.set(key, { ...entry, expires: now() + ttl })
   }
 
+  /** @type {Map<string, Promise<unknown>>} */
   const inflight = new Map()
   /** Cache (values and failures), then one shared in-flight request per key. Our own token-bucket
-   * refusal is not cached (it clears as soon as a token is back). */
+   * refusal is not cached (it clears as soon as a token is back).
+   * @template T @param {string} key @param {() => Promise<T>} load @returns {Promise<T>} */
   function lookup (key, load) {
     const hit = cached(key)
-    if (hit) return hit.error ? Promise.reject(offError(hit.error.status, hit.error.code)) : Promise.resolve(hit.value)
-    if (inflight.has(key)) return inflight.get(key)
+    // a key's cached value is what its own load answered
+    if (hit) return hit.error ? Promise.reject(offError(hit.error.status, hit.error.code)) : Promise.resolve(/** @type {T} */ (hit.value))
+    if (inflight.has(key)) return /** @type {Promise<T>} */ (inflight.get(key))
     const p = load().then((value) => {
       remember(key, { value }, cacheTtlMs)
       return value
@@ -141,6 +165,7 @@ export function createOffClient ({
     return p
   }
 
+  /** @param {string} url @param {keyof typeof buckets} bucket @returns {Promise<{ status: number, body: any }>} */
   async function get (url, bucket) {
     if (!buckets[bucket].take()) throw offError(429, 'off_rate_limited')
     // the timeout covers the whole exchange, body included
@@ -162,13 +187,14 @@ export function createOffClient ({
       if (!res.ok) throw upstream(502, 'off_unavailable')
       return { status: res.status, body: await readCapped(res, maxBytes) }
     } catch (err) {
-      throw err && err.code ? err : upstream(502, 'off_unavailable')
+      throw err && /** @type {Partial<OffError>} */ (err).code ? err : upstream(502, 'off_unavailable')
     } finally {
       clearTimeout(timer)
     }
   }
 
   return {
+    /** @param {string} code @returns {Promise<OffProduct>} */
     byBarcode (code) {
       return lookup(`p:${code}`, async () => {
         const r = await get(`${OFF_BASE}/api/v2/product/${encodeURIComponent(code)}?fields=${FIELDS}`, 'product')
@@ -179,6 +205,7 @@ export function createOffClient ({
       })
     },
 
+    /** @param {string} q @returns {Promise<OffProduct[]>} */
     search (q) {
       const terms = q.replace(/\s+/g, ' ').trim()
       return lookup(`s:${terms.toLowerCase()}`, async () => {
@@ -186,9 +213,11 @@ export function createOffClient ({
           search_terms: terms, search_simple: '1', action: 'process', json: '1', page_size: String(MAX_RESULTS), fields: FIELDS
         })
         const r = await get(`${OFF_BASE}/cgi/search.pl?${params}`, 'search')
-        const products = Array.isArray(r.body?.products) ? r.body.products : []
+        const products = /** @type {unknown[]} */ (Array.isArray(r.body?.products) ? r.body.products : [])
         return products.map(normalizeOffProduct).filter((p) => p.code).slice(0, MAX_RESULTS)
       })
     }
   }
 }
+
+/** @typedef {ReturnType<typeof createOffClient>} OffClient */
