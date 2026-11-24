@@ -30,7 +30,7 @@ type Progress = {
 };
 
 (function () {
-  var N = typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI;
+  var N = (typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI)!;
   var TN = (typeof I18N_NUTRI === 'undefined' || !I18N_NUTRI ? null : I18N_NUTRI)!;
   if (!N || !TN || !N.progress || !TN.progress) return;
   var P = N.progress, T = TN.progress;
@@ -68,7 +68,7 @@ type Progress = {
   }
   // every number in the copy comes from the baked thresholds (the goal's own band)
   function detailText(p: Progress, g: string) {
-    var D = T.detail, st = statusKey(p), band = P.bands[g] || {};
+    var D = T.detail, st = statusKey(p), band = (P.bands as Record<string, { min: number; max: number }>)[g] || {};
     var vars = { min: fin(band.min) ? HC.num(band.min, 2) : '', max: fin(band.max) ? HC.num(band.max, 2) : '', pct: HC.num(P.maxPctWeek, 0),
       kg: HC.num(P.reachedKg, 1), stable: HC.num(P.stableKg, 2) };
     if (st === 'fast' || st === 'wrong') return D[st + g] ? format(D[st + g], vars) : '';

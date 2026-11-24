@@ -1,5 +1,6 @@
 /* The shapes of the page globals the module client scripts (*.ts) read: HC, LOCALE, the copy tables (I18N_*) and
- * SCORES / DETAIL / DIALS / DASH / INTAKE / ACTIVITY / HEALTH (from their builders) are typed; the baked data globals are `any` until each gets its own type (their shapes live in lib/). */
+ * SCORES / DETAIL / DIALS / DASH / INTAKE / ACTIVITY / HEALTH / NUTRI / FOOD_BASICS (from their builders), NUTRI_ARC
+ * and TRAINING_META are typed; the baked data globals are `any` until each gets its own type (their shapes live in lib/). */
 /** A copy table the scripts also index by a runtime key (a kind, a range, a metric): each nested table keeps its
  * named keys and also takes any string key (an unknown key reads `undefined` at runtime, as before). */
 type Lookup<T> = T extends readonly unknown[]
@@ -47,7 +48,7 @@ export type PageGlobals = {
   HCProgress: any;
   HCSettings: any;
   HCViews: any;
-  FOOD_BASICS: any;
+  FOOD_BASICS: ReturnType<typeof import('../../../lib/nutrition/basics.mjs').buildBasics>;
   FOOD_CONST: any;
   HCAdherence: any;
   HCFood: any;
@@ -58,9 +59,10 @@ export type PageGlobals = {
   I18N_INTAKE: Copy<typeof import('../i18n/intake-templates.mjs')>;
   I18N_NUTRI: Copy<typeof import('../i18n/nutri-templates.mjs')>;
   INTAKE: ReturnType<typeof import('../bakes.mjs').computeBakes>['intake'];
-  NUTRI: any;
-  NUTRI_ARC: any;
-  TRAINING_META: any;
+  NUTRI: ReturnType<typeof import('../../../lib/nutrition/today.mjs').buildNutriToday>;
+  NUTRI_ARC: string; // view/dial.mjs arcPath(0, 1): the empty kcal dial's SVG path
+  /** Bake.astro's trainingMeta prop (the program's header line). */
+  TRAINING_META: { program: string; coach: string; source: string; first: string; last: string; count: number };
   nutriTarget: any;
   HC_DAYTYPE: any;
   HC_FUEL: any;

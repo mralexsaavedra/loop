@@ -80,7 +80,7 @@ type Supp = { name: string; dose?: string; meal: string };
 type RingTarget = { k: number; p: number; c: number; g: number; fatMax: number; fuelK: number; day: string; dayType: string; label: string; inferred?: boolean };
 
 (function () {
-  var N = typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI;
+  var N = (typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI)!;
   var T = (typeof I18N_NUTRI === 'undefined' || !I18N_NUTRI ? null : I18N_NUTRI)!;
   if (!N || !T) return;
   var esc = HC.esc, format = HC.format, todayIso = HC.todayIso;
@@ -165,7 +165,7 @@ type RingTarget = { k: number; p: number; c: number; g: number; fatMax: number; 
     var rec = recordedMin(d);
     if (rec) return rec; // a recorded ride's real minutes
     if (state.ride && state.ride.type === d) return state.ride.min;
-    return N.fuel.defaults[d];
+    return (N.fuel.defaults as Record<string, number>)[d];
   }
   function current() { return planFor(N, state.goal, dayType(), rideMinutes()); }
   function fuelNow() {
@@ -177,7 +177,7 @@ type RingTarget = { k: number; p: number; c: number; g: number; fatMax: number; 
     var today = todayIso();
     state.auto = detectDayType(dayInput(today));
     var g = load(KEY_GOAL);
-    if (N.goals.indexOf(g) >= 0) state.goal = g;
+    if (N.goals.indexOf(g as string) >= 0) state.goal = g;
     var o = loadToday(KEY_DAY, today);
     if (o && N.dayTypes.indexOf(o.type) >= 0 && o.type !== state.auto!.type) {
       var detectedLater = !(o.auto in RANK) || RANK[state.auto!.type] > RANK[o.auto];
@@ -338,7 +338,7 @@ type RingTarget = { k: number; p: number; c: number; g: number; fatMax: number; 
     var hit = typeof picked === 'string' ? findOpt(o, picked) : null;
     if (hit) return hit;
     var d = G.defaults[day] && G.defaults[day][slot] ? G.defaults[day][slot][role] : null;
-    return (d && findOpt(o, 'b:' + d)) || findOpt(o, 'b:' + G.fallback[role]) || o.basics[0] || null;
+    return (d && findOpt(o, 'b:' + d)) || findOpt(o, 'b:' + (G.fallback as Record<string, string>)[role]) || o.basics[0] || null;
   }
   // an example amount as a person reads it: pieces with the grams reference, else "~120 g"
   function amountText(food: any, amt: number) {
@@ -609,7 +609,7 @@ type RingTarget = { k: number; p: number; c: number; g: number; fatMax: number; 
   }
   function pendingGoal() {
     var g = load(KEY_GOAL_PENDING);
-    return N.goals.indexOf(g) >= 0 ? g : null;
+    return N.goals.indexOf(g as string) >= 0 ? g : null;
   }
   // the server stored `g`: a pending goal equal to it is done (a newer pick stays pending)
   function clearPending(g: string) {
@@ -618,7 +618,7 @@ type RingTarget = { k: number; p: number; c: number; g: number; fatMax: number; 
   // the goal this viewer stored (hc.nutri.goal), or null: settings.ts pushes it once to a server that has none
   function storedGoal() {
     var g = load(KEY_GOAL);
-    return N.goals.indexOf(g) >= 0 ? g : null;
+    return N.goals.indexOf(g as string) >= 0 ? g : null;
   }
   on('nutri-target', 'click', function (e) {
     var t = e && e.target as Element | null;
@@ -628,7 +628,7 @@ type RingTarget = { k: number; p: number; c: number; g: number; fatMax: number; 
   });
   on('nutri-daytype', 'change', function (e) {
     var v = e && e.target && (e.target as HTMLInputElement).value;
-    if (N.dayTypes.indexOf(v) < 0) return;
+    if (N.dayTypes.indexOf(v as string) < 0) return;
     state.override = v === state.auto!.type ? null : v;
     state.raised = null;
     save(KEY_DAY, state.override ? JSON.stringify({ date: todayIso(), type: state.override, auto: state.auto!.type }) : null);

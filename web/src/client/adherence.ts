@@ -50,7 +50,7 @@ type AdherenceStore = {
 };
 
 (function () {
-  var N = typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI;
+  var N = (typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI)!;
   var TN = (typeof I18N_NUTRI === 'undefined' || !I18N_NUTRI ? null : I18N_NUTRI)!;
   if (!N || !TN || !N.adherence || !TN.adherence) return;
   var A = N.adherence, T = TN.adherence;
