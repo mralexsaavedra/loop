@@ -13,10 +13,12 @@ import { createHash } from 'node:crypto';
 const SCRIPT_RE = /<script\b[^>]*>([\s\S]*?)<\/script>/gi;
 const CHARSET_RE = /<meta charset="?utf-8"?\s*\/?>/i;
 
+/** @param {string} html */
 export function scriptHashes(html) {
   return [...html.matchAll(SCRIPT_RE)].map((m) => `'sha256-${createHash('sha256').update(m[1], 'utf8').digest('base64')}'`);
 }
 
+/** @param {string} html */
 export function cspFor(html) {
   const hashes = [...new Set(scriptHashes(html))];
   return [
@@ -35,6 +37,7 @@ export function cspFor(html) {
 /* Inserts the CSP meta right after <meta charset> (before any <style> or <script>, so it covers them
  * all). Run it LAST: any later change to a script body would no longer match its hash. Throws on a page
  * without a charset meta (the policy would otherwise silently not be written). */
+/** @param {string} html */
 export function addCsp(html) {
   const m = CHARSET_RE.exec(html);
   if (!m) throw new Error('page-csp: no <meta charset="utf-8"> to anchor the Content-Security-Policy meta');
@@ -47,6 +50,7 @@ export function addCsp(html) {
  * onclick="jump('<id>')" / onclick="setTab('<tab>')", which the CSP blocks. They become the delegated
  * data-jump / data-tab-go attributes client/core.ts listens for; anything else is left as written (and
  * reported by inlineHandlers, so the build can warn). */
+/** @param {string} html */
 export function delegateLegacyHandlers(html) {
   return html
     .replace(/\sonclick=(["'])jump\((?:'|&#39;)([\w-]+)(?:'|&#39;)\)\1/g, ' data-jump="$2"')
@@ -55,6 +59,7 @@ export function delegateLegacyHandlers(html) {
 
 /* Inline event-handler attributes (` onclick="`, ` onload='` …) anywhere in the page text, markup AND
  * script strings that build markup; [] on a clean page. */
+/** @param {string} html */
 export function inlineHandlers(html) {
   return [...html.matchAll(/\son[a-z]+=\\?["']/gi)].map((m) => m[0].trim());
 }

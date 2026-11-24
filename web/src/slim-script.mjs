@@ -8,6 +8,7 @@
  * slimScript(source), never the raw file. */
 import { transformSync } from 'esbuild';
 
+/** @param {string} src */
 export function slimScript(src) {
   return transformSync(src, {
     loader: 'js',
@@ -25,6 +26,7 @@ export function slimScript(src) {
  * every declaration stays as written and web/test/css-parity.test.mjs still matches it. Vite's own
  * cssMinify stays off for that reason. A test reading CSS from the built HTML must be whitespace
  * tolerant or compare against slimStyle(source). */
+/** @param {string} src */
 export function slimStyle(src) {
   return transformSync(src, {
     loader: 'css',
@@ -38,6 +40,7 @@ export function slimStyle(src) {
 
 /* Rewrites every <style> block of a built HTML page through slimStyle. Only the document <head> is
  * touched (the page keeps all its styles there; a client script may hold the text "<style"). */
+/** @param {string} html */
 export function slimHtmlStyles(html) {
   const end = html.indexOf('</head>');
   if (end === -1) return html;

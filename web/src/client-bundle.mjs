@@ -11,7 +11,8 @@ import { buildSync } from 'esbuild';
 
 export const CLIENT_DIR = fileURLToPath(new URL('./client/', import.meta.url));
 
-/** The JavaScript the page inlines for `file` (a name in web/src/client/). */
+/** The JavaScript the page inlines for `file` (a name in web/src/client/).
+ * @param {string} file @returns {string} */
 export function clientScriptSource(file) {
   const entry = path.join(CLIENT_DIR, file);
   if (!file.endsWith('.ts')) throw new Error(`client script ${file}: every client script is a TypeScript module (*.ts)`);

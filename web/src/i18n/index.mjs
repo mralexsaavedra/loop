@@ -5,9 +5,10 @@ const DICTS = { es, en };
 
 /** Resolves a locale ('es'|'en', default 'en') to its dictionary. Used by
  * both Astro frontmatter (server-rendered copy) and build-web.mjs when
- * baking `I18N` for the client scripts. */
+ * baking `I18N` for the client scripts.
+ * @param {string | null | undefined} locale */
 export function getDict(locale) {
-  return DICTS[locale] || DICTS.en;
+  return (locale === 'es' || locale === 'en' ? DICTS[locale] : null) || DICTS.en;
 }
 
 export { es, en };
