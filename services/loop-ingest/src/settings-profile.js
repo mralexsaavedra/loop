@@ -7,7 +7,7 @@
  * cells keep coarse bounds only: the host sync and the build re-check them against lib/nutrition/energy.mjs.
  */
 import { FOOD_LIMITS as L, SETTINGS_GOALS } from './food-calc.js'
-import { PROFILE_SEX, PROFILE_ACTIVITY, PROFILE_SPORTS, PROFILE_DAY_TYPES, PROFILE_LIMITS } from './profile-rules.js'
+import { PROFILE_SEX, PROFILE_ACTIVITY, PROFILE_SPORTS, PROFILE_DAY_TYPES, PROFILE_FILL_FROM_GYM, PROFILE_LIMITS } from './profile-rules.js'
 import { bad, strictKeys, str, number, oneOf } from './validate.js'
 
 // the page languages (GET / PUT /food/settings `locale`, sql/013_settings_locale.sql CHECK, web/src/env.mjs)
@@ -59,7 +59,8 @@ function ageAt (birthdate, nowMs) {
 }
 
 /** The whole onboarding document: {name?, sex, birthdate (adult), heightCm, weightKg, activity, sports?, goals (the
- * goals the safety screen allowed), targets {goal: {dayType: {kcal, p, f}}} (all twelve cells)}. */
+ * goals the safety screen allowed), targets {goal: {dayType: {kcal, p, f}}} (every cell; a page saved before the
+ * PROFILE_FILL_FROM_GYM day types sends none for them, and each is filled with that goal's gym cell)}. */
 export function validateProfile (body, nowMs = Date.now()) {
   strictKeys(body, ['name', 'sex', 'birthdate', 'heightCm', 'weightKg', 'activity', 'sports', 'goals', 'targets'])
   const out = {}
@@ -83,6 +84,8 @@ export function validateProfile (body, nowMs = Date.now()) {
     out.targets[g] = {}
     for (const d of PROFILE_DAY_TYPES) {
       const at = `targets.${g}.${d}`
+      // gym comes before the filled day types (PROFILE_DAY_TYPES order), so its cell is already checked here
+      if (body.targets[g][d] === undefined && PROFILE_FILL_FROM_GYM.includes(d)) { out.targets[g][d] = { ...out.targets[g].gym }; continue }
       const c = body.targets[g][d]
       strictKeys(c, ['kcal', 'p', 'f'], `${at}.`)
       out.targets[g][d] = {

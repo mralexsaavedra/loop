@@ -59,7 +59,7 @@ const KEYS = {
     'isBikeDay', 'step', 'range', 'pickItem', 'ownDuring', 'ownBefore', 'fuelPlan', 'zero', 'r0', 'macroRow', 'fmtFactor', 'solveScale', 'planFor',
   ],
   HC_ENERGY: [
-    'NEAT', 'EXERCISE', 'SPORTS', 'DAY_TYPES', 'round50', 'ageOn', 'bmi', 'referenceKg', 'bmrMifflin', 'dayTypeOfMinutes', 'isInt', 'validSports', 'exerciseFor',
+    'NEAT', 'EXERCISE', 'SPORTS', 'DAY_TYPES', 'round50', 'ageOn', 'bmi', 'referenceKg', 'bmrMifflin', 'dayTypeOfMinutes', 'dayTypeOfSport', 'isInt', 'validSports', 'exerciseFor',
     'usedDayTypes', 'maintenance', 'inRange', 'validatePerson', 'computeTargets', 'screenPerson',
     'checkTargetWeight', 'checkTargets', 'carbsOf',
   ],
@@ -176,6 +176,7 @@ for (const page of PAGES) {
       { sex: 'female', age: 29, heightCm: 165, weightKg: 60, activity: 'active' },
       { sex: 'male', age: 40, heightCm: 175, weightKg: 120, activity: 'light' },
       { sex: 'female', age: 29, heightCm: 165, weightKg: 60, activity: 'sedentary', sports: [{ sport: 'yoga', minutes: 60, perWeek: 3 }, { sport: 'running', minutes: 90, perWeek: 2 }] },
+      { sex: 'male', age: 35, heightCm: 180, weightKg: 75, activity: 'light', sports: [{ sport: 'hybrid', minutes: 60, perWeek: 2 }, { sport: 'cycling', minutes: 60, perWeek: 2 }, { sport: 'running', minutes: 45, perWeek: 2 }] },
     ];
     for (const p of people) {
       const own = EN.computeTargets(p);
@@ -189,20 +190,21 @@ for (const page of PAGES) {
       assert.deepEqual(js(HC_ENERGY.validatePerson(p)), []);
     }
     assert.equal(HC_ENERGY.ageOn('1997-05-20', '2026-10-14'), EN.ageOn('1997-05-20', '2026-10-14'));
+    for (const sport of Object.keys(EN.SPORTS)) for (const min of [30, 74, 75, 150]) assert.equal(HC_ENERGY.dayTypeOfSport(sport, min), EN.dayTypeOfSport(sport, min), `${sport} ${min}`);
     assert.deepEqual(js(HC_ENERGY.checkTargetWeight({ heightCm: 175, weightKg: 70, goal: 'cut', targetWeightKg: 55 })), ['targetBmiLow']);
   });
 
   test(`${rel}: HC_DAYTYPE / HC_FUEL detect and fuel like lib/nutrition/daytype.mjs / fuel.mjs`, () => {
     const { HC_DAYTYPE, HC_FUEL } = globalsOf(page);
     assert.deepEqual(js(HC_DAYTYPE.DETECT), js(DT.DETECT));
-    assert.deepEqual(js(HC_DAYTYPE.RANK), { rest: 0, gym: 1, bike: 2, bikeLong: 3 });
+    assert.deepEqual(js(HC_DAYTYPE.RANK), { rest: 0, gym: 1, hybrid: 2, indoor: 3, run: 4, bike: 5, bikeLong: 6 });
     for (const c of DT.DAYTYPE_CASES) assert.deepEqual(js(HC_DAYTYPE.detectDayType(c.input)), js(c.expect), JSON.stringify(c.input));
     for (const c of DT.DAYINPUT_CASES) assert.deepEqual(js(HC_DAYTYPE.dayInputFor(c.date, c.data)), js(c.expect), c.date);
     assert.deepEqual(js(HC_FUEL.FUEL), js(FU.FUEL));
     assert.deepEqual(js(HC_FUEL.RIDE_DEFAULT_MIN), js(FU.RIDE_DEFAULT_MIN));
     assert.equal(HC_FUEL.OWN_START_MIN, FU.OWN_START_MIN);
     for (const c of FU.FUEL_CASES) assert.deepEqual(js(HC_FUEL.fuelPlan(c)), js(FU.fuelPlan(c)));
-    for (const d of ['rest', 'gym', 'bike', 'bikeLong']) {
+    for (const d of DAY_TYPES_LIB) {
       for (const o of [{ dayType: d }, { dayType: d, minutes: 185, weightKg: 72 }]) assert.deepEqual(js(HC_FUEL.fuelPlan(o)), js(FU.fuelPlan(o)), JSON.stringify(o));
     }
     assert.equal(HC_FUEL.isBikeDay('bikeLong'), true);

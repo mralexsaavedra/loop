@@ -543,7 +543,7 @@
       "fatMax": 70
     },
     "byGoal": {
-      "_doc": "Daily targets per goal (maintain / cut / bulk) and day type (rest; gym = a gym or run session ~1 h; bike = a ride ~2 h; bikeLong = a ride over 2.5 h). kcal, p = protein (g), f = fat (g); carbs are the remainder. Plan de hoy scales the parts marked flex:\"carb\" so the day lands on kcal.",
+      "_doc": "Daily targets per goal (maintain / cut / bulk) and day type (rest; gym = a strength session ~1 h; hybrid = a HYROX / CrossFit-style session; indoor = a trainer ride, or an outdoor one under 75 min; run = a run; bike = a ride ~2 h; bikeLong = a ride over 2.5 h). kcal, p = protein (g), f = fat (g); carbs are the remainder. A missing hybrid / indoor / run cell takes the goal's own gym cell. Plan de hoy scales the parts marked flex:\"carb\" so the day lands on kcal.",
       "maintain": {
         "rest": {
           "kcal": 2300,
@@ -552,6 +552,21 @@
         },
         "gym": {
           "kcal": 2700,
+          "p": 125,
+          "f": 65
+        },
+        "hybrid": {
+          "kcal": 2950,
+          "p": 125,
+          "f": 65
+        },
+        "indoor": {
+          "kcal": 3000,
+          "p": 125,
+          "f": 65
+        },
+        "run": {
+          "kcal": 3000,
           "p": 125,
           "f": 65
         },
@@ -577,6 +592,21 @@
           "p": 140,
           "f": 55
         },
+        "hybrid": {
+          "kcal": 2600,
+          "p": 140,
+          "f": 55
+        },
+        "indoor": {
+          "kcal": 2650,
+          "p": 140,
+          "f": 55
+        },
+        "run": {
+          "kcal": 2650,
+          "p": 140,
+          "f": 55
+        },
         "bike": {
           "kcal": 3100,
           "p": 140,
@@ -596,6 +626,21 @@
         },
         "gym": {
           "kcal": 3000,
+          "p": 125,
+          "f": 70
+        },
+        "hybrid": {
+          "kcal": 3250,
+          "p": 125,
+          "f": 70
+        },
+        "indoor": {
+          "kcal": 3300,
+          "p": 125,
+          "f": 70
+        },
+        "run": {
+          "kcal": 3300,
           "p": 125,
           "f": 70
         },

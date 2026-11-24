@@ -166,6 +166,17 @@ test('programmed session (window.HCProgram, client/training-today.ts): a "progra
   assert.ok(!only.includes(enT.timeline.empty));
 });
 
+test('S3 a programmed indoor session draws the bike icon, a hybrid one the hybrid icon (never the "other" fallback)', () => {
+  const ico = (kind) => {
+    const html = render(TL, { program: { date: ASOF, kind, focus: 'x' } });
+    const m = html.match(/tl-prog-[a-z]+"[^>]*><span class="tl-chip"[^>]*><svg class="tl-ico" viewBox="0 0 24 24" aria-hidden="true">(.*?)<\/svg>/);
+    return m && m[1];
+  };
+  assert.equal(ico('indoor'), ico('bike'));
+  assert.notEqual(ico('hybrid'), ico('other'));
+  assert.notEqual(ico('indoor'), ico('other'));
+});
+
 test('text diet: the same-day merge note lives in the card\'s ⓘ block (hidden, aria-expanded), not as a visible footnote', () => {
   const html = render(TL);
   assert.match(html, /<div class="sc-head"><h3>[^<]+<\/h3><button type="button" class="hs-i" data-hs-info="tl-info" aria-expanded="false" aria-controls="tl-info"/);

@@ -63,6 +63,8 @@ type DetailSession = { d: string; m: string; min: number; re?: number | null; n?
     hybrid: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
     run: '<circle cx="14" cy="4.5" r="1.8"/><path d="M8 21l3-6 3 2v5M6 12l3-4h4l3 4 3 1M11 15l-1-4"/>',
     bike: '<circle cx="6" cy="16" r="3.5"/><circle cx="18" cy="16" r="3.5"/><path d="M6 16l4-7h5l3 7M10 9l2 7h-6M14 6h3"/>',
+    // a programmed trainer session (lib/training/program.mjs kind indoor) draws the bike
+    indoor: '<circle cx="6" cy="16" r="3.5"/><circle cx="18" cy="16" r="3.5"/><path d="M6 16l4-7h5l3 7M10 9l2 7h-6M14 6h3"/>',
     other: '<path d="M3 12h4l2-6 4 12 2-6h6"/>',
   };
   function icon(key: string): string {

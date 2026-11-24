@@ -71,7 +71,7 @@ type Session = import('../../../lib/training/program.mjs').ProgramSession;
       : '';
     var head = '<div class="train-head"><div class="train-day">' + esc(fmtLong(today)) + '</div>';
     if (s) {
-      head += '<div class="train-focus">' + (s.kind === 'run' ? '🏃' : s.kind === 'bike' ? '🚴' : '🏋️') + ' ' + esc(s.focus) + '</div></div>';
+      head += '<div class="train-focus">' + (s.kind === 'run' ? '🏃' : s.kind === 'bike' || s.kind === 'indoor' ? '🚴' : '🏋️') + ' ' + esc(s.focus) + '</div></div>';
       host.innerHTML = head + s.blocks.map(blockHtml).join('') + meta;
     } else {
       head += '</div>';

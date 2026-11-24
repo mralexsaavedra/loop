@@ -67,6 +67,12 @@ test('a bike day uses the bike icon', () => {
   assert.ok(render(t, '2026-03-02').includes('🚴 Z2 ride'));
 });
 
+test('S3 an indoor (trainer) day uses the bike icon; a hybrid day the strength icon', () => {
+  const day = (kind, focus) => ({ days: { '2026-03-02': { kind, focus, blocks: [{ title: 'A', lines: ['a'] }] } } });
+  assert.ok(render(day('indoor', 'Sweet spot'), '2026-03-02').includes('🚴 Sweet spot'));
+  assert.ok(render(day('hybrid', 'Hyrox sim'), '2026-03-02').includes('🏋️ Hyrox sim'));
+});
+
 test('an unprogrammed day inside the program range is a rest day', () => {
   const html = render(EXAMPLE, '2026-01-06');
   assert.ok(html.includes('<div class="train-day">Tue 6 Jan</div>'));

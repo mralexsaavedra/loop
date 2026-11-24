@@ -6,7 +6,12 @@ import path from 'node:path';
 import { main } from './sync-onboarding.mjs';
 import { dataPaths } from '../lib/paths.mjs';
 
-const cells = (kcal, p, f) => ({ rest: { kcal, p, f }, gym: { kcal: kcal + 350, p, f }, bike: { kcal: kcal + 850, p, f }, bikeLong: { kcal: kcal + 1450, p, f } });
+const cells = (kcal, p, f) => ({
+  rest: { kcal, p, f }, gym: { kcal: kcal + 350, p, f }, hybrid: { kcal: kcal + 500, p, f }, indoor: { kcal: kcal + 550, p, f },
+  run: { kcal: kcal + 600, p, f }, bike: { kcal: kcal + 850, p, f }, bikeLong: { kcal: kcal + 1450, p, f },
+});
+// a profile the service stored before the hybrid / indoor / run day types: four cells per goal
+const oldCells = (kcal, p, f) => ({ rest: { kcal, p, f }, gym: { kcal: kcal + 350, p, f }, bike: { kcal: kcal + 850, p, f }, bikeLong: { kcal: kcal + 1450, p, f } });
 const DOC = {
   sex: 'female', birthdate: '1997-05-20', heightCm: 165, weightKg: 60, activity: 'light', goals: ['maintain'],
   targets: { maintain: cells(1800, 108, 48), cut: cells(1550, 120, 48), bulk: cells(1950, 108, 48) },
@@ -32,6 +37,18 @@ test('a completed wizard is written to onboarding.json (this clone\'s service, t
   assert.match(r.logs[0], /Onboarding: written/);
   const again = await run({ profile: DOC }, { dir: r.out });
   assert.match(again.logs[0], /Onboarding: unchanged/);
+});
+
+test('S6 an OLD 4-cell stored profile is written with its hybrid / indoor / run cells filled from each goal\'s gym cell', async () => {
+  const old = { ...DOC, targets: { maintain: oldCells(1800, 108, 48), cut: oldCells(1550, 120, 48), bulk: oldCells(1950, 108, 48) } };
+  const r = await run({ profile: old });
+  assert.equal(r.code, 0);
+  assert.deepEqual(r.warns, []);
+  const written = JSON.parse(fs.readFileSync(path.join(r.out, 'onboarding.json'), 'utf8'));
+  for (const g of ['maintain', 'cut', 'bulk']) {
+    for (const d of ['hybrid', 'indoor', 'run']) assert.deepEqual(written.targets[g][d], old.targets[g].gym, `${g}.${d}`);
+    assert.deepEqual(written.targets[g].bikeLong, old.targets[g].bikeLong);
+  }
 });
 
 test('never completed (profile null): no file, exit 0', async () => {

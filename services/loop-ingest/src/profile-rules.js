@@ -9,6 +9,7 @@
 export const PROFILE_SEX = Object.freeze(["male","female"]);
 export const PROFILE_ACTIVITY = Object.freeze(["sedentary","light","active"]);
 export const PROFILE_SPORTS = Object.freeze(["strength","running","cycling","swimming","hybrid","team","yoga","other"]);
-export const PROFILE_DAY_TYPES = Object.freeze(["rest","gym","bike","bikeLong"]);
+export const PROFILE_DAY_TYPES = Object.freeze(["rest","gym","hybrid","indoor","run","bike","bikeLong"]);
+export const PROFILE_FILL_FROM_GYM = Object.freeze(["hybrid","indoor","run"]);
 export const PROFILE_LIMITS = Object.freeze({"age":Object.freeze([18,100]),"heightCm":Object.freeze([120,230]),"weightKg":Object.freeze([30,250]),"sportMinutes":Object.freeze([15,600]),"sportPerWeek":Object.freeze([1,14])});
 

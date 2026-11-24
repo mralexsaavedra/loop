@@ -92,13 +92,16 @@ replaces every value of the example plan with null / a string / a number / an ar
 `validateNutrition`). Carbs are the REMAINDER ((kcal − 4p − 9f) / 4, never typed); protein + fat above
 kcal is an error. A missing cell falls back to `DEFAULT_BY_GOAL` (`lib/nutrition/targets.mjs`), a generic
 EXAMPLE seed (a 70 kg reference adult per `analysis/methodology.md` §2; the example plan copies it); set
-all twelve cells once you know your TDEE.
+every cell once you know your TDEE. A missing `hybrid` / `indoor` / `run` cell (`FILL_FROM_GYM`) first takes
+the plan's OWN `gym` cell of that goal, so a plan written before those day types keeps its numbers.
 
-| Goal | rest / gym / bike / bikeLong kcal | P / F g |
+| Goal | rest / gym / hybrid / indoor / run / bike / bikeLong kcal | P / F g |
 | --- | --- | --- |
-| maintain | 2300 / 2700 / 3100 / 3600 | 125 / 65 |
-| cut | 1950 / 2350 / 3100 / 3600 (≈ −15 % on rest and gym, ride days kept fuelled) | 140 / 55 |
-| bulk | 2600 / 3000 / 3400 / 3900 (+300 kcal) | 125 / 70 |
+| maintain | 2300 / 2700 / 2950 / 3000 / 3000 / 3100 / 3600 | 125 / 65 |
+| cut | 1950 / 2350 / 2600 / 2650 / 2650 / 3100 / 3600 (≈ −15 % on rest and the short days, ride days kept fuelled) | 140 / 55 |
+| bulk | 2600 / 3000 / 3250 / 3300 / 3300 / 3400 / 3900 (+300 kcal) | 125 / 70 |
+
+The seed's hybrid / indoor / run cells are its gym cell + 250 / + 300 / + 300 kcal, same protein and fat.
 
 - Default goal = `page.goal`, else `maintain`. A plan without `targets.byGoal` / `page.goal` uses these
   code defaults, and scaling is decided by food category, so old plans need no migration.
@@ -113,7 +116,9 @@ For the in-page onboarding, in the `targets.byGoal` shape; a ±10 % estimate —
 weight trend after 2–3 weeks.
 
 - Mifflin-St Jeor BMR × NEAT (`sedentary` 1.2 / `light` 1.3 / `active` 1.4) + each day type's net exercise
-  ((MET − 1) × kg × h: gym 6 × 1 h, ride 7 × 2 h, long ride 7 × 3.5 h). Cut −15 % except the long ride,
+  ((MET − 1) × kg × h: gym 6 × 1 h, hybrid 8 × 1 h, indoor 7 × 1.25 h, run 9 × 1 h, ride 7 × 2 h, long ride
+  7 × 3.5 h; with sports, each day type their sessions reach takes their own time-weighted MET and length,
+  `dayTypeOfSport` in docs/profile.md). Cut −15 % except the long ride,
   bulk +10 %, kcal to the nearest 50; protein 2.0 g/kg cut / 1.8 otherwise, fat 0.8 g/kg; floors 1500 kcal
   (men) / 1200 (women).
 - The protein and fat kg are a **reference weight** (`referenceKg`): the current weight up to BMI 25, the weight
@@ -128,7 +133,10 @@ weight trend after 2–3 weeks.
 - `checkTargets` bounds an edited cell — errors: floor, deficit > 20 %, surplus > 15 % (over maintenance, or over
   the floor when the floor is higher, so a day `computeTargets` raised to the floor always passes), > 1 % body weight /
   week, protein outside 1.2–2.4 g/kg, fat < 0.5 g/kg; warnings: protein outside 1.6–2.2, fat > 1.0, carbs
-  outside rest 3–5 / gym 5–7 / bike 6–10 / long 8–12 g/kg where energy is not cut on purpose.
+  outside rest 3–5 / gym, hybrid, indoor, run 5–7 / bike 6–10 / long 8–12 g/kg where energy is not cut on purpose.
+  `checkTargets(targets, person, days)` checks only `days` when given: the build passes the day types a stored
+  onboarding really has, so the cells back-filled into an old profile are never judged against their own
+  maintenance (docs/profile.md).
 
 ### Other plan fields
 
@@ -195,8 +203,10 @@ refs, no `<script type="module">`, every script `is:inline`), so a static copy w
 
 ## Goals and day types
 
-`lib/nutrition/targets.mjs`: **day types** `rest`, `gym` (a gym or run session, ~1 h), `bike` (a ride
-~2 h), `bikeLong` (> 2.5 h); **goals** `maintain`, `cut`, `bulk` ([targets](#targetsbygoal)). The goal is
+`lib/nutrition/targets.mjs`: **day types**, in order of demand, `rest`, `gym` (a strength session, ~1 h; labelled
+Fuerza / Strength — the id is kept because stored data uses it), `hybrid` (a HYROX / CrossFit-style session;
+Híbrido / Hybrid), `indoor` (a trainer ride, or an outdoor one under 75 min; Rodillo / Indoor ride), `run`
+(Carrera / Run), `bike` (a ride ~2 h), `bikeLong` (> 2.5 h); `BASE_DAY` maps every non-rest type to `train`; **goals** `maintain`, `cut`, `bulk` ([targets](#targetsbygoal)). The goal is
 set in the profile sheet (server-side on the LAN page: "Settings" in `docs/nutrition-food-log.md`); the day
 type in [Today's summary](#todays-summary).
 
@@ -215,30 +225,40 @@ lib, the page and the built page.
 
 | Input | Rule (`DETECT`) |
 | --- | --- |
-| done gym / run (`SCORES.timeline`, same-day rows merged per modality; strength + hybrid summed) | ≥ 20 min → gym (shorter = a stub) |
+| done strength / hybrid (`SCORES.timeline`, same-day rows merged per modality; a legacy `gym` item is strength) | the day's strength + hybrid minutes summed: hybrid when the hybrid part is ≥ 20 min, else gym when the sum is ≥ 20 (shorter = a stub) |
+| done run | ≥ 20 min → run |
 | done `other` (walks, tennis…) | ≥ 45 min only, as gym |
-| done ride | < 30 min = commute (ignored); 30–74 → gym; ≥ 75 → bike; ≥ 150 → bikeLong |
-| programmed `TRAINING[today]` | `kind: "bike"` by optional `durationMin`, same ride thresholds (absent = bike); other kinds → gym |
+| done indoor ride (`indoor: true`: the longest row of the day's ride is `IndoorCycling`) | < 30 min ignored; 30–119 → indoor; ≥ 120 → the outdoor rule |
+| done outdoor ride | < 30 min = commute (ignored); 30–74 → indoor; ≥ 75 → bike; ≥ 150 → bikeLong |
+| programmed `TRAINING[today]` | `gym` → gym, `hybrid` → hybrid, `run` → run, `indoor` → indoor, `bike` by optional `durationMin` with the outdoor ride thresholds (absent = bike); no kind → gym |
 | none | rest |
 
-- A zero / junk duration is dropped. `loop-data/cache/training.json` accepts `kind: "bike"` + `durationMin`.
+`RANK`: rest 0, gym 1, hybrid 2, indoor 3, run 4, bike 5, bikeLong 6. Ride minutes (`rideMin`, the "Bici
+registrada hoy" line, the during-ride fuelling) exist only for bike / bikeLong: an indoor day gets no ride
+fuel block. The indoor signal comes from the timeline item's `indoor` flag (`lib/score/timeline.mjs`) and,
+beyond the timeline, from the `DETAIL.sessions` row's type `t` (`IndoorCycling`), so both paths give the same
+day type.
+
+- A zero / junk duration is dropped. `loop-data/cache/training.json` accepts `kind` `gym`, `hybrid`, `indoor`,
+  `run` or `bike` (+ an optional `durationMin`).
 - **Per-person sports** — the onboarding's `sports` add endurance modalities (`enduranceOf`: running →
   `run`, swimming → `other`), baked as `NUTRI.detect.endurance` only when there are some: such a session,
   done or programmed with `durationMin`, of ≥ 75 min is a bike day and ≥ 150 min a bikeLong day (minutes
-  travel as `rideMin`, so fuelling follows); shorter ones keep their rule.
-- The MOST DEMANDING of done and programmed wins (gym done + long ride programmed → bikeLong); a tie goes
+  travel as `rideMin`, so fuelling follows); shorter ones keep their rule (a run → run).
+- The MOST DEMANDING (`RANK`) of done and programmed wins (gym done + long ride programmed → bikeLong); a tie goes
   to what was done (real ride minutes).
 - A day beyond the 3 baked timeline days detects from `DETAIL.sessions` (`daytype.mjs` `dayInputFor`).
 - **Manual override** — goal and override in localStorage (`hc.nutri.goal`, `hc.nutri.dayType` =
   `{date, type, auto}`, so it expires the next day), every access wrapped; label "(auto)" / "(elegido)"
   with a "use the detected one" button. An override LESS demanding than a type detected later that day
-  (`auto` rose since: picked gym, then a long ride synced) is dropped on load with a one-line note
-  (`Detectada salida larga: cambiado a Bici larga`); a more demanding one or a deliberate downgrade stays.
+  (`auto` rose since: picked gym, then a long ride synced) is dropped on load with a one-line note naming the
+  detected type (`autoRaised`, one per day type: `Detectada salida larga: cambiado a Bici larga`, `Detectada
+  carrera: cambiado a Carrera`); a more demanding one or a deliberate downgrade stays.
 
 ## Portion scaling
 
-`lib/nutrition/scale.mjs`. Plans keep two base days; `BASE_DAY` maps rest → `dayPlan.rest`, gym / bike /
-bikeLong → `dayPlan.train`. Base macros come from the engine (ingredients.json, never hand-typed).
+`lib/nutrition/scale.mjs`. Plans keep two base days; `BASE_DAY` maps rest → `dayPlan.rest`, every other day
+type → `dayPlan.train`. Base macros come from the engine (ingredients.json, never hand-typed).
 
 ### Carb-flex parts
 
@@ -417,7 +437,7 @@ it in the lib, the page and the built page). Always four groups — Breakfast, L
 
 `~N kcal para extras hoy`; muted `Incluye café, tentempiés y pre/post-entreno`; a muted hint with costs
 from the food DB (`EXTRAS_EXAMPLES` → `NUTRI.guide.extras`: un plátano ~106, un yogur ~79, un batido de
-proteína (30 g) ~114 kcal); `Repártelo antes y después de entrenar` on gym / bike day types; its P / C / G
+proteína (30 g) ~114 kcal); `Repártelo antes y después de entrenar` on every day type but rest; its P / C / G
 line. No item list, no selects.
 
 ### Live link with the food log (LAN page)

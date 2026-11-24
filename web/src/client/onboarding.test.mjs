@@ -237,6 +237,23 @@ test('the full path: summary with the weekly average and only the day types the 
   assert.equal(s.synced, 1, 'the page Sync runs so the next build bakes the targets');
 });
 
+test('S5 the weekly average counts the hybrid / indoor / run days the sports reach (not only gym / bike / long bike)', () => {
+  const s = setup();
+  const picks = [['running', '45', '3'], ['cycling', '60', '2'], ['hybrid', '60', '1']];
+  toSafety(s, picks);
+  s.act('next'); // safety
+  s.choose('goal', 'maintain'); s.act('next');
+  const h = s.html();
+  clean(h);
+  const sports = picks.map(([sport, min, times]) => ({ sport, minutes: Number(min), perWeek: Number(times) }));
+  const own = computeTargets({ ...PERSON, sports }).targets.maintain;
+  // a week: 3 runs, 2 trainer rides, 1 hybrid session, 1 rest day
+  const avg = Math.round((own.rest.kcal + 3 * own.run.kcal + 2 * own.indoor.kcal + own.hybrid.kcal) / 7 / 50) * 50;
+  assert.match(h, new RegExp(`class="onb-ring">[\\s\\S]*class="kcal">${avg.toLocaleString('en-US')}<`), 'the average inside the ring');
+  for (const name of ['Rest day', 'Hybrid session', 'Indoor ride', '>Run<']) assert.ok(h.includes(name), name);
+  assert.doesNotMatch(h, /Short session|Long session/, 'no sport reaches gym or bike');
+});
+
 test('adjust: the grid edits the chosen goal of the used day types; a hard bound blocks; Recalculate drops edits', async () => {
   const s = setup();
   toSafety(s, [['yoga', '60', '3']]);

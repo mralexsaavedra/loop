@@ -24,7 +24,7 @@ test('the generator is deterministic', () => {
 });
 
 test('the service module exports exactly the lib vocabularies and bounds, deep-frozen', () => {
-  assert.deepEqual(Object.keys(S).sort(), ['PROFILE_ACTIVITY', 'PROFILE_DAY_TYPES', 'PROFILE_LIMITS', 'PROFILE_SEX', 'PROFILE_SPORTS']);
+  assert.deepEqual(Object.keys(S).sort(), ['PROFILE_ACTIVITY', 'PROFILE_DAY_TYPES', 'PROFILE_FILL_FROM_GYM', 'PROFILE_LIMITS', 'PROFILE_SEX', 'PROFILE_SPORTS']);
   assert.deepEqual(S.PROFILE_SEX, ['male', 'female']);
   assert.deepEqual(S.PROFILE_ACTIVITY, Object.keys(NEAT));
   assert.deepEqual(S.PROFILE_SPORTS, Object.keys(SPORTS));

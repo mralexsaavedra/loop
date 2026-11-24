@@ -33,9 +33,14 @@ se usan los objetivos del archivo del plan.
 | Tipo de día | Significado |
 | --- | --- |
 | `rest` | sin entrenamiento |
-| `gym` | una sesión de gimnasio o de carrera, de 1 h aproximadamente |
+| `gym` | una sesión de fuerza, de 1 h aproximadamente (se muestra como «Fuerza») |
+| `hybrid` | una sesión de tipo HYROX / CrossFit |
+| `indoor` | una sesión de rodillo, o una salida en bici de menos de 75 min |
+| `run` | una carrera |
 | `bike` | una salida en bici de unas 2 h |
 | `bikeLong` | una salida de más de 2,5 h |
+
+Un plan sin casillas `hybrid`, `indoor` o `run` usa para ellas sus propios números de `gym`.
 
 Si hiciste la configuración con el asistente, la página muestra estos tipos de día con los nombres de tus propios
 deportes. Cada casilla contiene `kcal`, `p` (proteína, g) y `f` (grasa, g); los hidratos son lo que queda:
@@ -45,6 +50,9 @@ deportes. Cada casilla contiene `kcal`, `p` (proteína, g) y `f` (grasa, g); los
   "cut": {
     "rest":     { "kcal": 1950, "p": 140, "f": 55 },
     "gym":      { "kcal": 2350, "p": 140, "f": 55 },
+    "hybrid":   { "kcal": 2600, "p": 140, "f": 55 },
+    "indoor":   { "kcal": 2650, "p": 140, "f": 55 },
+    "run":      { "kcal": 2650, "p": 140, "f": 55 },
     "bike":     { "kcal": 3100, "p": 140, "f": 55 },
     "bikeLong": { "kcal": 3600, "p": 140, "f": 55 }
   }
@@ -110,7 +118,8 @@ sección `data` contiene de la misma forma las opciones de cada comida (desayuno
 1. Copia `data/training/training-data.example.json` → `loop-data/cache/training.json` (opcional: sin él, la página
    simplemente no muestra ninguna sesión programada). Con el servicio de datos local, guarda cada cambio con
    `npm run documents -- push training` ([Owner documents](../data-pipeline.md#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync), en inglés).
-2. Añade una entrada por fecha (`YYYY-MM-DD`). `kind` es `gym`, `run` o `bike`; `durationMin` es opcional
+2. Añade una entrada por fecha (`YYYY-MM-DD`). `kind` es `gym` (fuerza), `hybrid`, `indoor` (rodillo), `run` o
+   `bike`; `durationMin` es opcional
    (minutos); `focus` es una etiqueta corta; `blocks` contiene la sesión:
 
    ```json
@@ -126,8 +135,9 @@ sección `data` contiene de la misma forma las opciones de cada comida (desayuno
 3. Ejecuta `npm run check` y después `npm run generate`.
 
 Qué hace la página con él: muestra la sesión programada de hoy y la usa para elegir el tipo de día de tus objetivos
-de nutrición. Una sesión de bici fija el día según su duración (75 min o más = `bike`, 150 min o más =
-`bikeLong`); un entrenamiento que registres de verdad puede subirlo. Una fecha sin entrada es un día de descanso.
+de nutrición: `gym`, `hybrid`, `indoor` y `run` fijan el día del mismo nombre; una sesión de bici fija el día según
+su duración (menos de 75 min = `indoor`, 75 min o más = `bike`, 150 min o más = `bikeLong`); un entrenamiento que
+registres de verdad puede subirlo. Una fecha sin entrada es un día de descanso.
 
 ¿Tienes el PDF de un entrenador o las sesiones de una app? Claude Code puede transcribirlas (ver más abajo).
 

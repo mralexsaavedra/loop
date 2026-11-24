@@ -48,8 +48,8 @@ The FIRST section under the header (also on the onboarding sheet), heading `Obje
 - Three labelled radios `Mantener` / `Bajar` / `Ganar`, each with a one-line description (`"Mantener tu
   peso"`, `"Déficit suave (~−350 kcal/día, sin tocar los días de bici)"`, `"Superávit suave (~+300
   kcal/día)"`).
-- **The kcal**: `lib/profile/goal.mjs` `goalOptions(resolveTargets(plan))` — mean goal − maintain over rest +
-  gym, rounded to 10; "bike days untouched" only when bike / bikeLong equal maintain. Baked as
+- **The kcal**: `lib/profile/goal.mjs` `goalOptions(resolveTargets(plan))` — mean goal − maintain over rest and
+  the short day types (gym, hybrid, indoor, run), rounded to 10; "bike days untouched" only when bike / bikeLong equal maintain. Baked as
   `PROFILE.goals` by `web/pages/index.astro`, never typed.
 - **Ownership**: the goal belongs to Nutrition (`client/nutri-day.ts`, inlined before profile.ts).
   - The checked radio is `HCNutri.state().goal`.
@@ -210,6 +210,12 @@ accepted nutrition targets of a user without an AI coach).
   - the goal setting offers only the goals its safety screen allowed (`goalOptions(targets, allowed)`).
 - Targets outside `lib/nutrition/energy.mjs` `checkTargets` hard bounds, or a malformed file → a build
   `WARNING:` and ignored (the plan's own targets are used).
+- **Older profiles** (saved before the `hybrid` / `indoor` / `run` day types: four cells per goal) keep working:
+  `normalizeOnboarding` fills each missing one of those cells from that goal's `gym` cell (a missing `rest` /
+  `gym` / `bike` / `bikeLong` cell is still an error), the ingest service's `PUT /food/profile` does the same
+  (`PROFILE_FILL_FROM_GYM` in the generated `profile-rules.js`), and the build bounds only the cells the file
+  really has (`checkTargets(…, days)`), so the copies never drop the profile. Saving the onboarding again
+  computes real cells for them.
 - No file → the page is built from `loop-data/cache/profile.json` and the plan alone.
 
 ## Ingest side: Strava athlete and gear scope
@@ -368,13 +374,21 @@ The document may carry `sports` — `[{sport, minutes, perWeek}]`, one entry per
   GENERATED from `lib/profile/onboarding.mjs` `SERVER` (sex, activity levels, sports, day types, and the age, height,
   weight and sport bounds of `energy.mjs`). Change the lib, then `npm run gen:profile-rules`; never hand-edit it
   (`scripts/gen-profile-rules.test.mjs` fails while it is stale).
-- **Day type per session** (`dayTypeOfMinutes`, the same cut-offs as `daytype.mjs` `DETECT`):
+- **Day type per session** (`dayTypeOfSport(sport, minutes)`; the length cut-offs are `daytype.mjs` `DETECT`'s,
+  through `dayTypeOfMinutes`):
 
-  | Session length | Day type |
+  | Session | Day type |
   | --- | --- |
-  | < 75 min | short (`gym`) |
-  | 75 – < 150 min | long (`bike`) |
-  | ≥ 150 min | very long (`bikeLong`) |
+  | ≥ 150 min, any sport | very long (`bikeLong`) |
+  | 75 – < 150 min, any sport | long (`bike`) |
+  | < 75 min strength | `gym` |
+  | < 75 min hybrid | `hybrid` |
+  | < 75 min running | `run` |
+  | < 75 min cycling | `indoor` |
+  | < 75 min any other sport | `gym` |
+
+  Its default exercise (`EXERCISE`): gym MET 6 × 1 h, hybrid 8 × 1 h, indoor 7 × 1.25 h, run 9 × 1 h, bike 7 × 2 h,
+  bikeLong 7 × 3.5 h. The summary's weekly average counts every day type the sports reach.
 
 - That day type's exercise becomes the time-weighted MET and average length of its sessions (`exerciseFor`);
   day types no sport reaches keep `EXERCISE`. `usedDayTypes` lists the ones a week has.

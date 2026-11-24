@@ -33,9 +33,14 @@ assistant, the plan file's targets are used.
 | Day type | Meaning |
 | --- | --- |
 | `rest` | no training |
-| `gym` | a gym or run session, about 1 h |
+| `gym` | a strength session, about 1 h (shown as "Strength") |
+| `hybrid` | a HYROX / CrossFit-style session |
+| `indoor` | a trainer ride, or an outdoor ride under 75 min |
+| `run` | a run |
 | `bike` | a ride of about 2 h |
 | `bikeLong` | a ride over 2.5 h |
+
+A plan without `hybrid`, `indoor` or `run` cells uses its own `gym` numbers for them.
 
 If you set up through the assistant, the page shows these day types with the names of your own sports.
 Each cell holds `kcal`, `p` (protein, g) and `f` (fat, g); carbs are what is left:
@@ -45,6 +50,9 @@ Each cell holds `kcal`, `p` (protein, g) and `f` (fat, g); carbs are what is lef
   "cut": {
     "rest":     { "kcal": 1950, "p": 140, "f": 55 },
     "gym":      { "kcal": 2350, "p": 140, "f": 55 },
+    "hybrid":   { "kcal": 2600, "p": 140, "f": 55 },
+    "indoor":   { "kcal": 2650, "p": 140, "f": 55 },
+    "run":      { "kcal": 2650, "p": 140, "f": 55 },
     "bike":     { "kcal": 3100, "p": 140, "f": 55 },
     "bikeLong": { "kcal": 3600, "p": 140, "f": 55 }
   }
@@ -107,7 +115,8 @@ No server? Create `loop-data/profile/settings.json` yourself:
 1. Copy `data/training/training-data.example.json` → `loop-data/cache/training.json` (optional:
    without it the page simply shows no programmed session). With the LAN data service, save each change with
    `npm run documents -- push training` ([Owner documents](../data-pipeline.md#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync)).
-2. Add one entry per date (`YYYY-MM-DD`). `kind` is `gym`, `run` or `bike`; `durationMin` is optional
+2. Add one entry per date (`YYYY-MM-DD`). `kind` is `gym` (strength), `hybrid`, `indoor` (trainer), `run` or
+   `bike`; `durationMin` is optional
    (minutes); `focus` is a short label; `blocks` hold the session:
 
    ```json
@@ -123,8 +132,9 @@ No server? Create `loop-data/profile/settings.json` yourself:
 3. Run `npm run check`, then `npm run generate`.
 
 What the page does with it: shows today's programmed session, and uses it to pick the day type of your
-nutrition targets. A bike session sets the day by its length (75 min or more = `bike`, 150 min or more =
-`bikeLong`); a workout you actually record can raise it. A date with no entry is a rest day.
+nutrition targets: `gym`, `hybrid`, `indoor` and `run` set the day of the same name; a bike session sets the day
+by its length (under 75 min = `indoor`, 75 min or more = `bike`, 150 min or more = `bikeLong`); a workout you
+actually record can raise it. A date with no entry is a rest day.
 
 Have a coach's PDF or an app's sessions? Claude Code can transcribe them (see below).
 
