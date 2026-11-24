@@ -41,7 +41,7 @@ for (const [file, global, fns] of COPIES) {
     assert.ok(html, `missing ${htmlPath}: run npm run pretest`);
     const g = html.search(new RegExp(`globalThis\\.${global}\\s*=`));
     // a module script (*.ts) is inlined as its bundle (web/src/client-bundle.mjs), a classic one as is
-    const at = html.indexOf(slimScript(file.endsWith('.ts') ? clientScriptSource(file) : src(file)));
+    const at = html.indexOf(slimScript(clientScriptSource(file)));
     assert.ok(g > 0, `${global} published`);
     assert.ok(at > 0, `${file} inlined whole`);
     assert.ok(g < at, `${global} before ${file}`);
@@ -51,7 +51,7 @@ for (const [file, global, fns] of COPIES) {
 test('the client scripts read the one HC.fin (client/util.ts) instead of defining their own', () => {
   const dir = path.join(WEB_ROOT, 'src', 'client');
   const copies = fs.readdirSync(dir)
-    .filter((f) => (f.endsWith('.js') || (f.endsWith('.ts') && !f.endsWith('.d.ts'))) && !f.endsWith('.test.js') && f !== 'util.ts')
+    .filter((f) => (f.endsWith('.ts') && !f.endsWith('.d.ts')) && !f.endsWith('.test.js') && f !== 'util.ts')
     .filter((f) => /function fin\(/.test(src(f)));
   assert.deepEqual(copies, []);
   assert.match(src('util.ts'), /\bfin: fin\b/, 'util.ts exports HC.fin');
@@ -61,7 +61,7 @@ test('the client scripts count days with the one HC.dayDiff (client/util.ts), ne
   const dir = path.join(WEB_ROOT, 'src', 'client');
   const HAND_ROLLED = /parseIso\([^)]*\)\s*-\s*(?:HC\.)?parseIso\(/;
   const copies = fs.readdirSync(dir)
-    .filter((f) => (f.endsWith('.js') || (f.endsWith('.ts') && !f.endsWith('.d.ts'))) && !f.endsWith('.test.js') && f !== 'util.ts')
+    .filter((f) => (f.endsWith('.ts') && !f.endsWith('.d.ts')) && !f.endsWith('.test.js') && f !== 'util.ts')
     .filter((f) => /function dayDiff\(/.test(src(f)) || HAND_ROLLED.test(src(f)));
   assert.deepEqual(copies, []);
   assert.match(src('util.ts'), /\bdayDiff: dayDiff\b/, 'util.ts exports HC.dayDiff');

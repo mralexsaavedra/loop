@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 import { slimHtmlStyles } from './src/slim-script.mjs';
 import { addCsp, delegateLegacyHandlers, inlineHandlers } from './src/csp.mjs';
-import { clientScriptSource, isModuleScript } from './src/client-bundle.mjs';
+import { clientScriptSource } from './src/client-bundle.mjs';
 import { CLIENT_SCRIPTS } from './src/client/manifest.mjs';
 
 // `virtual:client-modules`: the module client scripts (web/src/client/*.ts) of the manifest, each BUNDLED into one
@@ -17,7 +17,7 @@ const clientModules = {
   resolveId: (id) => (id === CLIENT_MODULES_ID ? '\0' + CLIENT_MODULES_ID : null),
   load(id) {
     if (id !== '\0' + CLIENT_MODULES_ID) return null;
-    const entries = CLIENT_SCRIPTS.filter((e) => isModuleScript(e.file)).map((e) => [e.file, clientScriptSource(e.file)]);
+    const entries = CLIENT_SCRIPTS.map((e) => [e.file, clientScriptSource(e.file)]);
     return 'export default ' + JSON.stringify(Object.fromEntries(entries)) + ';';
   },
 };
