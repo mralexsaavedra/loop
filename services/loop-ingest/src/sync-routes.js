@@ -13,18 +13,26 @@
  */
 import { writeJson } from './http.js'
 
-// no-store but no nosniff header: the historical /sync response, kept byte for byte
-const send = (res, status, body) => writeJson(res, status, body, { 'cache-control': 'no-store' })
+/** @typedef {import('node:http').IncomingMessage} Req @typedef {import('node:http').ServerResponse} Res */
+/**
+ * @typedef {Pick<ReturnType<typeof import('./trigger.js').createSyncTrigger>, 'handle'>} SyncTrigger
+ * @typedef {Pick<ReturnType<typeof import('./status.js').createSyncStatus>, 'snapshot'>} SyncStatusReader
+ */
 
+// no-store but no nosniff header: the historical /sync response, kept byte for byte
+const send = (/** @type {Res} */ res, /** @type {number} */ status, /** @type {unknown} */ body) => writeJson(res, status, body, { 'cache-control': 'no-store' })
+
+/** @param {{ trigger: SyncTrigger, status: SyncStatusReader }} deps */
 export function createSyncRoutes ({ trigger, status }) {
   return {
-    /** Answers at once; returns the background work's promise (tests await it). */
+    /** Answers at once; returns the background work's promise (tests await it). @param {Req} req @param {Res} res */
     handleSync (req, res) {
       const result = trigger.handle()
       send(res, result.status, result.body)
       return result.done
     },
 
+    /** @param {Req} req @param {Res} res */
     async handleStatus (req, res) {
       send(res, 200, await status.snapshot())
     }

@@ -22,23 +22,29 @@ import { createDocumentRoutes } from './documents.js'
 import { createFilesExportRoutes } from './files-export.js'
 import { createActivityAnnotator, createStravaAnnotateRoutes } from './strava-annotate.js'
 
+/** @typedef {import('node:http').IncomingMessage} Req @typedef {import('node:http').ServerResponse} Res */
+/** The environment (process.env, or a test's object). @typedef {Record<string, string | undefined>} Env */
+/** @typedef {import('./db.js').Queryable} Queryable */
+
 /**
  * Read the body with a hard ceiling. Health Auto Export can be told to batch
  * requests, so rejecting an oversized upload is preferable to buffering it. A
  * declared Content-Length over the cap is refused before reading; a streamed body
  * stops being buffered at the cap. Either way the caller answers 413 and only then
  * closes the socket (see the catch in createHandler), so the client gets a response.
+ * @param {Req} req @param {number} limit @returns {Promise<Buffer>}
  */
 function readBody (req, limit) {
   const tooLarge = () => Object.assign(new Error('payload too large'), { status: 413 })
   const declared = Number(req.headers['content-length'])
   if (Number.isFinite(declared) && declared > limit) return Promise.reject(tooLarge())
   return new Promise((resolve, reject) => {
+    /** @type {Buffer[]} */
     const chunks = []
     let size = 0
     let over = false
 
-    req.on('data', (chunk) => {
+    req.on('data', (/** @type {Buffer} */ chunk) => {
       if (over) return
       size += chunk.length
       if (size > limit) {
@@ -62,6 +68,7 @@ export const DEFAULT_DATA_DIR = '/data'
 
 /** The upload ceiling: MAX_BODY_BYTES, else 8 MB, the most loop-web forwards (its client_max_body_size 8m). */
 export const DEFAULT_MAX_BODY_BYTES = 8 * 1024 * 1024
+/** @param {Env} env */
 export function maxBodyBytes (env) {
   return numericEnv(env, 'MAX_BODY_BYTES', { def: DEFAULT_MAX_BODY_BYTES, min: 1024, max: 1024 * 1024 * 1024, integer: true })
 }
@@ -71,6 +78,9 @@ export function maxBodyBytes (env) {
  * within [min, max] (and whole when `integer`), else an Error `invalid NAME=<value>: ...` that main() turns into
  * one startup_failed line: a typo ('8m', 'abc', 0) must stop the service, never silently disable a limit (NaN)
  * or spin a timer (a 0-minute interval).
+ * @param {Env} env @param {string} name
+ * @param {{ def: number, min: number, max: number, integer?: boolean }} range
+ * @returns {number}
  */
 export function numericEnv (env, name, { def, min, max, integer = false }) {
   const raw = env[name]
@@ -83,7 +93,7 @@ export function numericEnv (env, name, { def, min, max, integer = false }) {
   return n
 }
 
-/** The numeric settings main() reads (each through numericEnv; throws on the first invalid one). */
+/** The numeric settings main() reads (each through numericEnv; throws on the first invalid one). @param {Env} env */
 export function envConfig (env) {
   return {
     port: numericEnv(env, 'PORT', { def: 8088, min: 1, max: 65_535, integer: true }),
@@ -101,11 +111,12 @@ export function envConfig (env) {
  * resolves it: HC_DATA_DIR (default /data, the image's), files/ = HC_FILES_DIR when set (else null = <dataDir>/files);
  * a relative value resolves against the repo root the image ships (/app).
  * Throws on an invalid value, like envConfig.
+ * @param {Env} env
  */
 export function buildConfig (env) {
   const mode = buildMode(env)
   const repoRoot = path.resolve(path.dirname(DEFAULT_REFRESH_SCRIPT), '..')
-  const setting = (name) => String(env[name] ?? '').trim()
+  const setting = (/** @type {string} */ name) => String(env[name] ?? '').trim()
   return {
     mode,
     siteDir: setting('HC_SITE_DIR') || DEFAULT_SITE_DIR,
@@ -124,6 +135,22 @@ export function buildConfig (env) {
 /** The default for an optional route module: handles nothing. @type {RouteModule} */
 const NO_ROUTES = { handle: async () => false }
 
+/**
+ * createHandler's dependencies (main() wires the real ones, tests fakes).
+ * @typedef {{
+ *   token?: string | null, checkBearer?: (req: Req) => boolean, maxBodyBytes: number, pool: Queryable,
+ *   ping: (pool: Queryable) => Promise<unknown>,
+ *   insertRawPayload: (pool: Queryable, record: import('./raw-payload-db.js').RawPayloadRecord) => Promise<{ id: string | number, received_at: unknown }>,
+ *   syncStatus: { health: () => object }, stravaEnabled: boolean, stravaSync: { runOnce: () => Promise<{ count: number }> } | null,
+ *   foodRoutes: RouteModule, journalRoutes?: RouteModule, documentRoutes?: RouteModule, filesExportRoutes?: RouteModule,
+ *   stravaAnnotateRoutes?: RouteModule,
+ *   syncRoutes: { handleSync: (req: Req, res: Res) => unknown, handleStatus: (req: Req, res: Res) => Promise<void> },
+ *   handleExport: (req: Req, res: Res, url: URL) => Promise<void>, handleStravaExport: (req: Req, res: Res, url: URL) => Promise<void>,
+ *   handleAthleteExport: (req: Req, res: Res) => Promise<void>
+ * }} HandlerDeps
+ */
+
+/** @param {HandlerDeps} deps @returns {(req: Req, res: Res) => Promise<void>} */
 export function createHandler ({
   token,
   // one checker for every bearer route, so its failure count covers them all (auth.js)
@@ -147,6 +174,7 @@ export function createHandler ({
   handleStravaExport,
   handleAthleteExport
 }) {
+  /** @param {Req} req @param {Res} res @param {string} source */
   async function handleIngest (req, res, source) {
     if (!checkBearer(req)) {
       send(res, 401, { error: 'unauthorized' })
@@ -199,7 +227,8 @@ export function createHandler ({
   }
 
   return async (req, res) => {
-    const url = new URL(req.url, 'http://localhost')
+    // a server request always carries its url
+    const url = new URL(/** @type {string} */ (req.url), 'http://localhost')
 
     try {
       if (req.method === 'GET' && url.pathname === '/healthz') {
@@ -263,8 +292,10 @@ export function createHandler ({
 
       send(res, 404, { error: 'not found' })
     } catch (err) {
-      const status = err.status ?? 500
-      if (status >= 500) console.error(JSON.stringify({ event: 'error', message: err.message }))
+      // readBody's 413 carries a status; anything else is a 500
+      const e = /** @type {Error & { status?: number }} */ (err)
+      const status = e.status ?? 500
+      if (status >= 500) console.error(JSON.stringify({ event: 'error', message: e.message }))
       if (res.headersSent) return
       if (status === 413) {
         // the response first, then drop the connection (the rest of the upload is never read)
@@ -283,6 +314,7 @@ export function createHandler ({
  * same POSTGRES_USER / POSTGRES_PASSWORD / POSTGRES_DB the database container gets, passed to the driver as
  * separate fields, so a password with @ : / ? # % needs no encoding (docker-compose.yml does this). null when
  * neither is complete.
+ * @param {Env} env
  */
 export function databaseConfig (env) {
   if (env.DATABASE_URL) return { connectionString: env.DATABASE_URL }
@@ -300,10 +332,14 @@ const POOL_END_CAP_MS = 2_000
  * connections), let in-flight requests finish for up to `deadlineMs`, then close whatever is left, wait for
  * `flush` (the pending trigger write, capped by the caller), close the pool (capped at 2 s) and exit 0. A
  * second signal returns the same shutdown.
+ * @param {{ server: Pick<http.Server, 'close' | 'closeIdleConnections' | 'closeAllConnections'>, pool: { end: () => Promise<unknown> },
+ *   stop?: () => void, flush?: () => unknown, deadlineMs?: number, exit?: (code: number) => void, log?: (line: string) => void }} deps
  */
 export function createShutdown ({ server, pool, stop = () => {}, flush = async () => {}, deadlineMs = SHUTDOWN_DEADLINE_MS, exit = (code) => process.exit(code), log = console.log }) {
+  /** @type {Promise<void> | null} */
   let running = null
-  const capped = (promise, ms) => {
+  const capped = (/** @type {unknown} */ promise, /** @type {number} */ ms) => {
+    /** @type {NodeJS.Timeout | undefined} */
     let timer
     return Promise.race([Promise.resolve(promise).catch(() => {}), new Promise((resolve) => { timer = setTimeout(resolve, ms) })]).finally(() => clearTimeout(timer))
   }
@@ -315,6 +351,7 @@ export function createShutdown ({ server, pool, stop = () => {}, flush = async (
       const flushed = flush()
       const drained = new Promise((resolve) => server.close(() => resolve(true)))
       server.closeIdleConnections?.()
+      /** @type {NodeJS.Timeout | undefined} */
       let timer
       const deadline = new Promise((resolve) => { timer = setTimeout(() => resolve(false), deadlineMs) })
       const clean = await Promise.race([drained, deadline])
@@ -375,6 +412,7 @@ async function main () {
     readTriggerSeq: fileSeq
   })
   const stravaSync = STRAVA_ENABLED ? createStravaSync(pool, process.env, { status: syncStatus }) : null
+  /** @type {ReturnType<typeof startSyncLoop> | null} */
   let stravaLoop = null
 
   // On-demand refresh, sequence protocol: POST /sync assigns a sequence number,
@@ -487,7 +525,7 @@ async function main () {
         await moveIdentityToDocument(pool)
         profileReady = true
       } catch (err) {
-        console.error(JSON.stringify({ event: 'profile_identity_move_failed', message: err.message }))
+        console.error(JSON.stringify({ event: 'profile_identity_move_failed', message: /** @type {Error} */ (err).message }))
       }
     }
     await syncStatus.load() // never throws: a failed load is retried on the next status read
