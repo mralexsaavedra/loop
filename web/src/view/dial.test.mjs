@@ -7,6 +7,7 @@ import {
   DIAL, HERO, fracToAngle, polar, arcPath, recoveryFrac, sleepFrac, loadFrac, loadDayFrac, buildDials, strainDial,
 } from './dial.mjs';
 
+/** @param {number} a @param {number} b @param {number} [eps] */
 const near = (a, b, eps = 0.01) => assert.ok(Math.abs(a - b) <= eps, `${a} !~ ${b}`);
 
 test('fracToAngle: a full ring from 12 o\'clock (-90) clockwise back to 12 o\'clock (270)', () => {
@@ -65,7 +66,7 @@ test('recoveryFrac: 0 MAD is the midpoint, +-3 are the ends, beyond is clamped',
 
 test('sleepFrac: measured hours over the stated target, capped at a full arc, null without data', () => {
   assert.equal(sleepFrac(7.5, 7.5), 1);
-  near(sleepFrac(6, 7.5), 0.8);
+  near(/** @type {number} */ (sleepFrac(6, 7.5)), 0.8);
   assert.equal(sleepFrac(9.2, 7.5), 1, 'capped at 100 % of the arc');
   assert.equal(sleepFrac(null, 7.5), null);
   assert.equal(sleepFrac(6, null), null);
@@ -87,6 +88,9 @@ const REC = { asOf: '2026-09-29', gated: false, band: 'above', trend7: 0.8, delt
   { key: 'hrv', daily: [{ date: '2026-09-29', value: 61 }] },
   { key: 'sleepDur', daily: [{ date: '2026-09-28', value: 7.1 }, { date: '2026-09-29', value: 6.8 }] },
 ] };
+/** @typedef {import('./dial.mjs').DialLoadOut} DialLoadOut */
+/** @param {string} key @param {import('./dial.mjs').DialLoadTrend} trend @param {import('./dial.mjs').DialLoadDay[]} [recent]
+ * @param {{value: number | null, n: number}} [typical] @param {{date: string, re: number} | null} [last] */
 const mod = (key, trend, recent = [], typical = { value: null, n: 0 }, last = null) => ({ key, trend, recent, typical, last });
 const LOAD = { asOf: '2026-09-29', modalities: [
   mod('gym', { ok: false, reason: 'baselineBuilding', trendPct: null, band: null }, [{ date: '2026-09-29', re: 30, unscored: 0 }], { value: 40, n: 9 }),
@@ -105,7 +109,7 @@ test('buildDials: recovery headline = LAST NIGHT (today composite), ONE band col
   assert.equal(r.value, -1.4);
   assert.equal(r.sleep, true);
   assert.equal('zones' in r, false, 'no zone arcs: the whole fill takes the band\'s one state colour');
-  assert.equal(r.fill, arcPath(0, recoveryFrac(-1.4)), 'filled clockwise from 12 o\'clock to the value on the -3..+3 scale');
+  assert.equal(r.fill, arcPath(0, /** @type {number} */ (recoveryFrac(-1.4))), 'filled clockwise from 12 o\'clock to the value on the -3..+3 scale');
   assert.equal('marker' in r, false, 'no marker dot: the fill ends at the value');
   assert.deepEqual(r.mid, polar(fracToAngle(0.5), DIAL.r - DIAL.stroke), 'baseline tick at the ring\'s midpoint (6 o\'clock)');
   assert.deepEqual(r.trend, { value: 0.8, band: 'above', dir: 'steady' });
@@ -128,7 +132,7 @@ test('buildDials: no percentage (under 21 prior days) keeps the SD ring and band
   const r = buildDials({ hasData: true, recovery: { ...REC, today: { ...REC.today, pct: null, pctBand: null } }, load: LOAD }, HEALTH).recovery;
   assert.equal(r.pct, null);
   assert.equal(r.band, 'below');
-  assert.equal(r.fill, arcPath(0, recoveryFrac(-1.4)));
+  assert.equal(r.fill, arcPath(0, /** @type {number} */ (recoveryFrac(-1.4))));
 });
 
 test('buildDials: no composite for last night -> the dial shows the 7-day trend, flagged mode "trend" (never faked)', () => {
@@ -138,7 +142,7 @@ test('buildDials: no composite for last night -> the dial shows the 7-day trend,
   assert.equal(r.value, 0.8);
   assert.equal(r.band, 'above');
   assert.equal(r.date, null);
-  assert.equal(r.fill, arcPath(0, recoveryFrac(0.8)));
+  assert.equal(r.fill, arcPath(0, /** @type {number} */ (recoveryFrac(0.8))));
   assert.equal('zones' in r, false);
 });
 
@@ -154,7 +158,7 @@ test('buildDials: no sleep-duration component (recovery gated, or under 14 night
   const sleep = { need: 7.5, last: { date: '2026-10-19', hours: 8.07, perf: 100, estimated: true } };
   const gated = buildDials({ hasData: true, recovery: { asOf: '2026-10-19', gated: true }, load: null, sleep }, HEALTH).sleep;
   assert.deepEqual([gated.state, gated.date, gated.hours, gated.target, gated.pct], ['ok', '2026-10-19', 8.07, 7.5, 100]);
-  assert.equal(gated.fill, arcPath(0, sleepFrac(8.07, 7.5)));
+  assert.equal(gated.fill, arcPath(0, /** @type {number} */ (sleepFrac(8.07, 7.5))));
   // no recovery nor load at all (hasData false): the night still shows
   assert.equal(buildDials({ hasData: false, sleep }, HEALTH).sleep.hours, 8.07);
   // nothing to fall back to: still "no data"
@@ -169,7 +173,7 @@ test('buildDials: sleep = the newest night of the sleep-duration component over 
   assert.equal(s.hours, 6.8);
   assert.equal(s.date, '2026-09-29');
   assert.equal(s.target, 7.5);
-  assert.equal(s.fill, arcPath(0, sleepFrac(6.8, 7.5)));
+  assert.equal(s.fill, arcPath(0, /** @type {number} */ (sleepFrac(6.8, 7.5))));
   assert.equal(s.pct, 91, 'sleep performance = asleep / need (the target) x 100, lib/score/sleep.mjs');
   const full = buildDials({ hasData: true, recovery: { ...REC, components: [{ key: 'sleepDur', daily: [{ date: '2026-09-29', value: 9.1 }] }] }, load: LOAD }, HEALTH).sleep;
   assert.equal(full.pct, 100, 'capped at 100');
@@ -178,7 +182,7 @@ test('buildDials: sleep = the newest night of the sleep-duration component over 
 });
 
 test('buildDials: load bakes the typical day + each recent session day with its geometry; the client picks today', () => {
-  const l = buildDials({ hasData: true, recovery: REC, load: LOAD }, HEALTH).load;
+  const l = /** @type {Required<DialLoadOut>} */ (buildDials({ hasData: true, recovery: REC, load: LOAD }, HEALTH).load);
   assert.equal(l.state, 'ok');
   assert.deepEqual(l.modalities.map((m) => m.key), ['gym', 'run', 'bike']);
   assert.equal(l.defaultKey, 'run');
@@ -195,7 +199,7 @@ test('buildDials: load bakes the typical day + each recent session day with its 
   assert.deepEqual(run.last, { date: '2026-09-29', re: 132 });
   const [unscored, trained] = run.days;
   assert.deepEqual(unscored, { date: '2026-09-27', re: 0, unscored: 1 }, 'rows without RE: no geometry, flagged unscored');
-  assert.equal(trained.fill, arcPath(0, loadDayFrac(132, 110)));
+  assert.equal(trained.fill, arcPath(0, /** @type {number} */ (loadDayFrac(132, 110))));
   assert.equal('marker' in trained, false, 'no marker dot');
   assert.deepEqual(l.modalities[2].days, [], 'no sessions in the last two weeks');
   assert.equal('zones' in l, false, 'the old trend-band zones do not apply to a day-vs-typical scale');
@@ -209,14 +213,14 @@ test('buildDials: load bakes the typical day + each recent session day with its 
 
 test('buildDials: an ok trend without enough recent training days has no "normal" -> gated fewDays', () => {
   const few = { asOf: '2026-09-29', modalities: [mod('run', { ok: true, trendPct: 5, band: 'steady' }, [], { value: null, n: 2 })] };
-  const run = buildDials({ hasData: true, recovery: REC, load: few }, HEALTH).load.modalities[0];
+  const run = /** @type {Required<DialLoadOut>} */ (buildDials({ hasData: true, recovery: REC, load: few }, HEALTH).load).modalities[0];
   assert.equal(run.state, 'gated');
   assert.equal(run.reason, 'fewDays');
 });
 
 test('buildDials: all modalities gated -> default is the first one, still greyed', () => {
   const all = { asOf: '2026-09-29', modalities: LOAD.modalities.map((m) => mod(m.key, { ok: false, reason: 'baselineBuilding' })) };
-  const l = buildDials({ hasData: true, recovery: REC, load: all }, HEALTH).load;
+  const l = /** @type {Required<DialLoadOut>} */ (buildDials({ hasData: true, recovery: REC, load: all }, HEALTH).load);
   assert.equal(l.defaultKey, 'gym');
   assert.ok(l.modalities.every((m) => m.state === 'gated'));
 });
@@ -259,7 +263,7 @@ test('past days (day stepping): one sleep + recovery dial per SCORES.days entry,
   const f = D.days[2].recovery;
   assert.equal(f.pct, null);
   assert.equal(f.band, 'below');
-  assert.equal(f.fill, arcPath(0, recoveryFrac(-1.4)));
+  assert.equal(f.fill, arcPath(0, /** @type {number} */ (recoveryFrac(-1.4))));
   assert.ok(f.mid);
   assert.equal(D.days[2].sleep.pct, 100, 'capped at the need');
 });
@@ -272,19 +276,19 @@ test('past days: none without SCORES.days or without data', () => {
 });
 
 test('strainDial: calibrated strain -> each recent day with its ring = strain / 21; not calibrated -> null (the load dial stays)', () => {
-  const d = strainDial({ ok: true, asOf: '2030-01-02', days: [{ date: '2030-01-01', s: 10.5 }, { date: '2030-01-02', s: 21 }, { date: '2030-01-03', s: null }] });
+  const d = /** @type {import('./dial.mjs').DialStrainOut} */ (strainDial({ ok: true, asOf: '2030-01-02', days: [{ date: '2030-01-01', s: 10.5 }, { date: '2030-01-02', s: 21 }, { date: '2030-01-03', s: null }] }));
   assert.equal(d.state, 'ok');
   assert.deepEqual(d.days.map((x) => [x.date, x.s]), [['2030-01-01', 10.5], ['2030-01-02', 21]]);
   assert.equal(d.days[0].fill, arcPath(0, 0.5));
   assert.equal(d.days[1].fill, arcPath(0, 1));
   assert.equal(strainDial({ ok: false, reason: 'fewDays' }), null);
   assert.equal(strainDial(null), null);
-  assert.equal(buildDials({ hasData: true, strain: { ok: true, asOf: '2030-01-02', days: [{ date: '2030-01-02', s: 3 }] } }, null).strain.days.length, 1);
+  assert.equal(/** @type {import('./dial.mjs').DialStrainOut} */ (buildDials({ hasData: true, strain: { ok: true, asOf: '2030-01-02', days: [{ date: '2030-01-02', s: 3 }] } }, null).strain).days.length, 1);
   assert.equal(buildDials({ hasData: true }, null).strain, null);
 });
 
 test('loadDial: a modality gated as noEffortSource keeps that reason (the client words it apart from "Building")', () => {
   const load = { asOf: '2026-10-19', reEpoch: null, modalities: ['gym', 'run', 'bike'].map((key) => ({ key, recent: [], last: null, typical: { value: null, n: 0 }, trend: { ok: false, reason: 'noEffortSource', trendPct: null } })) };
-  const d = buildDials({ hasData: true, recovery: null, load }, {}).load;
+  const d = /** @type {Required<DialLoadOut>} */ (buildDials({ hasData: true, recovery: null, load }, {}).load);
   assert.equal(d.modalities.every((m) => m.state === 'gated' && m.reason === 'noEffortSource'), true);
 });
