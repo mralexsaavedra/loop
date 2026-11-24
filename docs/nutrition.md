@@ -228,7 +228,7 @@ lib, the page and the built page.
 | done strength / hybrid (`SCORES.timeline`, same-day rows merged per modality; a legacy `gym` item is strength) | the day's strength + hybrid minutes summed: hybrid when the hybrid part is ≥ 20 min, else gym when the sum is ≥ 20 (shorter = a stub) |
 | done run | ≥ 20 min → run |
 | done `other` (walks, tennis…) | ≥ 45 min only, as gym |
-| done indoor ride (`indoor: true`: every row of the day's ride is `IndoorCycling`) | < 30 min ignored; 30–119 → indoor; ≥ 120 → the outdoor rule |
+| done indoor ride (`indoor: true`: the longest row of the day's ride is `IndoorCycling`) | < 30 min ignored; 30–119 → indoor; ≥ 120 → the outdoor rule |
 | done outdoor ride | < 30 min = commute (ignored); 30–74 → indoor; ≥ 75 → bike; ≥ 150 → bikeLong |
 | programmed `TRAINING[today]` | `gym` → gym, `hybrid` → hybrid, `run` → run, `indoor` → indoor, `bike` by optional `durationMin` with the outdoor ride thresholds (absent = bike); no kind → gym |
 | none | rest |
