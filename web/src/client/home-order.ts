@@ -20,7 +20,7 @@ type BlockKey = 'day' | 'eat' | 'tonight' | 'journal' | 'plan' | 'dash';
 
 (function () {
   function boot() {
-    var T = typeof I18N_SCORE !== 'undefined' && I18N_SCORE && I18N_SCORE.home ? I18N_SCORE.home.order : null;
+    var T = (typeof I18N_SCORE !== 'undefined' && I18N_SCORE && I18N_SCORE.home ? I18N_SCORE.home.order : null)!;
     if (!T || typeof HC === 'undefined' || typeof HC.orderList !== 'function') return;
     var PREFS_KEY = 'hc-home-v1';
     var CATALOG: BlockKey[] = ['day', 'eat', 'tonight', 'journal', 'plan', 'dash'];

@@ -55,7 +55,7 @@ type WeekInputs = {
 
 (function () {
   function boot() {
-    var T = typeof I18N_SCORE !== 'undefined' && I18N_SCORE && I18N_SCORE.home ? I18N_SCORE.home : null;
+    var T = (typeof I18N_SCORE !== 'undefined' && I18N_SCORE && I18N_SCORE.home ? I18N_SCORE.home : null)!;
     if (!T || typeof HC === 'undefined') return;
     var esc = HC.esc, format = HC.format;
     // weekly goal targets (profile.json has no goals block yet: these are the documented defaults)

@@ -56,7 +56,7 @@ type JournalState = {
 
 (function () {
   function boot() {
-    var T = typeof I18N_SCORE !== 'undefined' && I18N_SCORE && I18N_SCORE.home ? I18N_SCORE.home.journal : null;
+    var T = (typeof I18N_SCORE !== 'undefined' && I18N_SCORE && I18N_SCORE.home ? I18N_SCORE.home.journal : null)!;
     var J = typeof SCORES !== 'undefined' && SCORES && SCORES.journal && Array.isArray(SCORES.journal.behaviors) ? SCORES.journal : null;
     if (!T || !J || typeof HC === 'undefined') return;
     var esc = HC.esc, format = HC.format;

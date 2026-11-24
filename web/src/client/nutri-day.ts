@@ -81,7 +81,7 @@ type RingTarget = { k: number; p: number; c: number; g: number; fatMax: number; 
 
 (function () {
   var N = typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI;
-  var T = typeof I18N_NUTRI === 'undefined' || !I18N_NUTRI ? null : I18N_NUTRI;
+  var T = (typeof I18N_NUTRI === 'undefined' || !I18N_NUTRI ? null : I18N_NUTRI)!;
   if (!N || !T) return;
   var esc = HC.esc, format = HC.format, todayIso = HC.todayIso;
   var KEY_GOAL = 'hc.nutri.goal', KEY_DAY = 'hc.nutri.dayType', KEY_RIDE = 'hc.nutri.rideMin', KEY_GUIDE = 'hc.nutri.guide', KEY_PLAN_OPEN = 'hc.nutri.planOpen';

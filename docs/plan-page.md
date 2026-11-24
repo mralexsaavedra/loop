@@ -183,8 +183,12 @@ minification). `astro.config.mjs` exposes the result as the virtual module `virt
 `layouts/Plan.astro` inlines it at the module's place in the manifest, exactly like a classic script, so the page
 stays one file and the CSP hashes it like any other script. The tests run the same bytes
 (`clientScriptSource(file)`). The page globals a module reads are typed in `web/src/client/page-globals.d.ts`:
-`HC` with util.ts's own inferred API (`HCApi`), so every call into it is checked; the baked data globals stay `any` until
-each gets its own type. Every client script is a module script now (the last, `util.ts`, sets `globalThis.HC` itself: once bundled into an IIFE its `var HC` is no longer a page global).
+`HC` with util.ts's own inferred API (`HCApi`), so every call into it is checked; `LOCALE` and every copy table
+(`I18N_*`) with the type of their own `web/src/i18n/*-templates.mjs` module (its `en` table; each nested table also takes
+a runtime string key, as the scripts look up a kind or a range); the baked data globals stay `any` until each gets its
+own type. A script reads a copy table through a guarded alias (`var T = (… ? null : I18N_X)!; if (!T) return;`): the
+`!` is type-only (esbuild drops it) and says what the guard already enforces, because the closures that read `T` are
+declared before the guard and TypeScript cannot carry its narrowing into them. Every client script is a module script now (the last, `util.ts`, sets `globalThis.HC` itself: once bundled into an IIFE its `var HC` is no longer a page global).
 
 ESLint lints only `*.js` / `*.mjs`: for a module script `tsc` takes its place (`strict` for undefined names and
 shapes, `noUnusedLocals` for ESLint's `no-unused-vars`; unused parameters stay allowed, as ESLint's `args: 'none'`).

@@ -27,7 +27,7 @@ type EnergyDay = { date: string; wake: string; start: number; now: { lv: number;
 (function () {
   var host = document.getElementById('home-energy');
   var S = typeof SCORES !== 'undefined' && SCORES ? SCORES.energy : null;
-  var T = typeof I18N_SCORE !== 'undefined' && I18N_SCORE && I18N_SCORE.home ? I18N_SCORE.home.energy : null;
+  var T = (typeof I18N_SCORE !== 'undefined' && I18N_SCORE && I18N_SCORE.home ? I18N_SCORE.home.energy : null)!;
   if (!host || !T) return;
   var hostEl: HTMLElement = host;
   var esc = HC.esc, format = HC.format, isoDate = HC.isoDate;

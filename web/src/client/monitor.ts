@@ -55,7 +55,7 @@ type Carried = { carried: boolean; label: string; cls: string; html: string };
   if (!host) return;
   var S = typeof SCORES === 'undefined' ? null : SCORES;
   var M = S && S.monitor;
-  var T = typeof I18N_SCORE === 'undefined' || !I18N_SCORE ? null : I18N_SCORE.monitor;
+  var T = (typeof I18N_SCORE === 'undefined' || !I18N_SCORE ? null : I18N_SCORE.monitor)!;
   if (!M || !M.cards || !T) return;
   // the detail sheet's copy (baked before this script): a signal the device never wrote says so
   var TD = typeof I18N_DETAIL === 'undefined' || !I18N_DETAIL ? null : I18N_DETAIL;

@@ -82,7 +82,7 @@ type Sub = { cls?: string; text: string };
 
 (function () {
   var host = document.getElementById('detail') as DetailHost | null;
-  var T = typeof I18N_DETAIL === 'undefined' ? null : I18N_DETAIL;
+  var T = (typeof I18N_DETAIL === 'undefined' ? null : I18N_DETAIL)!;
   if (!host || !T) return;
   var D = typeof DETAIL === 'undefined' || !DETAIL ? { asOf: null, metrics: {}, sessions: [] } : DETAIL;
   var esc = HC.esc, format = HC.format, isoDate = HC.isoDate, parseIso = HC.parseIso, shiftIso = HC.shiftIso;

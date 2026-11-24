@@ -36,8 +36,8 @@ type RowValue = { value: number; date: string; base: number | null; arrow: Arrow
 
 (function () {
   function boot() {
-    var TS = typeof I18N_SCORE !== 'undefined' && I18N_SCORE && I18N_SCORE.home ? I18N_SCORE.home.dash : null;
-    var TD = typeof I18N_DETAIL !== 'undefined' && I18N_DETAIL ? I18N_DETAIL : null;
+    var TS = (typeof I18N_SCORE !== 'undefined' && I18N_SCORE && I18N_SCORE.home ? I18N_SCORE.home.dash : null)!;
+    var TD = (typeof I18N_DETAIL !== 'undefined' && I18N_DETAIL ? I18N_DETAIL : null)!;
     var D = typeof DETAIL !== 'undefined' && DETAIL && DETAIL.metrics ? DETAIL : null;
     if (!TS || !TD || typeof HC === 'undefined') return;
     var esc = HC.esc, format = HC.format;

@@ -56,7 +56,7 @@ type SettingsState = { pending?: boolean; last?: SaveStatus | null } | null | un
 
 (function () {
   var P = typeof PROFILE === 'undefined' || !PROFILE ? null : PROFILE;
-  var T = typeof I18N_PROFILE === 'undefined' || !I18N_PROFILE ? null : I18N_PROFILE;
+  var T = (typeof I18N_PROFILE === 'undefined' || !I18N_PROFILE ? null : I18N_PROFILE)!;
   if (!P || !T || typeof window === 'undefined') return;
   var esc = HC.esc, format = HC.format;
   var PHOTO_RE = /^data:image\/(?:jpeg|png);base64,[A-Za-z0-9+/=]+$/;
@@ -258,7 +258,7 @@ type SettingsState = { pending?: boolean; last?: SaveStatus | null } | null | un
     if (o.goal === 'maintain') return G.maintain;
     if (!fin(o.kcal) || o.kcal === 0) return G.same;
     var kcal = (o.kcal < 0 ? '\u2212' : '+') + HC.num(Math.abs(o.kcal), 0);
-    var key = (o.kcal < 0 ? 'deficit' : 'surplus') + (o.bikeKept ? 'BikeKept' : '');
+    var key = ((o.kcal < 0 ? 'deficit' : 'surplus') + (o.bikeKept ? 'BikeKept' : '')) as 'deficit' | 'surplus' | 'deficitBikeKept' | 'surplusBikeKept';
     return format(G[key], { kcal: kcal });
   }
   // the server-side settings (client/settings.ts), only once the LAN API answered

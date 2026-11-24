@@ -1,30 +1,42 @@
-/* The shapes of the page globals the module client scripts (*.ts) read. A spike: the globals are `any` until each
- * gets its own type (most are baked JSON whose shapes live in lib/). Classic scripts (*.js) are not type-checked. */
+/* The shapes of the page globals the module client scripts (*.ts) read: HC, LOCALE and the copy tables (I18N_*) are
+ * typed; the baked data globals are `any` until each gets its own type (their shapes live in lib/). */
+/** A copy table the scripts also index by a runtime key (a kind, a range, a metric): each nested table keeps its
+ * named keys and also takes any string key (an unknown key reads `undefined` at runtime, as before). */
+type Lookup<T> = T extends readonly unknown[]
+  ? T
+  : T extends (...args: never[]) => unknown
+    ? T
+    : T extends object
+      ? { [K in keyof T]: Lookup<T[K]> } & { [key: string]: Lookup<T[keyof T]> }
+      : T;
+/** A copy module's baked strings: the `en` table (every locale has the same keys, web/test/i18n.test.mjs). */
+type Copy<M extends { en: unknown }> = Lookup<M['en']>;
+
 export type PageGlobals = {
   /** util.ts's helper library (its own inferred type: every helper's parameters and result). */
   HC: import('./util').HCApi;
   DETAIL: any;
   SCORES: any;
   TRAINING: any;
-  I18N_SCORE: any;
-  I18N_SYNC: any;
+  I18N_SCORE: Copy<typeof import('../i18n/score-templates.mjs')>;
+  I18N_SYNC: Copy<typeof import('../i18n/sync-templates.mjs')>;
   HC_BAND: any;
   DASH: any;
-  I18N_DASH: any;
-  I18N_DETAIL: any;
+  I18N_DASH: Copy<typeof import('../i18n/dash-templates.mjs')>;
+  I18N_DETAIL: Copy<typeof import('../i18n/detail-templates.mjs')>;
   NAV: any;
-  I18N_DATE: any;
-  I18N_PROFILE: any;
-  LOCALE: any;
+  I18N_DATE: Copy<typeof import('../i18n/date-templates.mjs')>;
+  I18N_PROFILE: Copy<typeof import('../i18n/profile-templates.mjs')>;
+  LOCALE: 'es' | 'en';
   PROFILE: any;
   ACTIVITY: any;
   HC_FMT: any;
   HC_ENERGY: any;
-  I18N_ACTIVITY: any;
-  I18N_ONB: any;
+  I18N_ACTIVITY: Lookup<Omit<typeof import('../i18n/activity-templates.mjs')['en'], 'head'>>; // Bake drops `head`
+  I18N_ONB: Copy<typeof import('../i18n/onboarding-templates.mjs')>;
   HCProgram: any;
   HEALTH: any;
-  I18N_HEALTH: any;
+  I18N_HEALTH: Copy<typeof import('../i18n/health-templates.mjs')>;
   DIALS: any;
   HCFoodInternal: any;
   HCDeep: any;
@@ -42,9 +54,9 @@ export type PageGlobals = {
   HC_ADH: any;
   HC_NSCORE: any;
   HC_PROG: any;
-  I18N_HOY: any;
-  I18N_INTAKE: any;
-  I18N_NUTRI: any;
+  I18N_HOY: Copy<typeof import('../i18n/hoy-templates.mjs')>;
+  I18N_INTAKE: Copy<typeof import('../i18n/intake-templates.mjs')>;
+  I18N_NUTRI: Copy<typeof import('../i18n/nutri-templates.mjs')>;
   INTAKE: any;
   NUTRI: any;
   NUTRI_ARC: any;
@@ -59,7 +71,7 @@ export type PageGlobals = {
   intakeRefresh: any;
   HCNutriScore: any;
   HC_FOODLOG: any;
-  I18N_FOOD: any;
+  I18N_FOOD: Copy<typeof import('../i18n/food-templates.mjs')>;
 };
 
 // the window.* namespaces other scripts hand this one (and the one it hands back)

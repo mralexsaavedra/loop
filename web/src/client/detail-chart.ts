@@ -133,7 +133,7 @@ window.HCDetailChart = function (T: Baked, DS: Baked) {
     var yax = '<div class="dt-yax" aria-hidden="true">' + tk.slice().reverse().map(function (t: number) {
       return '<span style="top:' + (g.y(t) / CH * 100).toFixed(1) + '%">' + esc(fmtM(m, t, tdec)) + '</span>';
     }).join('') + '</div>';
-    var N = typeof I18N_DATE !== 'undefined' && I18N_DATE ? I18N_DATE.weekdays : null;
+    var N = (typeof I18N_DATE !== 'undefined' && I18N_DATE ? I18N_DATE.weekdays : null)!;
     var axis = week && N
       ? '<div class="dt-wdays" aria-hidden="true">' + days.map(function (d: Day, i: number) {
         return '<span style="left:' + g.pctX(i) + '">' + esc(N[HC.weekdayIndex(d.iso)]) + '<b>' + esc(String(parseIso(d.iso).getDate())) + '</b></span>';
