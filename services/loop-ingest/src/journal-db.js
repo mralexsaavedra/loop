@@ -3,19 +3,24 @@
  * date comes back as a YYYY-MM-DD string (to_char, so no timezone ever shifts it), timestamps as ISO.
  * Validation lives in journal.js; this module only stores what it is given.
  */
+/** @typedef {import('./journal.js').StoredJournalDay} StoredJournalDay */
 const DAY_COLS = "to_char(date, 'YYYY-MM-DD') AS date, answers, notes, updated_at"
 
+/** @param {unknown} v a timestamp column (Date or string) @returns {string | null} */
 function iso (v) {
   if (v == null) return null
-  const d = new Date(v)
+  const d = new Date(/** @type {string | number | Date} */ (v))
   return Number.isNaN(d.getTime()) ? null : d.toISOString()
 }
 
+/** A journal_day row (DAY_COLS) as the API's day; `answers` was validated on write (journal.js validateDay).
+ * @param {any} r @returns {StoredJournalDay} */
 export function dayFromRow (r) {
   const answers = r && r.answers && typeof r.answers === 'object' && !Array.isArray(r.answers) ? r.answers : {}
   return { date: r.date, answers, notes: r.notes ?? null, updatedAt: iso(r.updated_at) }
 }
 
+/** @param {import('./db.js').Queryable} pool @returns {import('./journal.js').JournalStore} */
 export function createJournalStore (pool) {
   return {
     /** The stored day, or null when the date was never journaled. */

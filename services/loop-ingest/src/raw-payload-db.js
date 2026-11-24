@@ -5,6 +5,15 @@
  * imports the pg driver (db.js owns the pool), so the route modules stay importable without it.
  */
 
+/** @typedef {import('./db.js').Queryable} Queryable */
+/** One Shortcut payload to store (server.js /ingest): the Automation-* / Session-Id request headers as sent (null
+ * when absent), the body's size and its parsed JSON.
+ * @typedef {string | string[] | null} HeaderValue
+ * @typedef {{ source: string, automation: HeaderValue, aggregation: HeaderValue, period: HeaderValue,
+ *   sessionId: HeaderValue, byteSize: number, payload: unknown }} RawPayloadRecord */
+
+/** Stores one payload: its {id, received_at} row. @param {Queryable} pool @param {RawPayloadRecord} record
+ * @returns {Promise<{ id: string, received_at: Date }>} */
 export async function insertRawPayload (pool, record) {
   const { rows } = await pool.query(
     `INSERT INTO raw_payload (source, automation, aggregation, period, session_id, byte_size, payload)
@@ -35,6 +44,9 @@ export const EXPORT_PAGE_BYTES = 32 * 1024 * 1024
  * the payloads), then the payloads of the prefix that fits `maxBytes`. `more` = the budget, not the row limit,
  * cut the page: rows after it exist (GET /export/raw sends it as `X-Has-More`).
  */
+/** @param {Queryable} pool
+ * @param {{ automation: string, sinceId: string | number, limit: number, maxBytes?: number }} query
+ * @returns {Promise<{ rows: { id: string, received_at: Date, payload: unknown }[], more: boolean }>} */
 export async function listRawPayloads (pool, { automation, sinceId, limit, maxBytes = EXPORT_PAGE_BYTES }) {
   const { rows: sizes } = await pool.query(
     `SELECT id, byte_size
@@ -59,6 +71,7 @@ export async function listRawPayloads (pool, { automation, sinceId, limit, maxBy
 }
 
 /** The newest payload's receipt time (raw `received_at`, null when none is stored). */
+/** @param {Queryable} pool @returns {Promise<Date | null | undefined>} */
 export async function lastRawPayloadAt (pool) {
   const { rows } = await pool.query('SELECT MAX(received_at) AS last FROM raw_payload')
   return rows[0]?.last

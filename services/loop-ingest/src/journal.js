@@ -37,29 +37,48 @@ const WRITE_METHODS = new Set(['PUT'])
 // a Map, never a plain object: a JSON key such as __proto__ or constructor must not resolve to anything
 const BY_KEY = new Map(JOURNAL_BEHAVIORS.map((b) => [b.key, b]))
 
+/** @typedef {import('../../../lib/journal/journal.mjs').JournalDay} JournalDay */
+/** A stored day: the validated day plus its last write (ISO, null when unknown). @typedef {JournalDay & { updatedAt: string | null }} StoredJournalDay */
+/** The journal's persistence (journal-db.js createJournalStore; a fake in the tests).
+ * @typedef {{
+ *   getDay: (date: string) => Promise<StoredJournalDay | null>,
+ *   putDay: (day: JournalDay) => Promise<StoredJournalDay>,
+ *   deleteDay: (date: string) => Promise<void>,
+ *   listRange: (from: string, to: string) => Promise<StoredJournalDay[]>,
+ *   getDisabled: () => Promise<string[]>,
+ *   setDisabled: (disabled: string[]) => Promise<string[]>
+ * }} JournalStore */
+/** @typedef {import('node:http').IncomingMessage} Req @typedef {import('node:http').ServerResponse} Res */
+
 const ROUTES = [
   { path: '/journal/day', methods: ['GET', 'PUT'] },
   { path: '/journal/summary', methods: ['GET'] },
   { path: '/journal/settings', methods: ['GET', 'PUT'] }
 ]
 
+/** @param {string} field @returns {never} */
 function bad (field) {
   throw httpError(400, 'invalid', field)
 }
+/** @param {unknown} v @returns {v is Record<string, any>} */
 function isObj (v) {
   return v !== null && typeof v === 'object' && !Array.isArray(v)
 }
+/** @param {unknown} body @param {string[]} allowed */
 function strictKeys (body, allowed) {
   if (!isObj(body)) bad('body')
   for (const k of Object.keys(body)) if (!allowed.includes(k)) bad(k)
 }
 
 /** {date, answers, notes}: answers without the unanswered (null) keys, notes trimmed or null. */
+// the bodies are untrusted JSON (readJson): `any`, every field re-checked below
+/** @param {any} body @returns {JournalDay} */
 export function validateDay (body) {
   strictKeys(body, ['date', 'answers', 'notes'])
   const date = validDate(body.date) ?? bad('date')
   const raw = body.answers === undefined ? {} : body.answers
   if (!isObj(raw)) bad('answers')
+  /** @type {Record<string, boolean | number>} */
   const answers = {}
   for (const [k, v] of Object.entries(raw)) {
     const b = BY_KEY.get(k)
@@ -81,17 +100,20 @@ export function validateDay (body) {
   return { date, answers, notes }
 }
 
+/** {key: on} of the behaviours sent. @param {any} body @returns {Record<string, boolean>} */
 export function validateSettings (body) {
   strictKeys(body, ['behaviors'])
   if (!isObj(body.behaviors)) bad('behaviors')
   for (const [k, v] of Object.entries(body.behaviors)) {
     if (!BY_KEY.has(k) || typeof v !== 'boolean') bad(`behaviors.${k}`)
   }
+  /** @type {Record<string, boolean>} */
   const out = {}
   for (const b of JOURNAL_BEHAVIORS) if (Object.hasOwn(body.behaviors, b.key)) out[b.key] = body.behaviors[b.key]
   return out
 }
 
+/** @param {URLSearchParams} params */
 function validateRange (params) {
   const from = validDate(params.get('from')) ?? bad('from')
   const to = validDate(params.get('to')) ?? bad('to')
@@ -100,15 +122,21 @@ function validateRange (params) {
   return { from, to }
 }
 
+/** @param {string[]} disabled @returns {Record<string, boolean>} */
 function behaviorsOf (disabled) {
   const off = new Set(disabled)
   return Object.fromEntries(JOURNAL_BEHAVIORS.map((b) => [b.key, !off.has(b.key)]))
 }
 
+/**
+ * @param {{ store: JournalStore, now?: () => number, log?: (line: string) => void, writeLimit?: number,
+ *   summaryLimit?: number, available?: () => boolean, allowedHosts?: string[] }} options
+ */
 export function createJournalRoutes ({ store, now = Date.now, log = console.log, writeLimit = JOURNAL_WRITE_LIMIT, summaryLimit = JOURNAL_SUMMARY_LIMIT, available = () => true, allowedHosts = [] }) {
   const writes = createWindowLimiter({ limit: writeLimit, windowMs: 60_000, now })
   const summaries = createWindowLimiter({ limit: summaryLimit, windowMs: 60_000, now })
 
+  /** @param {Req} req @param {Res} res @param {URL} url */
   async function dispatch (req, res, url) {
     const m = req.method
     const path = url.pathname
@@ -142,6 +170,7 @@ export function createJournalRoutes ({ store, now = Date.now, log = console.log,
 
   return {
     /** Handles /journal and /journal/*; false for any other path (the caller keeps routing). */
+    /** @param {Req} req @param {Res} res @param {URL} url */
     async handle (req, res, url) {
       const path = url.pathname
       if (path !== '/journal' && !path.startsWith('/journal/')) return false
@@ -151,21 +180,24 @@ export function createJournalRoutes ({ store, now = Date.now, log = console.log,
         const route = ROUTES.find((r) => r.path === path)
         if (!route) throw httpError(404, 'not_found')
         if (!available()) throw httpError(503, 'journal_unavailable')
-        if (!route.methods.includes(req.method)) {
+        if (!route.methods.includes(/** @type {string} */ (req.method))) {
           req.resume()
           send(res, 405, { error: 'method_not_allowed' }, { allow: route.methods.join(', ') })
           return true
         }
-        if (WRITE_METHODS.has(req.method)) {
+        if (WRITE_METHODS.has(/** @type {string} */ (req.method))) {
           if (!writeOriginOk(req.headers, allowedHosts)) throw httpError(403, 'forbidden_origin')
           if (!writes.take(req.socket?.remoteAddress ?? 'unknown')) throw httpError(429, 'rate_limited')
           if (!isJson(req)) throw httpError(415, 'unsupported_media_type')
         }
         if (req.method === 'GET') req.resume()
         await dispatch(req, res, url)
-      } catch (err) {
+      } catch (thrown) {
+        // an HttpError, or anything else a bug threw (500)
+        const err = /** @type {Partial<import('./http.js').HttpError> | null | undefined} */ (thrown)
         if (res.headersSent) return true
         if (err && err.status && err.code) {
+          /** @type {{ error: string, field?: string }} */
           const body = { error: err.code }
           if (err.field) body.field = err.field
           if (err.status === 413) {

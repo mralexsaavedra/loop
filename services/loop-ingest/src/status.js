@@ -21,23 +21,41 @@ export const STATUS_CODES = new Set(['strava_auth', 'strava_network', 'strava_ot
 const TRIGGER_CODES = new Set(['trigger_write', 'build'])
 const STRAVA_PULL_CODES = new Set(['strava_auth', 'strava_network', 'strava_other'])
 
+/** The in-memory sync state (persisted by sync-status-db.js): ISO times, sequence numbers and coarse codes only.
+ * @typedef {{ stravaOkAt: string | null, stravaError: string | null, stravaErrorAt: string | null,
+ *   tokenSaveFailed: boolean, triggerAt: string | null, triggerSeq: number, triggerError: string | null,
+ *   triggerErrorSeq: number | null }} SyncState */
+/** GET /sync/status's body. @typedef {{ lastShortcutAt: string | null, lastStravaOkAt: string | null,
+ *   lastStravaError: string | null, lastTriggerAt: string | null, lastTriggerError: string | null,
+ *   lastTriggerErrorSeq: number | null, triggerSeq: number, stravaConfigured: boolean }} SyncSnapshot */
+
+/** @param {unknown} value a timestamp (Date, string or epoch ms) @returns {string | null} */
 function toIso (value) {
   if (value == null) return null
-  const d = new Date(value)
+  const d = new Date(/** @type {string | number | Date} */ (value))
   return Number.isNaN(d.getTime()) ? null : d.toISOString()
 }
 
+/** @param {unknown} value @returns {number} */
 function toSeq (value) {
   const n = Number(value)
   return Number.isSafeInteger(n) && n >= 0 ? n : 0
 }
 
 /** Anything that is not a known pull code (e.g. a raw message) becomes strava_other. */
+/** @param {unknown} value @returns {string} */
 function pullCode (value) {
-  return STRAVA_PULL_CODES.has(value) ? value : 'strava_other'
+  // has() of a non-string is simply false, so the cast never lets one through
+  const code = /** @type {string} */ (value)
+  return STRAVA_PULL_CODES.has(code) ? code : 'strava_other'
 }
 
+/**
+ * @param {{ pool: import('./db.js').Queryable, stravaConfigured?: unknown, now?: () => number,
+ *   readTriggerSeq?: (() => Promise<number>) | null, log?: (line: string) => void }} options
+ */
 export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, readTriggerSeq = null, log = console.log }) {
+  /** @type {SyncState} */
   const state = {
     stravaOkAt: null,
     stravaError: null,
@@ -49,6 +67,7 @@ export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, read
     triggerErrorSeq: null
   }
   let loaded = false
+  /** @type {{ at: number, value: SyncSnapshot } | null} */
   let cache = null
 
   function changed () { cache = null }
@@ -58,7 +77,7 @@ export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, read
       await saveSyncStatus(pool, state)
     } catch (err) {
       // Freshness bookkeeping must never fail a sync or a request.
-      log(JSON.stringify({ event: 'sync_status_persist_failed', message: err.message }))
+      log(JSON.stringify({ event: 'sync_status_persist_failed', message: /** @type {Error} */ (err).message }))
     }
   }
 
@@ -84,7 +103,7 @@ export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, read
       }
       state.tokenSaveFailed = state.tokenSaveFailed || row.strava_token_save_failed === true
     } catch (err) {
-      log(JSON.stringify({ event: 'sync_status_load_failed', message: err.message }))
+      log(JSON.stringify({ event: 'sync_status_load_failed', message: /** @type {Error} */ (err).message }))
     }
   }
 
@@ -108,6 +127,7 @@ export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, read
       return state.triggerSeq
     },
 
+    /** @param {number} ms */
     stravaFresh (ms) {
       return state.stravaOkAt != null && now() - Date.parse(state.stravaOkAt) < ms
     },
@@ -121,6 +141,7 @@ export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, read
     },
 
     /** `code` should be one of strava_auth / strava_network / strava_other; anything else is coerced. */
+    /** @param {unknown} code */
     async recordStravaError (code) {
       state.stravaError = pullCode(code)
       state.stravaErrorAt = new Date(now()).toISOString()
@@ -128,12 +149,14 @@ export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, read
       await persist()
     },
 
+    /** @param {boolean} ok */
     async recordTokenSave (ok) {
       state.tokenSaveFailed = !ok
       changed()
       await persist()
     },
 
+    /** @param {number} seq */
     async recordTrigger (seq) {
       state.triggerAt = new Date(now()).toISOString()
       if (state.triggerErrorSeq == null || state.triggerErrorSeq <= seq) {
@@ -145,6 +168,7 @@ export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, read
     },
 
     /** `code`: trigger_write (default) or build; anything else is coerced to trigger_write. */
+    /** @param {number} seq @param {string} [code] */
     async recordTriggerError (seq, code = 'trigger_write') {
       state.triggerError = TRIGGER_CODES.has(code) ? code : 'trigger_write'
       state.triggerErrorSeq = seq
@@ -152,6 +176,7 @@ export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, read
       await persist()
     },
 
+    /** @returns {Promise<SyncSnapshot>} */
     async snapshot () {
       const t = now()
       if (cache && t - cache.at < SNAPSHOT_TTL_MS) return cache.value
@@ -160,7 +185,7 @@ export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, read
       try {
         lastShortcutAt = toIso(await lastRawPayloadAt(pool))
       } catch (err) {
-        log(JSON.stringify({ event: 'sync_status_read_failed', message: err.message }))
+        log(JSON.stringify({ event: 'sync_status_read_failed', message: /** @type {Error} */ (err).message }))
       }
       const value = {
         lastShortcutAt,

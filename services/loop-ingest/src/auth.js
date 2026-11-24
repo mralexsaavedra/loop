@@ -6,6 +6,8 @@ import { timingSafeEqual } from 'node:crypto'
  * Health Auto Export can only send a static header, so the token is the whole
  * security boundary for the ingest endpoint. Compare it without leaking length
  * or content through timing.
+ * @param {unknown} headerValue the Authorization header @param {string | null | undefined} expectedToken
+ * @returns {boolean}
  */
 export function isAuthorized (headerValue, expectedToken) {
   if (!expectedToken) return false
@@ -27,9 +29,11 @@ export function isAuthorized (headerValue, expectedToken) {
  * invalid (a wrong token), and count is the number of failures since this checker was created (one per
  * process: a rising count in `docker compose logs` is a misconfigured client or someone guessing). Never logs
  * the presented token, the expected one or the query string.
+ * @param {string | null | undefined} expectedToken @param {{ log?: (line: string) => void }} [options]
  */
 export function createBearerCheck (expectedToken, { log = (line) => console.log(line) } = {}) {
   let failures = 0
+  /** @param {import('node:http').IncomingMessage} req */
   return function checkBearer (req) {
     const header = req.headers.authorization
     if (isAuthorized(header, expectedToken)) return true
@@ -38,7 +42,7 @@ export function createBearerCheck (expectedToken, { log = (line) => console.log(
       ? 'missing'
       : /^Bearer\s+\S/i.test(header.trim()) ? 'invalid' : 'malformed'
     let path = null
-    try { path = new URL(req.url, 'http://localhost').pathname } catch {}
+    try { path = new URL(/** @type {string} */ (req.url), 'http://localhost').pathname } catch {}
     log(JSON.stringify({ event: 'unauthorized', path, reason, remote: req.socket?.remoteAddress ?? null, count: failures }))
     return false
   }

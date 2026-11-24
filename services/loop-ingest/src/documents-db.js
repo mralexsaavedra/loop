@@ -8,21 +8,27 @@
  * never an overwrite.
  */
 
+/** @typedef {import('./documents.js').DocumentRow} DocumentRow */
+
+/** An app_document row as {data, revision, updatedAt}, null for no row. @param {any} r @returns {DocumentRow | null} */
 function rowOf (r) {
   if (!r) return null
   const d = new Date(r.updated_at)
   return { data: r.data, revision: Number(r.revision), updatedAt: Number.isNaN(d.getTime()) ? null : d.toISOString() }
 }
 
+/** @param {import('./db.js').Queryable} pool @returns {import('./documents.js').DocumentStore} */
 export function createDocumentStore (pool) {
   return {
     /** The kind's row ({data, revision, updatedAt}) or null before its first save. */
+    /** @param {string} kind */
     async get (kind) {
       const { rows } = await pool.query('SELECT data, revision, updated_at FROM app_document WHERE kind = $1', [kind])
       return rowOf(rows[0])
     },
 
     /** Saves `data` when the stored revision is `expected` (0 = no row yet): the new row, or null on a conflict. */
+    /** @param {string} kind @param {unknown} data @param {number} expected */
     async put (kind, data, expected) {
       const json = JSON.stringify(data)
       const { rows } = expected === 0

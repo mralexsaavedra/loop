@@ -18,6 +18,13 @@
  */
 import { createHash } from 'node:crypto'
 
+/** @typedef {import('./db.js').Pool} Pool @typedef {import('./db.js').PoolClient} PoolClient */
+/** What a run needs: the core files, the optional groups ({group: files}), the file reader and the log.
+ * @typedef {{ core: string[], optional?: Record<string, string[]>, readSql: (file: string) => Promise<string>,
+ *   log?: (line: string) => void }} MigrationPlan */
+/** Whether each optional group's migrations ran ({group: false} = that feature is unavailable).
+ * @typedef {Record<string, boolean>} MigrationAvailability */
+
 export const CORE_MIGRATIONS = ['001_init.sql', '002_strava.sql', '003_sync.sql', '004_athlete.sql', '005_athlete_refresh.sql', '008_strava_hr.sql', '009_strava_hr_retry.sql']
 // optional groups: a failure disables only that feature (its routes answer 503)
 export const OPTIONAL_MIGRATIONS = { food: ['006_food.sql', '014_food_serving_default.sql'], settings: ['007_settings.sql', '013_settings_locale.sql'], profile: ['011_profile.sql'], journal: ['010_journal.sql'], documents: ['012_documents.sql'] }
@@ -32,10 +39,12 @@ const LEDGER_SQL = `CREATE TABLE IF NOT EXISTS schema_migrations (
 )`
 
 /** sha-256 (hex) of a migration's text; CRLF counts as LF, so a Windows checkout is the same file. */
+/** @param {string} sql */
 export function checksum (sql) {
   return createHash('sha256').update(sql.replace(/\r\n/g, '\n')).digest('hex')
 }
 
+/** @param {PoolClient} client @param {string} file @param {string} sql */
 async function applyOne (client, file, sql) {
   await client.query('BEGIN')
   try {
@@ -48,8 +57,10 @@ async function applyOne (client, file, sql) {
   }
 }
 
+/** @param {Pool} pool @param {MigrationPlan} plan @returns {Promise<MigrationAvailability>} */
 export async function runMigrations (pool, { core, optional = {}, readSql, log = console.log }) {
   const client = await pool.connect()
+  /** @type {unknown} */
   let broken
   try {
     // The pool's 30 s statement_timeout (db.js) is for requests: a migration rewriting a big table, or the
@@ -68,10 +79,12 @@ export async function runMigrations (pool, { core, optional = {}, readSql, log =
   }
 }
 
+/** @param {PoolClient} client @param {Required<MigrationPlan>} plan @returns {Promise<MigrationAvailability>} */
 async function migrateLocked (client, { core, optional, readSql, log }) {
   await client.query(LEDGER_SQL)
   const { rows } = await client.query('SELECT name, checksum FROM schema_migrations')
   const applied = new Map(rows.map((r) => [r.name, r.checksum]))
+  /** @type {Map<string, string>} */
   const sqlOf = new Map()
   for (const file of [...core, ...Object.values(optional).flat()]) {
     const sql = await readSql(file)
@@ -81,13 +94,15 @@ async function migrateLocked (client, { core, optional, readSql, log }) {
     }
     sqlOf.set(file, sql)
   }
-  const pending = (files) => files.filter((f) => !applied.has(f))
-  const run = async (file) => {
-    await applyOne(client, file, sqlOf.get(file))
+  const pending = (/** @type {string[]} */ files) => files.filter((f) => !applied.has(f))
+  const run = async (/** @type {string} */ file) => {
+    // every file was read into sqlOf above
+    await applyOne(client, file, /** @type {string} */ (sqlOf.get(file)))
     log(JSON.stringify({ event: 'migration_applied', file }))
   }
 
   for (const file of pending(core)) await run(file)
+  /** @type {MigrationAvailability} */
   const available = {}
   for (const [group, files] of Object.entries(optional)) {
     try {
@@ -95,7 +110,7 @@ async function migrateLocked (client, { core, optional, readSql, log }) {
       available[group] = true
     } catch (err) {
       available[group] = false
-      log(JSON.stringify({ event: `${group}_migration_failed`, message: err.message }))
+      log(JSON.stringify({ event: `${group}_migration_failed`, message: /** @type {Error} */ (err).message }))
     }
   }
   return available
