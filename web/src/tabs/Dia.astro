@@ -88,7 +88,7 @@ const bake = `var NUTRI = ${jsonForScript(nutri)};\nvar I18N_NUTRI = ${jsonForSc
         <legend class="seg-lbl">{T.dayLegend}<span class="seg-src" id="nutri-daytype-src"></span></legend>
         <div class="seg-opts">
           {shownDayTypes(nutri.dayTypes, sports).map((d: string) => (
-            <label class="seg-opt" title={T.dayTypes[d]}><input type="radio" name="nutri-day" value={d} /><span class="chip seg-in"><span class="seg-txt">{T.dayShort[d]}</span></span></label>
+            <label class="seg-opt" title={(T.dayTypes as Record<string, string>)[d]}><input type="radio" name="nutri-day" value={d} /><span class="chip seg-in"><span class="seg-txt">{(T.dayShort as Record<string, string>)[d]}</span></span></label>
           ))}
         </div>
         <button type="button" class="lnk nutri-auto" id="nutri-auto" hidden></button>
