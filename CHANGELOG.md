@@ -4,6 +4,20 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [1.7.0] - 2026-11-24
+
+- **Strength and hybrid training apart.** Weight sessions (for example Hevy, which uploads them to Strava as weight
+  training) and HIIT / metcon sessions are now two modalities, "Strength" and "Hybrid", instead of one "Gym": Home
+  shows a load card and dial for each, the day's timeline lists them separately, and Entreno's activity split and
+  heart-rate rows name them. A day with both counts as two sessions, while the Watch's copy of a session Strava also
+  has is still counted once. Gym time, the strength habit in Salud and the nutrition day type keep counting both. The
+  note that the watch tags almost all gym work as HIIT is gone. An old link to the gym load page opens the strength
+  one.
+- **Indoor rides.** A ride Strava marks as indoor (trainer) or a virtual ride is listed as "Indoor ride" /
+  "Rodillo", and still counts as cycling. It needs this version's server image; after updating, run a Sync so the
+  rides are read again.
+- **Under the hood.** The page's scripts are now type-checked TypeScript; nothing changes on the page.
+
 ## [1.6.1] - 2026-11-22
 
 - **Easier with a screen reader or voice control.** Cards, rows and buttons that open a page are now named by what
