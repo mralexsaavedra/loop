@@ -38,6 +38,8 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const WEB_ROOT = path.join(ROOT, 'web');
 // the Astro step runs through scripts/lib/astro-build.mjs (one lock for every build: the shared .astro/.prerender)
 
+/** @typedef {Record<string, string | undefined>} Env */
+
 /** Pure: loads training-data(.example).json for `mode` and validates it.
  * Throws with validateProgram's error message on a malformed program.
  * training-data.json is OPTIONAL in personal mode (see lib/load/inputs.mjs)
@@ -47,7 +49,8 @@ const WEB_ROOT = path.join(ROOT, 'web');
  * otherwise fail with a misleading "days is empty" for a user who
  * deliberately has no programmed-training file). A file that EXISTS but is
  * empty/malformed still fails validation normally — only true absence is
- * optional. */
+ * optional.
+ * @param {{ repoRoot: string, mode: string, env?: Env }} opts */
 export function checkTraining({ repoRoot, mode, env = process.env }) {
   if (mode !== 'example') {
     const trainingPath = dataPaths({ repoRoot, env }).documents.training;
@@ -58,7 +61,8 @@ export function checkTraining({ repoRoot, mode, env = process.env }) {
 }
 
 /** Personal mode: warns (one line) when a document file still sits at its pre-data-root path, where the build
- * no longer reads it (scripts/lib/old-paths.mjs). Returns whether it warned. */
+ * no longer reads it (scripts/lib/old-paths.mjs). Returns whether it warned.
+ * @param {{ repoRoot: string, mode: string, env?: Env, warn?: (m: string) => void }} opts */
 export function warnOldDocuments({ repoRoot, mode, env = process.env, warn = console.warn }) {
   const line = mode === 'example' ? null : oldDocumentsWarning({ repoRoot, env });
   if (line) warn(line);
@@ -66,7 +70,9 @@ export function warnOldDocuments({ repoRoot, mode, env = process.env, warn = con
 }
 
 /** Prints the manual-profile check and returns the exit code: the BUILD only warns on a malformed
- * loop-data/cache/profile.json and ignores it, so `npm run check` is where it fails, with the reason. */
+ * loop-data/cache/profile.json and ignores it, so `npm run check` is where it fails, with the reason.
+ * @param {{ error?: unknown, skipped: boolean }} res checkManualProfile's result @param {string} mode
+ * @param {{ log?: (m: string) => void, error?: (m: string) => void }} [opts] */
 export function reportProfileCheck(res, mode, { log = console.log, error = console.error } = {}) {
   if (res.error) {
     error(`build-web --check: ERROR: ${res.error}`);
@@ -83,7 +89,8 @@ export function reportProfileCheck(res, mode, { log = console.log, error = conso
  * it directly instead of re-implementing the fallback, so the CLI path can
  * never drift from the Astro build's own resolution again. `explicitLocale`
  * is the CLI `--locale` flag or a pre-existing `LOCALE` env var; pass
- * null/undefined when neither was given. */
+ * null/undefined when neither was given.
+ * @param {{ repoRoot: string, mode: string, explicitLocale?: string | null, env?: Env }} opts */
 export function resolveLocale({ repoRoot, mode, explicitLocale, env = process.env }) {
   // the data root (HC_DATA_DIR / HC_FILES_DIR, lib/paths.mjs) is the one the Astro build will read
   return resolveEnv({ ...env, HC_REPO_ROOT: repoRoot, DATA_MODE: mode, LOCALE: explicitLocale || undefined }).locale;
@@ -96,14 +103,15 @@ const DEFAULT_STALE_STAGING_MAX_AGE_MS = 10 * 60 * 1000; // 10 minutes
  * ESRCH means "no such process" (dead); any other error (e.g. EPERM, a live
  * process owned by someone else) or a successful call means it's alive. An
  * unparseable pid is treated as unknown, which callers must treat as alive
- * (conservative — never guess a directory is safe to delete). */
+ * (conservative — never guess a directory is safe to delete).
+ * @param {number} pid */
 function isPidAlive(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return true;
   try {
     process.kill(pid, 0);
     return true;
   } catch (err) {
-    return err.code !== 'ESRCH';
+    return /** @type {NodeJS.ErrnoException} */ (err).code !== 'ESRCH';
   }
 }
 
@@ -117,9 +125,11 @@ function isPidAlive(pid) {
  *      period in case the dead process's directory write is still
  *      mid-flush on a slow filesystem.
  * Never touches `currentStagingDir` itself. Returns the list of removed
- * paths. */
+ * paths.
+ * @param {{ dir: string, currentStagingDir: string, now?: number, maxAgeMs?: number }} opts @returns {string[]} */
 export function sweepStaleStaging({ dir, currentStagingDir, now = Date.now(), maxAgeMs = DEFAULT_STALE_STAGING_MAX_AGE_MS }) {
   if (!fs.existsSync(dir)) return [];
+  /** @type {string[]} */
   const swept = [];
   for (const name of fs.readdirSync(dir)) {
     if (!name.startsWith('.staging-')) continue;
@@ -139,7 +149,9 @@ export function sweepStaleStaging({ dir, currentStagingDir, now = Date.now(), ma
 /** Moves a finished staging dir to `outDir` without deleting the previous output first: the old output
  * is renamed aside (`.staging-<mode>-prev-<pid>` next to the staging dir, so sweepStaleStaging removes it
  * if this process dies mid-swap), the staging dir renamed in, then the old one removed. A failed rename-in
- * renames the old output back and rethrows. `rename` is injectable for tests. */
+ * renames the old output back and rethrows. `rename` is injectable for tests.
+ * @param {string} stagingDir @param {string} outDir
+ * @param {{ mode: string, rename?: (from: string, to: string) => void }} opts */
 export function swapIntoPlace(stagingDir, outDir, { mode, rename = fs.renameSync }) {
   fs.mkdirSync(path.dirname(outDir), { recursive: true });
   const aside = path.join(path.dirname(stagingDir), `.staging-${mode}-prev-${process.pid}`);
@@ -156,8 +168,11 @@ export function swapIntoPlace(stagingDir, outDir, { mode, rename = fs.renameSync
 }
 
 /** A missing input file (a fresh clone whose `.example` seeds were not copied yet) as ONE line for the
- * terminal, or null for any other error (those still surface with their stack). */
-export function inputErrorLine(err) {
+ * terminal, or null for any other error (those still surface with their stack).
+ * @param {unknown} thrown */
+export function inputErrorLine(thrown) {
+  // lib/load/inputs.mjs readJson: code HC_MISSING_INPUT carries the file and a hint
+  const err = /** @type {{ code?: string, file: string, hint?: string } | null | undefined} */ (thrown);
   if (!err || err.code !== 'HC_MISSING_INPUT') return null;
   return `build-web: ${path.relative(ROOT, err.file) || err.file} not found.${err.hint ? ' ' + err.hint : ''}`;
 }
@@ -171,19 +186,22 @@ Builds the single-file plan page into web/dist/<mode>/index.html (staged, then r
   --check      validate the training program and the profile (cache/ of the data root) only, no build
   -h, --help   this help`;
 
-const CLI_OPTIONS = { mode: { type: 'string' }, locale: { type: 'string' }, outdir: { type: 'string' }, check: { type: 'boolean' } };
+const CLI_OPTIONS = /** @type {const} */ ({ mode: { type: 'string' }, locale: { type: 'string' }, outdir: { type: 'string' }, check: { type: 'boolean' } });
+/** @typedef {import('./lib/sync-common.mjs').CliValues<typeof CLI_OPTIONS>} BuildArgs */
 
-/** argv -> parseCli's result, plus the --mode / --locale value check (exit 2, like an unknown flag). Pure. */
+/** argv -> parseCli's result, plus the --mode / --locale value check (exit 2, like an unknown flag). Pure.
+ * @param {string[]} argv
+ * @returns {import('./lib/sync-common.mjs').CliResult<typeof CLI_OPTIONS>} */
 export function parseBuildArgs(argv) {
   const cli = parseCli(argv, { usage: USAGE, options: CLI_OPTIONS });
   if (cli.exit != null) return cli;
-  const { mode, locale } = /** @type {{ mode?: string, locale?: string }} */ (cli.values);
+  const { mode, locale } = cli.values;
   if (mode != null && !['personal', 'example'].includes(mode)) return { exit: 2, err: `ERROR: --mode must be personal or example, got ${JSON.stringify(mode)}\n\n${USAGE}` };
   if (locale != null && !['es', 'en'].includes(locale)) return { exit: 2, err: `ERROR: --locale must be es or en, got ${JSON.stringify(locale)}\n\n${USAGE}` };
   return cli;
 }
 
-/** The build; returns the exit code. */
+/** The build; returns the exit code. @param {BuildArgs} args */
 function main(args) {
   const mode = args.mode || process.env.DATA_MODE || 'personal';
   const explicitLocale = args.locale || process.env.LOCALE || null;
@@ -243,7 +261,7 @@ function main(args) {
     swapIntoPlace(stagingDir, outDir, { mode });
   } catch (err) {
     fs.rmSync(stagingDir, { recursive: true, force: true });
-    console.error(`build-web: could not move the build into place (${err.message}) — keeping previous ${path.relative(ROOT, outDir)}/`);
+    console.error(`build-web: could not move the build into place (${/** @type {Error} */ (err).message}) — keeping previous ${path.relative(ROOT, outDir)}/`);
     return 1;
   }
 

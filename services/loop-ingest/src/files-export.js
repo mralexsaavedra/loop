@@ -44,12 +44,23 @@ const MAX_DEPTH = 8
 const SKIPPED_SUFFIXES = ['.tmp', '.lock', '.bak']
 const NO_STORE = { 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' }
 
-/** Whether a file or folder name inside an allowlisted folder can be exported (not hidden, temp, lock, backup). */
+/** Where the allowlisted folders live: the data root, and the files folder (HC_FILES_DIR; null = <dataDir>/files).
+ * @typedef {{ dataDir: string, filesDir?: string | null }} ExportRoots */
+/** A listed file: its export path, absolute path, the real base it lives under, its path relative to that base and
+ * the real location openInside expects. @typedef {{ path: string, abs: string, base: string, rel: string, expected: string }} ListedFile */
+/** A manifest entry: the listed file + the inode, size and mtime it had (sha256 when hashed).
+ * @typedef {ListedFile & { dev: number, ino: number, size: number, mtimeMs: number, sha256?: string }} ExportFile */
+/** Called with a skip reason (an errno code, not_file, changed, outside). @typedef {(code: string) => void} OnSkip */
+/** Called with the absolute path before each open (tests: swap a folder). @typedef {((abs: string) => unknown) | null} BeforeOpen */
+
+/** Whether a file or folder name inside an allowlisted folder can be exported (not hidden, temp, lock, backup).
+ * @param {string} name */
 export function exportableName (name) {
   return !name.startsWith('.') && !SKIPPED_SUFFIXES.some((s) => name.endsWith(s))
 }
 
-/** Why `p` can never be an export path (a short reason), or null when its syntax is acceptable. */
+/** Why `p` can never be an export path (a short reason), or null when its syntax is acceptable.
+ * @param {unknown} p */
 export function exportPathError (p) {
   if (typeof p !== 'string' || p === '') return 'empty'
   if (p.length > MAX_EXPORT_PATH) return 'too_long'
@@ -60,12 +71,13 @@ export function exportPathError (p) {
   return null
 }
 
-/** The allowlisted folder `p` lives in, or null. */
+/** The allowlisted folder `p` lives in, or null. @param {string} p */
 export function exportDirOf (p) {
   return EXPORT_DIRS.find((d) => p.startsWith(`${d}/`)) ?? null
 }
 
-/** The absolute folder of an allowlisted dir: files/* under `filesDir` (HC_FILES_DIR), the rest under `dataDir`. */
+/** The absolute folder of an allowlisted dir: files/* under `filesDir` (HC_FILES_DIR), the rest under `dataDir`.
+ * @param {string} dir @param {ExportRoots} roots */
 function absDir (dir, { dataDir, filesDir }) {
   return dir.startsWith('files/') ? path.join(filesDir ?? path.join(dataDir, 'files'), dir.slice('files/'.length)) : path.join(dataDir, dir)
 }
@@ -76,8 +88,10 @@ function absDir (dir, { dataDir, filesDir }) {
  * @param {{ onHash?: (file: string) => void }} [opts]
  */
 export function createHashCache ({ onHash = (_file) => {} } = {}) {
+  /** @type {Map<string, { size: number, mtimeMs: number, sha256: string }>} */
   const entries = new Map()
   return {
+    /** @param {string} file @param {fs.Stats} st @param {fs.promises.FileHandle} handle @returns {Promise<string>} */
     async get (file, st, handle) {
       const hit = entries.get(file)
       if (hit && hit.size === st.size && hit.mtimeMs === st.mtimeMs) return hit.sha256
@@ -89,20 +103,24 @@ export function createHashCache ({ onHash = (_file) => {} } = {}) {
       entries.set(file, { size: st.size, mtimeMs: st.mtimeMs, sha256 })
       return sha256
     },
-    /** Drops the entries of files no longer listed. */
+    /** Drops the entries of files no longer listed. @param {Set<string>} files */
     keep (files) {
       for (const f of entries.keys()) if (!files.has(f)) entries.delete(f)
     }
   }
 }
 
+/** @typedef {ReturnType<typeof createHashCache>} HashCache */
+
+/** Appends the exportable files under `absRoot` (export path `rel`) to `out`; listExportFiles fills in base, rel, expected.
+ * @param {string} absRoot @param {string} rel @param {number} depth @param {ListedFile[]} out */
 async function walk (absRoot, rel, depth, out) {
   let entries
   try {
     entries = await fs.promises.readdir(absRoot, { withFileTypes: true })
   } catch (err) {
     // a folder that vanished, became a file or a symlink loop while the walk ran (a swap): nothing to list there
-    if (['ENOENT', 'ENOTDIR', 'ELOOP'].includes(err.code)) return
+    if (['ENOENT', 'ENOTDIR', 'ELOOP'].includes(/** @type {string} */ (/** @type {NodeJS.ErrnoException} */ (err).code))) return
     throw err
   }
   for (const e of entries) {
@@ -115,12 +133,13 @@ async function walk (absRoot, rel, depth, out) {
     if (e.isDirectory()) {
       if (depth < MAX_DEPTH) await walk(abs, r, depth + 1, out)
     } else if (e.isFile()) {
-      out.push({ path: r, abs })
+      out.push(/** @type {ListedFile} */ ({ path: r, abs })) // base, rel, expected: set by listExportFiles
     }
   }
 }
 
-/** The real (symlink-free) path of the base an allowlisted dir lives in, and the dir relative to it. */
+/** The real (symlink-free) path of the base an allowlisted dir lives in, and the dir relative to it.
+ * @param {string} dir @param {ExportRoots} roots */
 function baseOf (dir, { dataDir, filesDir }) {
   if (dir.startsWith('files/')) return { base: filesDir ?? path.join(dataDir, 'files'), sub: dir.slice('files/'.length) }
   return { base: dataDir, sub: dir }
@@ -135,6 +154,9 @@ const PROC_FD = '/proc/self/fd'
  * cannot be raced); without /proc (`fdDir` missing) a portable fallback lstat-walks every component from the base
  * (each a real folder, no symlink) and requires the final one to be the opened inode (dev, ino). `want` (dev, ino),
  * when given, must match too. Returns {handle, st} or null (closed) for anything else.
+ * @param {{ abs: string, expected: string, base: string, rel: string, want?: { dev: number, ino: number } | null,
+ *   fdDir?: string, beforeOpen?: BeforeOpen, onSkip?: OnSkip }} opts
+ * @returns {Promise<{ handle: fs.promises.FileHandle, st: fs.Stats } | null>}
  */
 export async function openInside ({ abs, expected, base, rel, want = null, fdDir = PROC_FD, beforeOpen = null, onSkip = (_code) => {} }) {
   if (beforeOpen) await beforeOpen(abs)
@@ -142,8 +164,9 @@ export async function openInside ({ abs, expected, base, rel, want = null, fdDir
   try {
     handle = await fs.promises.open(abs, fs.constants.O_RDONLY | (fs.constants.O_NOFOLLOW ?? 0))
   } catch (err) {
-    if (['ENOENT', 'ELOOP', 'ENOTDIR', 'EACCES', 'EISDIR'].includes(err.code)) {
-      onSkip(err.code)
+    const code = /** @type {string} */ (/** @type {NodeJS.ErrnoException} */ (err).code)
+    if (['ENOENT', 'ELOOP', 'ENOTDIR', 'EACCES', 'EISDIR'].includes(code)) {
+      onSkip(code)
       return null
     }
     throw err
@@ -190,8 +213,11 @@ export async function openInside ({ abs, expected, base, rel, want = null, fdDir
  * `cache` each file is opened through openInside (a file reached through a swapped folder is left out) and gets its
  * sha256; without it only the listing (GET /export/file's membership check, which opens and verifies itself). An
  * allowlisted folder that is itself a symlink, or missing, contributes nothing.
+ * @param {ExportRoots & { cache?: HashCache | null, fdDir?: string, beforeOpen?: BeforeOpen, onSkip?: OnSkip }} opts
+ * @returns {Promise<ExportFile[]>}
  */
 export async function listExportFiles ({ dataDir, filesDir = null, cache = null, fdDir = PROC_FD, beforeOpen = null, onSkip = (_code) => {} }) {
+  /** @type {ListedFile[]} */
   const found = []
   for (const dir of EXPORT_DIRS) {
     const abs = absDir(dir, { dataDir, filesDir })
@@ -220,6 +246,7 @@ export async function listExportFiles ({ dataDir, filesDir = null, cache = null,
     }
   }
   found.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0))
+  /** @type {ExportFile[]} */
   const out = []
   for (const f of found) {
     if (!cache) {
@@ -237,6 +264,7 @@ export async function listExportFiles ({ dataDir, filesDir = null, cache = null,
     if (!opened) continue
     try {
       const { st, handle } = opened
+      /** @type {ExportFile} */
       const entry = { ...f, dev: st.dev, ino: st.ino, size: st.size, mtimeMs: Math.trunc(st.mtimeMs) }
       entry.sha256 = await cache.get(f.abs, st, handle)
       out.push(entry)
@@ -248,13 +276,16 @@ export async function listExportFiles ({ dataDir, filesDir = null, cache = null,
   return out
 }
 
-/** {processedSeq, error, errorSeq} of <siteDir>/status.json (0 / null when it is missing or broken). */
+/** {processedSeq, error, errorSeq} of <siteDir>/status.json (0 / null when it is missing or broken).
+ * @param {string} siteDir */
 export function readSiteStatus (siteDir) {
+  /** @type {any} untrusted JSON, each field checked below */
   let s = null
   try {
     s = JSON.parse(fs.readFileSync(path.join(siteDir, 'status.json'), 'utf8'))
   } catch {}
-  const seq = (n) => (Number.isSafeInteger(n) && n >= 0 ? n : null)
+  /** @type {(n: unknown) => number | null} */
+  const seq = (n) => (Number.isSafeInteger(n) && /** @type {number} */ (n) >= 0 ? /** @type {number} */ (n) : null)
   return {
     processedSeq: seq(s?.processedSeq) ?? 0,
     error: typeof s?.error === 'string' ? s.error : null,
@@ -262,15 +293,24 @@ export function readSiteStatus (siteDir) {
   }
 }
 
+/** @typedef {import('node:http').IncomingMessage} Req @typedef {import('node:http').ServerResponse} Res */
+
+/**
+ * @param {ExportRoots & { available: () => boolean, siteDir: string, checkBearer: (req: Req) => boolean,
+ *   hashCache?: HashCache, log?: (line: string) => void, fdDir?: string, beforeOpen?: BeforeOpen }} opts
+ */
 export function createFilesExportRoutes ({ available, dataDir, filesDir = null, siteDir, checkBearer, hashCache = createHashCache(), log = console.log, fdDir = PROC_FD, beforeOpen = null }) {
+  /** @param {Res} res @param {number} status @param {string} error @param {import('node:http').OutgoingHttpHeaders} [extra] */
   const fail = (res, status, error, extra = {}) => writeJson(res, status, { error }, { ...NO_STORE, ...extra })
 
+  /** @param {Req} req @param {Res} res */
   async function manifest (req, res) {
     req.resume()
     // a listed file the manifest could not open (unreadable, swapped for a symlink, outside its folder) is left
     // out: one line per reason, the code and a count only (a path names a personal document)
+    /** @type {Map<string, number>} */
     const skipped = new Map()
-    const onSkip = (code) => skipped.set(code, (skipped.get(code) ?? 0) + 1)
+    const onSkip = (/** @type {string} */ code) => skipped.set(code, (skipped.get(code) ?? 0) + 1)
     const files = await listExportFiles({ dataDir, filesDir, cache: hashCache, fdDir, beforeOpen, onSkip })
     for (const [code, count] of skipped) log(JSON.stringify({ event: 'export_file_skipped', code, count }))
     const body = { files: files.map(({ path: p, size, sha256, mtimeMs }) => ({ path: p, size, sha256, mtimeMs })), site: readSiteStatus(siteDir) }
@@ -278,12 +318,13 @@ export function createFilesExportRoutes ({ available, dataDir, filesDir = null, 
     writeJson(res, 200, body, NO_STORE)
   }
 
+  /** @param {Req} req @param {Res} res @param {URL} url */
   async function file (req, res, url) {
     req.resume()
     const values = url.searchParams.getAll('path')
     const p = values.length === 1 ? values[0] : null
     if (exportPathError(p)) return fail(res, 400, 'invalid_path')
-    if (!exportDirOf(p)) return fail(res, 404, 'not_found')
+    if (!exportDirOf(/** @type {string} */ (p))) return fail(res, 404, 'not_found') // a string: exportPathError
     const listed = (await listExportFiles({ dataDir, filesDir })).find((f) => f.path === p)
     if (!listed) return fail(res, 404, 'not_found')
     // the opened file must be the listed inode AND sit at the listed place (no folder swapped for a symlink since)
@@ -305,7 +346,8 @@ export function createFilesExportRoutes ({ available, dataDir, filesDir = null, 
   }
 
   return {
-    /** Handles GET /export/files and /export/file in container mode; false for anything else (the caller routes on). */
+    /** Handles GET /export/files and /export/file in container mode; false for anything else (the caller routes on).
+     * @param {Req} req @param {Res} res @param {URL} url */
     async handle (req, res, url) {
       const route = url.pathname === '/export/files' ? manifest : url.pathname === '/export/file' ? file : null
       if (!route || !available()) return false
@@ -323,7 +365,7 @@ export function createFilesExportRoutes ({ available, dataDir, filesDir = null, 
         await route(req, res, url)
       } catch (err) {
         // the code only: an fs message carries the path
-        log(JSON.stringify({ event: 'export_files_error', code: err?.code ?? null }))
+        log(JSON.stringify({ event: 'export_files_error', code: /** @type {{ code?: string } | null | undefined} */ (err)?.code ?? null }))
         if (!res.headersSent) fail(res, 500, 'internal')
         else res.destroy()
       }

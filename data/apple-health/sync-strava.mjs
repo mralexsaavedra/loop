@@ -40,12 +40,18 @@ import { dataPaths } from '../../lib/paths.mjs'
 
 const DIR = path.dirname(fileURLToPath(import.meta.url))
 
+/** @typedef {import('../../lib/training/hr-zones.mjs').StravaActivity} StravaActivity one activity of /export/strava (untrusted: every field re-checked) */
+/** @typedef {{date: string, line: string, hasHr: boolean}} StravaRow */
+/** @typedef {{rows: number, power: number, withStart: number}} RidesStats */
+/** @typedef {{text: string, rows: number, dates: string[], added: number, addedDates: string[]}} MergedCsv */
+
 const STRAVA_SOURCE = 'Strava API'
 // SYNC_STRAVA_OUT_DIR / INGEST_ENV_FILE overrides exist ONLY so the child-process error-path
 // tests below can point main() at a disposable tmp dir / tmp env file instead of the real
 // personal loop-data/extract or services/loop-ingest/.env — unset in production.
 // Default: the extract and profile of lib/paths.mjs (loop-data/, or the HC_DATA_DIR data root).
 const ROOT = path.resolve(DIR, '..', '..')
+/** @param {NodeJS.ProcessEnv} env @returns {string} */
 const defaultOut = (env) => env.SYNC_STRAVA_OUT_DIR || dataPaths({ repoRoot: ROOT, env }).extractDir
 const WORKOUTS_CSV = 'workouts.csv'
 
@@ -58,6 +64,7 @@ const WORKOUTS_CSV = 'workouts.csv'
 // modality.mjs counts as gym. Anything not in this table lands on FALLBACK_TYPE "Unmapped" (a
 // non-gym type -> `other`; not "Other", which would file every unknown sport, e.g. tennis, as
 // gym load) and is counted in the sync's `unmapped` report instead of aborting the sync.
+/** @type {Record<string, string>} */
 const SPORT_TYPE_MAP = {
   Run: 'Running', TrailRun: 'Running', VirtualRun: 'Running',
   Ride: 'Cycling', VirtualRide: 'Cycling', EBikeRide: 'Cycling', EMountainBikeRide: 'Cycling',
@@ -82,8 +89,9 @@ const SPORT_TYPE_MAP = {
 }
 const FALLBACK_TYPE = 'Unmapped'
 
+/** @param {unknown} sportType @returns {string} */
 function translateType (sportType) {
-  return SPORT_TYPE_MAP[sportType] || FALLBACK_TYPE
+  return SPORT_TYPE_MAP[/** @type {string} */ (sportType)] || FALLBACK_TYPE
 }
 
 // An indoor ride (Strava's `trainer` flag, or a VirtualRide: Zwift & co.) is written as
@@ -91,25 +99,30 @@ function translateType (sportType) {
 // rides.csv and the HR zones keep keying on translateType (any ride). No flag at all (an ingest
 // image that does not export it) keeps the outdoor label.
 const INDOOR_RIDE_TYPE = 'IndoorCycling'
+/** @param {StravaActivity} activity @returns {string} */
 function workoutType (activity) {
   const type = translateType(activity.sport_type)
   if (type === 'Cycling' && (activity.trainer === true || activity.sport_type === 'VirtualRide')) return INDOOR_RIDE_TYPE
   return type
 }
 
+/** @param {unknown} v @returns {number | null} */
 const numOrNull = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
-const round2 = (v) => Math.round(v * 100) / 100
-const bpmRound = (v) => Math.round(v)
+const round2 = (/** @type {number} */ v) => Math.round(v * 100) / 100
+const bpmRound = (/** @type {number} */ v) => Math.round(v)
 // Relative Effort is an integer score; 0 and 1 are genuine values, only absence is blank
-const reCell = (v) => (numOrNull(v) != null ? Math.round(v) : '')
-const kjCell = (v) => (numOrNull(v) != null ? round2(v) : '')
+// (v is a finite number whenever numOrNull(v) is not null)
+const reCell = (/** @type {unknown} */ v) => (numOrNull(v) != null ? Math.round(/** @type {number} */ (v)) : '')
+const kjCell = (/** @type {unknown} */ v) => (numOrNull(v) != null ? round2(/** @type {number} */ (v)) : '')
 // metres climbed, 1 decimal; 0 is a genuine value (a flat or indoor ride)
-const elevCell = (v) => (numOrNull(v) != null ? Math.round(v * 10) / 10 : '')
+const elevCell = (/** @type {unknown} */ v) => (numOrNull(v) != null ? Math.round(/** @type {number} */ (v) * 10) / 10 : '')
 
 /**
  * One Strava activity -> one workouts.csv row, or null when there is no usable duration or
  * date. `moving_time` is preferred over `elapsed_time` (matches the Watch's pause-excluded
  * duration; elapsed time would inflate rides with café stops).
+ * @param {StravaActivity | null | undefined} activity
+ * @returns {{date: string, line: string, mapped: boolean, sportType: unknown, hasHr: boolean} | null}
  */
 function toRow (activity) {
   const startLocal = activity && activity.start_local
@@ -118,18 +131,18 @@ function toRow (activity) {
 
   const movingTime = numOrNull(activity.moving_time)
   const elapsedTime = numOrNull(activity.elapsed_time)
-  const durationSec = movingTime > 0 ? movingTime : elapsedTime
-  if (!(durationSec > 0)) return null
+  const durationSec = movingTime != null && movingTime > 0 ? movingTime : elapsedTime
+  if (durationSec == null || !(durationSec > 0)) return null
   const durationMin = round2(durationSec / 60)
 
   const sportType = activity.sport_type
-  const mapped = Object.prototype.hasOwnProperty.call(SPORT_TYPE_MAP, sportType)
-  const type = workoutType(activity)
+  const mapped = Object.prototype.hasOwnProperty.call(SPORT_TYPE_MAP, /** @type {string} */ (sportType))
+  const type = workoutType(/** @type {StravaActivity} */ (activity))
 
   const hrAvg = numOrNull(activity.average_heartrate)
   const hrMax = numOrNull(activity.max_heartrate)
   const distance = numOrNull(activity.distance)
-  const distanceKm = distance > 0 ? round2(distance / 1000) : null
+  const distanceKm = distance != null && distance > 0 ? round2(distance / 1000) : null
 
   const line = [
     date, type, durationMin, '',
@@ -150,14 +163,17 @@ function toRow (activity) {
 // `dropped` counts activities toRow() could not translate at all (no date/duration) — these
 // never reach the merge. `hasHr` travels with each row so the caller can count noHr against the
 // rows actually written.
+/** @param {Array<StravaActivity | null | undefined>} activities */
 function buildRows (activities) {
+  /** @type {StravaRow[]} */
   const rows = []
+  /** @type {Record<string, number>} */
   const unmapped = {}
   let dropped = 0
   for (const activity of activities) {
     const r = toRow(activity)
     if (!r) { dropped++; continue }
-    if (!r.mapped) unmapped[r.sportType || 'null'] = (unmapped[r.sportType || 'null'] || 0) + 1
+    if (!r.mapped) { const key = /** @type {string} */ (r.sportType || 'null'); unmapped[key] = (unmapped[key] || 0) + 1 }
     rows.push({ date: r.date, line: r.line, hasHr: r.hasHr })
   }
   return { rows, unmapped, dropped }
@@ -175,8 +191,9 @@ const RIDES_HEADER = 'date,start,elapsed_s,kilojoules,device_watts,source'
 
 // "2026-09-26T09:02:00Z" (local wall clock, Strava's fake Z) + "2026-09-26T07:02:00Z" (UTC)
 // -> "2026-09-26T09:02:00+02:00"; null when either is unusable or the offset is implausible
+/** @param {unknown} startLocal @param {unknown} startUtc @returns {string | null} */
 function localIsoWithOffset (startLocal, startUtc) {
-  const wall = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/.exec(startLocal || '')
+  const wall = /^(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2})/.exec(/** @type {string} */ (startLocal || ''))
   if (!wall || typeof startUtc !== 'string') return null
   const off = (Date.parse(wall[1] + 'Z') - Date.parse(startUtc)) / 60000
   if (!Number.isFinite(off) || Math.abs(off) > 14 * 60 || off % 15 !== 0) return null
@@ -184,37 +201,48 @@ function localIsoWithOffset (startLocal, startUtc) {
   return `${wall[1]}${off < 0 ? '-' : '+'}${String(Math.floor(a / 60)).padStart(2, '0')}:${String(a % 60).padStart(2, '0')}`
 }
 
-/** One Strava activity -> one rides.csv line, or null (not a ride, no start, no duration). */
+/** One Strava activity -> one rides.csv line, or null (not a ride, no start, no duration).
+ * @param {StravaActivity | null | undefined} activity @returns {string | null} */
 function rideRow (activity) {
   if (!activity || translateType(activity.sport_type) !== 'Cycling') return null
   const startLocal = activity.start_local
   if (!startLocal || typeof startLocal !== 'string') return null
-  const elapsed = numOrNull(activity.elapsed_time) > 0 ? numOrNull(activity.elapsed_time) : numOrNull(activity.moving_time)
-  if (!(elapsed > 0)) return null
+  const elapsed = (numOrNull(activity.elapsed_time) ?? 0) > 0 ? numOrNull(activity.elapsed_time) : numOrNull(activity.moving_time)
+  if (elapsed == null || !(elapsed > 0)) return null
   const dw = activity.device_watts === true ? 'true' : activity.device_watts === false ? 'false' : ''
   return [startLocal.slice(0, 10), localIsoWithOffset(startLocal, activity.start_utc) || '', Math.round(elapsed),
     kjCell(activity.kilojoules), dw, STRAVA_SOURCE].join(',')
 }
 
-/** activities -> { rows, power (device_watts true + kJ), withStart (start with an offset) } for _meta.json */
+/** activities -> { rows, power (device_watts true + kJ), withStart (start with an offset) } for _meta.json
+ * @param {Array<StravaActivity | null | undefined>} activities @returns {RidesStats} */
 function ridesStats (activities) {
-  const lines = activities.map(rideRow).filter(Boolean).map((l) => l.split(','))
+  const lines = /** @type {string[]} */ (activities.map(rideRow).filter(Boolean)).map((l) => l.split(','))
   return { rows: lines.length, power: lines.filter((c) => c[4] === 'true' && c[3] !== '').length, withStart: lines.filter((c) => c[1] !== '').length }
 }
 
-/** activities -> the whole rides.csv text, sorted by local start. */
+/** activities -> the whole rides.csv text, sorted by local start.
+ * @param {Array<StravaActivity | null | undefined>} activities @returns {string} */
 function buildRides (activities) {
-  const rows = activities.map((a) => ({ a, line: rideRow(a) })).filter((r) => r.line)
+  // a rides.csv line exists only for an activity with a string start_local
+  const rows = /** @type {Array<{a: StravaActivity & {start_local: string}, line: string}>} */ (activities.map((a) => ({ a, line: rideRow(a) })).filter((r) => r.line))
     .sort((x, y) => (x.a.start_local < y.a.start_local ? -1 : x.a.start_local > y.a.start_local ? 1 : x.line < y.line ? -1 : x.line > y.line ? 1 : 0))
   return [RIDES_HEADER, ...rows.map((r) => r.line)].join('\n') + '\n'
 }
 
-const range = (dates) => (dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a')
+const range = (/** @type {string[]} */ dates) => (dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a')
 
 const SYNC_NOTE = 'Strava rows (npm run sync:strava) are always kept, also on dates the export covers, and are rebuilt on every sync from source="Strava API"; readers dedupe a Watch copy of the same session (lib/training/sessions.mjs mergeSameDay: Strava wins per date + modality when it covers at least half the Watch minutes). Historical source=Strava rows (from the old ingest /sync/strava loop) are left untouched. rides.csv (ride start with offset, elapsed time, kJ, device_watts: the windows of the power-meter active-energy correction) and workout-zones.csv (per-activity seconds in HR zone 0-5, % of max HR) are rebuilt from scratch on every sync. Accepted limitations: deleted Strava activities are not removed, and edits older than the ingest service\'s 7-day overlap window are never picked up. See docs/data-pipeline.md.'
 
 // Pure: refresh the workouts rows/range + record the sync. Deterministic (no timestamps) so
 // re-running an unchanged sync rewrites identical bytes.
+/**
+ * @param {Record<string, any>} meta the parsed _meta.json (untrusted JSON: only the keys below are touched)
+ * @param {{rows: number, dates: string[], added: number, addedDates: string[]}} merged
+ * @param {{activities: number, unmapped: Record<string, number>, noHr: number, dropped: number, rides?: RidesStats | null,
+ *   zones?: {rows: number, max: {maxHr: number, source: string} | null} | null}} info
+ * @returns {Record<string, any>}
+ */
 function updateMeta (meta, merged, info) {
   // rides.csv (ride windows for the active-energy correction) is rebuilt every run: its row count
   // and how many rides can feed the correction (real power + kJ; a start with offset)
@@ -242,7 +270,7 @@ function updateMeta (meta, merged, info) {
     out.stravaSync.zones = { rows: info.zones.rows, maxHr: info.zones.max ? info.zones.max.maxHr : null, maxHrSource: info.zones.max ? info.zones.max.source : null }
   }
   out.notes = Array.isArray(out.notes) ? out.notes : []
-  for (const n of out.notes.filter((n) => /^Strava rows \(npm run sync:strava\)/.test(n) && n !== SYNC_NOTE)) {
+  for (const n of out.notes.filter((/** @type {unknown} */ n) => /^Strava rows \(npm run sync:strava\)/.test(/** @type {string} */ (n)) && n !== SYNC_NOTE)) {
     out.notes.splice(out.notes.indexOf(n), 1)
   }
   if (!out.notes.includes(SYNC_NOTE)) out.notes.push(SYNC_NOTE)
@@ -250,6 +278,11 @@ function updateMeta (meta, merged, info) {
 }
 
 // Pure planner: activities (full pull) + a reader (name -> text|null) -> files to write.
+/**
+ * @param {Array<StravaActivity | null | undefined>} activities
+ * @param {(name: string) => string | null} readFile
+ * @param {{profileMaxHr?: number | null}} [opts]
+ */
 function planSync (activities, readFile, { profileMaxHr = null } = {}) {
   const { rows, unmapped, dropped } = buildRows(activities)
   const existing = readFile(WORKOUTS_CSV)
@@ -262,21 +295,24 @@ function planSync (activities, readFile, { profileMaxHr = null } = {}) {
   // a fresh export CSV); dropping by ledger date would delete a real export/manual row that
   // merely happens to share a date the ledger once claimed. `stravaSync.owned` in _meta.json
   // stays pure REPORTING metadata (which dates this sync added last run), never a merge input.
+  /** @type {MergedCsv} */
   const merged = common.mergeCsv(existing, WORKOUTS_HEADER, rows, {
     sourceCol: 7,
-    isOwn: (s) => s === STRAVA_SOURCE,
+    isOwn: (/** @type {string} */ s) => s === STRAVA_SOURCE,
     exportWins: false
   })
 
   // every translated row is written (exportWins: false), so noHr counts them all
   const noHr = rows.filter((r) => !r.hasHr).length
 
+  /** @type {Record<string, string>} */
   const writes = {}
   const ridesText = buildRides(activities)
   const ridesExisting = readFile(RIDES_CSV)
   if (ridesText !== ridesExisting && (ridesExisting != null || ridesText !== `${RIDES_HEADER}\n`)) writes[RIDES_CSV] = ridesText
   // workout-zones.csv is rebuilt from scratch like rides.csv; never created header-only
-  const z = zones.buildZones(activities, { translateType, source: STRAVA_SOURCE, profileMaxHr, startOf: (a) => localIsoWithOffset(a.start_local, a.start_utc) })
+  // buildZones skips null items itself
+  const z = zones.buildZones(/** @type {StravaActivity[]} */ (activities), { translateType, source: STRAVA_SOURCE, profileMaxHr, startOf: (/** @type {StravaActivity} */ a) => localIsoWithOffset(a.start_local, a.start_utc) })
   const zonesExisting = readFile(zones.ZONES_CSV)
   if (z.text !== zonesExisting && (zonesExisting != null || z.rows > 0)) writes[zones.ZONES_CSV] = z.text
   const csvHasContent = !(existing == null && rows.length === 0) // never create an empty CSV
@@ -297,10 +333,16 @@ function planSync (activities, readFile, { profileMaxHr = null } = {}) {
 // the ledger first means a reader that only sees the new _meta.json still gets accurate metadata.
 // _meta.json is shared with sync-shortcut.mjs (both scripts can touch the same extract/ dir), so
 // the whole read-plan-write sequence runs under an exclusive lock to prevent a lost update.
+/**
+ * @param {string} dir
+ * @param {Array<StravaActivity | null | undefined>} activities
+ * @param {{writeAtomic?: (file: string, text: string) => void, profileMaxHr?: number | null}} [opts]
+ * @returns {ReturnType<typeof planSync>}
+ */
 function syncDir (dir, activities, { writeAtomic = common.writeAtomic, profileMaxHr = null } = {}) {
   fs.mkdirSync(dir, { recursive: true }) // the lockfile itself needs the directory to exist
   return common.withLock(path.join(dir, '_meta.json.lock'), () => {
-    const readFile = (name) => {
+    const readFile = (/** @type {string} */ name) => {
       const p = path.join(dir, name)
       return fs.existsSync(p) ? fs.readFileSync(p, 'utf8') : null
     }
@@ -314,21 +356,26 @@ function syncDir (dir, activities, { writeAtomic = common.writeAtomic, profileMa
 }
 
 // full pull, paged via since_id, from GET /export/strava
+/**
+ * @param {{baseUrl: string, token: string, sinceId?: string, limit?: number, timeoutMs?: number, fetchImpl?: typeof fetch}} opts
+ * @returns {Promise<StravaActivity[]>} the service's array, its items unchecked
+ */
 function fetchActivities ({ baseUrl, token, sinceId = '0', limit = 500, timeoutMs = 15000, fetchImpl = fetch }) {
-  return common.fetchPages({
+  return /** @type {Promise<StravaActivity[]>} */ (common.fetchPages({
     baseUrl,
     token,
     sinceId,
     limit,
     timeoutMs,
     fetchImpl,
-    buildUrl: ({ baseUrl: base, since, limit: lim }) => `${base}/export/strava?since_id=${since}&limit=${lim}`
-  })
+    buildUrl: (/** @type {{baseUrl: string, since: unknown, limit: unknown}} */ { baseUrl: base, since, limit: lim }) => `${base}/export/strava?since_id=${since}&limit=${lim}`
+  }))
 }
 
 // An ingest image built before elevation was added stores activities without
 // total_elevation_gain, so the elevation_m column would silently stay blank. Strava always sends
 // the field (0 for an indoor ride), so its absence on EVERY activity points at a stale image.
+/** @param {Array<StravaActivity | null | undefined> | null | undefined} activities @returns {string | null} */
 function staleImageWarning (activities) {
   if (!activities || !activities.length) return null
   if (activities.some(a => a && a.total_elevation_gain != null)) return null
@@ -339,8 +386,9 @@ function staleImageWarning (activities) {
 // An ingest image built before the energy correction exports neither start_date nor
 // device_watts, so no ride can correct the Watch's active energy. Rides with kJ but none carrying
 // either field point at a stale image (false is a real value: Strava's estimated power).
+/** @param {Array<StravaActivity | null | undefined> | null | undefined} activities @returns {string | null} */
 function stalePowerWarning (activities) {
-  const rides = (activities || []).filter((a) => a && translateType(a.sport_type) === 'Cycling' && numOrNull(a.kilojoules) > 0)
+  const rides = /** @type {StravaActivity[]} */ ((activities || []).filter((a) => a && translateType(a.sport_type) === 'Cycling' && (numOrNull(a.kilojoules) ?? 0) > 0))
   if (!rides.length) return null
   if (rides.some((a) => typeof a.device_watts === 'boolean' && a.start_utc)) return null
   return 'WARNING: no ride carries device_watts / start_date — the ingest image is probably stale, so the power-meter ' +
@@ -349,8 +397,9 @@ function stalePowerWarning (activities) {
 
 // An ingest image built before the indoor flag exports no `trainer` (Strava always sends it as a
 // boolean), so every trainer ride would be filed as an outdoor ride.
+/** @param {Array<StravaActivity | null | undefined> | null | undefined} activities @returns {string | null} */
 function staleTrainerWarning (activities) {
-  const rides = (activities || []).filter((a) => a && translateType(a.sport_type) === 'Cycling')
+  const rides = /** @type {StravaActivity[]} */ ((activities || []).filter((a) => a && translateType(a.sport_type) === 'Cycling'))
   if (!rides.length) return null
   if (rides.some((a) => typeof a.trainer === 'boolean')) return null
   return 'WARNING: no ride carries the trainer flag — the ingest image is probably stale, so indoor trainer rides ' +
@@ -359,6 +408,7 @@ function staleTrainerWarning (activities) {
 
 // An ingest image built before the HR-stream backfill exports no `hr_hist` at all (null = not
 // fetched yet / no HR is a real value), so no workout can get HR zones.
+/** @param {Array<StravaActivity | null | undefined> | null | undefined} activities @returns {string | null} */
 function staleZonesWarning (activities) {
   if (!activities || !activities.length) return null
   if (activities.some((a) => a && Object.prototype.hasOwnProperty.call(a, 'hr_hist'))) return null
@@ -366,6 +416,7 @@ function staleZonesWarning (activities) {
     '(docker compose up -d --build loop-ingest) and re-run once the backfill has fetched some streams.'
 }
 
+/** @param {NodeJS.ProcessEnv} env @returns {string} */
 const defaultProfile = (env) => env.SYNC_STRAVA_PROFILE || dataPaths({ repoRoot: ROOT, env }).documents.profile
 
 const USAGE = `Usage: node data/apple-health/sync-strava.mjs
@@ -378,6 +429,10 @@ services/loop-ingest/.env).`
 
 // The CLI entry; env / log / error / fetchImpl / outDir / profileJson are injectable for tests. Returns the
 // exit code: 1 on a missing token or an unreachable / old service (no file touched).
+/**
+ * @param {{env?: NodeJS.ProcessEnv, log?: (msg: string) => void, error?: (msg: string) => void, fetchImpl?: typeof fetch, outDir?: string, profileJson?: string}} [opts]
+ * @returns {Promise<number>}
+ */
 async function main ({ env = process.env, log = console.log, error = console.error, fetchImpl = fetch, outDir = defaultOut(env), profileJson = defaultProfile(env) } = {}) {
   const t0 = Date.now()
   const baseUrl = common.readBaseUrl(env)
@@ -387,10 +442,13 @@ async function main ({ env = process.env, log = console.log, error = console.err
     return 1
   }
 
+  /** @type {StravaActivity[]} */
   let activities
   try {
     activities = await fetchActivities({ baseUrl, token, fetchImpl })
-  } catch (err) {
+  } catch (e) {
+    // fetchJson / fetchPages errors: err.status on an HTTP answer, err.cause on a network failure
+    const err = /** @type {{status?: number, message?: string, cause?: {code?: string, message?: string}}} */ (e)
     if (err.status === 404) {
       error('ERROR: ingest service has no /export/strava — rebuild/restart the loop-ingest container. No files touched.')
     } else {
@@ -416,7 +474,9 @@ async function main ({ env = process.env, log = console.log, error = console.err
   if (plan.noHr) log(`  ${plan.noHr} row(s) written without HR`)
   if (plan.dropped) log(`  ${plan.dropped} activity(ies) dropped (no usable date/duration)`)
   if (Object.keys(plan.unmapped).length) log(`  unmapped sport types: ${JSON.stringify(plan.unmapped)}`)
-  if (plan.zones.rows) log(`  ${plan.zones.rows} workout(s) with HR zones (max HR ${plan.zones.max.maxHr} bpm, ${plan.zones.max.source})`)
+  // zone rows are written only with a max HR, so max is set whenever rows > 0
+  const max = /** @type {{maxHr: number, source: string}} */ (plan.zones.max)
+  if (plan.zones.rows) log(`  ${plan.zones.rows} workout(s) with HR zones (max HR ${max.maxHr} bpm, ${max.source})`)
   if (!Object.keys(plan.writes).length) log('  (no changes)')
   return 0
 }

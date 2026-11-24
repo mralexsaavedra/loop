@@ -28,10 +28,11 @@ export const DOCUMENT_FILES = Object.freeze({
   plan: 'loop-data/cache/plan.json',
   training: 'loop-data/cache/training.json',
 });
-export const KINDS = Object.freeze(Object.keys(DOCUMENT_FILES));
+/** @typedef {keyof typeof DOCUMENT_FILES} DocumentKind */
+export const KINDS = Object.freeze(/** @type {DocumentKind[]} */ (Object.keys(DOCUMENT_FILES)));
 export const STATE_FILE = 'loop-data/cache/.sync-state.json';
 
-/** The content hash of a parsed document: formatting never counts, key order and values do. */
+/** The content hash of a parsed document: formatting never counts, key order and values do. @param {unknown} doc */
 export function contentHash(doc) {
   return crypto.createHash('sha256').update(JSON.stringify(doc)).digest('hex');
 }
@@ -41,21 +42,28 @@ export function contentHash(doc) {
  * rel(kind) for messages (repo-relative inside the clone, absolute outside it), backup(kind) the
  * backups/<same path>.documents.bak copy in the clone (the path relative to the data root when the file is
  * outside the clone). Every function below takes this layout.
+ * @param {string} root @param {Record<string, string | undefined>} [env]
  */
 export function documentLayout(root, env = process.env) {
   const p = dataPaths({ repoRoot: root, env });
+  /** @param {DocumentKind} kind */
   const file = (kind) => p.documents[kind];
+  /** @param {string} f */
   const inClone = (f) => displayPath(root, f) !== f;
   return {
     root,
     file,
-    rel: (kind) => displayPath(root, file(kind)),
+    rel: (/** @type {DocumentKind} */ kind) => displayPath(root, file(kind)),
     state: p.documentsState,
-    backup: (kind) => path.join(root, 'backups', `${path.relative(inClone(file(kind)) ? root : p.root, file(kind))}.documents.bak`),
+    backup: (/** @type {DocumentKind} */ kind) => path.join(root, 'backups', `${path.relative(inClone(file(kind)) ? root : p.root, file(kind))}.documents.bak`),
   };
 }
 
-/** {kind: {revision, hash}} from the state file; {} when it is missing or unreadable. */
+/** @typedef {ReturnType<typeof documentLayout>} DocumentLayout */
+/** @typedef {Partial<Record<string, { revision: number, hash: string }>>} DocumentState */
+
+/** {kind: {revision, hash}} from the state file; {} when it is missing or unreadable.
+ * @param {DocumentLayout} docs @returns {DocumentState} */
 export function readState(docs) {
   try {
     const s = JSON.parse(fs.readFileSync(docs.state, 'utf8'));
@@ -65,7 +73,8 @@ export function readState(docs) {
   }
 }
 
-/** Records `kind` at {revision, hash}, keeping the other kinds. */
+/** Records `kind` at {revision, hash}, keeping the other kinds.
+ * @param {DocumentLayout} docs @param {DocumentKind} kind @param {number} revision @param {string} hash */
 export function recordState(docs, kind, revision, hash) {
   const file = docs.state;
   const state = { ...readState(docs), [kind]: { revision, hash } };
@@ -73,7 +82,8 @@ export function recordState(docs, kind, revision, hash) {
   writeAtomic(file, JSON.stringify(state, null, 2) + '\n');
 }
 
-/** The parsed file of `kind`: {doc, hash}, null when the file does not exist; throws on invalid JSON. */
+/** The parsed file of `kind`: {doc, hash}, null when the file does not exist; throws on invalid JSON.
+ * @param {DocumentLayout} docs @param {DocumentKind} kind @returns {{ doc: any, hash: string } | null} doc: parsed, untrusted JSON */
 export function readDocumentFile(docs, kind) {
   const file = docs.file(kind);
   if (!fs.existsSync(file)) return null;
@@ -81,19 +91,21 @@ export function readDocumentFile(docs, kind) {
   try {
     doc = JSON.parse(fs.readFileSync(file, 'utf8'));
   } catch (err) {
-    throw new Error(`${docs.rel(kind)} is not valid JSON (${err.message})`, { cause: err });
+    throw new Error(`${docs.rel(kind)} is not valid JSON (${/** @type {Error} */ (err).message})`, { cause: err });
   }
   return { doc, hash: contentHash(doc) };
 }
 
-/** Writes `doc` to the file of `kind` (2-space JSON, its key order), atomically. */
+/** Writes `doc` to the file of `kind` (2-space JSON, its key order), atomically.
+ * @param {DocumentLayout} docs @param {DocumentKind} kind @param {unknown} doc */
 export function writeDocumentFile(docs, kind, doc) {
   const file = docs.file(kind);
   fs.mkdirSync(path.dirname(file), { recursive: true });
   writeAtomic(file, JSON.stringify(doc, null, 2) + '\n');
 }
 
-/** Copies the file of `kind` to backups/<same path>.documents.bak (the newest one only), before it is replaced. */
+/** Copies the file of `kind` to backups/<same path>.documents.bak (the newest one only), before it is replaced.
+ * @param {DocumentLayout} docs @param {DocumentKind} kind */
 export function backupDocumentFile(docs, kind) {
   const target = docs.backup(kind);
   fs.mkdirSync(path.dirname(target), { recursive: true });
@@ -105,6 +117,8 @@ export function backupDocumentFile(docs, kind) {
  * The problems that keep `doc` out of the database (empty list = valid): the service's structural check plus
  * the full rules the build applies (validateNutrition with this clone's ingredients.json, validateProgram,
  * validateManual).
+ * @param {string} root @param {DocumentKind} kind @param {any} doc the parsed document, untrusted (checked here)
+ * @returns {string[]}
  */
 export function documentProblems(root, kind, doc) {
   // a plan gets the build's own message first (it names every problem, the structural ones included); the
@@ -114,7 +128,7 @@ export function documentProblems(root, kind, doc) {
       const file = JSON.parse(fs.readFileSync(path.join(root, 'data', 'nutrition', 'ingredients.json'), 'utf8'));
       validateNutrition(file.ingredients, doc);
     } catch (err) {
-      return [err.message];
+      return [/** @type {Error} */ (err).message];
     }
   }
   const field = validateDocument(kind, doc);
@@ -128,7 +142,7 @@ export function documentProblems(root, kind, doc) {
       return validateManual(doc);
     }
   } catch (err) {
-    return [err.message];
+    return [/** @type {Error} */ (err).message];
   }
   return [];
 }

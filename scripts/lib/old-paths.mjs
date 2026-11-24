@@ -5,7 +5,7 @@
 import fs from 'node:fs';
 import { dataPaths, displayPath, legacyPaths } from '../../lib/paths.mjs';
 
-const KINDS = ['profile', 'plan', 'training'];
+const KINDS = /** @type {const} */ (['profile', 'plan', 'training']);
 
 /** One WARNING line naming the old document files that exist, or null when there are none.
  * @param {{ repoRoot: string, env?: Record<string, string | undefined>, exists?: (file: string) => boolean }} opts */

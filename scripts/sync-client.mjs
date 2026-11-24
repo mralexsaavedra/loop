@@ -34,7 +34,15 @@ const REQUEST_TIMEOUT_MS = 15000;
 const DOWNLOAD_TIMEOUT_MS = 300000;
 const SHA_RE = /^[0-9a-f]{64}$/;
 
-/** HC_SYNC_WAIT: whole seconds from 1 to 3600, default 120; anything else throws. */
+/** @typedef {import('./lib/sync-common.mjs').SyncError} SyncError */
+/** A GET /export/files body: `files` and `site` are untrusted (each entry is checked by entryError before use, each
+ * site field where it is read). @typedef {{ files: any[], site: any }} Manifest */
+/** A checked manifest entry (services/loop-ingest/src/files-export.js). @typedef {{ path: string, size: number, sha256: string }} ManifestEntry */
+/** The mirror ledger: the paths this client wrote from the server (with their sha256), the clone-only paths warned about.
+ * @typedef {{ files: Record<string, string>, warned: string[] }} Ledger */
+
+/** HC_SYNC_WAIT: whole seconds from 1 to 3600, default 120; anything else throws.
+ * @param {Record<string, string | undefined>} env */
 export function syncWaitSeconds(env) {
   const raw = String(env.HC_SYNC_WAIT ?? '').trim();
   if (raw === '') return DEFAULT_SYNC_WAIT_S;
@@ -43,6 +51,8 @@ export function syncWaitSeconds(env) {
   return n;
 }
 
+/** @param {string} url
+ * @param {{ token?: string | null, method?: string, timeoutMs?: number, fetchImpl?: typeof fetch }} [opts] */
 async function request(url, { token = null, method = 'GET', timeoutMs = REQUEST_TIMEOUT_MS, fetchImpl = fetch } = {}) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), timeoutMs);
@@ -57,13 +67,14 @@ async function request(url, { token = null, method = 'GET', timeoutMs = REQUEST_
   }
 }
 
-/** The manifest body, or throws on any other shape. */
+/** The manifest body, or throws on any other shape. @param {any} body the parsed answer (untrusted) @returns {Manifest} */
 function manifestOf(body) {
   if (!body || typeof body !== 'object' || !Array.isArray(body.files) || !body.site || typeof body.site !== 'object') throw new Error('unexpected manifest shape');
   return body;
 }
 
-/** GET the manifest: the parsed body, or throws with err.status for a non-200. */
+/** GET the manifest: the parsed body, or throws with err.status for a non-200.
+ * @param {string} base @param {string} token @param {typeof fetch} fetchImpl */
 async function fetchManifest(base, token, fetchImpl) {
   const { res, clear } = await request(`${base}/export/files`, { token, fetchImpl });
   try {
@@ -81,11 +92,13 @@ async function fetchManifest(base, token, fetchImpl) {
  * Which kind of server answers at `base`: {mode: 'client', manifest} | {mode: 'host', reason} | {mode: 'unauthorized'}.
  * A host-mode or older server answers 404; anything that is not a manifest, a 401 or a 404 (no server, a 5xx, a
  * timeout) is 'host' with the reason: today's syncs then run and warn on their own.
+ * @param {{ base: string, token: string, fetchImpl?: typeof fetch }} opts
  */
 export async function detectServer({ base, token, fetchImpl = fetch }) {
   try {
     return { mode: 'client', manifest: await fetchManifest(base, token, fetchImpl) };
-  } catch (err) {
+  } catch (thrown) {
+    const err = /** @type {SyncError} */ (thrown);
     if (err.status === 401) return { mode: 'unauthorized' };
     if (err.status === 404) return { mode: 'host', reason: 'answered HTTP 404 (no /export/files: a host-mode server)' };
     if (err.status) return { mode: 'host', reason: `answered HTTP ${err.status}` };
@@ -98,6 +111,8 @@ export async function detectServer({ base, token, fetchImpl = fetch }) {
  * POST /sync, then poll the manifest every 2 s until its site.processedSeq reaches the returned seq. Returns
  * {waited, seq, manifest}: waited false after a timeout (HC_SYNC_WAIT), a failed server build for that seq or a failed
  * POST, each with one WARNING; the manifest is then the latest one (fetched again when needed).
+ * @param {{ base: string, token: string, waitSeconds?: number, fetchImpl?: typeof fetch, sleep?: (ms: number) => Promise<unknown>,
+ *   now?: () => number, log?: (m: string) => void, warn?: (m: string) => void }} opts
  */
 export async function waitForSeq({ base, token, waitSeconds = DEFAULT_SYNC_WAIT_S, fetchImpl = fetch, sleep = (ms) => new Promise((r) => setTimeout(r, ms)), now = () => Date.now(), log = console.log, warn = console.warn }) {
   let seq;
@@ -111,7 +126,8 @@ export async function waitForSeq({ base, token, waitSeconds = DEFAULT_SYNC_WAIT_
       clear();
     }
   } catch (err) {
-    warn(`WARNING: could not ask the server to refresh (POST /sync: ${err.cause?.code || err.message}); pulling what it has now`);
+    const e = /** @type {SyncError} */ (err);
+    warn(`WARNING: could not ask the server to refresh (POST /sync: ${e.cause?.code || e.message}); pulling what it has now`);
     return { waited: false, seq: null, manifest: await fetchManifest(base, token, fetchImpl) };
   }
   log(`Server refresh requested (sync ${seq}); waiting up to ${waitSeconds} s for the server to process it`);
@@ -135,7 +151,7 @@ export async function waitForSeq({ base, token, waitSeconds = DEFAULT_SYNC_WAIT_
   }
 }
 
-/** Why the manifest entry cannot be mirrored, or null. */
+/** Why the manifest entry cannot be mirrored, or null. @param {any} f an untrusted manifest entry, checked here */
 function entryError(f) {
   if (!f || typeof f !== 'object') return 'not an object';
   if (exportPathError(f.path)) return `bad path ${JSON.stringify(String(f.path)).slice(0, 80)}`;
@@ -148,13 +164,14 @@ function entryError(f) {
   return null;
 }
 
+/** @param {string} file */
 async function fileSha(file) {
   const hash = createHash('sha256');
   await pipeline(fs.createReadStream(file), hash);
   return hash.digest('hex');
 }
 
-/** True when `file` is a regular file with the entry's size and sha256. */
+/** True when `file` is a regular file with the entry's size and sha256. @param {string} file @param {ManifestEntry} entry */
 async function sameFile(file, entry) {
   let st;
   try {
@@ -165,7 +182,8 @@ async function sameFile(file, entry) {
   return st.isFile() && st.size === entry.size && (await fileSha(file)) === entry.sha256;
 }
 
-/** The first existing component of `rel` below `base` (base excluded) that is a symlink, or null. */
+/** The first existing component of `rel` below `base` (base excluded) that is a symlink, or null.
+ * @param {string} base @param {string} rel */
 function symlinkBelow(base, rel) {
   let cur = base;
   for (const seg of rel.split('/')) {
@@ -181,7 +199,8 @@ function symlinkBelow(base, rel) {
   return null;
 }
 
-/** Downloads one entry to `dest` atomically (hidden temp file next to it, size + sha256 checked, rename). Throws. */
+/** Downloads one entry to `dest` atomically (hidden temp file next to it, size + sha256 checked, rename). Throws.
+ * @param {string} base @param {string} token @param {ManifestEntry} entry @param {string} dest @param {typeof fetch} fetchImpl */
 async function download(base, token, entry, dest, fetchImpl) {
   fs.mkdirSync(path.dirname(dest), { recursive: true });
   const tmp = path.join(path.dirname(dest), `.${path.basename(dest)}.${process.pid}.tmp`);
@@ -211,24 +230,28 @@ export const MASS_REMOVAL_MIN = 5;
 /** The mirror ledger, in the data root (hidden: never listed or served): the paths this client wrote from the server. */
 export const LEDGER_FILE = '.mirror-state.json';
 
-/** {files: {path: sha256}, warned: [path]} from the ledger; null when there is none yet (or it is unreadable). */
+/** {files: {path: sha256}, warned: [path]} from the ledger; null when there is none yet (or it is unreadable).
+ * @param {string} root @returns {Ledger | null} */
 export function readLedger(root) {
   try {
     const raw = JSON.parse(fs.readFileSync(path.join(root, LEDGER_FILE), 'utf8'));
     if (!raw || typeof raw !== 'object' || !raw.files || typeof raw.files !== 'object' || Array.isArray(raw.files)) return null;
+    /** @type {Record<string, string>} */
     const files = {};
     for (const [p, h] of Object.entries(raw.files)) if (!exportPathError(p) && typeof h === 'string' && SHA_RE.test(h)) files[p] = h;
-    const warned = Array.isArray(raw.warned) ? raw.warned.filter((p) => typeof p === 'string') : [];
+    const warned = Array.isArray(raw.warned) ? raw.warned.filter((/** @type {unknown} */ p) => typeof p === 'string') : [];
     return { files, warned };
   } catch {
     return null;
   }
 }
 
+/** @param {string} root @param {{ files: Record<string, string>, warned: Iterable<string> }} ledger */
 function writeLedger(root, ledger) {
   fs.mkdirSync(root, { recursive: true });
   const file = path.join(root, LEDGER_FILE);
   const tmp = `${file}.${process.pid}.tmp`;
+  /** @param {Record<string, string>} o */
   const sorted = (o) => Object.fromEntries(Object.keys(o).sort().map((k) => [k, o[k]]));
   try {
     fs.writeFileSync(tmp, JSON.stringify({ version: 1, files: sorted(ledger.files), warned: [...ledger.warned].sort() }, null, 2) + '\n', { mode: 0o600 });
@@ -238,13 +261,14 @@ function writeLedger(root, ledger) {
   }
 }
 
-/** Moves `abs` to `target` (the newest backup only: an older one is replaced), across file systems too. */
+/** Moves `abs` to `target` (the newest backup only: an older one is replaced), across file systems too.
+ * @param {string} abs @param {string} target */
 function moveToBackup(abs, target) {
   fs.mkdirSync(path.dirname(target), { recursive: true, mode: 0o700 });
   try {
     fs.renameSync(abs, target);
   } catch (err) {
-    if (err.code !== 'EXDEV') throw err;
+    if (/** @type {NodeJS.ErrnoException} */ (err).code !== 'EXDEV') throw err;
     fs.copyFileSync(abs, target);
     fs.unlinkSync(abs);
   }
@@ -281,8 +305,11 @@ export async function mirrorFiles({ base, token, manifest, root, filesDir = path
   // files/* sit below the data root when the files folder is the default one (then <root>/files must be a real
   // folder too); a files folder set elsewhere (HC_FILES_DIR) is a base of its own, like the data root
   const filesUnderRoot = path.resolve(filesDir) === path.resolve(root, 'files');
+  /** @param {string} p */
   const place = (p) => (p.startsWith('files/') && !filesUnderRoot ? { base: filesDir, rel: p.slice('files/'.length) } : { base: root, rel: p });
+  /** @param {string} abs */
   const show = (abs) => path.relative(root, abs).split(path.sep).join('/');
+  /** @param {string} p */
   const backupOf = (p) => path.join(backupsDir, ...`${p}.mirror.bak`.split('/'));
   for (const dir of EXPORT_DIRS) {
     const { base: b, rel } = place(dir);
@@ -293,6 +320,7 @@ export async function mirrorFiles({ base, token, manifest, root, filesDir = path
     }
   }
   const previous = readLedger(root);
+  /** @type {{ files: Record<string, string>, warned: Set<string> }} */
   const ledger = { files: { ...(previous?.files ?? {}) }, warned: new Set(previous?.warned ?? []) };
   const localFiles = await listExportFiles({ dataDir: root, filesDir });
   // mirrored = written here from the server (in the ledger); everything else the clone has is its own
@@ -339,7 +367,8 @@ export async function mirrorFiles({ base, token, manifest, root, filesDir = path
       if (verbose) log(`Downloaded ${entry.path}`);
     } catch (err) {
       failed += 1;
-      warn(`WARNING: could not mirror ${entry.path} (${err.cause?.code || err.message}); the local copy is kept`);
+      const e = /** @type {SyncError} */ (err);
+      warn(`WARNING: could not mirror ${entry.path} (${e.cause?.code || e.message}); the local copy is kept`);
     }
   }
   // the same listing rules as the server (no hidden / temp / lock / backup file, no symlink), and only a file this
@@ -357,7 +386,8 @@ export async function mirrorFiles({ base, token, manifest, root, filesDir = path
       delete ledger.files[f.path];
     } catch (err) {
       failed += 1;
-      warn(`WARNING: could not remove ${f.path} (${err.code || err.message})`);
+      const e = /** @type {NodeJS.ErrnoException} */ (err);
+      warn(`WARNING: could not remove ${f.path} (${e.code || e.message})`);
     }
   }
   // a ledger path that is neither on the server nor in the clone any more is forgotten
@@ -374,7 +404,8 @@ export async function mirrorFiles({ base, token, manifest, root, filesDir = path
     writeLedger(root, ledger);
   } catch (err) {
     failed += 1;
-    warn(`WARNING: could not save the mirror ledger ${LEDGER_FILE} (${err.code || err.message}); the next run removes nothing it does not list`);
+    const e = /** @type {NodeJS.ErrnoException} */ (err);
+    warn(`WARNING: could not save the mirror ledger ${LEDGER_FILE} (${e.code || e.message}); the next run removes nothing it does not list`);
   }
   log(`Mirror: ${manifest.files.length} files on the server: ${downloaded} downloaded, ${unchanged} unchanged, ${removed} removed${failed ? `, ${failed} failed` : ''}`);
   return failed ? 1 : 0;

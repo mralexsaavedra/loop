@@ -5,6 +5,10 @@
  * hand-rolled parser covers everything actually used here.
  */
 
+/** @typedef {[prop: string, value: string]} CssDecl */
+/** @typedef {{ media: string | null, selector: string, decls: CssDecl[] }} CssRule */
+
+/** @param {string} css */
 function stripComments(css) {
   return css.replace(/\/\*[\s\S]*?\*\//g, '');
 }
@@ -12,12 +16,14 @@ function stripComments(css) {
 // The built page's CSS is whitespace-minified (slimStyle), which also writes `.a>.b` for `.a > .b` and
 // `[type=radio]` for `[type="radio"]`: both pairs are the same selector, so both collapse to one form.
 // Idempotent, so it also canonicalizes keys of the checked-in fixture (written before slimming).
+/** @param {string} sel */
 export function canonicalSelector(sel) {
   return sel
     .replace(/\s*([>+~])\s*/g, '$1') // `.a > .b` and `.a>.b` are the same combinator
     .replace(/\[([^\]=\s]+)([~|^$*]?=)"([-\w]+)"\]/g, '[$1$2$3]'); // `[a="x"]` = `[a=x]` for an identifier value
 }
 
+/** @param {string} sel */
 function normalizeSelector(sel) {
   return canonicalSelector(
     sel
@@ -29,6 +35,7 @@ function normalizeSelector(sel) {
   );
 }
 
+/** @param {string} media */
 function normalizeMedia(media) {
   if (!media) return null;
   return media.replace(/\s+/g, '').toLowerCase();
@@ -39,6 +46,7 @@ function normalizeMedia(media) {
 // numbers (`.14` → `0.14`, `0.10` → `0.1`) via parseFloat, lowercase. Two
 // declarations that only differ by this kind of formatting are considered
 // equivalent.
+/** @param {string} value */
 function normalizeValue(value) {
   let v = value.replace(/\s+/g, ' ').trim();
   v = v.replace(/\s*,\s*/g, ', ');
@@ -47,7 +55,9 @@ function normalizeValue(value) {
   return v.toLowerCase();
 }
 
+/** @param {string} block */
 function parseDeclarations(block) {
+  /** @type {CssDecl[]} */
   const decls = [];
   for (const raw of block.split(';')) {
     const chunk = raw.trim();
@@ -61,7 +71,9 @@ function parseDeclarations(block) {
   return decls;
 }
 
+/** @param {string} css */
 function parseRuleBlocks(css) {
+  /** @type {Omit<CssRule, 'media'>[]} */
   const rules = [];
   const re = /([^{}]+)\{([^{}]*)\}/g;
   let m;
@@ -78,12 +90,16 @@ function parseRuleBlocks(css) {
  * `media` is the normalized @media condition text, or `null` for top-level
  * rules. `decls` is an array of `[prop, normalizedValue]` pairs. Handles a
  * single level of @media nesting (this project never nests further).
+ * @param {string} cssText
+ * @returns {CssRule[]}
  */
 export function parseCssRules(cssText) {
   const css = stripComments(cssText);
+  /** @type {CssRule[]} */
   const entries = [];
   const mediaRe = /@media([^{]*)\{/g;
   let m;
+  /** @type {string[]} */
   const topLevelChunks = [];
   let lastIndex = 0;
 
@@ -120,8 +136,11 @@ export function parseCssRules(cssText) {
  * → normalized value. A later occurrence of the same key overwrites an
  * earlier one (mirrors the CSS cascade for a repeated identical selector),
  * which is the right behavior for a "is this declaration present" check.
+ * @param {CssRule[]} rules
+ * @returns {Map<string, string>}
  */
 export function ruleDeclarationMap(rules) {
+  /** @type {Map<string, string>} */
   const map = new Map();
   for (const rule of rules) {
     for (const [prop, value] of rule.decls) {

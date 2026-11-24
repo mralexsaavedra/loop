@@ -30,6 +30,9 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // Default: lib/paths.mjs profileDir (data/profile, or <HC_DATA_DIR>/profile).
 // SYNC_PROFILE_OUT_DIR exists ONLY so the child-process tests can point main() at a tmp dir
+/** @typedef {import('../../scripts/lib/sync-common.mjs').SyncError} SyncError */
+/** The page's stored settings, checked. @typedef {{ goal: string | null, targetWeightKg: number | null, locale: string | null, updatedAt: string | null }} Settings */
+/** @param {common.Env} env */
 const defaultOut = (env) => env.SYNC_PROFILE_OUT_DIR || dataPaths({ repoRoot: path.resolve(__dirname, '..', '..'), env }).profileDir
 const SETTINGS_JSON = 'settings.json'
 // copies of lib/nutrition/foodlog.mjs SETTINGS_GOALS / FOOD_LIMITS.targetWeight* (a test pins them equal)
@@ -39,9 +42,11 @@ const TARGET_MAX = 250
 // copy of web/src/env.mjs PAGE_LOCALES / the service's SETTINGS_LOCALES (a test pins them equal)
 const LOCALES = ['es', 'en']
 
+/** @param {unknown} v */
 const isIsoInstant = (v) => typeof v === 'string' && !Number.isNaN(Date.parse(v)) && /^\d{4}-\d{2}-\d{2}T/.test(v)
 
-/** The GET /food/settings body ({settings: {...}}) reduced to the four stored fields; throws when malformed. */
+/** The GET /food/settings body ({settings: {...}}) reduced to the four stored fields; throws when malformed.
+ * @param {any} body the parsed response, untrusted: every field is checked here @returns {Settings} */
 function normalizeSettings (body) {
   const s = body && body.settings
   if (!s || typeof s !== 'object' || Array.isArray(s)) throw new Error('unexpected response shape (expected {settings: {...}})')
@@ -56,13 +61,15 @@ function normalizeSettings (body) {
   return { goal, targetWeightKg: t, locale, updatedAt: u }
 }
 
-/** GET <base>/food/settings with the food layer's header; the HTTP status (if any) is kept on err.status. */
+/** GET <base>/food/settings with the food layer's header; the HTTP status (if any) is kept on err.status.
+ * @param {string} baseUrl @param {{ fetchImpl?: typeof fetch, timeoutMs?: number }} [opts] */
 async function fetchSettings (baseUrl, { fetchImpl = fetch, timeoutMs = 10000 } = {}) {
   return common.fetchJson(`${String(baseUrl).replace(/\/+$/, '')}/food/settings`, null, {
     fetchImpl, timeoutMs, headers: { 'x-hc-food': '1', accept: 'application/json' }, redirect: 'error'
   })
 }
 
+/** @param {string} file @returns {any} the parsed JSON (untrusted) or null */
 function readJsonOrNull (file) {
   try {
     return JSON.parse(fs.readFileSync(file, 'utf8'))
@@ -72,9 +79,11 @@ function readJsonOrNull (file) {
 }
 
 // strict: a file from before the locale key (undefined) is rewritten once with locale null
+/** @param {Record<string, unknown>} a @param {Record<string, unknown>} b */
 const sameContent = (a, b) => a.goal === b.goal && a.targetWeightKg === b.targetWeightKg && a.locale === b.locale && a.updatedAt === b.updatedAt
 
-/** Writes settings.json when the content changed or the stored fetchedAt is from an earlier UTC day. */
+/** Writes settings.json when the content changed or the stored fetchedAt is from an earlier UTC day.
+ * @param {string} dir @param {unknown} body @param {{ now?: Date, writeAtomic?: typeof common.writeAtomic }} [opts] */
 function syncSettings (dir, body, { now = new Date(), writeAtomic = common.writeAtomic } = {}) {
   const next = normalizeSettings(body)
   fs.mkdirSync(dir, { recursive: true })
@@ -88,7 +97,9 @@ function syncSettings (dir, body, { now = new Date(), writeAtomic = common.write
   return { written: true, settings: next }
 }
 
-function warning (err, baseUrl) {
+/** @param {unknown} thrown @param {string} baseUrl */
+function warning (thrown, baseUrl) {
+  const err = /** @type {SyncError | null | undefined} */ (thrown)
   const status = err && err.status
   if (status === 404) return 'WARNING: the ingest service has no /food/settings — rebuild/restart the loop-ingest container. settings.json kept.'
   if (status === 503) return 'WARNING: the ingest service answered 503 (settings unavailable: its 007_settings migration failed). settings.json kept.'
@@ -121,7 +132,7 @@ async function main ({ env = process.env, log = console.log, error = console.err
     log(`Settings: goal ${s.goal || 'not set'}, target ${s.targetWeightKg != null ? `${s.targetWeightKg} kg` : 'not set'}, language ${s.locale || 'not set'}; ${r.written ? 'written' : 'unchanged'}`)
     return 0
   } catch (err) {
-    error(`ERROR: settings sync failed (${(err && err.message) || err}). The file is only ever replaced atomically.`)
+    error(`ERROR: settings sync failed (${(err && /** @type {Error} */ (err).message) || err}). The file is only ever replaced atomically.`)
     return 1
   }
 }

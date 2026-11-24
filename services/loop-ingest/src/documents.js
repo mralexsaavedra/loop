@@ -24,6 +24,13 @@
  */
 import { send, readJson, isJson, httpError, containsNul } from './http.js'
 
+/** @typedef {import('./http.js').HttpError} HttpError */
+/** A stored document (documents-db.js): its JSON, revision and last save.
+ * @typedef {{ data: unknown, revision: number, updatedAt: string | null }} DocumentRow */
+/** The storage the routes need (documents-db.js createDocumentStore; tests pass a fake). put resolves null on a
+ * revision conflict.
+ * @typedef {{ get: (kind: string) => Promise<DocumentRow | null>, put: (kind: string, data: unknown, expected: number) => Promise<DocumentRow | null> }} DocumentStore */
+
 export const DOCUMENT_KINDS = Object.freeze(['plan', 'training', 'profile'])
 export const DOCUMENT_BODY_LIMIT = 256 * 1024
 
@@ -33,33 +40,41 @@ const MAX_REVISION = 2 ** 31 - 1
 const METHODS = ['GET', 'PUT']
 // the top-level objects each kind cannot do without (lib/load/inputs.mjs, lib/nutrition/macros.mjs,
 // lib/training/program.mjs); a profile may be empty
+/** @type {Record<string, string[]>} */
 const REQUIRED_OBJECTS = { plan: ['data', 'targets', 'dayPlan'], training: ['days'], profile: [] }
 
+/** @type {(v: unknown) => v is Record<string, unknown>} */
 const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v)
 
 // plan.data: every category a list of item objects, or an object whose every value is such a list -- the cheap
 // shape rule of lib/nutrition/macros.mjs dataShapeErrors (this image cannot import lib/; scripts/documents.test.mjs
 // pins the two to agree), so a stored plan can never crash the page build's walk over it
+/** @param {unknown} v */
 const itemList = (v) => Array.isArray(v) && v.every(isObject)
+/** @param {object} data */
 const planDataOk = (data) => Object.values(data).every((v) => itemList(v) || (isObject(v) && Object.values(v).every(itemList)))
 
-/** The field that breaks the kind's top-level shape ('document' when it is not an object), or null. */
+/** The field that breaks the kind's top-level shape ('document' when it is not an object), or null.
+ * @param {string} kind one of DOCUMENT_KINDS @param {unknown} doc @returns {string | null} */
 export function validateDocument (kind, doc) {
   if (!isObject(doc)) return 'document'
   for (const key of REQUIRED_OBJECTS[kind]) if (!isObject(doc[key])) return key
-  if (kind === 'plan' && !planDataOk(doc.data)) return 'data'
+  if (kind === 'plan' && !planDataOk(/** @type {object} */ (doc.data))) return 'data' // an object: checked above
   return null
 }
 
+/** @param {string} field @param {string} [reason] @returns {HttpError} */
 function invalid (field, reason) {
   return Object.assign(httpError(400, 'invalid', field), reason ? { reason } : {})
 }
 
-/** {revision, document} from a PUT body, or a 400 naming the first bad field. */
+/** {revision, document} from a PUT body, or a 400 naming the first bad field.
+ * @param {string} kind @param {unknown} body @returns {{ revision: number, document: unknown }} */
 function parsePut (kind, body) {
   if (!isObject(body)) throw invalid('document')
   for (const key of Object.keys(body)) if (key !== 'revision' && key !== 'document') throw invalid(key)
-  const { revision, document } = body
+  // revision is checked on the next line
+  const { revision, document } = /** @type {{ revision: number, document: unknown }} */ (body)
   if (!Number.isInteger(revision) || revision < 0 || revision > MAX_REVISION) throw invalid('revision')
   const field = validateDocument(kind, document)
   if (field) throw invalid(field)
@@ -67,9 +82,16 @@ function parsePut (kind, body) {
   return { revision, document }
 }
 
-function sendError (err, req, res, log) {
+/**
+ * @param {unknown} thrown an HttpError, or anything else a bug threw (500)
+ * @param {import('node:http').IncomingMessage} req @param {import('node:http').ServerResponse} res
+ * @param {(line: string) => void} log
+ */
+function sendError (thrown, req, res, log) {
+  const err = /** @type {Partial<HttpError> | null | undefined} */ (thrown)
   if (res.headersSent) return
   if (err?.status && err.code) {
+    /** @type {{ error: string, field?: string, reason?: string, revision?: number }} */
     const body = { error: err.code }
     if (err.field) body.field = err.field
     if (err.reason) body.reason = err.reason
@@ -89,7 +111,12 @@ function sendError (err, req, res, log) {
   send(res, 500, { error: 'internal' })
 }
 
+/**
+ * @param {{ store: DocumentStore, available?: () => boolean,
+ *   checkBearer: (req: import('node:http').IncomingMessage) => boolean, log?: (line: string) => void }} opts
+ */
 export function createDocumentRoutes ({ store, available = () => true, checkBearer, log = console.log }) {
+  /** @param {import('node:http').IncomingMessage} req @param {import('node:http').ServerResponse} res @param {string} kind */
   async function dispatch (req, res, kind) {
     if (req.method === 'GET') {
       req.resume()
@@ -108,16 +135,17 @@ export function createDocumentRoutes ({ store, available = () => true, checkBear
   }
 
   return {
-    /** Handles /documents and /documents/*; false for any other path (the caller keeps routing). */
+    /** Handles /documents and /documents/*; false for any other path (the caller keeps routing).
+     * @param {import('node:http').IncomingMessage} req @param {import('node:http').ServerResponse} res @param {URL} url */
     async handle (req, res, url) {
       const path = url.pathname
       if (path !== '/documents' && !path.startsWith('/documents/')) return false
       try {
         if (!checkBearer(req)) throw httpError(401, 'unauthorized')
         const kind = PATH_RE.exec(path)?.[1]
-        if (!DOCUMENT_KINDS.includes(kind)) throw httpError(404, 'not_found')
+        if (kind === undefined || !DOCUMENT_KINDS.includes(kind)) throw httpError(404, 'not_found')
         if (!available()) throw httpError(503, 'documents_unavailable')
-        if (!METHODS.includes(req.method)) {
+        if (!METHODS.includes(/** @type {string} */ (req.method))) {
           req.resume()
           send(res, 405, { error: 'method_not_allowed' }, { allow: METHODS.join(', ') })
           return true

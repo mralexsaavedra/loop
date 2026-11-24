@@ -35,7 +35,12 @@ import { oldDocumentsWarning } from './lib/old-paths.mjs';
 export { DOCUMENT_FILES };
 export const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 
-/** The document of a GET /documents/:kind body: {doc (null = never saved), revision}; throws on any other shape. */
+/** @typedef {import('./lib/documents.mjs').DocumentKind} DocumentKind */
+/** @typedef {import('./lib/sync-common.mjs').SyncError} SyncError */
+
+/** The document of a GET /documents/:kind body: {doc (null = never saved), revision}; throws on any other shape.
+ * @param {string} kind @param {any} body the parsed response, untrusted: checked here
+ * @returns {{ doc: any, revision: number }} doc: the document (its shape checked by validateDocument) or null */
 export function documentOf(kind, body) {
   if (!body || typeof body !== 'object' || body.kind !== kind || !('document' in body) || !Number.isInteger(body.revision)) {
     throw new Error('unexpected response');
@@ -46,7 +51,8 @@ export function documentOf(kind, body) {
   return { doc: body.document, revision: body.revision };
 }
 
-/** GET /documents/:kind with the bearer token: {doc, revision}. */
+/** GET /documents/:kind with the bearer token: {doc, revision}.
+ * @param {string} base @param {string} token @param {string} kind @param {typeof fetch} [fetchImpl] */
 export function fetchDocument(base, token, kind, fetchImpl) {
   return fetchJson(`${base}/documents/${kind}`, token, { fetchImpl, timeoutMs: 10000, redirect: 'error' })
     .then((body) => documentOf(kind, body));
@@ -76,8 +82,9 @@ export async function main({ env = process.env, log = console.log, warn = consol
     try {
       remote = await fetchDocument(base, token, kind, fetchImpl);
     } catch (err) {
-      const hint = err.status === 404 ? ' (rebuild the loop-ingest container)' : '';
-      warn(`WARNING: ${kind} document sync skipped (${err.message}${hint}); ${rel} is kept`);
+      const e = /** @type {SyncError} */ (err);
+      const hint = e.status === 404 ? ' (rebuild the loop-ingest container)' : '';
+      warn(`WARNING: ${kind} document sync skipped (${e.message}${hint}); ${rel} is kept`);
       skipped += 1;
       continue;
     }
@@ -109,7 +116,7 @@ export async function main({ env = process.env, log = console.log, warn = consol
       recordState(docs, kind, remote.revision, hash);
       log(`Documents: ${kind} written -> ${rel}${backup ? ` (your version backed up to ${backup})` : ''}`);
     } catch (err) {
-      warn(`ERROR: ${kind} document sync could not write ${rel} (${err.message})`);
+      warn(`ERROR: ${kind} document sync could not write ${rel} (${/** @type {Error} */ (err).message})`);
       code = 1;
     }
   }

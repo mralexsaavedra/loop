@@ -14,7 +14,8 @@ const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const REPO = 'https://github.com/mralexsaavedra/loop';
 const IMAGES = ['mralexandersaavedra/loop-server', 'mralexandersaavedra/loop-web'];
 
-/** The release body of `version` from the CHANGELOG text; throws when the version has no dated, non-empty section. */
+/** The release body of `version` from the CHANGELOG text; throws when the version has no dated, non-empty section.
+ * @param {string} changelog @param {string} version */
 export function releaseNotes(changelog, version) {
   const lines = changelog.split('\n');
   const head = `## [${version}] - `;
@@ -25,7 +26,7 @@ export function releaseNotes(changelog, version) {
   const body = (end === -1 ? rest : rest.slice(0, end)).join('\n').trim();
   if (!body) throw new Error(`the CHANGELOG section of ${version} is empty`);
   // [text](docs/x.md#y) -> the file in the tagged tree; absolute URLs and #anchors stay
-  const linked = body.replace(/\]\((?!https?:|#|mailto:)([^)\s]+)\)/g, (_, p) => `](${REPO}/blob/v${version}/${p.replace(/^\.\//, '')})`);
+  const linked = body.replace(/\]\((?!https?:|#|mailto:)([^)\s]+)\)/g, (_, /** @type {string} */ p) => `](${REPO}/blob/v${version}/${p.replace(/^\.\//, '')})`);
   const images = IMAGES.map((i) => `\`${i}:${version}\``).join(' and ');
   return `${linked}\n\n---\nImages: ${images} (linux/amd64, linux/arm64). Install or upgrade: README → Setup and ` +
     `[docs/guides/upgrading.md](${REPO}/blob/v${version}/docs/guides/upgrading.md).\n`;
@@ -38,7 +39,7 @@ function main() {
     const file = values.changelog || path.join(ROOT, 'CHANGELOG.md');
     process.stdout.write(releaseNotes(fs.readFileSync(file, 'utf8'), positionals[0]));
   } catch (err) {
-    process.stderr.write(`ERROR: ${err.message}\n`);
+    process.stderr.write(`ERROR: ${/** @type {Error} */ (err).message}\n`);
     process.exitCode = 1;
   }
 }

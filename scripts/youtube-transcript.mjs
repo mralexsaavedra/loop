@@ -14,6 +14,25 @@ const RECENT_LINES = 2;
 
 const VALID_TABS = ['videos', 'streams'];
 
+/** @typedef {{ start: number, lines: string[] }} Cue A WebVTT cue: start (seconds) and its raw text rows. */
+/** @typedef {{ start: number, text: string }} TranscriptLine A cleaned line (or paragraph) with its start (seconds). */
+/** @typedef {'manual' | 'auto' | 'none'} SubsKind */
+/**
+ * @typedef {object} ManifestEntry One video in manifest.json.
+ * @property {string} title
+ * @property {string | null} date
+ * @property {number | null} duration
+ * @property {string} tab
+ * @property {SubsKind} subs
+ * @property {string | null} file
+ * @property {number} words
+ * @property {string} [fetchedAt]
+ */
+/** @typedef {{ source?: string, channel?: string, videos?: Record<string, ManifestEntry>, [key: string]: unknown }} Manifest */
+/** @typedef {{ id: string, duration: number | null, live?: string, tab: string }} ListedVideo A row of a channel tab listing. */
+/** @typedef {{ channel: string, out: string, tabs: string[], limit: number, lang: string }} IngestOptions */
+
+/** @param {string} ts */
 function tsSeconds(ts) {
   const m = TS_RE.exec(ts.trim());
   if (!m) return null;
@@ -22,12 +41,18 @@ function tsSeconds(ts) {
   return millis / 1000;
 }
 
-/** Parse a WebVTT document into cues `{start (seconds), lines (raw text)}`. */
+/**
+ * Parse a WebVTT document into cues `{start (seconds), lines (raw text)}`.
+ * @param {unknown} text
+ * @returns {Cue[]}
+ */
 export function parseVtt(text) {
   // Line-based, not blank-line-based: YouTube cues can carry an empty first text
   // row, which would split a cue from its text.
   const rows = String(text).replace(/\r\n?/g, '\n').split('\n');
+  /** @type {Cue[]} */
   const cues = [];
+  /** @type {Cue | null} */
   let cur = null;
   for (let i = 0; i < rows.length; i++) {
     const row = rows[i];
@@ -44,8 +69,10 @@ export function parseVtt(text) {
   return cues;
 }
 
+/** @type {Record<string, string>} */
 const ENTITIES = { '&amp;': '&', '&lt;': '<', '&gt;': '>', '&quot;': '"', '&#39;': "'", '&apos;': "'", '&nbsp;': ' ' };
 
+/** @param {string} raw */
 function cleanLine(raw) {
   return raw
     .replace(/<[^>]*>/g, '') // <c>, <i>, inline <00:00:01.000> word timings
@@ -60,11 +87,16 @@ function cleanLine(raw) {
  * Cues -> transcript lines `{start, text}`: tags stripped, entities decoded, sound
  * tags dropped, and the rolling-caption repeats of auto subtitles removed (each auto
  * cue restates the previous line before adding the new one).
+ * @param {Cue[]} cues
+ * @returns {TranscriptLine[]}
  */
 export function cleanCues(cues) {
+  /** @type {TranscriptLine[]} */
   const out = [];
+  /** @type {string[]} */
   const recent = [];
   for (const cue of cues) {
+    /** @type {string[]} */
     const fresh = [];
     for (const raw of cue.lines) {
       const line = cleanLine(raw);
@@ -79,9 +111,16 @@ export function cleanCues(cues) {
   return out;
 }
 
-/** Group lines into paragraphs of roughly 30-60 s, each keeping its first line's start. */
+/**
+ * Group lines into paragraphs of roughly 30-60 s, each keeping its first line's start.
+ * @param {TranscriptLine[]} lines
+ * @param {{ soft?: number, hard?: number }} [pacing]
+ * @returns {TranscriptLine[]}
+ */
 export function toParagraphs(lines, { soft = PARAGRAPH_SOFT_S, hard = PARAGRAPH_HARD_S } = {}) {
+  /** @type {TranscriptLine[]} */
   const paras = [];
+  /** @type {{ start: number, parts: string[] } | null} */
   let cur = null;
   const close = () => {
     if (cur) paras.push({ start: cur.start, text: cur.parts.join(' ') });
@@ -97,9 +136,13 @@ export function toParagraphs(lines, { soft = PARAGRAPH_SOFT_S, hard = PARAGRAPH_
   return paras;
 }
 
+/** @param {number} n */
 const pad = (n) => String(n).padStart(2, '0');
 
-/** Seconds -> "mm:ss", or "h:mm:ss" from one hour. */
+/**
+ * Seconds -> "mm:ss", or "h:mm:ss" from one hour.
+ * @param {number} seconds
+ */
 export function fmtTs(seconds) {
   const s = Math.max(0, Math.floor(seconds));
   const h = Math.floor(s / 3600);
@@ -108,53 +151,88 @@ export function fmtTs(seconds) {
   return h ? `${h}:${mm}:${ss}` : `${mm}:${ss}`;
 }
 
-/** yt-dlp's upload_date "YYYYMMDD" -> "YYYY-MM-DD", else null. */
+/**
+ * yt-dlp's upload_date "YYYYMMDD" -> "YYYY-MM-DD", else null.
+ * @param {unknown} uploadDate
+ * @returns {string | null}
+ */
 export function isoDate(uploadDate) {
   const m = /^(\d{4})(\d{2})(\d{2})$/.exec(String(uploadDate ?? ''));
   return m ? `${m[1]}-${m[2]}-${m[3]}` : null;
 }
 
-/** "<YYYY-MM-DD>-<id>.md" ("undated-<id>.md" without a date); the id keeps only [A-Za-z0-9_-]. */
+/** "<YYYY-MM-DD>-<id>.md" ("undated-<id>.md" without a date); the id keeps only [A-Za-z0-9_-].
+ * @param {string | null} date
+ * @param {string} id
+ */
 export function transcriptFileName(date, id) {
   return `${date || 'undated'}-${String(id).replace(/[^A-Za-z0-9_-]/g, '')}.md`;
 }
 
+/** @param {string} id */
 export function videoUrl(id) {
   return `https://www.youtube.com/watch?v=${id}`;
 }
 
+/**
+ * @param {string} id
+ * @param {number} seconds
+ */
 export function timestampUrl(id, seconds) {
   return `${videoUrl(id)}&t=${Math.max(0, Math.floor(seconds))}s`;
 }
 
+/**
+ * @param {unknown} formats yt-dlp's format list for one language (untrusted JSON)
+ * @param {{ original?: boolean }} [opts]
+ */
 const hasVtt = (formats, { original = false } = {}) =>
   Array.isArray(formats) &&
-  formats.some((f) => f && f.ext === 'vtt' && !(original && /[?&]tlang=/.test(String(f.url || ''))));
+  formats.some((/** @type {{ ext?: unknown, url?: unknown } | null} */ f) => f && f.ext === 'vtt' && !(original && /[?&]tlang=/.test(String(f.url || ''))));
 
 /**
  * Choose the subtitle track from a yt-dlp info JSON: a manual track in `lang`
  * (exact key first, then a regional variant), else the ORIGINAL auto captions
  * (`<lang>-orig`, else `<lang>` when it is not a machine translation). Null = none.
+ * @param {any} info yt-dlp info JSON (untrusted; every field read is re-checked)
+ * @param {string} lang
+ * @returns {{ kind: 'manual' | 'auto', key: string } | null}
  */
 export function pickSubtitle(info, lang) {
+  /** @type {Record<string, unknown>} */
   const manual = (info && info.subtitles) || {};
   const manualKeys = [lang, ...Object.keys(manual).filter((k) => k.startsWith(`${lang}-`)).sort()];
   for (const key of manualKeys) if (hasVtt(manual[key])) return { kind: 'manual', key };
+  /** @type {Record<string, unknown>} */
   const auto = (info && info.automatic_captions) || {};
   if (hasVtt(auto[`${lang}-orig`])) return { kind: 'auto', key: `${lang}-orig` };
   if (hasVtt(auto[lang], { original: true })) return { kind: 'auto', key: lang };
   return null;
 }
 
-/** Return a new manifest with `videos[id] = entry`; `head` (source, channel) is (re)applied. */
+/** Return a new manifest with `videos[id] = entry`; `head` (source, channel) is (re)applied.
+ * @param {Manifest | null} manifest
+ * @param {string} id
+ * @param {ManifestEntry} entry
+ * @param {{ source: string, channel: string }} head
+ * @returns {Manifest}
+ */
 export function mergeManifest(manifest, id, entry, head) {
+  /** @type {Manifest} */
   const base = manifest && typeof manifest === 'object' ? manifest : {};
   return { ...base, ...head, videos: { ...(base.videos || {}), [id]: entry } };
 }
 
-/** Listing entries not yet in the manifest, first occurrence only, at most `limit`. */
+/** Listing entries not yet in the manifest, first occurrence only, at most `limit`.
+ * @template {{ id: string }} T
+ * @param {T[]} listing
+ * @param {Manifest | null} manifest
+ * @param {number} [limit]
+ * @returns {T[]}
+ */
 export function pendingIds(listing, manifest, limit = Infinity) {
   const done = new Set(Object.keys((manifest && manifest.videos) || {}));
+  /** @type {T[]} */
   const out = [];
   for (const v of listing) {
     if (out.length >= limit) break;
@@ -165,14 +243,17 @@ export function pendingIds(listing, manifest, limit = Infinity) {
   return out;
 }
 
-/** Markdown transcript: header (title, url, date, duration, subtitle kind) then `[mm:ss]` paragraphs. */
+/** Markdown transcript: header (title, url, date, duration, subtitle kind) then `[mm:ss]` paragraphs.
+ * @param {{ id: string, title: string, date: string | null, duration: number | null, subs: string }} video
+ * @param {TranscriptLine[]} paragraphs
+ */
 export function renderTranscript({ id, title, date, duration, subs }, paragraphs) {
   const subsLine = subs === 'auto' ? 'auto (automatic captions: verify numbers in the video)' : subs;
   const lines = [
     `# ${title}`, '',
     `- URL: ${videoUrl(id)}`,
     `- Date: ${date || 'unknown'}`,
-    `- Duration: ${Number.isFinite(duration) ? fmtTs(duration) : 'unknown'}`,
+    `- Duration: ${Number.isFinite(duration) ? fmtTs(/** @type {number} */ (duration)) : 'unknown'}`,
     `- Subtitles: ${subsLine}`,
     '',
   ];
@@ -180,12 +261,17 @@ export function renderTranscript({ id, title, date, duration, subs }, paragraphs
   return lines.join('\n');
 }
 
+/** @param {TranscriptLine[]} paragraphs */
 export function wordCount(paragraphs) {
   return paragraphs.reduce((n, p) => n + p.text.split(/\s+/).filter(Boolean).length, 0);
 }
 
-/** CLI flags of ingest-youtube.mjs. Throws with a usage-style message on bad input. */
+/** CLI flags of ingest-youtube.mjs. Throws with a usage-style message on bad input.
+ * @param {string[]} argv
+ * @returns {IngestOptions}
+ */
 export function parseArgs(argv) {
+  /** @type {{ channel: string | null, out: string | null, tabs: string[], limit: number, lang: string }} */
   const opts = { channel: null, out: null, tabs: [...VALID_TABS], limit: Infinity, lang: 'es' };
   for (let i = 0; i < argv.length; i++) {
     const flag = argv[i];
@@ -223,5 +309,5 @@ export function parseArgs(argv) {
   }
   if (!opts.channel) throw new Error('--channel <url> is required');
   if (!opts.out) throw new Error('--out <dir> is required');
-  return opts;
+  return /** @type {IngestOptions} */ (opts);
 }

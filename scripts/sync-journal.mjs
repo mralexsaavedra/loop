@@ -30,22 +30,26 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 /** The extract the journal lands in (lib/paths.mjs: loop-data/extract, or <HC_DATA_DIR>/extract). */
 export const defaultOut = (env = process.env) => dataPaths({ repoRoot: ROOT, env }).extractDir;
 export const META_FILE = 'journal-daily.meta.json';
+/** @typedef {import('../lib/journal/journal.mjs').JournalDay} JournalDay */
+/** A checked GET /journal/summary body. @typedef {{ from: string, to: string, days: JournalDay[] }} JournalSummary */
 
 /** {from, to}: rangeDaysMax days inclusive, ending on the local date of `now`. */
 export function windowFor(now = new Date()) {
   return windowEndingOn(now, JOURNAL_LIMITS.rangeDaysMax);
 }
 
-/** The GET /journal/summary body reduced to known fields; throws when malformed. */
+/** The GET /journal/summary body reduced to known fields; throws when malformed.
+ * @param {any} body the parsed response, untrusted: every field is checked here @returns {JournalSummary} */
 export function normalizeSummary(body) {
   if (!body || typeof body !== 'object' || !Array.isArray(body.days)) throw new Error('unexpected response shape (expected {from, to, days: [...]})');
   if (!isIsoDate(body.from) || !isIsoDate(body.to) || body.to < body.from) throw new Error('unexpected from / to');
   const seen = new Set();
-  const days = body.days.map((d) => {
+  const days = body.days.map((/** @type {any} */ d) => {
     if (!d || !isIsoDate(d.date) || d.date < body.from || d.date > body.to) throw new Error(`unexpected date ${JSON.stringify(d && d.date)}`);
     if (seen.has(d.date)) throw new Error(`duplicate date ${d.date}`);
     seen.add(d.date);
     if (!d.answers || typeof d.answers !== 'object' || Array.isArray(d.answers)) throw new Error(`unexpected answers on ${d.date}`);
+    /** @type {Record<string, boolean | number>} */
     const answers = {};
     for (const b of JOURNAL_BEHAVIORS) {
       const v = d.answers[b.key];
@@ -60,12 +64,15 @@ export function normalizeSummary(body) {
   return { from: body.from, to: body.to, days };
 }
 
-/** The new CSV text: previous rows older than the window + the server's days. */
+/** The new CSV text: previous rows older than the window + the server's days.
+ * @param {string | null} prevText @param {JournalSummary} s */
 export function mergedCsv(prevText, s) {
   const older = parseJournalCsv(prevText || '').filter((d) => d.date < s.from);
   return journalCsv([...older, ...s.days]);
 }
 
+/** @param {string} baseUrl @param {{ from: string, to: string }} window
+ * @param {{ fetchImpl?: typeof fetch, timeoutMs?: number }} [opts] */
 export async function fetchSummary(baseUrl, { from, to }, { fetchImpl = fetch, timeoutMs = 15000 } = {}) {
   const qs = new URLSearchParams({ from, to });
   return fetchJson(`${String(baseUrl).replace(/\/+$/, '')}/journal/summary?${qs}`, null, {
@@ -73,11 +80,13 @@ export async function fetchSummary(baseUrl, { from, to }, { fetchImpl = fetch, t
   });
 }
 
-/** Writes the CSV + meta into `dir`; returns {days, changed}. */
+/** Writes the CSV + meta into `dir`; returns {days, changed}.
+ * @param {string} dir @param {unknown} body @param {{ now?: Date, write?: typeof writeAtomic }} [opts] */
 export function syncJournal(dir, body, { now = new Date(), write = writeAtomic } = {}) {
   const s = normalizeSummary(body);
   fs.mkdirSync(dir, { recursive: true });
   const csvFile = path.join(dir, JOURNAL_FILE);
+  /** @type {string | null} */
   let prev;
   try { prev = fs.readFileSync(csvFile, 'utf8'); } catch { prev = null; }
   const csv = mergedCsv(prev, s);
@@ -95,7 +104,7 @@ export async function main({ env = process.env, log = console.log, warn = consol
     body = await fetchSummary(base, windowFor(now), { fetchImpl });
     normalizeSummary(body);
   } catch (err) {
-    warn(`WARNING: journal export skipped (${err.message}); the previous ${JOURNAL_FILE} is kept`);
+    warn(`WARNING: journal export skipped (${/** @type {Error} */ (err).message}); the previous ${JOURNAL_FILE} is kept`);
     return 0;
   }
   try {
@@ -103,7 +112,7 @@ export async function main({ env = process.env, log = console.log, warn = consol
     log(`sync-journal: ${r.days} journaled days in the window${r.changed ? '' : ' (unchanged)'} -> ${displayPath(ROOT, path.join(dir, JOURNAL_FILE))}`);
     return 0;
   } catch (err) {
-    warn(`ERROR: journal export could not be written (${err.message})`);
+    warn(`ERROR: journal export could not be written (${/** @type {Error} */ (err).message})`);
     return 1;
   }
 }

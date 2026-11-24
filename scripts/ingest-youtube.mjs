@@ -25,11 +25,16 @@ import {
 import { isMain } from './lib/is-main.mjs';
 import { writeAtomic } from './lib/sync-common.mjs';
 
+/** @typedef {import('./youtube-transcript.mjs').ListedVideo} ListedVideo */
+/** @typedef {import('./youtube-transcript.mjs').Manifest} Manifest */
+/** @typedef {import('./youtube-transcript.mjs').ManifestEntry} ManifestEntry */
+
 const CALL_TIMEOUT_MS = 180_000;
 const RETRY_WAIT_MS = [20_000, 60_000];
 // Failures a retry cannot fix: the video itself is not readable.
 const PERMANENT_RE = /Private video|Video unavailable|members-only|This live event|Sign in to confirm your age|has been removed/i;
 
+/** @param {number} ms */
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const pause = () => sleep(1000 + Math.floor(Math.random() * 1000));
 
@@ -42,6 +47,12 @@ function ytDlpBin() {
 
 const BIN = ytDlpBin();
 
+/** @typedef {{ code: number | null, out: string, err: string }} RunResult */
+
+/**
+ * @param {string[]} args
+ * @returns {Promise<RunResult>}
+ */
 function run(args) {
   return new Promise((resolveRun) => {
     const child = spawn(BIN, args, { stdio: ['ignore', 'pipe', 'pipe'] });
@@ -55,8 +66,14 @@ function run(args) {
   });
 }
 
+/**
+ * @param {string[]} args
+ * @param {string} label
+ * @returns {Promise<RunResult>}
+ */
 async function runRetry(args, label) {
-  let last;
+  /** @type {RunResult} */
+  let last = { code: null, out: '', err: '' };
   for (let attempt = 0; attempt <= RETRY_WAIT_MS.length; attempt++) {
     last = await run(args);
     if (last.code === 0) return last;
@@ -71,6 +88,7 @@ async function runRetry(args, label) {
   throw e;
 }
 
+/** @param {unknown} stderr */
 function firstError(stderr) {
   const line = String(stderr).split('\n').find((l) => l.startsWith('ERROR')) || String(stderr).trim().split('\n').pop() || '';
   return line.slice(0, 200);
@@ -78,8 +96,15 @@ function firstError(stderr) {
 
 // Shared flags: original-language metadata (titles are otherwise auto-translated)
 // and node as the JS runtime yt-dlp needs for YouTube.
+/** @param {string} lang */
 const baseArgs = (lang) => ['--js-runtimes', `node:${process.execPath}`, '--extractor-args', `youtube:lang=${lang}`, '--no-progress'];
 
+/**
+ * @param {string} channel
+ * @param {string} tab
+ * @param {string} lang
+ * @returns {Promise<ListedVideo[]>}
+ */
 async function listTab(channel, tab, lang) {
   const { out } = await runRetry([
     ...baseArgs(lang), '--flat-playlist', '--print', '%(id)s\t%(duration)s\t%(live_status)s', `${channel}/${tab}`,
@@ -90,19 +115,30 @@ async function listTab(channel, tab, lang) {
   }).filter((v) => /^[A-Za-z0-9_-]{6,20}$/.test(v.id) && v.live !== 'is_upcoming' && v.live !== 'is_live');
 }
 
+/**
+ * @param {string} path
+ * @returns {Manifest | null}
+ */
 function readManifest(path) {
   if (!existsSync(path)) return null;
   return JSON.parse(readFileSync(path, 'utf8'));
 }
 
+/**
+ * @param {ListedVideo} video
+ * @param {{ lang: string, tmpDir: string, rawDir: string }} dirs
+ * @returns {Promise<ManifestEntry | null>} null = live or upcoming, not final yet
+ */
 async function ingestVideo(video, { lang, tmpDir, rawDir }) {
   const url = videoUrl(video.id);
   const stem = join(tmpDir, video.id);
   await runRetry([...baseArgs(lang), '--skip-download', '--write-info-json', '--no-write-playlist-metafiles',
     '-o', `${stem}.%(ext)s`, url], `info ${video.id}`);
   const infoPath = `${stem}.info.json`;
+  /** @type {any} yt-dlp info JSON (untrusted; fields re-checked below) */
   const info = JSON.parse(readFileSync(infoPath, 'utf8'));
   if (['is_upcoming', 'is_live', 'post_live'].includes(info.live_status)) return null; // not final yet
+  /** @type {Omit<ManifestEntry, 'subs' | 'file' | 'words'>} */
   const base = {
     title: info.title || video.id,
     date: isoDate(info.upload_date),
@@ -129,7 +165,7 @@ async function main() {
   try {
     opts = parseArgs(process.argv.slice(2));
   } catch (e) {
-    console.error(`ERROR: ${e.message}\nusage: node scripts/ingest-youtube.mjs --channel <url> --out <dir> [--tabs videos,streams] [--limit N] [--lang es]`);
+    console.error(`ERROR: ${/** @type {Error} */ (e).message}\nusage: node scripts/ingest-youtube.mjs --channel <url> --out <dir> [--tabs videos,streams] [--limit N] [--lang es]`);
     process.exit(2);
   }
   const out = resolve(opts.out);
@@ -142,6 +178,7 @@ async function main() {
   let manifest = readManifest(manifestPath);
   const head = { source: 'youtube', channel: opts.channel };
 
+  /** @type {ListedVideo[]} */
   const listing = [];
   for (const tab of opts.tabs) {
     const rows = await listTab(opts.channel, tab, opts.lang);
@@ -167,7 +204,7 @@ async function main() {
       }
     } catch (e) {
       tally.failed++;
-      console.error(`[${i + 1}/${todo.length}] ${video.id} FAILED: ${e.message}`);
+      console.error(`[${i + 1}/${todo.length}] ${video.id} FAILED: ${/** @type {Error} */ (e).message}`);
     } finally {
       for (const f of readdirSync(tmpDir)) rmSync(join(tmpDir, f), { force: true });
     }

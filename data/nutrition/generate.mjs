@@ -31,6 +31,8 @@ import { resolveLocale } from '../../lib/locale.mjs';
 const DIR = path.dirname(fileURLToPath(import.meta.url));
 const ROOT = path.dirname(path.dirname(DIR));
 
+/** The parsed JSON of `file` (untrusted: the callers check it); `name` names it in the error.
+ * @param {string} file @param {string} name @returns {any} */
 const readJson = (file, name) => {
   try {
     return JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -40,7 +42,8 @@ const readJson = (file, name) => {
   }
 };
 
-/** The `locale` of the page's settings.json, or null (no file, unreadable or not JSON: the page ignores it too). */
+/** The `locale` of the page's settings.json, or null (no file, unreadable or not JSON: the page ignores it too).
+ * @param {string | null} file @returns {unknown} */
 function readSettingsLocale(file) {
   if (!file) return null;
   try {
@@ -57,7 +60,9 @@ function readSettingsLocale(file) {
  * `personalPlan`: the personal plan's file, by default where lib/paths.mjs puts it for this clone and `env`
  * (cache/plan.json of the data root: loop-data/ or HC_DATA_DIR); `dir`/plan-data.json for another dir.
  * `settingsFile`: the page's settings.json (its `locale` is the Language chosen on the page), by default the
- * data root's profile/settings.json; none for another dir. */
+ * data root's profile/settings.json; none for another dir.
+ * @param {{ dir?: string, env?: Record<string, string | undefined>, warn?: (msg: string) => void,
+ *   personalPlan?: string, settingsFile?: string | null }} [opts] */
 export function load({
   dir = DIR,
   env = process.env,
@@ -101,6 +106,8 @@ export function load({
    page's Tablas renders): a piece with its grams reference, oil per tablespoon, else per 100 g / ml with
    how the plan weighs it. No portions: today's amounts come from the scaled plan (Plan de hoy). */
 const REF_WORDS = { raw: 'raw', dry: 'dry', cooked: 'cooked', serving: 'serving', unit: 'pc' };
+/** @typedef {import('../../lib/nutrition/reference.mjs').RefRow} RefRow */
+/** @param {RefRow[]} rows */
 function mdRefTable(rows) {
   const head = '| Food | Reference | kcal | P | C | F |\n|---|---|---|---|---|---|';
   const body = rows.map((r) => {
@@ -111,7 +118,7 @@ function mdRefTable(rows) {
   return [head, ...body].join('\n');
 }
 
-/** The plan-tables.md text for a load() result. */
+/** The plan-tables.md text for a load() result. @param {ReturnType<typeof load>} ctx */
 function buildTables(ctx) {
 const { ING, plan, LOCALE } = ctx;
 const nut = ctx;
@@ -151,6 +158,7 @@ md.push('');
 }
 
 const ref = buildReference(nut, { lang: LOCALE, words: REF_WORDS });
+/** @param {string} title @param {RefRow[]} rows @param {string} [note] */
 const section = (title, rows, note) => {
   md.push(title);
   md.push('');
@@ -165,7 +173,7 @@ md.push('> of oil, else per 100 g / ml as the plan weighs it (raw / dry / cooked
 md.push('> goal or the day type; the day\'s amounts are the scaled plan above (Plan de hoy on the page).');
 md.push('');
 section('### Breakfasts (components)', ref.desayunos);
-[['lean', '🟢 Lean — daily base'], ['mod', '🟡 Moderate — with awareness'], ['fat', '🔴 Fatty — occasional']].forEach(([t, title]) => section('### Protein — ' + title, ref.proteina[t]));
+/** @type {Array<['lean' | 'mod' | 'fat', string]>} */ ([['lean', '🟢 Lean — daily base'], ['mod', '🟡 Moderate — with awareness'], ['fat', '🔴 Fatty — occasional']]).forEach(([t, title]) => section('### Protein — ' + title, ref.proteina[t]));
 section('### Carbs — lunch', ref.carboComida);
 section('### Carbs — dinner', ref.carboCena);
 section('### Legumes', ref.legumes, '> The plan\'s legume bowl is a deliberate composite (any legume); per-type values below.');
@@ -198,10 +206,12 @@ return md.join('\n');
    Runs before every generate, and standalone via `node data/nutrition/generate.mjs --check`.
    Catches the failure modes that would silently corrupt the plan numbers (validateNutrition in
    lib/nutrition/macros.mjs). */
+/** @param {ReturnType<typeof load>} ctx */
 function validate(ctx) {
   return validateNutrition(ctx.ingredients, ctx.plan);
 }
 
+/** @param {string[] | undefined} warnings */
 function reportWarnings(warnings) {
   if (warnings && warnings.length) {
     console.warn('Validation warnings (' + warnings.length + '):\n  - ' + warnings.join('\n  - '));

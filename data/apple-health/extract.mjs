@@ -38,52 +38,80 @@ const PATHS = dataPaths({ repoRoot: path.resolve(path.dirname(fileURLToPath(impo
 const DEFAULT_SRC = DIR ? path.join(DIR, 'export.xml') : PATHS.exportXml;
 const OUT = DIR ? path.join(DIR, 'extract') : PATHS.extractDir;
 
+/** @param {string} s @param {string} name @returns {string | null} */
 const attr = (s, name) => { const m = s.match(new RegExp(' ' + name + '="([^"]*)"')); return m ? m[1] : null; };
 
 // sparse readings: [{date, value, source}]
+/** @typedef {{date: string, value: number, source: string | null}} ExportReading */
+/** @typedef {'weight' | 'bodyfat' | 'rhr' | 'vo2max' | 'hrv' | 'leanmass' | 'wristTemp' | 'hrRecovery' | 'waist'} ReadingKey */
+/** @typedef {Map<string, Map<string, number>>} BySrcDaily per date, per source, a running sum */
+/** @typedef {Map<string, Map<string | null, number>>} BySrcDailyRaw the same, keyed by the raw sourceName */
+/** @typedef {{s: number, n: number}} MeanAcc */
+/** @typedef {'speed' | 'power' | 'gct' | 'vosc' | 'stride'} RunKey */
+/** @typedef {{date: string, type: string, durationMin: number | null, energyKcal: number | null, source: string | null, hrAvg: number | null, hrMin: number | null, hrMax: number | null, distanceKm: number | null}} ExportWorkout */
+/** @type {Record<ReadingKey, ExportReading[]>} */
 const readings = { weight: [], bodyfat: [], rhr: [], vo2max: [], hrv: [], leanmass: [], wristTemp: [], hrRecovery: [], waist: [] };
 // output file per readings key (default `${key}.csv`)
+/** @type {Partial<Record<string, string>>} */
 const READING_FILE = { hrRecovery: 'hr-recovery.csv' };
 // daily energy per source: Map<date, Map<source, kcal sum>>. Every device / app writes its OWN
 // estimate of the same burn (RENPHO writes an estimated BMR as Basal Energy on weigh-in days, which
 // doubled basal), so per day and type ONE source wins by precedence (samples.mjs pickEnergySource:
 // Apple Watch > a wrist-wearable app > iPhone; scales and training / nutrition apps never count) and
 // only its sum is written. A day with excluded sources only is MISSING (no row).
+/** @type {{active: BySrcDaily, basal: BySrcDaily}} */
 const energyBySrc = { active: new Map(), basal: new Map() };
 // The export's last date is a PARTIAL day (export.xml is taken mid-day): <ExportDate value>, else the
 // newest record date. Daily TOTAL series drop it (the Shortcut sync fills it, see sync-shortcut.mjs).
+/** @type {string | null} */
 let exportDate = null;
+/** @type {string | null} */
 let maxRecordDate = null;
 // per-source daily totals for series logged by MULTIPLE devices (iPhone + Watch): we take the
 // MAX across sources per day (summing would double-count, exactly like steps). Map<date, Map<src, sum>>
+/** @type {{exercise: BySrcDailyRaw, distance: BySrcDailyRaw, flights: BySrcDailyRaw}} */
 const maxSrc = { exercise: new Map(), distance: new Map(), flights: new Map() };
 // daily means: Map<date, {s, n}>  (many readings/day → average them)
+/** @type {{respiratory: Map<string, MeanAcc>, walkingHr: Map<string, MeanAcc>}} */
 const meanDaily = { respiratory: new Map(), walkingHr: new Map() };
 // running performance: Map<date, {speed:{s,n}, power:{s,n}, gct:{s,n}, vosc:{s,n}, stride:{s,n}}>
 // samples are recorded DURING runs; we keep per-day means (only days with a run have rows). 0s are junk.
+/** @type {Map<string, Partial<Record<RunKey, MeanAcc>>>} */
 const running = new Map();
 // steps can come from several devices (phone, watch, other trackers) → keep per-source, take max/day (summing double-counts)
+/** @type {Map<string, Map<string | null, number>>} */
 const stepsBySrc = new Map();
 // dietary daily: Map<date, {kcal,p,c,g}>
+/** @type {Map<string, {kcal: number, p: number, c: number, g: number}>} */
 const diet = new Map();
 // sleep segments [{start, end, source, stage}] -> nights via samples.mjs sleepNights (naps excluded,
 // max across sources per night avoids a double count) — the same rule sync-shortcut.mjs uses
+/** @type {import('../../lib/extract/samples.mjs').SleepSeg[]} */
 const sleepSegs = [];
 // night heart-rate samples (00:00-07:00, never an Apple Watch: it measures its own resting HR) of the
 // devices that may need a DERIVED resting HR (samples.mjs derivedRestingHr); kept small on purpose
+/** @type {Array<{start: string, value: number, source: string | null}>} */
 const nightHr = [];
+/** @type {ExportWorkout[]} */
 const workouts = []; // {date, type, durationMin, energyKcal, hrAvg, hrMin, hrMax, source}
 
 const Q = 'HKQuantityTypeIdentifier';
+/** @param {'active' | 'basal'} key @param {string} d @param {string | null} src @param {number | null} v */
 const addEnergy = (key, d, src, v) => addMaxSrc(energyBySrc[key], d, src || '', v);
+/** @param {string} d @param {'kcal' | 'p' | 'c' | 'g'} key @param {number | null} v */
 const addDiet = (d, key, v) => { if (!d || v == null) return; const o = diet.get(d) || { kcal: 0, p: 0, c: 0, g: 0 }; o[key] += v; diet.set(d, o); };
+/** @param {Map<string, MeanAcc>} map @param {string} d @param {number | null} v */
 const addMean = (map, d, v) => { if (!d || v == null) return; const o = map.get(d) || { s: 0, n: 0 }; o.s += v; o.n++; map.set(d, o); };
 // per-source daily accumulator (later collapsed to max-across-sources per day)
+/** @template {string | null} S @param {Map<string, Map<S, number>>} map @param {string} d @param {S} src @param {number | null} v */
 const addMaxSrc = (map, d, src, v) => { if (!d || v == null) return; const m = map.get(d) || new Map(); m.set(src, (m.get(src) || 0) + v); map.set(d, m); };
 // add a running-metric sample for a day; drop non-positive values (Zepp emits 0 placeholders)
-const addRun = (d, key, v) => { if (!d || !(v > 0)) return; const o = running.get(d) || {}; const m = o[key] || { s: 0, n: 0 }; m.s += v; m.n++; o[key] = m; running.set(d, o); };
+/** @param {string} d @param {RunKey} key @param {number | null} v */
+const addRun = (d, key, v) => { if (!d || v == null || !(v > 0)) return; const o = running.get(d) || {}; const m = o[key] || { s: 0, n: 0 }; m.s += v; m.n++; o[key] = m; running.set(d, o); };
+/** @param {Partial<Record<RunKey, MeanAcc>>} o @param {RunKey} key @returns {number | null} */
 const runMean = (o, key) => (o[key] && o[key].n ? o[key].s / o[key].n : null);
 
+/** @param {string} line */
 function handleRecord(line) {
   const type = attr(line, 'type');
   if (!type) return;
@@ -115,11 +143,11 @@ function handleRecord(line) {
     case Q + 'LeanBodyMass':         return v != null && readings.leanmass.push({ date: d, value: +v.toFixed(2), source: src });
     case Q + 'HeartRateRecoveryOneMinute': return v != null && readings.hrRecovery.push({ date: d, value: +v.toFixed(1), source: src }); // Cardio Recovery, bpm
     case Q + 'WaistCircumference': { // stored in cm whatever unit the export used
-      const cm = v == null ? null : { m: v * 100, in: v * 2.54, ft: v * 30.48 }[attr(line, 'unit')] ?? v;
+      const cm = v == null ? null : /** @type {Record<string, number>} */ ({ m: v * 100, in: v * 2.54, ft: v * 30.48 })[/** @type {string} */ (attr(line, 'unit'))] ?? v;
       return cm != null && readings.waist.push({ date: d, value: +cm.toFixed(1), source: src });
     }
     // dated by the wake-up night (like sleep-daily.csv), not the sample's start date
-    case Q + 'AppleSleepingWristTemperature': return v != null && readings.wristTemp.push({ date: wristTempDate(attr(line, 'startDate'), attr(line, 'endDate')), value: +v.toFixed(2), source: src });
+    case Q + 'AppleSleepingWristTemperature': return v != null && readings.wristTemp.push({ date: wristTempDate(/** @type {string} */ (attr(line, 'startDate')), attr(line, 'endDate')), value: +v.toFixed(2), source: src });
     case Q + 'AppleExerciseTime':       return addMaxSrc(maxSrc.exercise, d, src, v);
     case Q + 'DistanceWalkingRunning':  return addMaxSrc(maxSrc.distance, d, src, v);
     case Q + 'FlightsClimbed':          return addMaxSrc(maxSrc.flights, d, src, v);
@@ -134,9 +162,10 @@ function handleRecord(line) {
       // every stage is kept: asleep ones build the night, Awake / InBed only add their stage columns
       const stage = sleepStage(attr(line, 'value'));
       if (!stage) return;
-      const start = attr(line, 'startDate'), end = attr(line, 'endDate');
+      // every <Record> carries startDate, endDate and sourceName
+      const start = /** @type {string} */ (attr(line, 'startDate')), end = /** @type {string} */ (attr(line, 'endDate'));
       if (!(minutesBetween(start, end) > 0)) return;
-      return sleepSegs.push({ start, end, source: src, stage });
+      return sleepSegs.push({ start, end, source: /** @type {string} */ (src), stage });
     }
   }
 }
@@ -144,7 +173,9 @@ function handleRecord(line) {
 // A <Workout> spans multiple lines: an opening tag, then child <WorkoutStatistics>/<MetadataEntry>
 // lines, then </Workout>. The opening tag alone lacks intensity, so we keep the workout OPEN across
 // lines and attach its child stats before pushing it on close.
+/** @type {ExportWorkout | null} */
 let curWorkout = null;
+/** @param {string} line */
 function handleWorkoutOpen(line) {
   curWorkout = {
     date: day(attr(line, 'startDate')),
@@ -157,6 +188,7 @@ function handleWorkoutOpen(line) {
   if (line.indexOf('</Workout>') !== -1) handleWorkoutClose(); // self-contained on one line (rare)
 }
 // child stats carry per-workout HR (avg/min/max) and, on newer exports, the energy the opening tag drops
+/** @param {string} line */
 function handleWorkoutStat(line) {
   if (!curWorkout) return;
   const t = attr(line, 'type');
@@ -174,16 +206,20 @@ function handleWorkoutClose() {
   if (curWorkout) { workouts.push(curWorkout); curWorkout = null; }
 }
 
+/** @param {string} file @param {string} header @param {string[]} rows @returns {number} */
 const csv = (file, header, rows) => {
   writeAtomic(path.join(OUT, file), [header, ...rows].join('\n') + '\n');
   return rows.length;
 };
+/** @template {{date: string}} T @param {T[]} arr @returns {T[]} */
 const sortByDate = arr => arr.sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0));
+/** @param {string[]} dates @returns {string} */
 const range = dates => dates.length ? `${dates[0]}..${dates[dates.length - 1]}` : 'n/a';
 
 let lineCount = 0;
 // the export's closing tag: without it the file is truncated and nothing is written
 let sawEnd = false;
+/** @param {string} line */
 function onLine(line) {
   lineCount++;
   if (line.indexOf('</HealthData>') !== -1) sawEnd = true;
@@ -198,6 +234,7 @@ function onClose() {
   if (!sawEnd) {
     throw new Error(`export.xml ends before </HealthData> after ${lineCount.toLocaleString()} lines (truncated: still copying, or a full disk?); nothing written, the previous extract is kept`);
   }
+  /** @type {Record<string, number>} */
   const counts = {};
   const exportLastDate = exportDate || maxRecordDate;
   // daily TOTAL series skip the partial last day (means, points, sleep and workouts keep it)
@@ -212,6 +249,7 @@ function onClose() {
   }
   counts.rhr_derived = derivedRhr.length;
   // daily sums
+  /** @param {Map<string, number>} map @param {string} file @param {string} col */
   const dumpDaily = (map, file, col) => {
     const rows = [...map.entries()].filter(complete).sort((a, b) => a[0] < b[0] ? -1 : 1).map(([d, v]) => `${d},${Math.round(v)}`);
     return csv(file, `date,${col}`, rows);
@@ -219,13 +257,19 @@ function onClose() {
   // steps: max across the day's sources (dedupe overlapping devices)
   counts.steps = csv('steps-daily.csv', 'date,steps,source',
     [...stepsBySrc.entries()].filter(complete).sort((a, b) => a[0] < b[0] ? -1 : 1).map(([d, bySrc]) => {
+      /** @type {{s: string | null, v: number} | null} */
       let best = null;
       for (const [s, v] of bySrc) if (!best || v > best.v) best = { s, v };
-      return `${d},${Math.round(best.v)},${csvSource(best.s)}`;
+      // a date gets a map only with its first sample, so best is set
+      const b = /** @type {{s: string | null, v: number}} */ (best);
+      return `${d},${Math.round(b.v)},${csvSource(b.s)}`;
     }));
   // energy: ONE source per day by precedence; energySources counts the days each family won
+  /** @type {{active: Record<string, number>, basal: Record<string, number>}} */
   const energySources = { active: {}, basal: {} };
+  /** @param {'active' | 'basal'} key @param {string} file */
   const dumpEnergy = (key, file) => {
+    /** @type {Map<string, number>} */
     const won = new Map();
     for (const [d, bySrc] of energyBySrc[key]) {
       const pick = pickEnergySource(bySrc);
@@ -246,15 +290,19 @@ function onClose() {
   counts.sleep = csv('sleep-daily.csv', SLEEP_HEADER,
     sleepNights(sleepSegs).map(n => sleepRow(n.date, n.minutes, n.source, n.ck, n.stages)));
   // activity: MAX across sources per day (iPhone + Watch both log these → summing double-counts)
+  /** @param {BySrcDailyRaw} map @param {string} file @param {string} col @param {number} [dec] */
   const dumpMaxSrc = (map, file, col, dec) => csv(file, `date,${col}`,
     [...map.entries()].filter(complete).sort((a, b) => a[0] < b[0] ? -1 : 1).map(([d, bySrc]) => {
+      /** @type {{s: string | null, v: number} | null} */
       let best = null; for (const [s, v] of bySrc) if (!best || v > best.v) best = { s, v };
-      return `${d},${dec != null ? best.v.toFixed(dec) : Math.round(best.v)}`;
+      const b = /** @type {{s: string | null, v: number}} */ (best); // a date's map has at least one source
+      return `${d},${dec != null ? b.v.toFixed(dec) : Math.round(b.v)}`;
     }));
   counts.exercise = dumpMaxSrc(maxSrc.exercise, 'exercise-minutes-daily.csv', 'minutes');
   counts.flights = dumpMaxSrc(maxSrc.flights, 'flights-daily.csv', 'flights');
   counts.distance = dumpMaxSrc(maxSrc.distance, 'distance-daily.csv', 'km', 2);
   // daily means
+  /** @param {Map<string, MeanAcc>} map @param {string} file @param {string} col */
   const dumpMean = (map, file, col, dec = 1) => csv(file, `date,${col}`,
     [...map.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1).map(([d, o]) => `${d},${(o.s / o.n).toFixed(dec)}`));
   counts.respiratory = dumpMean(meanDaily.respiratory, 'respiratory-daily.csv', 'brpm');
@@ -262,8 +310,9 @@ function onClose() {
   // running performance — per-day means over a run's samples (only days with a run get a row)
   counts.running = csv('running-daily.csv', 'date,speed_kmh,power_w,gct_ms,vosc_cm,stride_m,samples',
     [...running.entries()].sort((a, b) => a[0] < b[0] ? -1 : 1).map(([d, o]) => {
+      /** @param {RunKey} k @param {number} dec */
       const f = (k, dec) => { const m = runMean(o, k); return m == null ? '' : m.toFixed(dec); };
-      const n = Math.max(...['speed', 'power', 'gct', 'vosc', 'stride'].map(k => o[k] ? o[k].n : 0));
+      const n = Math.max(.../** @type {RunKey[]} */ (['speed', 'power', 'gct', 'vosc', 'stride']).map(k => o[k]?.n ?? 0));
       return `${d},${f('speed', 2)},${f('power', 0)},${f('gct', 0)},${f('vosc', 1)},${f('stride', 2)},${n}`;
     }));
   // workouts
@@ -358,4 +407,4 @@ Streams loop-data/files/import/export.xml into the per-metric CSVs + _meta.json 
 Env: HC_DATA_DIR (the data root: <root>/files/import/export.xml in, <root>/extract out; HC_FILES_DIR moves files/);
 EXTRACT_DIR (tests only) replaces data/apple-health: <dir>/export.xml in, <dir>/extract out.`;
 
-if (isMain(import.meta.url)) runCli((values) => main(values), { guardDataRoot: true, usage: USAGE, options: { source: { type: 'string' } } });
+if (isMain(import.meta.url)) runCli((/** @type {{ source?: string }} */ values) => main(values), { guardDataRoot: true, usage: USAGE, options: { source: { type: 'string' } } });

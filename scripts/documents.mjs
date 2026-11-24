@@ -42,7 +42,13 @@ export const USAGE = `Usage: npm run documents -- <push|pull> <profile|plan|trai
 Files: ${KINDS.map((k) => `${k} = ${documentLayout(ROOT).rel(k)}`).join(', ')}
 Env: INGEST_URL, INGEST_TOKEN, INGEST_ENV_FILE (default services/loop-ingest/.env).`;
 
-/** PUT /documents/:kind {revision, document}: {status, body}. */
+/** @typedef {import('./lib/documents.mjs').DocumentKind} DocumentKind */
+/** @typedef {(msg: string) => void} Print */
+
+/** PUT /documents/:kind {revision, document}: {status, body}.
+ * @param {string} base @param {string} token @param {DocumentKind} kind @param {number} revision @param {unknown} document
+ * @param {typeof fetch} fetchImpl
+ * @returns {Promise<{ status: number, body: any }>} body: the parsed answer (untrusted, read field by field) or null */
 async function putDocument(base, token, kind, revision, document, fetchImpl) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), 15000);
@@ -54,6 +60,7 @@ async function putDocument(base, token, kind, revision, document, fetchImpl) {
       redirect: 'error',
       signal: ctrl.signal,
     });
+    /** @type {any} */
     let body = null;
     try { body = await res.json(); } catch { /* a non-JSON answer keeps body null */ }
     return { status: res.status, body };
@@ -66,13 +73,17 @@ async function putDocument(base, token, kind, revision, document, fetchImpl) {
   }
 }
 
+/**
+ * @param {{ root: string, docs: import('./lib/documents.mjs').DocumentLayout, base: string, token: string, kind: DocumentKind,
+ *   force: boolean, all: boolean, fetchImpl: typeof fetch, log: Print, warn: Print }} opts
+ */
 async function pushOne({ root, docs, base, token, kind, force, all, fetchImpl, log, warn }) {
   const rel = docs.rel(kind);
   let local;
   try {
     local = readDocumentFile(docs, kind);
   } catch (err) {
-    warn(`ERROR: ${kind} not pushed: ${err.message}`);
+    warn(`ERROR: ${kind} not pushed: ${/** @type {Error} */ (err).message}`);
     return 1;
   }
   if (!local) {
@@ -93,7 +104,7 @@ async function pushOne({ root, docs, base, token, kind, force, all, fetchImpl, l
   try {
     remote = await fetchDocument(base, token, kind, fetchImpl);
   } catch (err) {
-    warn(`ERROR: ${kind} not pushed: the data service could not be read (${err.message})`);
+    warn(`ERROR: ${kind} not pushed: the data service could not be read (${/** @type {Error} */ (err).message})`);
     return 1;
   }
   if (remote.doc !== null && contentHash(remote.doc) === local.hash) {
@@ -115,7 +126,7 @@ async function pushOne({ root, docs, base, token, kind, force, all, fetchImpl, l
   try {
     res = await putDocument(base, token, kind, against, local.doc, fetchImpl);
   } catch (err) {
-    warn(`ERROR: ${kind} not pushed: the data service could not be reached (${err.message})`);
+    warn(`ERROR: ${kind} not pushed: the data service could not be reached (${/** @type {Error} */ (err).message})`);
     return 1;
   }
   if (res.status === 409) {
@@ -134,20 +145,23 @@ async function pushOne({ root, docs, base, token, kind, force, all, fetchImpl, l
   return 0;
 }
 
-/** argv -> {command, kinds, force} or {exit, out|err}. */
+/** argv -> {command, kinds, force} or {exit, out|err}.
+ * @param {string[]} argv */
 export function parseCommand(argv) {
   let parsed;
   try {
     parsed = parseArgs({ args: argv, options: { force: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } }, allowPositionals: true, strict: true });
   } catch (err) {
-    return { exit: 2, err: `ERROR: ${err.message}\n\n${USAGE}` };
+    return { exit: 2, err: `ERROR: ${/** @type {Error} */ (err).message}\n\n${USAGE}` };
   }
   if (parsed.values.help) return { exit: 0, out: USAGE };
   const [command, target, ...rest] = parsed.positionals;
-  if (!['push', 'pull'].includes(command) || !(target === 'all' || KINDS.includes(target)) || rest.length) {
+  // a kind once it is not 'all' and passed the check below
+  const kind = /** @type {DocumentKind} */ (target);
+  if (!['push', 'pull'].includes(command) || !(target === 'all' || KINDS.includes(kind)) || rest.length) {
     return { exit: 2, err: `ERROR: expected push or pull and one of ${KINDS.join(', ')}, all\n\n${USAGE}` };
   }
-  return { command, kinds: target === 'all' ? [...KINDS] : [target], all: target === 'all', force: parsed.values.force === true };
+  return { command, kinds: target === 'all' ? [...KINDS] : [kind], all: target === 'all', force: parsed.values.force === true };
 }
 
 export async function main({ argv = process.argv.slice(2), env = process.env, log = console.log, warn = console.warn, fetchImpl = fetch } = {}) {

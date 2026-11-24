@@ -32,7 +32,8 @@ The token comes from INGEST_TOKEN, else it is asked in the terminal (not echoed)
   --forget     remove the saved server
   -h, --help   this help`;
 
-/** The URL to save (no trailing slash), or null: http(s), no credentials, no query or fragment, no path. */
+/** The URL to save (no trailing slash), or null: http(s), no credentials, no query or fragment, no path.
+ * @param {unknown} raw @returns {string | null} */
 export function normalizeUrl(raw) {
   let u;
   try {
@@ -45,7 +46,8 @@ export function normalizeUrl(raw) {
   return `${u.protocol}//${u.host}`;
 }
 
-/** Reads one line from the terminal without echoing it. */
+/** Reads one line from the terminal without echoing it.
+ * @param {string} question @returns {Promise<string>} */
 function promptHidden(question) {
   return new Promise((resolve, reject) => {
     const { stdin, stderr } = process;
@@ -54,6 +56,7 @@ function promptHidden(question) {
     stdin.setRawMode(true);
     stdin.resume();
     stdin.setEncoding('utf8');
+    /** @param {Error} [err] */
     const done = (err) => {
       stdin.setRawMode(false);
       stdin.pause();
@@ -61,6 +64,7 @@ function promptHidden(question) {
       stderr.write('\n');
       if (err) reject(err); else resolve(value);
     };
+    /** @param {string} chunk */
     const onData = (chunk) => {
       for (const ch of chunk) {
         if (ch === '\r' || ch === '\n') return done();
@@ -73,7 +77,8 @@ function promptHidden(question) {
   });
 }
 
-/** GET <url>/export/files with the token: the HTTP status, or throws (no answer, timeout). */
+/** GET <url>/export/files with the token: the HTTP status, or throws (no answer, timeout).
+ * @param {string} url @param {string} token @param {typeof fetch} fetchImpl */
 async function probe(url, token, fetchImpl) {
   const ctrl = new AbortController();
   const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
@@ -90,6 +95,7 @@ async function probe(url, token, fetchImpl) {
   }
 }
 
+/** @param {string} file @param {string} url @param {string} token */
 function save(file, url, token) {
   fs.mkdirSync(path.dirname(file), { recursive: true, mode: 0o700 });
   const tmp = `${file}.${process.pid}.tmp`;
@@ -112,7 +118,7 @@ export async function main({ argv = process.argv.slice(2), env = process.env, lo
   try {
     parsed = parseArgs({ args: argv, allowPositionals: true, strict: true, options: { forget: { type: 'boolean' }, help: { type: 'boolean', short: 'h' } } });
   } catch (err) {
-    warn(`${err.message}\n\n${USAGE}`);
+    warn(`${/** @type {Error} */ (err).message}\n\n${USAGE}`);
     return 2;
   }
   const { values, positionals } = parsed;
@@ -155,7 +161,7 @@ export async function main({ argv = process.argv.slice(2), env = process.env, lo
     try {
       token = String(await prompt(`Ingest token of ${url} (INGEST_TOKEN in its docker/.env; not shown): `)).trim();
     } catch (err) {
-      warn(`ERROR: ${err.message}; nothing saved`);
+      warn(`ERROR: ${/** @type {Error} */ (err).message}; nothing saved`);
       return 1;
     }
     if (!token) {
@@ -167,7 +173,8 @@ export async function main({ argv = process.argv.slice(2), env = process.env, lo
   try {
     status = await probe(url, token, fetchImpl);
   } catch (err) {
-    warn(`ERROR: could not reach ${url} (${err.cause?.code || err.message}); nothing saved`);
+    const e = /** @type {import('./lib/sync-common.mjs').SyncError} */ (err);
+    warn(`ERROR: could not reach ${url} (${e.cause?.code || e.message}); nothing saved`);
     return 1;
   }
   if (status === 401) {

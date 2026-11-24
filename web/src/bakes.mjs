@@ -19,6 +19,7 @@ import { newestWeight } from '../../lib/profile/profile.mjs';
 import { goalOptions } from '../../lib/profile/goal.mjs';
 import { resolveTargets } from '../../lib/nutrition/targets.mjs';
 
+/** @param {ReturnType<typeof import('./env.mjs').resolveEnv>} env */
 export function computeBakes(env) {
   const { plan, ingredients, extractDir, repoRoot, dataMode, onboarding = null, paths = null } = env;
   const nut = buildNutrition(ingredients, plan);

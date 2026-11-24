@@ -45,7 +45,11 @@ export const GROUPS = ['extract', 'import', 'foodlog', 'profile', 'cache', 'manu
 const LOCK = '_meta.json.lock';
 const LOCK_FRESH_MS = 2 * 60 * 1000; // sync-common.mjs withLock: an older lock is a crashed run's
 
-/** Every file under `dir` (relative paths, sorted); [] when it does not exist. Symlinks are skipped. */
+/** One planned move (`done`: the target already holds the same bytes). @typedef {{ group: string, from: string, to: string, done?: boolean }} Move */
+/** @typedef {(msg: string) => void} Print */
+
+/** Every file under `dir` (relative paths, sorted); [] when it does not exist. Symlinks are skipped.
+ * @param {string} dir @param {string} [rel] @returns {string[]} */
 function walk(dir, rel = '') {
   let entries;
   try {
@@ -60,7 +64,8 @@ function walk(dir, rel = '') {
   });
 }
 
-/** The tracked files of the clone (repo-relative, '/' separators); throws when git cannot list them. */
+/** The tracked files of the clone (repo-relative, '/' separators); throws when git cannot list them.
+ * @param {string} repoRoot */
 function trackedFiles(repoRoot) {
   const r = spawnSync('git', ['-C', repoRoot, 'ls-files', '-z'], { encoding: 'utf8' });
   if (r.status !== 0) throw new Error(`cannot list the tracked files (git ls-files: ${(r.stderr || r.error?.message || '').trim()})`);
@@ -68,11 +73,14 @@ function trackedFiles(repoRoot) {
 }
 
 /** The planned moves [{group, from, to}] for the files that exist at the old paths. Pure apart from reading
- * directories and stat. `tracked`: repo-relative paths never moved. */
+ * directories and stat. `tracked`: repo-relative paths never moved.
+ * @param {{ repoRoot: string, env?: Record<string, string | undefined>, tracked?: Set<string> }} opts @returns {Move[]} */
 export function planMoves({ repoRoot, env = process.env, tracked = new Set() }) {
   const old = legacyPaths({ repoRoot });
   const now = dataPaths({ repoRoot, env });
+  /** @type {Move[]} */
   const moves = [];
+  /** @param {string} group @param {string} from @param {string} to */
   const add = (group, from, to) => {
     const rel = path.relative(repoRoot, from).split(path.sep).join('/');
     if (tracked.has(rel) || /\.example\.json$/.test(from)) return;
@@ -88,8 +96,8 @@ export function planMoves({ repoRoot, env = process.env, tracked = new Set() }) 
   }
   add('foodlog', old.foodlogCsv, now.foodlogCsv);
   add('foodlog', old.foodlogMeta, now.foodlogMeta);
-  for (const k of ['settings', 'onboarding', 'stravaProfile', 'avatar']) add('profile', old[k], now[k]);
-  for (const k of ['profile', 'plan', 'training']) add('cache', old.documents[k], now.documents[k]);
+  for (const k of /** @type {const} */ (['settings', 'onboarding', 'stravaProfile', 'avatar'])) add('profile', old[k], now[k]);
+  for (const k of /** @type {const} */ (['profile', 'plan', 'training'])) add('cache', old.documents[k], now.documents[k]);
   add('cache', old.documentsState, now.documentsState);
   tree('manuals', old.manualsDir, now.manualsDir);
   const training = path.join(repoRoot, 'data', 'training');
@@ -100,7 +108,7 @@ export function planMoves({ repoRoot, env = process.env, tracked = new Set() }) 
   return moves;
 }
 
-/** sha256 of a file, streamed in chunks (export.xml is ~1 GB). */
+/** sha256 of a file, streamed in chunks (export.xml is ~1 GB). @param {string} file */
 export function sha256(file) {
   const hash = crypto.createHash('sha256');
   const fd = fs.openSync(file, 'r');
@@ -114,7 +122,8 @@ export function sha256(file) {
   return hash.digest('hex');
 }
 
-/** Copies `from` to `to` durably: a temp file next to `to`, fsync, the source's mtime, rename. */
+/** Copies `from` to `to` durably: a temp file next to `to`, fsync, the source's mtime, rename.
+ * @param {string} from @param {string} to */
 function copyDurable(from, to) {
   fs.mkdirSync(path.dirname(to), { recursive: true });
   const tmp = `${to}.migrate-${process.pid}.tmp`;
@@ -131,10 +140,12 @@ function copyDurable(from, to) {
   }
 }
 
+/** @param {number} bytes */
 const mb = (bytes) => `${(bytes / 1e6).toFixed(1)} MB`;
+/** @param {Date} d */
 const stamp = (d) => d.toISOString().replace(/[-:]/g, '').replace(/\.\d+Z$/, 'Z');
 
-/** One line per group with files: "extract 27 (1.2 MB)". */
+/** One line per group with files: "extract 27 (1.2 MB)". @param {Move[]} moves */
 function summary(moves) {
   return GROUPS.map((g) => {
     const of = moves.filter((m) => m.group === g);
@@ -143,7 +154,8 @@ function summary(moves) {
 }
 
 /** The migration; returns the exit code (see the header). */
-/** The targets with other content (each named; exit code 1), marking same-bytes targets done; 0 when none. */
+/** The targets with other content (each named; exit code 1), marking same-bytes targets done; 0 when none.
+ * @param {Move[]} moves @param {Print} warn @param {(file: string) => string} shown */
 function refuseConflicts(moves, warn, shown) {
   // a target with other content is never overwritten; one with the same bytes only lacks its source's removal
   const conflicts = [];
@@ -158,7 +170,7 @@ function refuseConflicts(moves, warn, shown) {
   return 1;
 }
 
-/** The temp files a run killed while copying left next to the targets. */
+/** The temp files a run killed while copying left next to the targets. @param {Move[]} moves */
 function orphansOf(moves) {
   return moves.flatMap((m) => {
     const dir = path.dirname(m.to);
@@ -168,7 +180,9 @@ function orphansOf(moves) {
   });
 }
 
-/** Backup, copy all, verify all, remove the sources; returns the exit code. */
+/** Backup, copy all, verify all, remove the sources; returns the exit code.
+ * @param {{ repoRoot: string, target: ReturnType<typeof dataPaths>, moves: Move[], now: Date, log: Print, warn: Print,
+ *   shown: (file: string) => string, lockFile: string }} opts */
 function moveAll({ repoRoot, target, moves, now, log, warn, shown, lockFile }) {
   const what = summary(moves);
   const orphans = orphansOf(moves);
@@ -218,6 +232,7 @@ function moveAll({ repoRoot, target, moves, now, log, warn, shown, lockFile }) {
 
 /** The migration; returns the exit code (see the header). */
 export function main({ repoRoot = ROOT, env = process.env, dryRun = false, log = console.log, warn = console.warn, now = new Date() } = {}) {
+  /** @param {string} f */
   const shown = (f) => displayPath(repoRoot, f);
   const target = dataPaths({ repoRoot, env });
   const guard = dataRootGuardError({ repoRoot, env });

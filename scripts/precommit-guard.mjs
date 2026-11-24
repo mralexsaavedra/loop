@@ -25,21 +25,30 @@ import { isMain } from './lib/is-main.mjs';
 // A hook runs with GIT_DIR / GIT_INDEX_FILE / … pointing at the committing repo; the scratch repo must not.
 const REPO_ENV = /^GIT_(DIR|WORK_TREE|INDEX_FILE|PREFIX|COMMON_DIR|OBJECT_DIRECTORY|ALTERNATE_OBJECT_DIRECTORIES|NAMESPACE)$/;
 
+/** @typedef {{ dir: string, env: NodeJS.ProcessEnv }} Rules A scratch rules repo and the git env to run in it. */
+/** @typedef {{ paths: string[], deleted: string[] }} Staged */
+
+/**
+ * @param {string} cwd @param {string[]} args @param {string} [input] @param {NodeJS.ProcessEnv} [env]
+ * @returns {import('node:child_process').SpawnSyncReturns<string>}
+ */
 function git(cwd, args, input, env) {
   const r = spawnSync('git', args, { cwd, encoding: 'utf8', input, env, maxBuffer: 64 * 1024 * 1024 });
   if (r.error) throw r.error;
   return r;
 }
 
+/** @param {string} p */
 const isGitignore = (p) => /(^|\/)\.gitignore$/.test(p);
 
 /** The staged changes, renames split into a deletion + an addition: {paths (added / copied / modified),
- * deleted}. */
+ * deleted}.
+ * @param {string} cwd @returns {Staged} */
 function stagedChanges(cwd) {
   const r = git(cwd, ['diff', '--cached', '--name-status', '--no-renames', '-z']);
   if (r.status !== 0) throw new Error(`git diff --cached failed: ${r.stderr.trim()}`);
   const f = r.stdout.split('\0');
-  const paths = [], deleted = [];
+  const paths = /** @type {string[]} */ ([]), deleted = /** @type {string[]} */ ([]);
   for (let i = 0; i + 1 < f.length; i += 2) {
     if (!f[i]) break;
     (f[i] === 'D' ? deleted : paths).push(f[i + 1]);
@@ -49,7 +58,8 @@ function stagedChanges(cwd) {
 
 /** The ignore rules of a tree in a scratch repo: its .gitignore files at their paths + this clone's info/exclude.
  * `from` = 'HEAD' (the index's on a first commit) or 'index' (the staged rules). Returns the scratch dir (the
- * caller removes it) and the git env. */
+ * caller removes it) and the git env.
+ * @param {string} cwd @param {'HEAD' | 'index'} [from] @returns {Rules} */
 function materialiseRules(cwd, from = 'HEAD') {
   const hasHead = from === 'HEAD' && git(cwd, ['rev-parse', '--verify', '-q', 'HEAD']).status === 0;
   const list = hasHead ? git(cwd, ['ls-tree', '-r', '-z', '--name-only', 'HEAD']) : git(cwd, ['ls-files', '-z']);
@@ -73,21 +83,24 @@ function materialiseRules(cwd, from = 'HEAD') {
   return { dir, env };
 }
 
-/** The `paths` a scratch rules repo ignores (git check-ignore --no-index). */
+/** The `paths` a scratch rules repo ignores (git check-ignore --no-index).
+ * @param {Rules} rules @param {string[]} paths @returns {string[]} */
 function ignoredBy(rules, paths) {
   if (paths.length === 0) return [];
   const r = git(rules.dir, ['check-ignore', '--no-index', '--stdin', '-z'], paths.join('\0') + '\0', rules.env);
-  if (r.status > 1) throw new Error(`git check-ignore failed: ${r.stderr.trim()}`);
+  if ((r.status ?? 0) > 1) throw new Error(`git check-ignore failed: ${r.stderr.trim()}`);
   return r.stdout.split('\0').filter(Boolean);
 }
 
-/** Runs `fn(rules)` on HEAD's (or the index's) materialised rules, then removes the scratch repo. */
+/** Runs `fn(rules)` on HEAD's (or the index's) materialised rules, then removes the scratch repo.
+ * @template T @param {string} cwd @param {'HEAD' | 'index'} from @param {(rules: Rules) => T} fn @returns {T} */
 function withRules(cwd, from, fn) {
   const rules = materialiseRules(cwd, from);
   try { return fn(rules); } finally { fs.rmSync(rules.dir, { recursive: true, force: true }); }
 }
 
-/** The staged paths HEAD's ignore rules match: personal files that only a force-add or a rule edit could stage. */
+/** The staged paths HEAD's ignore rules match: personal files that only a force-add or a rule edit could stage.
+ * @param {string} cwd @param {string[]} paths */
 function stagedIgnored(cwd, paths) {
   if (paths.length === 0) return [];
   return withRules(cwd, 'HEAD', (rules) => ignoredBy(rules, paths));
@@ -97,6 +110,7 @@ function stagedIgnored(cwd, paths) {
  * The untracked files on disk (whole untracked directories as `dir/`) that HEAD's rules ignore but the STAGED
  * rules no longer do: the semantic check behind the line comparison below (a reordered `!` line, a rule moved
  * to a nested .gitignore with another scope). Only when a .gitignore is staged.
+ * @param {string} cwd @param {Staged} staged
  */
 function unignoredOnDisk(cwd, { paths, deleted }) {
   if (![...paths, ...deleted].some(isGitignore)) return [];
@@ -110,18 +124,23 @@ function unignoredOnDisk(cwd, { paths, deleted }) {
 }
 
 /** A .gitignore line as git reads it: a trailing CR and UNESCAPED trailing spaces dropped; a leading space is
- * kept (it is part of the pattern, so an indented rule is a different, non-matching one). */
+ * kept (it is part of the pattern, so an indented rule is a different, non-matching one).
+ * @param {string} line */
 function gitPattern(line) {
   let l = line.endsWith('\r') ? line.slice(0, -1) : line;
   while (l.endsWith(' ') && !l.endsWith('\\ ')) l = l.slice(0, -1);
   return l;
 }
+/** @param {string} text */
 const patterns = (text) => text.split('\n').map(gitPattern).filter((l) => l && !l.startsWith('#'));
 
 /** Per staged .gitignore: the patterns it drops and the `!` negations it adds, compared with HEAD; a staged
- * deletion drops every pattern (`deleted: true`). */
+ * deletion drops every pattern (`deleted: true`).
+ * @param {string} cwd @param {Staged} staged */
 function loosenedGitignores(cwd, { paths, deleted }) {
+  /** @type {{ file: string, deleted: boolean, removed: string[], negations: string[] }[]} */
   const out = [];
+  /** @param {string} p */
   const before = (p) => {
     const head = git(cwd, ['show', `HEAD:${p}`]);
     return head.status === 0 ? patterns(head.stdout) : [];
