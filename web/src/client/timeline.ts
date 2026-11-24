@@ -45,7 +45,7 @@ type DetailSession = { d: string; m: string; min: number; re?: number | null; n?
   if (!host) return;
   var hostEl: HTMLElement = host;
   var S = typeof SCORES === 'undefined' ? null : SCORES;
-  var TL = S && S.timeline;
+  var TL = (S && S.timeline)!;
   var T = (typeof I18N_SCORE === 'undefined' || !I18N_SCORE ? null : I18N_SCORE.timeline)!;
   if (!TL || !T) return;
   // shared helpers (web/src/client/util.ts); HC.num reads LOCALE at call time, inside the try below
@@ -108,7 +108,7 @@ type DetailSession = { d: string; m: string; min: number; re?: number | null; n?
   // a past day in SCORES.timeline's day shape, from DETAIL (null when nothing was logged that day)
   var MODS = ['strength', 'hybrid', 'run', 'bike', 'other'];
   function pastDay(iso: string): TimelineDay | null {
-    var X = typeof DETAIL !== 'undefined' && DETAIL ? DETAIL : {};
+    var X: Partial<PageGlobals['DETAIL']> = typeof DETAIL !== 'undefined' && DETAIL ? DETAIL : {};
     var sl = X.metrics && X.metrics.sleep;
     var hours = at(sl, sl && sl.v, iso);
     var items: TimelineItem[] = [];

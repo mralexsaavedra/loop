@@ -31,7 +31,8 @@ type Metric = { start: string; v: (number | null)[]; week?: unknown; kind?: stri
 type Arrow = 'up' | 'down' | 'flat';
 type Tone = 'good' | 'bad' | 'flat';
 /** One SCORES.stress day with a latest scored hour (`now`: value + hour clock). */
-type StressDay = { date: string; now: { v: number; t: unknown }; hours: { t: string; v: number | null; hr?: number | null }[] | null };
+// one SCORES.stress day (lib/score/stress.mjs); stressDay() returns only one with its latest scored hour (`now`)
+type StressDay = import('../../../lib/score/stress.mjs').StressDay;
 type RowValue = { value: number; date: string; base: number | null; arrow: Arrow | null; tone: Tone };
 
 (function () {
@@ -150,7 +151,7 @@ type RowValue = { value: number; date: string; base: number | null; arrow: Arrow
       return null;
     }
     function stressCard(d: StressDay): string {
-      var P = TD.deep.stress, n = d.now, band = HC.stressBand(n.v), time = String(n.t).slice(0, 2) + ':00';
+      var P = TD.deep.stress, n = d.now!, band = HC.stressBand(n.v), time = String(n.t).slice(0, 2) + ':00';
       var value = HC.num(n.v, 1), when = format(P.updated, { time: time }) + (d.date !== HC.todayIso() ? ' · ' + HC.fmtDate(d.date) : '');
       // the button role on an inner <div>: the <li> stays a list item of the dashboard list; named by its content
       // (WCAG 2.5.3 Label in Name): "Stress monitor Latest hour 23:00 Low 0.4" (the chart is decorative)
@@ -161,7 +162,7 @@ type RowValue = { value: number; date: string; base: number | null; arrow: Arrow
         HC.stressChart(d.hours, P, function (v: number | null | undefined, dec: number) { return HC.num(v, dec); }, true) + '</div></li>';
     }
     function available() {
-      var out = D ? CATALOG.filter(function (k) { return own(D.metrics, k) && D.metrics[k] && Array.isArray(D.metrics[k].v); }) : [];
+      var out = D ? CATALOG.filter(function (k) { return own(D!.metrics, k) && D!.metrics[k] && Array.isArray(D!.metrics[k].v); }) : [];
       if (stressDay()) out.push('stress');
       return out;
     }
@@ -174,7 +175,7 @@ type RowValue = { value: number; date: string; base: number | null; arrow: Arrow
         list.forEach(function (p: { key: string; on: boolean }) {
           if (!p.on) return;
           if (p.key === 'stress') { var sd = stressDay(); if (sd) rows.push(stressCard(sd)); return; }
-          var m = D.metrics[p.key], r = rowValue(m, today);
+          var m = D!.metrics[p.key], r = rowValue(m, today);
           if (r) rows.push(rowHtml(p.key, m, r));
         });
         host.innerHTML = rows.length ? '<ul class="db-list">' + rows.join('') + '</ul>' : '<p class="db-empty">' + esc(TS.empty) + '</p>';

@@ -185,8 +185,13 @@ stays one file and the CSP hashes it like any other script. The tests run the sa
 (`clientScriptSource(file)`). The page globals a module reads are typed in `web/src/client/page-globals.d.ts`:
 `HC` with util.ts's own inferred API (`HCApi`), so every call into it is checked; `LOCALE` and every copy table
 (`I18N_*`) with the type of their own `web/src/i18n/*-templates.mjs` module (its `en` table; each nested table also takes
-a runtime string key, as the scripts look up a kind or a range); the baked data globals stay `any` until each gets its
-own type. A script reads a copy table through a guarded alias (`var T = (… ? null : I18N_X)!; if (!T) return;`): the
+a runtime string key, as the scripts look up a kind or a range); `SCORES` with the return type of
+`lib/score/index.mjs`'s `buildScoresFrom`, which TypeScript infers from the lib module itself (its JSDoc `@typedef`s:
+the monitor cards, the stress and energy days, the journal insights, each a union on its `state` / `ok` / `now`, so
+the scripts' own checks narrow it; the scripts import those typedefs instead of keeping copies); `DETAIL` with
+`lib/detail/detail.mjs`'s `DetailBake` (`DetailMetric`: the common series fields + what each kind adds); `DIALS`,
+`DASH`, `INTAKE` and `ACTIVITY` with their builders' return types (`ACTIVITY` = `lib/training/activity.mjs`'s
+`activityBake` over its `Activity` typedef). The other baked data globals stay `any` until each gets its own type. A script reads a copy table through a guarded alias (`var T = (… ? null : I18N_X)!; if (!T) return;`): the
 `!` is type-only (esbuild drops it) and says what the guard already enforces, because the closures that read `T` are
 declared before the guard and TypeScript cannot carry its narrowing into them. Every client script is a module script now (the last, `util.ts`, sets `globalThis.HC` itself: once bundled into an IIFE its `var HC` is no longer a page global).
 

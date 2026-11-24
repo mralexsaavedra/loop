@@ -21,8 +21,9 @@ declare const I18N_SCORE: PageGlobals['I18N_SCORE'];
 
 /** One hour of the baked curve: h = the clock hour, lv = the level at its end. */
 type Hour = { h: number; lv: number };
-/** One baked day of SCORES.energy (lib/score/energy-bank.mjs). */
-type EnergyDay = { date: string; wake: string; start: number; now: { lv: number; h: number | null }; min: { lv: number }; hours?: Hour[] };
+// one SCORES.energy day (lib/score/energy-bank.mjs): a simulated day, or one the bank could not start (`now` null)
+type EnergyDay = import('../../../lib/score/energy-bank.mjs').EnergyDay;
+type EnergyDayOk = import('../../../lib/score/energy-bank.mjs').EnergyDayOk;
 
 (function () {
   var host = document.getElementById('home-energy');
@@ -44,20 +45,20 @@ type EnergyDay = { date: string; wake: string; start: number; now: { lv: number;
     return m ? +m[1] + +m[2] / 60 : null;
   }
   // the day shown: `sel` (a past day) or the newest day with a value, when <= STALE_DAYS old
-  function dayOf(sel: string | null): EnergyDay | null {
+  function dayOf(sel: string | null): EnergyDayOk | null {
     if (!S || !S.ok || !Array.isArray(S.days)) return null;
-    var out: EnergyDay | null = null;
+    var out: EnergyDayOk | null = null;
     S.days.forEach(function (x: EnergyDay) {
       if (!x || !x.now || !isoDate(x.date)) return;
       if (sel ? x.date === sel : !out || x.date > out.date) out = x;
     });
-    var found = out as EnergyDay | null;
+    var found = out as EnergyDayOk | null;
     if (found && !sel && !(HC.daysOld(found.date)! <= HC.STALE_DAYS)) return null;
     return found;
   }
   // wake -> latest hour, 0-100 up: the line + a soft area under it (viewBox units, stretched to fit)
   var W = 200, H = 60;
-  function curve(d: EnergyDay): string {
+  function curve(d: EnergyDayOk): string {
     var wake = wakeDec(d.wake), hrs: Hour[] = d.hours || [];
     if (wake == null) return '';
     var w0: number = wake;
@@ -73,7 +74,7 @@ type EnergyDay = { date: string; wake: string; start: number; now: { lv: number;
   // THE carried-value rule (HC.carried, docs/design-system.md → Carried values): a level from before
   // the shown day is dimmed, names its date (short: the narrow column beside the curve) and opens the
   // page ON that day, like the stress tile
-  function cardHtml(d: EnergyDay, sel: string | null): string {
+  function cardHtml(d: EnergyDayOk, sel: string | null): string {
     var lv = d.now.lv, time = d.now.h != null ? clock(d.now.h) : d.wake;
     var c = HC.carried(d.date, sel, { weekday: false });
     var opens = sel || (c.carried ? d.date : null);
@@ -86,7 +87,7 @@ type EnergyDay = { date: string; wake: string; start: number; now: { lv: number;
   }
   function render() {
     var sel = DAY && typeof DAY.sel === 'function' ? DAY.sel() || null : null;
-    var d: EnergyDay | null;
+    var d: EnergyDayOk | null;
     try {
       d = dayOf(sel);
       hostEl.innerHTML = d ? cardHtml(d, sel) : '';

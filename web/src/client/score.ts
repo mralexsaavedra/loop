@@ -73,7 +73,7 @@ type DialParts = { fill?: string | null; mid?: { x: number; y: number } | null }
   var host = document.getElementById('home-advice');
   if (!host) return;
   var T = I18N_SCORE;
-  var S = typeof SCORES === 'undefined' ? null : SCORES;
+  var S = (typeof SCORES === 'undefined' ? null : SCORES)!;
   var STALE_DAYS = HC.STALE_DAYS; // older data is greyed and gets no advice (baked)
   var ES = HC.isEs();
 
@@ -352,7 +352,7 @@ type DialParts = { fill?: string | null; mid?: { x: number; y: number } | null }
 
 
   /* ---- dials ---- */
-  var D = typeof DIALS === 'undefined' ? null : DIALS;
+  var D = (typeof DIALS === 'undefined' ? null : DIALS)!; // read only by dialsHtml() and its helpers, after its own guard
   // the past day Inicio shows (null = the viewer's today), set from HCDay before each dial render
   var DAY = typeof HCDay !== 'undefined' && HCDay ? HCDay : null;
   var VIEW: string | null = null;

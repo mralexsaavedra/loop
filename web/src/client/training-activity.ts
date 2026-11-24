@@ -127,7 +127,7 @@ type Summary = {
     for (var i = 0; i < offset; i++) out.push('<span class="cal-pad"></span>');
     dates.forEach(function (date: string) {
       var d = byDate[date];
-      out.push('<span class="cal-day cal-l' + level(d ? d.min : 0, A.levelMin) + '"' + HC.detailAttrs('workouts', date, { plain: true }) + ' title="' + esc(cellTitle(date, d)) + '"></span>');
+      out.push('<span class="cal-day cal-l' + level(d ? d.min : 0, A!.levelMin) + '"' + HC.detailAttrs('workouts', date, { plain: true }) + ' title="' + esc(cellTitle(date, d)) + '"></span>');
     });
     out.push('</div>');
     return out.join('');
@@ -146,7 +146,7 @@ type Summary = {
       var k = offset + i, d = byDate[date];
       var min = d ? d.min : 0;
       var title = cellTitle(date, d);
-      out.push('<rect class="cal-cell cal-l' + level(min, A.levelMin) + '"' + HC.detailAttrs('workouts', date, { plain: true }) + ' x="' + ((k % 7) * STEP) + '" y="' + (HEAD + Math.floor(k / 7) * STEP) + '" width="' + CELL + '" height="' + CELL + '" rx="' + CAL_RX + '"><title>' + esc(title) + '</title></rect>');
+      out.push('<rect class="cal-cell cal-l' + level(min, A!.levelMin) + '"' + HC.detailAttrs('workouts', date, { plain: true }) + ' x="' + ((k % 7) * STEP) + '" y="' + (HEAD + Math.floor(k / 7) * STEP) + '" width="' + CELL + '" height="' + CELL + '" rx="' + CAL_RX + '"><title>' + esc(title) + '</title></rect>');
     });
     out.push('</svg>');
     return out.join('');
