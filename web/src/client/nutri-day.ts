@@ -68,7 +68,7 @@ type Target = { kcal: number; p: number; c: number; f: number };
 /** Intake logged today (window.foodTotals or INTAKE.latest); g = fat. */
 type Intake = { k: number; p: number; c: number; g: number; src?: string; date?: string; missing?: Record<string, boolean> };
 /** planFor's result (lib/nutrition/scale.mjs): the meals target, the ride fuel, the base day. */
-type Plan = { mt: Macro4; fuelK: number; base: string };
+type Plan = { mt: Macro4; meals: number[][]; fuelK: number; base: string };
 /** One example food of a guide row (lib/nutrition/guide.mjs roleOptions). */
 type Opt = { id: string; n: string; food: any };
 type Opts = { basics: Opt[]; products: Opt[] };
@@ -177,7 +177,7 @@ type RingTarget = { k: number; p: number; c: number; g: number; fatMax: number; 
     var today = todayIso();
     state.auto = detectDayType(dayInput(today));
     var g = load(KEY_GOAL);
-    if (N.goals.indexOf(g as string) >= 0) state.goal = g;
+    if (N.goals.indexOf(g as string) >= 0) state.goal = g as string;
     var o = loadToday(KEY_DAY, today);
     if (o && N.dayTypes.indexOf(o.type) >= 0 && o.type !== state.auto!.type) {
       var detectedLater = !(o.auto in RANK) || RANK[state.auto!.type] > RANK[o.auto];
