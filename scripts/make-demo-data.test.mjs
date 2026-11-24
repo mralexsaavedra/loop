@@ -13,7 +13,11 @@ import { intakeFrom } from '../lib/nutrition/intake.mjs';
 import { buildDials } from '../web/src/view/dial.mjs';
 import { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER } from '../lib/extract/samples.mjs';
 
+/** @typedef {import('../lib/health/aggregate.mjs').HealthBodyData} HealthBodyData */
+/** @typedef {import('../lib/health/aggregate.mjs').HealthEnergyData} HealthEnergyData */
 
+
+/** @template T @param {Record<string, string>} files @param {(dir: string) => T} fn @returns {T} */
 function withDemoDir(files, fn) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'demo-extract-'));
   try {
@@ -46,14 +50,14 @@ test('the tracked data/demo/extract files are exactly the generator output (re-r
 
 test('demo CSVs use the exact extract schemas, cover the window, and are tagged as demo data', () => {
   const files = makeDemoData();
-  const head = (f) => files[f].split('\n')[0];
+  const head = (/** @type {string} */ f) => files[f].split('\n')[0];
   for (const f of ['hrv.csv', 'rhr.csv', 'vo2max.csv', 'weight.csv', 'bodyfat.csv', 'leanmass.csv', 'waist.csv', 'wristTemp.csv']) assert.equal(head(f), READING_HEADER, f);
   assert.equal(head('sleep-daily.csv'), SLEEP_HEADER);
   assert.equal(head('workouts.csv'), WORKOUTS_HEADER);
   assert.equal(head('dietary-daily.csv'), 'date,kcal,protein_g,carbs_g,fat_g');
-  const rows = (f) => files[f].trim().split('\n').slice(1);
+  const rows = (/** @type {string} */ f) => files[f].trim().split('\n').slice(1);
   assert.equal(rows('sleep-daily.csv').length, DEMO_DEFAULTS.days);
-  assert.equal(rows('sleep-daily.csv').at(-1).slice(0, 10), DEMO_DEFAULTS.end);
+  assert.equal(/** @type {string} */ (rows('sleep-daily.csv').at(-1)).slice(0, 10), DEMO_DEFAULTS.end);
   for (const f of ['weight.csv', 'hrv.csv', 'workouts.csv', 'steps-daily.csv']) {
     for (const r of rows(f)) assert.match(r, /,Demo [A-Z][a-z]+(,|$)/, `${f} row not demo-tagged: ${r}`);
   }
@@ -70,28 +74,28 @@ test('demo CSVs use the exact extract schemas, cover the window, and are tagged 
 test('the demo extract populates every Inicio dial and every Salud section', () => withDemoDir(makeDemoData(), (dir) => {
   const inputs = readExtract(dir);
   const scores = buildScoresFrom(inputs);
-  assert.equal(scores.recovery.gated, false, 'recovery is ungated');
-  assert.deepEqual(scores.load.modalities.map((m) => [m.key, m.trend.ok]), [['strength', true], ['hybrid', true], ['run', true], ['bike', true]]);
+  assert.equal(/** @type {NonNullable<typeof scores.recovery>} */ (scores.recovery).gated, false, 'recovery is ungated');
+  assert.deepEqual(/** @type {NonNullable<typeof scores.load>} */ (scores.load).modalities.map((m) => [m.key, m.trend.ok]), [['strength', true], ['hybrid', true], ['run', true], ['bike', true]]);
   const health = healthFrom(inputs);
-  for (const k of ['body', 'activity', 'energy', 'running', 'cycling', 'recovery', 'loadRecovery']) assert.equal(health[k].hasData, true, k);
-  assert.ok(health.body.waist && health.body.bodyfat && health.body.lean);
-  assert.ok(health.energy.balance && health.energy.macros, 'enough logged intake days for balance + macro split');
+  for (const k of /** @type {const} */ (['body', 'activity', 'energy', 'running', 'cycling', 'recovery', 'loadRecovery'])) assert.equal(health[k].hasData, true, k);
+  assert.ok(/** @type {HealthBodyData} */ (health.body).waist && /** @type {HealthBodyData} */ (health.body).bodyfat && /** @type {HealthBodyData} */ (health.body).lean);
+  assert.ok(/** @type {HealthEnergyData} */ (health.energy).balance && /** @type {HealthEnergyData} */ (health.energy).macros, 'enough logged intake days for balance + macro split');
   const dials = buildDials(scores, health);
   assert.deepEqual([dials.sleep.state, dials.recovery.state, dials.load.state], ['ok', 'ok', 'ok']);
   const intake = intakeFrom(inputs, { train: { k: 2500, p: 170, c: 260, g: 70 }, rest: { k: 2100, p: 160, c: 200, g: 70 } });
-  assert.equal(intake.latest.date, DEMO_DEFAULTS.end, 'intake logged on the last demo day');
+  assert.equal(/** @type {NonNullable<typeof intake.latest>} */ (intake.latest).date, DEMO_DEFAULTS.end, 'intake logged on the last demo day');
 }));
 
 test('demo workout-zones.csv: one Demo Strava row per Strava run / ride, the reader schema, zones ~ the duration', async () => {
   const { readWorkoutZones, ZONES_CSV } = await import('../lib/training/read.mjs');
   const files = makeDemoData();
   const strava = files['workouts.csv'].trim().split('\n').slice(1).filter((l) => l.includes(',Demo Strava,'));
-  const rows = withDemoDir(files, readWorkoutZones);
+  const rows = /** @type {NonNullable<ReturnType<typeof readWorkoutZones>>} */ (withDemoDir(files, readWorkoutZones));
   assert.equal(files[ZONES_CSV].trim().split('\n').length - 1, strava.length);
   assert.equal(rows.length, strava.length);
   for (const [i, r] of rows.entries()) {
     const dur = parseFloat(strava[i].split(',')[2]) * 60;
-    const sum = r.z.reduce((a, b) => a + b, 0);
+    const sum = /** @type {number[]} */ (r.z).reduce((a, b) => a + b, 0);
     assert.ok(Math.abs(sum - dur * 0.97) <= 6, `zones ~ 97 % of the duration on ${r.date}`);
     assert.equal(r.maxSrc, 'observed');
   }
@@ -104,7 +108,7 @@ test('demo hr-hourly.csv: four weeks of hours in the sync schema, enough full da
   const lines = files['hr-hourly.csv'].trim().split('\n');
   assert.equal(lines[0], HR_HOURLY_HEADER);
   assert.equal(lines.length - 1, 28 * 24);
-  const s = withDemoDir(files, (dir) => strainFrom(readExtract(dir)));
+  const s = /** @type {{ ok: boolean, asOf: string, days: Array<{ acts: unknown[], s: number }> }} */ (withDemoDir(files, (dir) => strainFrom(readExtract(dir))));
   assert.equal(s.ok, true);
   assert.equal(s.asOf, DEMO_DEFAULTS.end);
   assert.ok(s.days.some((d) => d.acts.length) && s.days.every((d) => d.s >= 0 && d.s <= 21));

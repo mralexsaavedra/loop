@@ -28,13 +28,14 @@ export function userGuides(root = ROOT) {
   return ['README.md', ...guides, 'docs/ios-shortcut.md', 'docs/onboarding.md'];
 }
 
-const esSibling = (file) => file.replace(/\.md$/, '.es.md');
+const esSibling = (/** @type {string} */ file) => file.replace(/\.md$/, '.es.md');
 
 /** Inline code the Spanish side may add: English "gitignored" has no Spanish adjective and reads "en `.gitignore`". */
 const ES_ONLY_CODE = new Set(['`.gitignore`']);
 
 /** Splits a Markdown text into its fenced code blocks (whole text, fences included) and the prose lines
- * outside them. A fence is ``` or ~~~ (3 or more), possibly indented inside a list item. */
+ * outside them. A fence is ``` or ~~~ (3 or more), possibly indented inside a list item.
+ * @param {string} text */
 export function parse(text) {
   const blocks = [];
   const prose = [];
@@ -57,7 +58,7 @@ export function parse(text) {
   const headings = prose
     .map((l) => l.match(/^(#{1,6})\s+(.+?)\s*#*\s*$/))
     .filter(Boolean)
-    .map((m) => ({ level: m[1].length, text: m[2] }));
+    .map((m) => ({ level: /** @type {RegExpMatchArray} */ (m)[1].length, text: /** @type {RegExpMatchArray} */ (m)[2] }));
   const links = [];
   for (const line of prose) {
     const noCode = line.replace(/`[^`]*`/g, '');
@@ -72,7 +73,8 @@ export function parse(text) {
   return { blocks, headings, links, code };
 }
 
-/** GitHub's heading anchor: the text without Markdown, lower case, punctuation dropped, spaces → `-`. */
+/** GitHub's heading anchor: the text without Markdown, lower case, punctuation dropped, spaces → `-`.
+ * @param {string} heading */
 export function slug(heading) {
   return heading
     .replace(/\[([^\]]*)\]\([^)]*\)/g, '$1')
@@ -82,6 +84,7 @@ export function slug(heading) {
     .replace(/ /g, '-');
 }
 
+/** @param {string} text */
 function anchorsOf(text) {
   const seen = new Map();
   const out = new Set();
@@ -94,10 +97,11 @@ function anchorsOf(text) {
   return out;
 }
 
-const isExternal = (target) => /^[a-z][a-z0-9+.-]*:/i.test(target);
+const isExternal = (/** @type {string} */ target) => /^[a-z][a-z0-9+.-]*:/i.test(target);
 
 /** Every problem with one English/Spanish pair, as readable lines (empty = in step). `enFile` is the English
- * file's repo-relative path, used to tell a link into a translated page from one into an English-only doc. */
+ * file's repo-relative path, used to tell a link into a translated page from one into an English-only doc.
+ * @param {string} enText @param {string} esText @param {string} enFile @param {Set<string>} [translated] */
 export function comparePair(enText, esText, enFile, translated = new Set()) {
   const problems = [];
   const name = path.basename(enFile, '.md');
@@ -110,7 +114,7 @@ export function comparePair(enText, esText, enFile, translated = new Set()) {
 
   const en = parse(enText);
   const es = parse(esText);
-  const levels = (p) => p.headings.map((h) => h.level).join(',');
+  const levels = (/** @type {ReturnType<typeof parse>} */ p) => p.headings.map((h) => h.level).join(',');
   if (levels(en) !== levels(es)) {
     problems.push(`headings differ: English ${en.headings.length} [${levels(en)}], Spanish ${es.headings.length} [${levels(es)}]`);
   }
@@ -123,20 +127,20 @@ export function comparePair(enText, esText, enFile, translated = new Set()) {
 
   // the same inline code spans, as a multiset (a translation may reorder a sentence, never change a command);
   // a guide named as `x.es.md` counts as `x.md` (the Spanish page names the Spanish sibling, like its links)
-  const counts = (list) => list.reduce((m, c) => {
+  const counts = (/** @type {string[]} */ list) => list.reduce((m, c) => {
     const k = c.replace(/\.es\.md\b/g, '.md');
     return m.set(k, (m.get(k) ?? 0) + 1);
   }, new Map());
   const enCode = counts(en.code);
   const esCode = counts(es.code);
-  const extra = (a, b) => [...a].flatMap(([c, n]) => Array(Math.max(0, n - (b.get(c) ?? 0))).fill(`\`${c}\``));
+  const extra = (/** @type {Map<string, number>} */ a, /** @type {Map<string, number>} */ b) => [...a].flatMap(([c, n]) => Array(Math.max(0, n - (b.get(c) ?? 0))).fill(`\`${c}\``));
   const codeOnlyEn = extra(enCode, esCode);
   const codeOnlyEs = extra(esCode, enCode).filter((c) => !ES_ONLY_CODE.has(c));
   if (codeOnlyEn.length) problems.push(`inline code only in English: ${codeOnlyEn.join(', ')}`);
   if (codeOnlyEs.length) problems.push(`inline code only in Spanish: ${codeOnlyEs.join(', ')}`);
 
   const dir = path.posix.dirname(enFile);
-  const norm = (target) => {
+  const norm = (/** @type {string} */ target) => {
     const mapped = target.replace(/\.es\.md(?=$|#)/, '.md');
     if (isExternal(mapped)) return mapped;
     const [file, frag] = mapped.split('#');
@@ -160,7 +164,8 @@ export function comparePair(enText, esText, enFile, translated = new Set()) {
   return problems;
 }
 
-/** Relative links of one file that do not resolve (missing file or anchor). */
+/** Relative links of one file that do not resolve (missing file or anchor).
+ * @param {string} file @param {string} [root] */
 export function brokenLinks(file, root = ROOT) {
   const text = fs.readFileSync(path.join(root, file), 'utf8');
   const broken = [];

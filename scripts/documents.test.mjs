@@ -10,9 +10,12 @@ import { DOCUMENT_FILES } from './lib/documents.mjs';
 import { createDocumentRoutes } from '../services/loop-ingest/src/documents.js';
 import { createBearerCheck } from '../services/loop-ingest/src/auth.js';
 
+/** @typedef {import('./lib/documents.mjs').DocumentKind} DocumentKind */
+/** A stored row; `data` is a parsed JSON document (untyped on purpose). @typedef {{ data: any, revision: number, updatedAt: string | null }} TestRow */
+
 const REPO = path.dirname(path.dirname(new URL(import.meta.url).pathname));
 const TOKEN = 'k'.repeat(32);
-const readRepo = (rel) => JSON.parse(fs.readFileSync(path.join(REPO, rel), 'utf8'));
+const readRepo = (/** @type {string} */ rel) => JSON.parse(fs.readFileSync(path.join(REPO, rel), 'utf8'));
 // the tracked example seeds pass every rule of the page build
 const PLAN = readRepo('data/nutrition/plan-data.example.json');
 const TRAINING = readRepo('data/training/training-data.example.json');
@@ -20,7 +23,8 @@ const PROFILE = readRepo('profile/profile.example.json');
 
 /** The real document routes over HTTP with an in-memory store (same contract as documents-db.js). */
 async function service() {
-  const rows = new Map();
+  const rows = /** @type {Map<string, TestRow>} */ (new Map());
+  /** @type {import('../services/loop-ingest/src/documents.js').DocumentStore} */
   const store = {
     async get(kind) { return rows.get(kind) ?? null; },
     async put(kind, data, expected) {
@@ -31,30 +35,32 @@ async function service() {
     },
   };
   const routes = createDocumentRoutes({ store, checkBearer: createBearerCheck(TOKEN, { log: () => {} }), log: () => {} });
-  const server = http.createServer((req, res) => routes.handle(req, res, new URL(req.url, 'http://x')));
-  await new Promise((r) => server.listen(0, '127.0.0.1', r));
-  return { rows, url: `http://127.0.0.1:${server.address().port}`, close: () => new Promise((r) => server.close(r)) };
+  const server = http.createServer((req, res) => routes.handle(req, res, new URL(/** @type {string} */ (req.url), 'http://x')));
+  await /** @type {Promise<void>} */ (new Promise((r) => server.listen(0, '127.0.0.1', r)));
+  return { rows, url: `http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}`, close: () => new Promise((r) => server.close(r)) };
 }
 
-/** A clone root with ingredients.json (the plan's full validation reads it) and the given documents as files. */
+/** A clone root with ingredients.json (the plan's full validation reads it) and the given documents as files.
+ * @param {Record<string, unknown>} [files] */
 function clone(files = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-docs-cli-'));
   fs.mkdirSync(path.join(root, 'data', 'nutrition'), { recursive: true });
   fs.copyFileSync(path.join(REPO, 'data', 'nutrition', 'ingredients.json'), path.join(root, 'data', 'nutrition', 'ingredients.json'));
   for (const [kind, doc] of Object.entries(files)) {
-    const file = path.join(root, DOCUMENT_FILES[kind]);
+    const file = path.join(root, DOCUMENT_FILES[/** @type {DocumentKind} */ (kind)]);
     fs.mkdirSync(path.dirname(file), { recursive: true });
     fs.writeFileSync(file, typeof doc === 'string' ? doc : JSON.stringify(doc, null, 2));
   }
   return root;
 }
 
+/** @param {{ url: string }} svc @param {string} root @param {string[]} argv @param {Record<string, string>} [env] */
 async function cli(svc, root, argv, env = {}) {
-  const logs = []; const warns = [];
+  const logs = /** @type {string[]} */ ([]); const warns = /** @type {string[]} */ ([]);
   const code = await main({ argv, env: { SYNC_DOCUMENTS_ROOT: root, INGEST_URL: svc.url, INGEST_TOKEN: TOKEN, ...env }, log: (l) => logs.push(l), warn: (w) => warns.push(w) });
   return { code, logs, warns };
 }
-const fileOf = (root, kind) => JSON.parse(fs.readFileSync(path.join(root, DOCUMENT_FILES[kind]), 'utf8'));
+const fileOf = (/** @type {string} */ root, /** @type {DocumentKind} */ kind) => JSON.parse(fs.readFileSync(path.join(root, DOCUMENT_FILES[kind]), 'utf8'));
 
 test('usage: push / pull + a kind or all, --force; anything else is exit 2', () => {
   assert.deepEqual(parseCommand(['push', 'plan']), { command: 'push', kinds: ['plan'], all: false, force: false });
@@ -62,7 +68,7 @@ test('usage: push / pull + a kind or all, --force; anything else is exit 2', () 
   for (const bad of [[], ['push'], ['push', 'settings'], ['send', 'plan'], ['push', 'plan', 'extra'], ['push', 'plan', '--nope']]) {
     const r = parseCommand(bad);
     assert.equal(r.exit, 2, bad.join(' '));
-    assert.match(r.err, /^ERROR: .*\n\nUsage: npm run documents -- <push\|pull>/s);
+    assert.match(/** @type {string} */ (r.err), /^ERROR: .*\n\nUsage: npm run documents -- <push\|pull>/s);
   }
   assert.equal(parseCommand(['--help']).exit, 0);
 });
@@ -78,11 +84,11 @@ test('push all imports the three files (revision 1) and records the sync state; 
     'Documents: plan pushed from loop-data/cache/plan.json (revision 1)',
     'Documents: training pushed from loop-data/cache/training.json (revision 1)',
   ]);
-  assert.equal(JSON.stringify(svc.rows.get('plan').data), JSON.stringify(PLAN));
+  assert.equal(JSON.stringify(/** @type {TestRow} */ (svc.rows.get('plan')).data), JSON.stringify(PLAN));
   const again = await cli(svc, root, ['push', 'all']);
   assert.equal(again.code, 0);
   assert.deepEqual(again.logs.map((l) => l.replace(/ \(revision \d\)/, '')), ['Documents: profile already in the database', 'Documents: plan already in the database', 'Documents: training already in the database']);
-  assert.equal(svc.rows.get('plan').revision, 1);
+  assert.equal(/** @type {TestRow} */ (svc.rows.get('plan')).revision, 1);
 });
 
 test('the edit loop: sync, edit the file, push; the next sync leaves it alone', async (t) => {
@@ -94,8 +100,8 @@ test('the edit loop: sync, edit the file, push; the next sync leaves it alone', 
   fs.writeFileSync(path.join(root, DOCUMENT_FILES.plan), JSON.stringify(edited, null, 2));
   const r = await cli(svc, root, ['push', 'plan']);
   assert.deepEqual([r.code, r.logs], [0, ['Documents: plan pushed from loop-data/cache/plan.json (revision 2)']]);
-  assert.equal(svc.rows.get('plan').data.page.title, 'Edited');
-  const logs = []; const warns = [];
+  assert.equal(/** @type {TestRow} */ (svc.rows.get('plan')).data.page.title, 'Edited');
+  const logs = /** @type {string[]} */ ([]); const warns = /** @type {string[]} */ ([]);
   await sync({ env: { SYNC_DOCUMENTS_ROOT: root, INGEST_URL: svc.url, INGEST_TOKEN: TOKEN }, log: (l) => logs.push(l), warn: (w) => warns.push(w), kinds: ['plan'] });
   assert.deepEqual([logs, warns], [['Documents: plan unchanged'], []]);
 });
@@ -139,10 +145,10 @@ test('a database changed since the last sync is never overwritten: push refuses,
   const r = await cli(svc, mine, ['push', 'profile']);
   assert.equal(r.code, 1);
   assert.match(r.warns[0], /^ERROR: profile not pushed: the database changed since your last sync \(revision 2, yours 1\)\. Take the database's with `npm run documents -- pull profile --force`/);
-  assert.equal(svc.rows.get('profile').data.city, 'Other');
+  assert.equal(/** @type {TestRow} */ (svc.rows.get('profile')).data.city, 'Other');
   const forced = await cli(svc, mine, ['push', 'profile', '--force']);
   assert.deepEqual([forced.code, forced.logs], [0, ['Documents: profile pushed from loop-data/cache/profile.json (revision 3)']]);
-  assert.equal(svc.rows.get('profile').data.city, 'Mine');
+  assert.equal(/** @type {TestRow} */ (svc.rows.get('profile')).data.city, 'Mine');
 });
 
 test('a first push over a document the database already has (no sync state here) refuses unless --force', async (t) => {
@@ -209,10 +215,12 @@ test('a push that loses a race to another writer names both ways out', async (t)
   fs.writeFileSync(path.join(root, DOCUMENT_FILES.profile), JSON.stringify({ ...PROFILE, city: 'Mine' }));
   // another writer saves between this push's read and its write
   const env = { SYNC_DOCUMENTS_ROOT: root, INGEST_URL: svc.url, INGEST_TOKEN: TOKEN };
+  /** @type {string[]} */
   const warns = [];
+  /** @type {typeof fetch} */
   const racing = async (url, init) => {
     if (init?.method === 'PUT') {
-      const row = svc.rows.get('profile');
+      const row = /** @type {TestRow} */ (svc.rows.get('profile'));
       svc.rows.set('profile', { ...row, data: { ...row.data, city: 'Theirs' }, revision: row.revision + 1 });
     }
     return fetch(url, init);
@@ -220,7 +228,7 @@ test('a push that loses a race to another writer names both ways out', async (t)
   const code = await main({ argv: ['push', 'profile'], env, log: () => {}, warn: (w) => warns.push(w), fetchImpl: racing });
   assert.equal(code, 1);
   assert.match(warns[0], /^ERROR: profile not pushed: the database changed while pushing \(revision 2\)\. Take the database's with `npm run documents -- pull profile --force`.*or replace it with `npm run documents -- push profile --force`$/);
-  assert.equal(svc.rows.get('profile').data.city, 'Theirs');
+  assert.equal(/** @type {TestRow} */ (svc.rows.get('profile')).data.city, 'Theirs');
 });
 
 test('HC_DATA_DIR: push reads <data root>/cache and records cache/.sync-state.json; validation still uses the clone\'s ingredients.json', async (t) => {

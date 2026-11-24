@@ -42,26 +42,27 @@ test('mergeCsv() defaults sourceCol to 2 and isOwn to always-false when omitted'
 });
 
 test('fetchJson() keeps the HTTP status on err.status and rejects a non-OK response', async () => {
-  const fetchImpl = async () => ({ ok: false, status: 404, json: async () => ({}) });
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: false, status: 404, json: async () => ({}) })));
   await assert.rejects(
     fetchJson('http://h/x', 'tok', { fetchImpl, timeoutMs: 1000 }),
-    (err) => err.status === 404 && /404/.test(err.message),
+    (/** @type {{ status?: number, message: string }} */ err) => err.status === 404 && /404/.test(err.message),
   );
 });
 
 test('fetchJson() returns the parsed body on success', async () => {
-  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ a: 1 }) });
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: true, status: 200, json: async () => ({ a: 1 }) })));
   assert.deepEqual(await fetchJson('http://h/x', 'tok', { fetchImpl, timeoutMs: 1000 }), { a: 1 });
 });
 
 test('fetchPages() pages via buildUrl until a short page, forwarding the bearer token', async () => {
   const pages = [1, 2, 3].map((id) => ({ id: String(id) }));
+  /** @type {Array<{ url: string, auth: string }>} */
   const calls = [];
-  const fetchImpl = async (url, opts) => {
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async (/** @type {string} */ url, /** @type {{ headers: Record<string, string> }} */ opts) => {
     calls.push({ url: String(url), auth: opts.headers.authorization });
     const since = Number(new URL(url).searchParams.get('since_id'));
     return { ok: true, status: 200, json: async () => pages.filter((p) => Number(p.id) > since).slice(0, 2) };
-  };
+  }));
   const out = await fetchPages({
     baseUrl: 'http://h:1', token: 'tok', limit: 2, fetchImpl,
     buildUrl: ({ baseUrl, since, limit }) => `${baseUrl}/export/strava?since_id=${since}&limit=${limit}`,
@@ -74,13 +75,13 @@ test('fetchPages() pages via buildUrl until a short page, forwarding the bearer 
 test('fetchPages() keeps paging after a short page the server marks X-Has-More (byte-capped page)', async () => {
   // /export/raw cuts a page at its byte budget: fewer rows than `limit`, but more exist after it
   const rows = [1, 2, 3, 4].map((id) => ({ id: String(id) }));
-  const fetchImpl = async (url) => {
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async (/** @type {string} */ url) => {
     const since = Number(new URL(url).searchParams.get('since_id'));
     const rest = rows.filter((p) => Number(p.id) > since);
     const page = since === 0 ? rest.slice(0, 1) : rest.slice(0, 10); // first page byte-capped to 1 row
     const more = since === 0;
     return { ok: true, status: 200, headers: new Headers({ 'x-has-more': String(more) }), json: async () => page };
-  };
+  }));
   const out = await fetchPages({
     baseUrl: 'http://h', token: 't', limit: 10, fetchImpl,
     buildUrl: ({ baseUrl, since, limit }) => `${baseUrl}/export/raw?since_id=${since}&limit=${limit}`,
@@ -89,7 +90,7 @@ test('fetchPages() keeps paging after a short page the server marks X-Has-More (
 });
 
 test('fetchPages() rejects an empty page that still claims X-Has-More (no progress possible)', async () => {
-  const fetchImpl = async () => ({ ok: true, status: 200, headers: new Headers({ 'x-has-more': 'true' }), json: async () => [] });
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: true, status: 200, headers: new Headers({ 'x-has-more': 'true' }), json: async () => [] })));
   await assert.rejects(
     fetchPages({ baseUrl: 'http://h', token: 't', limit: 10, fetchImpl, buildUrl: ({ since }) => `http://h/x?since_id=${since}` }),
     /unexpected paging cursor/,
@@ -97,7 +98,7 @@ test('fetchPages() rejects an empty page that still claims X-Has-More (no progre
 });
 
 test('fetchPages() rejects a non-array response', async () => {
-  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ not: 'an array' }) });
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: true, status: 200, json: async () => ({ not: 'an array' }) })));
   await assert.rejects(
     fetchPages({ baseUrl: 'http://h', token: 't', fetchImpl, buildUrl: () => 'http://h/x' }),
     /expected an array/,
@@ -106,7 +107,7 @@ test('fetchPages() rejects a non-array response', async () => {
 
 test('fetchPages() throws on a cursor that does not advance (a repeated last id) instead of looping forever', async () => {
   let calls = 0;
-  const fetchImpl = async () => { calls++; return { ok: true, status: 200, json: async () => [{ id: '1' }, { id: '2' }] }; };
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => { calls++; return { ok: true, status: 200, json: async () => [{ id: '1' }, { id: '2' }] }; }));
   await assert.rejects(
     fetchPages({ baseUrl: 'http://h', token: 't', limit: 2, fetchImpl, buildUrl: ({ since }) => `http://h/x?since_id=${since}` }),
     /unexpected paging cursor/,
@@ -116,7 +117,7 @@ test('fetchPages() throws on a cursor that does not advance (a repeated last id)
 
 test('fetchPages() throws on a full page whose last row has no id, or a non-numeric one', async () => {
   for (const last of [{}, { id: null }, { id: 'abc' }, { id: '' }]) {
-    const fetchImpl = async () => ({ ok: true, status: 200, json: async () => [{ id: '1' }, last] });
+    const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: true, status: 200, json: async () => [{ id: '1' }, last] })));
     await assert.rejects(
       fetchPages({ baseUrl: 'http://h', token: 't', limit: 2, fetchImpl, buildUrl: () => 'http://h/x' }),
       /unexpected paging cursor/, JSON.stringify(last),
@@ -126,24 +127,24 @@ test('fetchPages() throws on a full page whose last row has no id, or a non-nume
 
 test('fetchPages() compares ids beyond 2^53 exactly (BigInt) and accepts numeric ids', async () => {
   const big = ['9007199254740993', '9007199254740994', '9007199254740995'];
-  const fetchImpl = async (url) => {
-    const since = BigInt(new URL(url).searchParams.get('since_id'));
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async (/** @type {string} */ url) => {
+    const since = BigInt(/** @type {string} */ (new URL(url).searchParams.get('since_id')));
     return { ok: true, status: 200, json: async () => big.filter((id) => BigInt(id) > since).slice(0, 2).map((id) => ({ id })) };
-  };
+  }));
   const out = await fetchPages({ baseUrl: 'http://h', token: 't', limit: 2, sinceId: '9007199254740992', fetchImpl,
     buildUrl: ({ since }) => `http://h/x?since_id=${since}` });
   assert.deepEqual(out.map((p) => p.id), big);
-  const nums = async (url) => {
+  const nums = /** @type {typeof fetch} */ (/** @type {unknown} */ (async (/** @type {string} */ url) => {
     const since = Number(new URL(url).searchParams.get('since_id'));
     return { ok: true, status: 200, json: async () => [1, 2, 3].filter((id) => id > since).slice(0, 2).map((id) => ({ id })) };
-  };
-  assert.equal((await fetchPages({ baseUrl: 'http://h', token: 't', limit: 2, sinceId: 0, fetchImpl: nums,
+  }));
+  assert.equal((await fetchPages({ baseUrl: 'http://h', token: 't', limit: 2, sinceId: /** @type {any} */ (0), fetchImpl: nums,
     buildUrl: ({ since }) => `http://h/x?since_id=${since}` })).length, 3);
 });
 
 test('fetchPages() stops at a hard page cap', async () => {
   let n = 0;
-  const fetchImpl = async () => { const id = ++n; return { ok: true, status: 200, json: async () => [{ id }] }; };
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => { const id = ++n; return { ok: true, status: 200, json: async () => [{ id }] }; }));
   await assert.rejects(
     fetchPages({ baseUrl: 'http://h', token: 't', limit: 1, maxPages: 5, fetchImpl, buildUrl: () => 'http://h/x' }),
     /more than 5 pages/,
@@ -235,6 +236,7 @@ test('withLock() runs fn while holding the lock and always releases it, includin
 test('withLock() serializes contention: a second caller waits for the first to release, then proceeds', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-common-lock-'));
   const lock = path.join(dir, '_meta.json.lock');
+  /** @type {string[]} */
   const order = [];
 
   // Simulate two contenders without real concurrency (these scripts run synchronously): the
@@ -292,8 +294,9 @@ test('readIngestToken / readBaseUrl honour INGEST_ENV_FILE when no file is passe
 });
 
 test('fetchJson() without a token sends no authorization; extra headers and redirect are passed through', async () => {
+  /** @type {RequestInit[]} */
   const calls = [];
-  const fetchImpl = async (url, init) => { calls.push(init); return { ok: true, status: 200, json: async () => ({}) }; };
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async (/** @type {string} */ url, /** @type {RequestInit} */ init) => { calls.push(init); return { ok: true, status: 200, json: async () => ({}) }; }));
   await fetchJson('http://h/x', null, { fetchImpl, headers: { 'x-hc-food': '1' }, redirect: 'error' });
   assert.deepEqual(calls[0].headers, { 'x-hc-food': '1' });
   assert.equal(calls[0].redirect, 'error');
@@ -303,9 +306,9 @@ test('fetchJson() without a token sends no authorization; extra headers and redi
 });
 
 test('fetchJson() reports a timeout as its own message', async () => {
-  const fetchImpl = (url, init) => new Promise((resolve, reject) => {
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ ((/** @type {string} */ url, /** @type {{ signal: AbortSignal }} */ init) => new Promise((resolve, reject) => {
     init.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
-  });
+  })));
   await assert.rejects(fetchJson('http://h/x', 'tok', { fetchImpl, timeoutMs: 20 }), /request timed out after 0\.02 s/);
 });
 
@@ -322,6 +325,7 @@ test('parseCli: --help, a strict unknown flag, a stray argument, declared option
 });
 
 // runCli in a real child process: the exit code is what `npm run sync` (scripts/sync-all.mjs) sees
+/** @param {string} body @param {string[]} [args] */
 function runCliChild(body, args = []) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-runcli-'));
   try {

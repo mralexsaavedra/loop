@@ -17,6 +17,7 @@ const DATA = path.join(REPO, 'data');
 const SCRIPTS_LIB = path.join(SCRIPTS, 'lib') + path.sep;
 const SPEC = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+|\brequire\s*\(\s*)['"]([^'"]+)['"]/g;
 
+/** @param {string} dir @returns {string[]} */
 function walk(dir) {
   return fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
     const p = path.join(dir, e.name);
@@ -25,7 +26,7 @@ function walk(dir) {
   });
 }
 
-/** Every relative import of `file`, resolved to an absolute path. */
+/** Every relative import of `file`, resolved to an absolute path. @param {string} file */
 function importsOf(file) {
   return [...fs.readFileSync(file, 'utf8').matchAll(SPEC)]
     .map((m) => m[1])
@@ -33,8 +34,8 @@ function importsOf(file) {
     .map((s) => path.resolve(path.dirname(file), s));
 }
 
-const rel = (p) => path.relative(REPO, p).split(path.sep).join('/');
-const isTest = (p) => /\.test\.(mjs|js|cjs)$/.test(p);
+const rel = (/** @type {string} */ p) => path.relative(REPO, p).split(path.sep).join('/');
+const isTest = (/** @type {string} */ p) => /\.test\.(mjs|js|cjs)$/.test(p);
 
 test('no non-test module under scripts/ imports from data/', () => {
   const found = walk(SCRIPTS)

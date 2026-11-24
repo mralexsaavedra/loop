@@ -17,10 +17,10 @@ test('zonesFromHist sums seconds per zone; bad keys / values are skipped; empty 
   assert.deepEqual(Z.zonesFromHist({ 150: 5, x: 9, 160: -3, 0: 4 }, 200), [0, 0, 0, 5, 0, 0])
   assert.equal(Z.zonesFromHist({}, 200), null)
   assert.equal(Z.zonesFromHist(null, 200), null)
-  assert.equal(Z.zonesFromHist({ 150: 5 }, null), null)
+  assert.equal(Z.zonesFromHist({ 150: 5 }, /** @type {any} */ (null)), null)
 })
 
-const act = (id, day, extra = {}) => ({ id, start_local: `${day}T08:00:00Z`, sport_type: 'Run', ...extra })
+const act = (/** @type {string} */ id, /** @type {string} */ day, /** @type {object} */ extra = {}) => ({ id, start_local: `${day}T08:00:00Z`, sport_type: 'Run', ...extra })
 
 test('observedMaxHr: highest Strava max HR over the 365 days ending at the newest activity', () => {
   const list = [act('1', '2025-01-01', { max_heartrate: 199 }), act('2', '2025-10-01', { max_heartrate: 188.6 }), act('3', '2026-09-30', { max_heartrate: 181 }), act('4', '2026-09-29')]
@@ -63,7 +63,7 @@ test('buildZones: one row per activity with a histogram, sorted by start; activi
 test('buildZones: start (startOf) + elapsed_s (elapsed, else moving time) close the row — the activity window', () => {
   const list = [act('5', '2026-09-30', { max_heartrate: 180, elapsed_time: 3605.4, moving_time: 3000, hr_hist: { 150: 60 } }),
     act('6', '2026-09-30', { max_heartrate: 180, moving_time: 1200, start_local: '2026-09-30T09:00:00Z', hr_hist: { 150: 60 } })]
-  const r = Z.buildZones(list, { translateType: () => 'Running', source: 'S', startOf: (a) => a.start_local.slice(0, 19) + '+02:00' })
+  const r = Z.buildZones(list, { translateType: () => 'Running', source: 'S', startOf: (a) => /** @type {string} */ (a.start_local).slice(0, 19) + '+02:00' })
   const rows = r.text.trim().split('\n').slice(1)
   assert.deepEqual(rows.map((l) => l.split(',').slice(-2)), [['2026-09-30T08:00:00+02:00', '3605'], ['2026-09-30T09:00:00+02:00', '1200']])
 })

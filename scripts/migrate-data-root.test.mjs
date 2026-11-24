@@ -45,13 +45,13 @@ const TRACKED = [
 ];
 const STAYS = ['data/training/podcasts/ep1.md', 'data/training/.env.hyprogram', 'data/nutrition/food-log.md', 'data/nutrition/plan-tables.md', 'profile/about-me.md'];
 
-const content = (rel) => `synthetic ${rel}\n`;
-const git = (dir, ...args) => {
+const content = (/** @type {string} */ rel) => `synthetic ${rel}\n`;
+const git = (/** @type {string} */ dir, /** @type {string[]} */ ...args) => {
   const r = spawnSync('git', ['-C', dir, ...args], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
   return r.stdout;
 };
-const put = (file, text) => {
+const put = (/** @type {string} */ file, /** @type {string} */ text) => {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, text);
 };
@@ -70,16 +70,17 @@ function clone() {
   return dir;
 }
 
+/** @param {string} dir @param {Partial<Parameters<typeof main>[0]>} [opts] */
 function run(dir, opts = {}) {
-  const logs = []; const warns = [];
+  const logs = /** @type {string[]} */ ([]); const warns = /** @type {string[]} */ ([]);
   const code = main({ repoRoot: dir, env: {}, now: NOW, log: (l) => logs.push(l), warn: (w) => warns.push(w), ...opts });
   return { code, logs, warns };
 }
 
-/** Every file under dir (relative, sorted) with its bytes. */
+/** Every file under dir (relative, sorted) with its bytes. @param {string} dir */
 function snapshot(dir) {
-  const out = {};
-  const walk = (rel) => {
+  const out = /** @type {Record<string, string>} */ ({});
+  const walk = (/** @type {string} */ rel) => {
     for (const e of fs.readdirSync(path.join(dir, rel), { withFileTypes: true })) {
       const r = path.join(rel, e.name);
       if (r === '.git') continue;
@@ -227,7 +228,7 @@ test('an interrupted copy: its temp files are removed, older backups dropped (on
   put(path.join(dir, 'backups/other.bak'), 'kept');
   const r = run(dir);
   assert.equal(r.code, 0, r.warns.join('\n'));
-  assert.match(r.logs.at(-1), /\. Removed 1 temp file of an interrupted run\.$/);
+  assert.match(/** @type {string} */ (r.logs.at(-1)), /\. Removed 1 temp file of an interrupted run\.$/);
   assert.equal(fs.existsSync(tmp), false);
   const tars = fs.readdirSync(path.join(dir, 'backups')).filter((n) => n.endsWith('.tar'));
   assert.deepEqual(tars, ['data-root-before-20300102T030405Z.tar']);

@@ -12,6 +12,8 @@ import * as sp from './sync-profile.mjs';
 import { fileURLToPath } from 'node:url';
 import { dataPaths } from '../../lib/paths.mjs';
 
+/** @typedef {{ status: number, stderr: Buffer }} ExecError */
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const { normalizeExport, planAvatar, checkAvatar, downloadAvatar, isAllowedAvatarUrl, syncProfile, errorMessage, MAX_AVATAR_BYTES, PROFILE_JSON, AVATAR_FILE } = sp;
@@ -40,16 +42,16 @@ const BODY = {
   devices: [{ name: 'Demo Watch', count: 3, lastUsed: '2030-01-05' }],
 };
 
-const tmpDir = (tag) => fs.mkdtempSync(path.join(os.tmpdir(), `sync-profile-${tag}-`));
-const imgRes = (buf, type = 'image/jpeg') => new Response(buf, { status: 200, headers: { 'content-type': type } });
-const readJson = (dir) => JSON.parse(fs.readFileSync(path.join(dir, PROFILE_JSON), 'utf8'));
+const tmpDir = (/** @type {string} */ tag) => fs.mkdtempSync(path.join(os.tmpdir(), `sync-profile-${tag}-`));
+const imgRes = (/** @type {Buffer} */ buf, type = 'image/jpeg') => new Response(buf, { status: 200, headers: { 'content-type': type } });
+const readJson = (/** @type {string} */ dir) => JSON.parse(fs.readFileSync(path.join(dir, PROFILE_JSON), 'utf8'));
 
 // ---- shape -----------------------------------------------------------------------------
 
 test('normalizeExport keeps the known fields and rejects a non-object body', () => {
   const out = normalizeExport({ ...BODY, extra: 'x' });
   assert.equal(out.firstname, 'Alex');
-  assert.equal(out.extra, undefined, 'unknown keys are not persisted');
+  assert.equal(/** @type {Record<string, unknown>} */ (out).extra, undefined, 'unknown keys are not persisted');
   assert.deepEqual(out.bikes, BODY.bikes);
   assert.throws(() => normalizeExport([]), /unexpected response shape/);
   assert.throws(() => normalizeExport(null), /unexpected response shape/);
@@ -76,21 +78,21 @@ test('planAvatar: download a new URL, keep the photo already saved from this URL
 
 test('planAvatar retries when the previous download failed (profileMedium recorded, avatarSourceUrl not)', () => {
   assert.equal(planAvatar({ next: BODY, prev: { ...BODY, avatarSourceUrl: null }, avatarExists: false }), 'download');
-  assert.equal(planAvatar({ next: { ...BODY, profileMedium: PHOTO_NEW }, prev: { ...BODY, profileMedium: PHOTO_NEW, avatarSourceUrl: PHOTO }, avatarExists: true }), 'download',
+  assert.equal(planAvatar({ next: { ...BODY, profileMedium: PHOTO_NEW }, prev: /** @type {{ avatarSourceUrl?: unknown }} */ ({ ...BODY, profileMedium: PHOTO_NEW, avatarSourceUrl: PHOTO }), avatarExists: true }), 'download',
     'the old photo is on disk but the new URL never downloaded');
 });
 
 test('planAvatar keeps the previous avatar when the service has no snapshot yet', () => {
-  assert.equal(planAvatar({ next: { ...BODY, fetchedAt: null, profileMedium: null }, prev: BODY, avatarExists: true }), 'keep');
+  assert.equal(planAvatar({ next: { ...BODY, fetchedAt: null, profileMedium: null }, prev: /** @type {{ avatarSourceUrl?: unknown }} */ (BODY), avatarExists: true }), 'keep');
 });
 
 test('checkAvatar accepts a small JPEG or PNG only', () => {
   assert.equal(checkAvatar(JPEG), null);
   assert.equal(checkAvatar(PNG), null);
-  assert.match(checkAvatar(Buffer.from('GIF89a-not-allowed')), /not a JPEG or PNG/);
-  assert.match(checkAvatar(Buffer.alloc(0)), /empty/);
+  assert.match(/** @type {string} */ (checkAvatar(Buffer.from('GIF89a-not-allowed'))), /not a JPEG or PNG/);
+  assert.match(/** @type {string} */ (checkAvatar(Buffer.alloc(0))), /empty/);
   const big = Buffer.concat([JPEG, Buffer.alloc(MAX_AVATAR_BYTES)]);
-  assert.match(checkAvatar(big), /too large/);
+  assert.match(/** @type {string} */ (checkAvatar(big)), /too large/);
 });
 
 // ---- avatar download hardening ---------------------------------------------------------
@@ -123,8 +125,8 @@ test('downloadAvatar refuses redirects (redirect: error)', async () => {
   let opts;
   const buf = await downloadAvatar(PHOTO, { fetchImpl: async (url, o) => { opts = o; return imgRes(JPEG); } });
   assert.ok(buf.equals(JPEG));
-  assert.equal(opts.redirect, 'error');
-  assert.ok(opts.signal, 'the timeout signal is passed');
+  assert.equal(/** @type {RequestInit} */ (/** @type {unknown} */ (opts)).redirect, 'error');
+  assert.ok(/** @type {RequestInit} */ (/** @type {unknown} */ (opts)).signal, 'the timeout signal is passed');
 });
 
 test('downloadAvatar requires an image Content-Type and JPEG/PNG magic bytes', async () => {
@@ -210,8 +212,9 @@ test('syncProfile: a first download that fails leaves avatarSourceUrl null and n
 
 test('syncProfile writes the photo BEFORE the JSON that names it', async () => {
   const dir = tmpDir('order');
+  /** @type {string[]} */
   const order = [];
-  const writeAtomic = (file, data) => { order.push(path.basename(file)); fs.writeFileSync(file, data); };
+  const writeAtomic = (/** @type {string} */ file, /** @type {string | NodeJS.ArrayBufferView} */ data) => { order.push(path.basename(file)); fs.writeFileSync(file, data); };
   await syncProfile(dir, BODY, { fetchImpl: async () => imgRes(JPEG), writeAtomic });
   assert.deepEqual(order, [AVATAR_FILE, PROFILE_JSON]);
   fs.rmSync(dir, { recursive: true });
@@ -236,6 +239,7 @@ test('errorMessage explains a 404 (stale ingest image) and surfaces a network ca
 
 const SCRIPT = path.join(__dirname, 'sync-profile.mjs');
 
+/** @param {NodeJS.ProcessEnv} env @param {string} [seed] */
 function runMain(env, seed) {
   const dir = tmpDir('main');
   const outDir = path.join(dir, 'profile');
@@ -247,14 +251,14 @@ function runMain(env, seed) {
     });
     return { status: 0, outDir, dir };
   } catch (err) {
-    return { status: err.status, stderr: err.stderr.toString(), outDir, dir };
+    return { status: /** @type {ExecError} */ (err).status, stderr: /** @type {ExecError} */ (err).stderr.toString(), outDir, dir };
   }
 }
 
 test('main(): missing token -> exit 1, nothing written', () => {
   const r = runMain({});
   assert.equal(r.status, 1);
-  assert.match(r.stderr, /no ingest token/);
+  assert.match(/** @type {string} */ (r.stderr), /no ingest token/);
   assert.equal(fs.existsSync(r.outDir), false);
   fs.rmSync(r.dir, { recursive: true });
 });
@@ -263,7 +267,7 @@ test('main(): unreachable service -> exit 1, the previous snapshot is kept byte 
   const seed = '{"firstname":"Prev"}\n';
   const r = runMain({ INGEST_TOKEN: 'a'.repeat(64), INGEST_URL: 'http://127.0.0.1:48232' }, seed);
   assert.equal(r.status, 1);
-  assert.match(r.stderr, /No files touched/);
+  assert.match(/** @type {string} */ (r.stderr), /No files touched/);
   assert.equal(fs.readFileSync(path.join(r.outDir, PROFILE_JSON), 'utf8'), seed);
   fs.rmSync(r.dir, { recursive: true });
 });
@@ -274,14 +278,14 @@ test('main(): an unexpected failure while writing -> one tidy ERROR line, exit 1
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(body);
   });
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));
+  await /** @type {Promise<void>} */ (new Promise((resolve) => server.listen(0, '127.0.0.1', resolve)));
   const dir = tmpDir('main-crash');
   const blocker = path.join(dir, 'not-a-dir');
   fs.writeFileSync(blocker, 'x');
   try {
     const { code, stderr } = await new Promise((resolve) => {
       execFile(process.execPath, [SCRIPT], {
-        env: { PATH: process.env.PATH, SYNC_PROFILE_OUT_DIR: path.join(blocker, 'profile'), INGEST_ENV_FILE: path.join(dir, 'no.env'), INGEST_TOKEN: 'a'.repeat(64), INGEST_URL: `http://127.0.0.1:${server.address().port}` },
+        env: { PATH: process.env.PATH, SYNC_PROFILE_OUT_DIR: path.join(blocker, 'profile'), INGEST_ENV_FILE: path.join(dir, 'no.env'), INGEST_TOKEN: 'a'.repeat(64), INGEST_URL: `http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}` },
       }, (err, stdout, stderr) => resolve({ code: err ? err.code : 0, stderr }));
     });
     assert.equal(code, 1);
@@ -295,17 +299,18 @@ test('main(): an unexpected failure while writing -> one tidy ERROR line, exit 1
 
 // ---- main() returns its exit code (runCli sets it): called in-process, the runner is never killed ----
 
+/** @param {string} prefix */
 function mainHarness (prefix) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
-  const out = [], err = [];
+  const out = /** @type {string[]} */ ([]), err = /** @type {string[]} */ ([]);
   const env = { INGEST_ENV_FILE: path.join(dir, 'no-such.env'), INGEST_URL: 'http://127.0.0.1:9' };
   const refused = async () => { throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } }); };
-  const answer = (status, body) => async () => ({ ok: status < 300, status, json: async () => body });
+  const answer = (/** @type {number} */ status, /** @type {unknown} */ body) => /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: status < 300, status, json: async () => body })));
   const blocked = path.join(dir, 'a-file');
   fs.writeFileSync(blocked, 'x');
   return {
     dir, env, refused, answer, out, err,
-    io: { log: (s) => out.push(s), error: (s) => err.push(s) },
+    io: { log: (/** @type {string} */ s) => out.push(s), error: (/** @type {string} */ s) => err.push(s) },
     unwritable: path.join(blocked, 'sub'), // a path under a regular file: every write fails
     cleanup: () => fs.rmSync(dir, { recursive: true, force: true }),
   };
@@ -315,12 +320,12 @@ test('main() in-process: missing token / unreachable / failed write -> returns 1
   const h = mainHarness('sync-profile-main-');
   try {
     assert.equal(await sp.main({ env: h.env, ...h.io, fetchImpl: h.refused, outDir: path.join(h.dir, 'p') }), 1);
-    assert.match(h.err.pop(), /no ingest token/);
+    assert.match(/** @type {string} */ (h.err.pop()), /no ingest token/);
     const env = { ...h.env, INGEST_TOKEN: 't' };
     assert.equal(await sp.main({ env, ...h.io, fetchImpl: h.refused, outDir: path.join(h.dir, 'p') }), 1);
     assert.ok(!fs.existsSync(path.join(h.dir, 'p')));
     assert.equal(await sp.main({ env, ...h.io, fetchImpl: h.answer(200, {}), outDir: h.unwritable }), 1);
-    assert.match(h.err.pop(), /^ERROR: profile sync failed/);
+    assert.match(/** @type {string} */ (h.err.pop()), /^ERROR: profile sync failed/);
   } finally { h.cleanup(); }
 });
 
@@ -328,11 +333,11 @@ test('main() in-process: missing token / unreachable / failed write -> returns 1
 
 test('main() in-process: HC_DATA_DIR redirects the snapshot + avatar to <data root>/profile; SYNC_PROFILE_OUT_DIR wins over it', async () => {
   const root = tmpDir('data-root');
-  const fetchImpl = async (url) => (String(url).endsWith('/export/athlete')
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async (/** @type {string} */ url) => (String(url).endsWith('/export/athlete')
     ? { ok: true, status: 200, json: async () => BODY }
-    : imgRes(JPEG));
+    : imgRes(JPEG))));
   const io = { log: () => {}, error: () => {} };
-  const env = (extra) => ({ INGEST_URL: 'http://127.0.0.1:9', INGEST_TOKEN: 't', INGEST_ENV_FILE: path.join(root, 'no.env'), ...extra });
+  const env = (/** @type {NodeJS.ProcessEnv} */ extra) => ({ INGEST_URL: 'http://127.0.0.1:9', INGEST_TOKEN: 't', INGEST_ENV_FILE: path.join(root, 'no.env'), ...extra });
   try {
     assert.equal(await sp.main({ env: env({ HC_DATA_DIR: root }), ...io, fetchImpl }), 0);
     const paths = dataPaths({ repoRoot: '/repo', env: { HC_DATA_DIR: root } });

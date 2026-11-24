@@ -10,12 +10,13 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const read = (...p) => fs.readFileSync(path.join(ROOT, ...p), 'utf8');
+const read = (/** @type {string[]} */ ...p) => fs.readFileSync(path.join(ROOT, ...p), 'utf8');
 const dockerfile = read('docker', 'loop-server.Dockerfile');
 const webDockerfile = read('docker', 'loop-web.Dockerfile');
 const compose = read('docker', 'docker-compose.yml');
 const ingestCompose = read('services', 'loop-ingest', 'docker-compose.yml');
 
+/** @param {string} text @param {string} name */
 function serviceBlock(text, name) {
   const m = new RegExp(`^  ${name}:\\n((?: {4,}.*\\n|\\s*\\n)+)`, 'm').exec(text);
   assert.ok(m, `service ${name}`);
@@ -23,8 +24,8 @@ function serviceBlock(text, name) {
 }
 
 test('Dockerfile: the same digest-pinned node base as the loop-ingest image, VERSION build-arg, OCI labels', () => {
-  const from = (text) => /^FROM (\S+)$/m.exec(text)?.[1];
-  assert.match(from(dockerfile), /^node:22-alpine@sha256:[0-9a-f]{64}$/);
+  const from = (/** @type {string} */ text) => /^FROM (\S+)$/m.exec(text)?.[1];
+  assert.match(/** @type {string} */ (from(dockerfile)), /^node:22-alpine@sha256:[0-9a-f]{64}$/);
   assert.equal(from(dockerfile), from(read('services', 'loop-ingest', 'Dockerfile')));
   assert.match(dockerfile, /^ARG VERSION=dev$/m);
   for (const label of ['title', 'source', 'licenses', 'version']) assert.match(dockerfile, new RegExp(`org\\.opencontainers\\.image\\.${label}=`), label);
@@ -112,7 +113,7 @@ test('docker/example.env names every variable the compose file reads; .env and t
 
 test('loop-web Dockerfile: the same digest-pinned nginx as services/loop-web, VERSION build-arg, OCI labels', () => {
   const from = /^FROM (\S+)$/m.exec(webDockerfile)?.[1];
-  assert.match(from, /^nginx:alpine@sha256:[0-9a-f]{64}$/);
+  assert.match(/** @type {string} */ (from), /^nginx:alpine@sha256:[0-9a-f]{64}$/);
   assert.equal(from, /image: (nginx:alpine@sha256:[0-9a-f]{64})/.exec(read('services', 'loop-web', 'docker-compose.yml'))?.[1]);
   assert.match(webDockerfile, /^ARG VERSION=dev$/m);
   for (const label of ['title', 'source', 'licenses', 'version']) assert.match(webDockerfile, new RegExp(`org\\.opencontainers\\.image\\.${label}=`), label);
@@ -171,17 +172,17 @@ test('compose loop-server: network alias loop-ingest (the template upstream and 
 });
 
 test('compose rendered by docker compose: the alias, the read-only site mount, the network and the instance names', { skip: spawnSync('docker', ['compose', 'version']).status === 0 ? false : 'docker compose not installed' }, () => {
-  const render = (env) => {
+  const render = (/** @type {Record<string, string>} */ env) => {
     const r = spawnSync('docker', ['compose', '-f', path.join(ROOT, 'docker', 'docker-compose.yml'), '--project-directory', fs.mkdtempSync(path.join(os.tmpdir(), 'hc-compose-')), 'config', '--format', 'json'],
       { env: { PATH: process.env.PATH, HOME: os.tmpdir(), POSTGRES_USER: 'u', POSTGRES_PASSWORD: 'p', POSTGRES_DB: 'd', INGEST_TOKEN: 't', INGEST_PORT: '18088', ...env }, encoding: 'utf8' });
     assert.equal(r.status, 0, r.stderr);
     return JSON.parse(r.stdout);
   };
-  for (const [env, suffix] of [[{}, ''], [{ HC_INSTANCE: 'second' }, '-second']]) {
+  for (const [env, suffix] of /** @type {Array<[Record<string, string>, string]>} */ ([[{}, ''], [{ HC_INSTANCE: 'second' }, '-second']])) {
     const c = render(env);
     const web = c.services['loop-web'];
     assert.equal(web.container_name, `loop-web${suffix}`);
-    assert.deepEqual(web.volumes.map((v) => [v.type, v.source, v.target, v.read_only]), [['volume', 'loop-site', '/usr/share/nginx/html', true]]);
+    assert.deepEqual(web.volumes.map((/** @type {{ type: string, source: string, target: string, read_only: boolean }} */ v) => [v.type, v.source, v.target, v.read_only]), [['volume', 'loop-site', '/usr/share/nginx/html', true]]);
     assert.equal(c.volumes['loop-site'].name, `loop-site${suffix}`);
     assert.deepEqual(c.services['loop-server'].networks.default.aliases, ['loop-ingest']);
     assert.ok(web.networks && 'default' in web.networks);

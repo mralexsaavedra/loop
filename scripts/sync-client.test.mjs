@@ -12,15 +12,16 @@ import { detectServer, waitForSeq, mirrorFiles, syncWaitSeconds } from './sync-c
 import { main as syncAll, SCRIPTS } from './sync-all.mjs';
 
 const TOKEN = 'k'.repeat(40);
-const sha = (b) => createHash('sha256').update(b).digest('hex');
+const sha = (/** @type {Buffer} */ b) => createHash('sha256').update(b).digest('hex');
 
 /** The fake server. `files`: path -> Buffer. `state.processedSeq` advances by `advance` per manifest poll once a sync
- * was requested. `lie`: paths whose manifest sha256 is wrong. `status`: force one answer on the manifest route. */
+ * was requested. `lie`: paths whose manifest sha256 is wrong. `status`: force one answer on the manifest route.
+ * @param {{ files?: Record<string, string>, processedSeq?: number, advance?: number, lie?: string[], status?: number | null, error?: { code: string, seq: number } | null }} [opts] */
 async function fakeServer({ files = {}, processedSeq = 0, advance = 1, lie = [], status = null, error = null } = {}) {
-  const state = { files: new Map(Object.entries(files).map(([k, v]) => [k, Buffer.from(v)])), processedSeq, seq: processedSeq, posts: 0, polls: 0, downloads: [], auth: [], error };
+  const state = { files: new Map(Object.entries(files).map(([k, v]) => [k, Buffer.from(v)])), processedSeq, seq: processedSeq, posts: 0, polls: 0, downloads: /** @type {Array<string | null>} */ ([]), auth: /** @type {Array<string | null>} */ ([]), error };
   const server = http.createServer((req, res) => {
-    const url = new URL(req.url, 'http://x');
-    const json = (code, body) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
+    const url = new URL(/** @type {string} */ (req.url), 'http://x');
+    const json = (/** @type {number} */ code, /** @type {unknown} */ body) => { res.writeHead(code, { 'content-type': 'application/json' }); res.end(JSON.stringify(body)); };
     if (req.method === 'POST' && url.pathname === '/sync') {
       state.posts += 1;
       state.seq += 1;
@@ -39,15 +40,15 @@ async function fakeServer({ files = {}, processedSeq = 0, advance = 1, lie = [],
       }
       const p = url.searchParams.get('path');
       state.downloads.push(p);
-      const b = state.files.get(p);
+      const b = state.files.get(/** @type {string} */ (p));
       if (!b) return json(404, { error: 'not_found' });
       res.writeHead(200, { 'content-type': 'application/octet-stream', 'content-length': b.length });
       return res.end(b);
     }
     json(404, { error: 'not found' });
   });
-  await new Promise((r) => server.listen(0, '127.0.0.1', r));
-  return { state, base: `http://127.0.0.1:${server.address().port}`, close: () => new Promise((r) => server.close(r)) };
+  await /** @type {Promise<void>} */ (new Promise((r) => server.listen(0, '127.0.0.1', r)));
+  return { state, base: `http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}`, close: () => new Promise((r) => server.close(r)) };
 }
 
 function clone() {
@@ -56,9 +57,13 @@ function clone() {
   return {
     dir,
     root,
+    /** @param {string} rel @param {string} content */
     put(rel, content) { const f = path.join(root, rel); fs.mkdirSync(path.dirname(f), { recursive: true }); fs.writeFileSync(f, content); return f; },
+    /** @param {string} rel */
     read(rel) { return fs.readFileSync(path.join(root, rel), 'utf8'); },
+    /** @param {string} rel */
     exists(rel) { return fs.existsSync(path.join(root, rel)); },
+    /** @param {string} base @param {Record<string, string>} [extra] @returns {Record<string, string | undefined>} */
     env(base, extra = {}) { return { SYNC_CLIENT_ROOT: dir, HC_DATA_DIR: root, INGEST_URL: base, INGEST_TOKEN: TOKEN, INGEST_ENV_FILE: path.join(dir, 'none.env'), ...extra }; },
     cleanup() { fs.rmSync(dir, { recursive: true, force: true }); },
   };
@@ -74,6 +79,7 @@ const SERVER_FILES = {
 };
 
 /** Records `rels` (already in the clone) in its mirror ledger, as a previous mirror run would have. */
+/** @param {ReturnType<typeof clone>} c @param {string[]} rels */
 function mirrored(c, rels) {
   const file = path.join(c.root, '.mirror-state.json');
   const prev = fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : { version: 1, files: {}, warned: [] };
@@ -81,7 +87,8 @@ function mirrored(c, rels) {
   fs.writeFileSync(file, JSON.stringify(prev));
 }
 
-const quiet = () => { const out = { logs: [], warns: [] }; out.log = (m) => out.logs.push(m); out.warn = (m) => out.warns.push(m); return out; };
+/** @typedef {{ logs: string[], warns: string[], log?: (m: string) => number, warn?: (m: string) => number }} Quiet */
+const quiet = () => { const out = /** @type {Quiet} */ ({ logs: [], warns: [] }); out.log = (/** @type {string} */ m) => out.logs.push(m); out.warn = (/** @type {string} */ m) => out.warns.push(m); return out; };
 const noSleep = async () => {};
 
 test('detectServer: 200 manifest = client, 404 = host, 401 = unauthorized, no server = host', async () => {
@@ -91,14 +98,14 @@ test('detectServer: 200 manifest = client, 404 = host, 401 = unauthorized, no se
   try {
     const client = await detectServer({ base: s.base, token: TOKEN });
     assert.equal(client.mode, 'client');
-    assert.equal(client.manifest.files.length, 6);
+    assert.equal(/** @type {import('./sync-client.mjs').Manifest} */ (client.manifest).files.length, 6);
     assert.equal(s.state.auth[0], `Bearer ${TOKEN}`);
     assert.equal((await detectServer({ base: host.base, token: TOKEN })).mode, 'host');
     assert.equal((await detectServer({ base: denied.base, token: TOKEN })).mode, 'unauthorized');
     assert.equal((await detectServer({ base: s.base, token: 'wrong'.repeat(8) })).mode, 'unauthorized');
     const gone = await detectServer({ base: 'http://127.0.0.1:1', token: TOKEN });
     assert.equal(gone.mode, 'host');
-    assert.match(gone.reason, /./);
+    assert.match(/** @type {string} */ (gone.reason), /./);
   } finally {
     await Promise.all([s.close(), host.close(), denied.close()]);
   }
@@ -176,12 +183,12 @@ test('mirrorFiles: downloads every file, then nothing on a second run (sha256 co
     const code = await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, ...out });
     assert.equal(code, 0);
     for (const [p, content] of Object.entries(SERVER_FILES)) assert.equal(c.read(p), content, p);
-    assert.match(out.logs.at(-1), /^Mirror: 6 files on the server: 6 downloaded, 0 unchanged, 0 removed$/);
+    assert.match(/** @type {string} */ (out.logs.at(-1)), /^Mirror: 6 files on the server: 6 downloaded, 0 unchanged, 0 removed$/);
     s.state.downloads.length = 0;
     const again = quiet();
     assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, ...again }), 0);
     assert.deepEqual(s.state.downloads, []);
-    assert.match(again.logs.at(-1), /: 0 downloaded, 6 unchanged, 0 removed$/);
+    assert.match(/** @type {string} */ (again.logs.at(-1)), /: 0 downloaded, 6 unchanged, 0 removed$/);
   } finally {
     await s.close();
     c.cleanup();
@@ -214,7 +221,7 @@ test('mirrorFiles: replaces a changed file, removes what the server no longer li
     for (const p of ['cache/plan.json', 'cache/.sync-state.json', 'extract/.shortcut-cache.json', 'files/import/export.zip', 'analysis.txt']) assert.ok(c.exists(p), p);
     assert.ok(fs.lstatSync(path.join(c.root, 'extract', 'link.csv')).isSymbolicLink());
     assert.equal(fs.readFileSync(outside, 'utf8'), 'keep');
-    assert.match(out.logs.at(-1), /6 downloaded, 0 unchanged, 2 removed$/);
+    assert.match(/** @type {string} */ (out.logs.at(-1)), /6 downloaded, 0 unchanged, 2 removed$/);
   } finally {
     await s.close();
     c.cleanup();
@@ -232,7 +239,7 @@ test('mirrorFiles: a download whose sha256 does not match is refused (local file
     assert.equal(c.read('extract/weight.csv'), 'mine');
     assert.deepEqual(fs.readdirSync(path.join(c.root, 'extract')).sort(), ['_meta.json', 'weight.csv']);
     assert.match(out.warns.join('\n'), /extract\/weight\.csv.*sha256/);
-    assert.match(out.logs.at(-1), /5 downloaded, 0 unchanged, 0 removed, 1 failed$/);
+    assert.match(/** @type {string} */ (out.logs.at(-1)), /5 downloaded, 0 unchanged, 0 removed, 1 failed$/);
   } finally {
     await s.close();
     c.cleanup();
@@ -275,8 +282,9 @@ test('mirrorFiles: files/* follow HC_FILES_DIR when the clone sets it', async ()
 /* ---------- npm run sync (scripts/sync-all.mjs main) ---------- */
 
 function recordSpawn() {
+  /** @type {string[]} */
   const calls = [];
-  return { calls, spawn: (cmd, args) => { calls.push(path.relative(path.dirname(path.dirname(new URL(import.meta.url).pathname)), args[0])); return { status: 0 }; } };
+  return { calls, spawn: (/** @type {string} */ cmd, /** @type {string[]} */ args) => { calls.push(path.relative(path.dirname(path.dirname(new URL(import.meta.url).pathname)), args[0])); return { status: 0 }; } };
 }
 
 test('npm run sync against a container-mode server: POST /sync + wait, sync-documents only, then the mirror', async () => {
@@ -420,7 +428,7 @@ test('mirrorFiles: an empty manifest while the clone has mirrored files is refus
     const ok = quiet();
     assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, allowEmpty: true, ...ok }), 0);
     assert.ok(!c.exists('extract/weight.csv') && !c.exists('files/manuals/edge.pdf'));
-    assert.match(ok.logs.at(-1), /0 downloaded, 0 unchanged, 2 removed$/);
+    assert.match(/** @type {string} */ (ok.logs.at(-1)), /0 downloaded, 0 unchanged, 2 removed$/);
     // a fresh clone (nothing mirrored yet) and an empty server: nothing to protect, exit 0
     const fresh = clone();
     try {
@@ -522,14 +530,14 @@ test('mirrorFiles: prints each removed path, each downloaded path only with verb
     assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, ...out }), 0);
     assert.ok(out.logs.includes('Removed extract/old.csv'), out.logs.join('\n'));
     assert.ok(!out.logs.some((l) => l.startsWith('Downloaded ')), out.logs.join('\n'));
-    assert.match(out.logs.at(-1), /^Mirror: /);
+    assert.match(/** @type {string} */ (out.logs.at(-1)), /^Mirror: /);
     c.put('extract/old2.csv', 'SECRET-OLD');
     mirrored(c, ['extract/old2.csv']);
     c.put('extract/weight.csv', 'stale');
     const verbose = quiet();
     assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, verbose: true, ...verbose }), 0);
     assert.deepEqual(verbose.logs.slice(0, -1), ['Downloaded extract/weight.csv', 'Removed extract/old2.csv']);
-    assert.match(verbose.logs.at(-1), /^Mirror: .*1 downloaded, 5 unchanged, 1 removed$/);
+    assert.match(/** @type {string} */ (verbose.logs.at(-1)), /^Mirror: .*1 downloaded, 5 unchanged, 1 removed$/);
     assert.ok(!/SECRET|date,value/.test([...out.logs, ...verbose.logs].join('\n')));
   } finally {
     await s.close();
@@ -574,7 +582,7 @@ test('mirror ledger: a clone-only PDF next to 6 mirrored extract files survives 
       const named = out.warns.filter((w) => w.includes('files/documents/mine.pdf'));
       assert.equal(named.length, run === 0 ? 1 : 0, out.warns.join('\n'));
       if (run === 0) assert.match(named[0], /^WARNING: files\/documents\/mine\.pdf is not on the server and was never mirrored from it: kept/);
-      assert.match(out.logs.at(-1), /0 downloaded, 6 unchanged, 0 removed$/);
+      assert.match(/** @type {string} */ (out.logs.at(-1)), /0 downloaded, 6 unchanged, 0 removed$/);
     }
     const ledger = JSON.parse(c.read('.mirror-state.json'));
     assert.deepEqual(Object.keys(ledger.files).sort(), Object.keys(EXTRACT6).sort());
@@ -606,7 +614,7 @@ test('mirror ledger: only a file this client mirrored is removed once the server
     assert.equal(c.read('extract/mine.csv'), 'clone only');
     assert.ok(out.logs.includes('Removed extract/weight.csv'), out.logs.join('\n'));
     assert.ok(out.logs.includes(`Moved files/manuals/edge.pdf to ${path.join(backups, 'files', 'manuals', 'edge.pdf.mirror.bak')}`), out.logs.join('\n'));
-    assert.match(out.logs.at(-1), /0 downloaded, 4 unchanged, 2 removed$/);
+    assert.match(/** @type {string} */ (out.logs.at(-1)), /0 downloaded, 4 unchanged, 2 removed$/);
     assert.deepEqual(Object.keys(JSON.parse(c.read('.mirror-state.json')).files).sort(), Object.keys(SERVER_FILES).filter((p) => p !== 'extract/weight.csv' && p !== 'files/manuals/edge.pdf').sort());
   } finally {
     await s.close();
@@ -624,7 +632,7 @@ test('mirror ledger: the first run (no ledger) removes nothing and seeds the led
     const out = quiet();
     assert.equal(await mirrorFiles({ base: s.base, token: TOKEN, manifest, root: c.root, ...out }), 0);
     assert.ok(c.exists('extract/old.csv'));
-    assert.match(out.logs.at(-1), /5 downloaded, 1 unchanged, 0 removed$/);
+    assert.match(/** @type {string} */ (out.logs.at(-1)), /5 downloaded, 1 unchanged, 0 removed$/);
     assert.deepEqual(Object.keys(JSON.parse(c.read('.mirror-state.json')).files).sort(), Object.keys(SERVER_FILES).sort());
   } finally {
     await s.close();
@@ -649,7 +657,7 @@ test('mirror ledger: a local file under files/ the client never mirrored is back
 });
 
 test('npm run sync says why it fell back to the local syncs: the answer of <url>/export/files (a 404, a 5xx, no answer)', async () => {
-  for (const [status, re] of [[404, /answered HTTP 404 \(no \/export\/files: a host-mode server\)/], [500, /answered HTTP 500/]]) {
+  for (const [status, re] of /** @type {Array<[number, RegExp]>} */ ([[404, /answered HTTP 404 \(no \/export\/files: a host-mode server\)/], [500, /answered HTTP 500/]])) {
     const s = await fakeServer({ status });
     const c = clone();
     const out = quiet();

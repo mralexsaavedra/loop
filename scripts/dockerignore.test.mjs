@@ -13,6 +13,7 @@ const RULES = fs.readFileSync(path.join(ROOT, '.dockerignore'), 'utf8')
   .split('\n').map((l) => l.trim()).filter((l) => l && !l.startsWith('#'))
   .map((l) => ({ negate: l.startsWith('!'), re: globToRegExp(l.replace(/^!/, '')) }));
 
+/** @param {string} glob */
 function globToRegExp(glob) {
   let re = '';
   for (let i = 0; i < glob.length; i++) {
@@ -28,6 +29,7 @@ function globToRegExp(glob) {
 }
 
 /** True when the path is excluded from the build context. */
+/** @param {string} p */
 function excluded(p) {
   const parts = p.split('/');
   const candidates = parts.map((_, i) => parts.slice(0, i + 1).join('/'));

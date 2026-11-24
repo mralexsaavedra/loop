@@ -12,6 +12,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { checkTraining, inputErrorLine, resolveLocale, sweepStaleStaging, warnOldDocuments } from './build-web.mjs';
 
+/** @param {{ trainingDays?: Record<string, unknown>, personalLocale?: string, withTraining?: boolean }} [opts] */
 function fixtureRepo({ trainingDays, personalLocale = 'es', withTraining = true } = {}) {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-buildweb-check-'));
   fs.mkdirSync(path.join(root, 'data', 'nutrition'), { recursive: true });
@@ -130,7 +131,7 @@ test('a missing input file (no plan document AND no example seed) becomes ONE re
     let err;
     try { resolveLocale({ repoRoot: root, mode: 'personal', explicitLocale: null }); } catch (e) { err = e; }
     assert.ok(err, 'resolveLocale throws without any plan');
-    const line = inputErrorLine(err);
+    const line = /** @type {string} */ (inputErrorLine(err));
     assert.match(line, /^build-web: .*plan-data\.example\.json not found\. Neither the plan document \(loop-data\/cache\/plan\.json\)/);
     assert.ok(!line.includes('\n'), 'one line');
     assert.equal(inputErrorLine(new Error('something else')), null, 'any other error is not swallowed');
@@ -143,6 +144,7 @@ test('no plan document (a fresh server install): the personal build resolves wit
   const root = fixtureRepo();
   fs.rmSync(path.join(root, 'loop-data', 'cache', 'plan.json'));
   const warn = console.warn;
+  /** @type {string[]} */
   const warns = [];
   console.warn = (m) => warns.push(m);
   try {
@@ -172,6 +174,7 @@ test('resolveLocale: example mode defaults to en when plan-data.example.json has
  * older than a safety threshold. A dead-but-recent dir is kept for one
  * grace period in case its process is still mid-flush. */
 const DEAD_PID = 999999999; // exceeds Linux's pid_max (4194304) — guaranteed no such process
+/** @param {string} dir @param {string} name @param {{ ageMs?: number }} [opts] */
 function makeStagingDir(dir, name, { ageMs = 0 } = {}) {
   const p = path.join(dir, name);
   fs.mkdirSync(p, { recursive: true });
@@ -253,13 +256,14 @@ test('sweepStaleStaging is a no-op when the directory does not exist yet', () =>
 
 test('reportProfileCheck: a malformed profile.json fails --check with the reason; absent / valid pass', async () => {
   const { reportProfileCheck } = await import('./build-web.mjs');
+  /** @type {Array<[string, string]>} */
   const out = [];
-  const io = { log: (m) => out.push(['log', m]), error: (m) => out.push(['error', m]) };
-  assert.equal(reportProfileCheck({ ok: false, skipped: false, error: 'x/profile.json — profile.json is invalid:\n  - heightCm must be a number' }, 'personal', io), 1);
+  const io = { log: (/** @type {string} */ m) => out.push(['log', m]), error: (/** @type {string} */ m) => out.push(['error', m]) };
+  assert.equal(reportProfileCheck(/** @type {{ error?: unknown, skipped: boolean }} */ ({ ok: false, skipped: false, error: 'x/profile.json — profile.json is invalid:\n  - heightCm must be a number' }), 'personal', io), 1);
   assert.equal(out[0][0], 'error');
   assert.match(out[0][1], /ERROR: .*heightCm must be a number/s);
-  assert.equal(reportProfileCheck({ ok: true, skipped: true, error: null }, 'personal', io), 0);
-  assert.equal(reportProfileCheck({ ok: true, skipped: false, error: null }, 'example', io), 0);
+  assert.equal(reportProfileCheck(/** @type {{ error?: unknown, skipped: boolean }} */ ({ ok: true, skipped: true, error: null }), 'personal', io), 0);
+  assert.equal(reportProfileCheck(/** @type {{ error?: unknown, skipped: boolean }} */ ({ ok: true, skipped: false, error: null }), 'example', io), 0);
   assert.match(out[2][1], /profile\.json OK \(mode=example\)/);
   const src = fs.readFileSync(new URL('./build-web.mjs', import.meta.url), 'utf8');
   assert.match(src, /return reportProfileCheck\(checkManualProfile\(/, '--check wires the strict profile check');
@@ -268,7 +272,7 @@ test('reportProfileCheck: a malformed profile.json fails --check with the reason
 test('strict CLI: --help prints the usage; an unknown flag (--mod), a bad --mode / --locale value or a stray argument exits 2 before anything runs', async () => {
   const { spawnSync } = await import('node:child_process');
   const script = new URL('./build-web.mjs', import.meta.url).pathname;
-  const run = (...args) => spawnSync(process.execPath, [script, ...args], { encoding: 'utf8', env: { ...process.env, DATA_MODE: '', LOCALE: '' } });
+  const run = (/** @type {string[]} */ ...args) => spawnSync(process.execPath, [script, ...args], { encoding: 'utf8', env: { ...process.env, DATA_MODE: '', LOCALE: '' } });
   const help = run('--help');
   assert.equal(help.status, 0);
   assert.match(help.stdout, /^Usage: node scripts\/build-web\.mjs/);
@@ -305,7 +309,7 @@ test('swapIntoPlace: a failed rename-in puts the previous output back and rethro
   const out = path.join(dir, 'example'), staging = path.join(dir, '.staging-example-1');
   fs.mkdirSync(out); fs.writeFileSync(path.join(out, 'index.html'), 'good');
   fs.mkdirSync(staging); fs.writeFileSync(path.join(staging, 'index.html'), 'new');
-  const rename = (a, b) => { if (a === staging) throw new Error('EXDEV'); fs.renameSync(a, b); };
+  const rename = (/** @type {string} */ a, /** @type {string} */ b) => { if (a === staging) throw new Error('EXDEV'); fs.renameSync(a, b); };
   assert.throws(() => swapIntoPlace(staging, out, { mode: 'example', rename }), /EXDEV/);
   assert.equal(fs.readFileSync(path.join(out, 'index.html'), 'utf8'), 'good', 'the last good page is back');
   assert.deepEqual(fs.readdirSync(dir).sort(), ['.staging-example-1', 'example']);
@@ -315,6 +319,7 @@ test('swapIntoPlace: a failed rename-in puts the previous output back and rethro
 test('warnOldDocuments: personal mode warns once when a document is still at its old path; example mode never', () => {
   const root = fixtureRepo();
   try {
+    /** @type {string[]} */
     const warns = [];
     assert.equal(warnOldDocuments({ repoRoot: root, mode: 'personal', env: {}, warn: (w) => warns.push(w) }), false, 'nothing at the old paths');
     fs.writeFileSync(path.join(root, 'data', 'training', 'training-data.json'), '{"days":{}}');

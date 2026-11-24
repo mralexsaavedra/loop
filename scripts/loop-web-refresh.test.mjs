@@ -43,6 +43,7 @@ esac
 exit 0
 `;
 
+/** @param {string} cwd @param {string[]} args */
 function git(cwd, ...args) {
   return execFileSync('git', args, { cwd, encoding: 'utf8', env: { ...process.env, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1' } }).trim();
 }
@@ -65,20 +66,24 @@ function makeRepo(branch = 'main') {
   return { root, repo, planWeb, bin, trigger, log: path.join(root, 'npm.log') };
 }
 
+/** @typedef {ReturnType<typeof makeRepo>} Ctx */
+/** @param {Ctx} ctx @param {Record<string, string>} [extra] */
 function env(ctx, extra = {}) {
   return { PATH: `${ctx.bin}:${process.env.PATH}`, HOME: ctx.root, STUB_LOG: ctx.log, STUB_TRIGGER: ctx.trigger, GIT_CONFIG_GLOBAL: '/dev/null', GIT_CONFIG_NOSYSTEM: '1', ...extra };
 }
 
+/** @param {Ctx} ctx @param {Record<string, string>} [extra] */
 function run(ctx, extra = {}) {
   const res = spawnSync('sh', [path.join(ctx.planWeb, 'refresh.sh')], { encoding: 'utf8', env: env(ctx, extra) });
   return { code: res.status, stderr: res.stderr };
 }
 
-const site = (ctx, f) => path.join(ctx.planWeb, 'site', f);
-const status = (ctx) => JSON.parse(fs.readFileSync(site(ctx, 'status.json'), 'utf8'));
-const setSeq = (ctx, seq) => fs.writeFileSync(ctx.trigger, `${seq}\n`);
-const npmCalls = (ctx, cmd) => (fs.existsSync(ctx.log) ? fs.readFileSync(ctx.log, 'utf8').split('\n').filter((l) => l === cmd).length : 0);
+const site = (/** @type {Ctx} */ ctx, /** @type {string} */ f) => path.join(ctx.planWeb, 'site', f);
+const status = (/** @type {Ctx} */ ctx) => JSON.parse(fs.readFileSync(site(ctx, 'status.json'), 'utf8'));
+const setSeq = (/** @type {Ctx} */ ctx, /** @type {number | string} */ seq) => fs.writeFileSync(ctx.trigger, `${seq}\n`);
+const npmCalls = (/** @type {Ctx} */ ctx, /** @type {string} */ cmd) => (fs.existsSync(ctx.log) ? fs.readFileSync(ctx.log, 'utf8').split('\n').filter((l) => l === cmd).length : 0);
 
+/** @param {string} branch @param {(ctx: Ctx) => void} fn */
 function withRepo(branch, fn) {
   const ctx = makeRepo(branch);
   try { return fn(ctx); } finally { fs.rmSync(ctx.root, { recursive: true, force: true }); }

@@ -10,24 +10,25 @@ const PLAN = { data: { postre: [{ n: 'p' }], desayuno: [{ n: 'd' }] }, targets: 
 const TRAINING = { days: { '2030-01-01': { focus: 'x', blocks: [{ title: 't', lines: ['l'] }] } } };
 const PROFILE = { birthdate: '1990-01-01', devices: [] };
 
-/** A fake service: `docs` maps kind -> {status?, body?}; every request is recorded with its auth header. */
+/** A fake service: `docs` maps kind -> {status?, body?}; every request is recorded with its auth header.
+ * @param {Record<string, { status?: number, body?: unknown }>} docs @param {{ root?: string, env?: Record<string, string> }} [opts] */
 function run(docs, { root, env = {} } = {}) {
   const dir = root || fs.mkdtempSync(path.join(os.tmpdir(), 'hc-documents-'));
-  const logs = []; const warns = []; const calls = [];
-  const fetchImpl = async (url, init) => {
-    const kind = url.split('/').pop();
+  const logs = /** @type {string[]} */ ([]); const warns = /** @type {string[]} */ ([]); const calls = /** @type {Array<[string, string, string | undefined]>} */ ([]);
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async (/** @type {string} */ url, /** @type {{ headers: Record<string, string>, redirect?: string }} */ init) => {
+    const kind = /** @type {string} */ (url.split('/').pop());
     calls.push([url, init.headers.authorization, init.redirect]);
     const d = docs[kind] ?? { status: 404 };
     const status = d.status ?? 200;
     return { ok: status === 200, status, json: async () => d.body };
-  };
+  }));
   const fullEnv = { SYNC_DOCUMENTS_ROOT: dir, INGEST_URL: 'http://localhost:8089', INGEST_TOKEN: 'tok', ...env };
   return main({ env: fullEnv, log: (l) => logs.push(l), warn: (w) => warns.push(w), fetchImpl })
     .then((code) => ({ code, dir, logs, warns, calls }));
 }
-const body = (kind, document, revision = 1) => ({ body: { kind, document, revision, updatedAt: '2030-01-01T00:00:00.000Z' } });
+const body = (/** @type {string} */ kind, /** @type {unknown} */ document, revision = 1) => ({ body: { kind, document, revision, updatedAt: '2030-01-01T00:00:00.000Z' } });
 const all = () => ({ plan: body('plan', PLAN), training: body('training', TRAINING), profile: body('profile', PROFILE) });
-const read = (dir, kind) => fs.readFileSync(path.join(dir, DOCUMENT_FILES[kind]), 'utf8');
+const read = (/** @type {string} */ dir, /** @type {keyof typeof DOCUMENT_FILES} */ kind) => fs.readFileSync(path.join(dir, DOCUMENT_FILES[kind]), 'utf8');
 
 test('the three documents and the clone files they become', () => {
   assert.deepEqual(DOCUMENT_FILES, {
@@ -153,11 +154,11 @@ test('force takes the database document over a local edit, backing the file up f
   const first = await run(all());
   const file = path.join(first.dir, DOCUMENT_FILES.plan);
   fs.writeFileSync(file, '{"mine":1}');
-  const logs = []; const warns = [];
+  const logs = /** @type {string[]} */ ([]); const warns = /** @type {string[]} */ ([]);
   const r = await main({
     env: { SYNC_DOCUMENTS_ROOT: first.dir, INGEST_URL: 'http://x', INGEST_TOKEN: 't' },
     log: (l) => logs.push(l), warn: (w) => warns.push(w), kinds: ['plan'], force: true,
-    fetchImpl: async () => ({ ok: true, status: 200, json: async () => body('plan', PLAN).body }),
+    fetchImpl: /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: true, status: 200, json: async () => body('plan', PLAN).body }))),
   });
   assert.equal(r, 0);
   assert.deepEqual(JSON.parse(fs.readFileSync(file, 'utf8')), PLAN);
@@ -189,11 +190,11 @@ test('HC_DATA_DIR: the documents land in <data root>/cache, the state in cache/.
     assert.equal(r.logs[1], `Documents: plan written -> ${paths.documents.plan}`);
     // a local edit, then a forced pull: backed up inside the clone, under the path relative to the data root
     fs.writeFileSync(paths.documents.plan, '{"mine":1}');
-    const logs = [];
+    const logs = /** @type {string[]} */ ([]);
     assert.equal(await main({
       env: { SYNC_DOCUMENTS_ROOT: r.dir, HC_DATA_DIR: data, INGEST_URL: 'http://x', INGEST_TOKEN: 't' },
       log: (l) => logs.push(l), warn: () => {}, kinds: ['plan'], force: true,
-      fetchImpl: async () => ({ ok: true, status: 200, json: async () => body('plan', PLAN).body }),
+      fetchImpl: /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: true, status: 200, json: async () => body('plan', PLAN).body }))),
     }), 0);
     assert.equal(fs.readFileSync(path.join(r.dir, 'backups', 'cache', 'plan.json.documents.bak'), 'utf8'), '{"mine":1}');
     assert.deepEqual(logs, [`Documents: plan written -> ${paths.documents.plan} (your version backed up to ${path.join('backups', 'cache', 'plan.json.documents.bak')})`]);

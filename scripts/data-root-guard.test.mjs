@@ -26,15 +26,15 @@ test('dataRootGuardError: the default loop-data/, an ignored folder and a folder
   assert.equal(dataRootGuardError({ repoRoot: r, env: {} }), null);
   assert.equal(dataRootGuardError({ repoRoot: r, env: { HC_DATA_DIR: 'backups/mine' } }), null);
   assert.equal(dataRootGuardError({ repoRoot: r, env: { HC_DATA_DIR: outside } }), null);
-  assert.match(dataRootGuardError({ repoRoot: r, env: { HC_DATA_DIR: 'my-data' } }), /data root my-data\/ \(HC_DATA_DIR\) is inside this clone and git does not ignore it/);
-  assert.match(dataRootGuardError({ repoRoot: r, env: { HC_DATA_DIR: path.join(r, 'data', 'x') } }), /data root data\/x\/ /);
-  assert.match(dataRootGuardError({ repoRoot: r, env: { HC_FILES_DIR: 'docs/files' } }), /files folder docs\/files\/ \(HC_FILES_DIR\)/);
-  assert.match(dataRootGuardError({ repoRoot: r, env: { HC_DATA_DIR: '.' } }), /is this clone itself/);
+  assert.match(/** @type {string} */ (dataRootGuardError({ repoRoot: r, env: { HC_DATA_DIR: 'my-data' } })), /data root my-data\/ \(HC_DATA_DIR\) is inside this clone and git does not ignore it/);
+  assert.match(/** @type {string} */ (dataRootGuardError({ repoRoot: r, env: { HC_DATA_DIR: path.join(r, 'data', 'x') } })), /data root data\/x\/ /);
+  assert.match(/** @type {string} */ (dataRootGuardError({ repoRoot: r, env: { HC_FILES_DIR: 'docs/files' } })), /files folder docs\/files\/ \(HC_FILES_DIR\)/);
+  assert.match(/** @type {string} */ (dataRootGuardError({ repoRoot: r, env: { HC_DATA_DIR: '.' } })), /is this clone itself/);
   // a symlink outside the clone pointing into it is inside
   const link = path.join(outside, 'link');
   fs.mkdirSync(path.join(r, 'tracked-dir'));
   fs.symlinkSync(path.join(r, 'tracked-dir'), link);
-  assert.match(dataRootGuardError({ repoRoot: r, env: { HC_DATA_DIR: link } }), /tracked-dir\//);
+  assert.match(/** @type {string} */ (dataRootGuardError({ repoRoot: r, env: { HC_DATA_DIR: link } })), /tracked-dir\//);
   // not a git work tree: nothing could commit it
   assert.equal(dataRootGuardError({ repoRoot: outside, env: { HC_DATA_DIR: 'x' } }), null);
 });
@@ -43,8 +43,9 @@ test('the commands that write the data root refuse an unignored one inside the c
   const r = repo();
   t.after(() => fs.rmSync(r, { recursive: true, force: true }));
   const env = { HC_DATA_DIR: 'my-data', INGEST_URL: 'http://127.0.0.1:9', INGEST_TOKEN: 'x'.repeat(32), INGEST_ENV_FILE: path.join(r, 'none.env') };
+  /** @type {string[]} */
   const warns = [];
-  const warn = (m) => warns.push(m);
+  const warn = (/** @type {string} */ m) => warns.push(m);
   const spawn = () => { throw new Error('no sync script may run'); };
   assert.equal(await syncAll({}, { env: { ...env, SYNC_CLIENT_ROOT: r }, spawn, log: () => {}, warn }), 1);
   assert.equal(await connect({ argv: ['http://127.0.0.1:9'], env: { ...env, SYNC_CLIENT_ROOT: r }, log: () => {}, warn, isTTY: false }), 1);

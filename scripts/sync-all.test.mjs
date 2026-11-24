@@ -9,11 +9,12 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { runAll } from './sync-all.mjs';
 
+/** @param {Record<string, number | null>} statusByScript */
 function fakeSpawn (statusByScript) {
-  const calls = [];
+  const calls = /** @type {Array<{ cmd: string, args: string[] }>} */ ([]);
   return {
     calls,
-    spawn: (cmd, args) => {
+    spawn: (/** @type {string} */ cmd, /** @type {string[]} */ args) => {
       calls.push({ cmd, args });
       const script = args[0];
       const status = Object.prototype.hasOwnProperty.call(statusByScript, script) ? statusByScript[script] : 0;

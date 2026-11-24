@@ -36,7 +36,7 @@ test('both generators: --help prints the usage, an unknown flag or a stray argum
   for (const [name, file] of [['gen-journal-calc.mjs', JOURNAL_CALC_PATH], ['gen-food-calc.mjs', FOOD_CALC_PATH]]) {
     const script = fileURLToPath(new URL('./' + name, import.meta.url));
     const before = statSync(file).mtimeMs;
-    const run = (args) => spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' });
+    const run = (/** @type {string[]} */ args) => spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' });
     const help = run(['--help']);
     assert.equal(help.status, 0, name);
     assert.match(help.stdout, /^Usage: npm run gen:/);

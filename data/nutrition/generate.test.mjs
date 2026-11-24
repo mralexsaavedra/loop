@@ -15,19 +15,21 @@ import { ingName } from '../../lib/nutrition/names.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO = path.join(__dirname, '..', '..');
+/** A dayPlan meal part, as read from a plan JSON. @typedef {{ ing?: string, amt?: number }} Part */
 
 // Mirrors the repo structure generate.mjs statically imports (data/nutrition/generate.mjs +
 // ../../lib/nutrition/*.mjs + ../../lib/date.mjs + ../../lib/paths.mjs + ../../lib/locale.mjs + ../../scripts/lib/is-main.mjs) into a temp root, WITHOUT ever copying
 // the real (possibly personal) plan. `files` are the data/nutrition seeds to copy next to it; 'plan-data.json'
 // stands for the personal plan and lands where lib/paths.mjs puts it (loop-data/cache/plan.json).
 // Returns the temp data/nutrition dir.
-const personalOr = (nutDir, name) => {
+const personalOr = (/** @type {string} */ nutDir, /** @type {string} */ name) => {
   if (name !== 'plan-data.json') return path.join(nutDir, name);
   const file = path.join(nutDir, '..', '..', 'loop-data', 'cache', 'plan.json');
   fs.mkdirSync(path.dirname(file), { recursive: true });
   return file;
 };
 
+/** @param {string} root @param {Array<[string, string]>} files */
 function mirrorTree(root, files) {
   const nutDir = path.join(root, 'data', 'nutrition');
   fs.mkdirSync(nutDir, { recursive: true });
@@ -52,10 +54,10 @@ const ctx = gen.load();
 const { ING, D, macro, mealMacros, DAYPLAN, LEGUMES, LEGUME_PLATE } = ctx;
 const buildTables = () => gen.buildTables(ctx);
 const validate = () => gen.validate(ctx);
-const close = (a, b, tol = 0.5) => Math.abs(a - b) <= tol;
+const close = (/** @type {number} */ a, /** @type {number} */ b, tol = 0.5) => Math.abs(a - b) <= tol;
 
 test('generate.mjs builds no HTML (no buildHtml export): it validates and writes plan-tables.md, the page is the Astro build', () => {
-  assert.equal(gen.buildHtml, undefined, 'generate.mjs only validates + writes plan-tables.md');
+  assert.equal(/** @type {Record<string, unknown>} */ (/** @type {unknown} */ (gen)).buildHtml, undefined, 'generate.mjs only validates + writes plan-tables.md');
 });
 
 test('validate() passes on the merged ingredients.json + plan-data.json', () => {
@@ -125,7 +127,7 @@ test('protein items resolve to sane positive macros', () => {
   // Invariant for any plan: every real protein serving computes to positive kcal + protein
   // (not NaN/zero), proving the ingredient→macro layer works whatever foods are chosen.
   // The "— ninguno —" placeholder (none:true) resolves to 0 by design and is excluded.
-  const items = D.proteina.filter(o => !o.none);
+  const items = /** @type {import('../../lib/nutrition/macros.mjs').ResolvedItem[]} */ (D.proteina).filter(o => !o.none);
   assert.ok(items.length > 0, 'protein table should not be empty');
   for (const o of items) {
     assert.ok(o.p > 0 && o.k > 0, 'protein item ' + (o.n || o.l) + ' must have positive P and kcal');
@@ -135,7 +137,7 @@ test('protein items resolve to sane positive macros', () => {
 test('day totals fall within the sane band validate() enforces', () => {
   // Invariant: any plan's day totals sit inside the bands validate() guards (a gross bad
   // edit lands outside). Exact owner targets are not portable, so we assert the band.
-  const total = day => DAYPLAN[day].meals.reduce((s, m) => s + mealMacros(m).k, 0);
+  const total = (/** @type {keyof typeof DAYPLAN} */ day) => DAYPLAN[day].meals.reduce((s, m) => s + mealMacros(m).k, 0);
   // Same band validate() uses: the plan's optional validation.kcalBand, else the default.
   const planRaw = JSON.parse(fs.readFileSync(ctx.PLAN_PATH, 'utf8'));
   const band = (planRaw.validation && planRaw.validation.kcalBand) || { train: [2000, 2800], rest: [1700, 2400] };
@@ -149,7 +151,7 @@ test('every ingredient referenced by the plan exists in the DB (no broken refs)'
   // Invariant: a recipe/dayPlan may only reference ingredients that exist. (Unused
   // ingredients in the shared DB are fine — a non-fatal warning, not a broken plan.)
   const refs = new Set();
-  const walk = o => {
+  const walk = (/** @type {any} */ o) => {
     if (Array.isArray(o)) return o.forEach(walk);
     if (o && typeof o === 'object') {
       if (typeof o.ing === 'string') refs.add(o.ing);
@@ -157,7 +159,7 @@ test('every ingredient referenced by the plan exists in the DB (no broken refs)'
     }
   };
   walk(ctx.RAW); walk(ctx.RAWEX); walk(DAYPLAN);
-  LEGUMES.forEach(k => refs.add(k));
+  /** @type {string[]} */ (LEGUMES).forEach(k => refs.add(k));
   const broken = [...refs].filter(k => !ING[k]);
   assert.deepEqual(broken, [], 'broken refs: ' + broken.join(', '));
 });
@@ -175,26 +177,26 @@ test('plan-tables.md food tables are fixed reference values per natural unit (no
   assert.match(tables, /## Food reference \(fixed values per natural unit\)/);
   // Row names come from the plan's own option names (`n`, else `cap`, else `l`), which are in the plan's
   // language (an `es` plan says "Arroz" / "Plátano"), so look them up instead of hard-coding English.
-  const single = (key) => {
+  const single = (/** @type {string} */ key) => {
     const lists = ['desayuno', 'carboComida', 'carboCena', 'proteina', 'anclaje', 'postentreno', 'postre'];
     const all = lists.flatMap((u) => { const v = ctx.RAW[u] || []; return Array.isArray(v) ? v : Object.values(v).flat(); });
     const item = all.find((o) => o && Array.isArray(o.recipe) && o.recipe.length === 1 && o.recipe[0].ing === key);
     assert.ok(item, `the plan has a single-food ${key} option`);
     return String(item.n || item.cap || item.l);
   };
-  const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const esc = (/** @type {string} */ s) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
   const rice = single('arroz');
   assert.match(tables, new RegExp(`\\| ${esc(rice)} \\| 100 g dry \\| ${Math.round(ING.arroz.k)} \\|`));
   const banana = single('platano');
-  const pc = ING.platano.piece;
+  const pc = /** @type {NonNullable<typeof ING.platano.piece>} */ (ING.platano.piece);
   const bananaK = Math.round(ING.platano.k * pc.amt / ING.platano.per);
   assert.match(tables, new RegExp(`\\| ${esc(banana)} \\| 1 [^|]+ \\(~${pc.amt} g\\) _\\(typical weight\\)_ \\| ${bananaK} \\|`));
   assert.doesNotMatch(tables, /Training day|Rest day|\| Cant\. \|/);
 });
 
 test('generate.mjs no longer exports the removed day builder\'s targetFor(train|rest)', () => {
-  assert.equal(gen.targetFor, undefined);
-  assert.equal(ctx.targetFor, undefined);
+  assert.equal(/** @type {Record<string, unknown>} */ (/** @type {unknown} */ (gen)).targetFor, undefined);
+  assert.equal(/** @type {Record<string, unknown>} */ (/** @type {unknown} */ (ctx)).targetFor, undefined);
   assert.equal(typeof ctx.dayTotalK, 'function');
 });
 
@@ -216,7 +218,7 @@ test('strict CLI: --help prints the usage, a typo (--chek) or a stray argument e
       [path.join(__dirname, 'ingredients.json'), 'ingredients.json'],
       [path.join(__dirname, 'plan-data.example.json'), 'plan-data.json'],
     ]);
-    const run = (...args) => spawnSync(process.execPath, ['generate.mjs', ...args], { cwd: nutDir, encoding: 'utf8' });
+    const run = (/** @type {string[]} */ ...args) => spawnSync(process.execPath, ['generate.mjs', ...args], { cwd: nutDir, encoding: 'utf8' });
     const help = run('--help');
     assert.equal(help.status, 0);
     assert.match(help.stdout, /^Usage: node data\/nutrition\/generate\.mjs \[--check\]/);
@@ -273,8 +275,8 @@ test('generate.mjs --check exits non-zero, naming the line, on an {ing} part wit
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'plan-no-amt-'));
   try {
     const plan = JSON.parse(fs.readFileSync(path.join(__dirname, 'plan-data.example.json'), 'utf8'));
-    const meal = plan.dayPlan.train.meals.find((m) => m.parts.some((p) => p.ing));
-    const part = meal.parts.find((p) => p.ing);
+    const meal = plan.dayPlan.train.meals.find((/** @type {{ parts: Part[] }} */ m) => m.parts.some((p) => p.ing));
+    const part = meal.parts.find((/** @type {Part} */ p) => p.ing);
     delete part.amt;
     const planFile = path.join(root, 'plan-src.json');
     fs.writeFileSync(planFile, JSON.stringify(plan));
@@ -297,13 +299,14 @@ test('load(): HC_DATA_DIR reads the personal plan from <data root>/cache/plan.js
     fs.mkdirSync(path.join(data, 'cache'));
     const plan = JSON.parse(fs.readFileSync(path.join(__dirname, 'plan-data.example.json'), 'utf8'));
     fs.writeFileSync(path.join(data, 'cache', 'plan.json'), JSON.stringify({ ...plan, locale: 'es' }));
+    /** @type {string[]} */
     const warns = [];
     const ctx = gen.load({ env: { HC_DATA_DIR: data }, warn: (w) => warns.push(w) });
     assert.equal(ctx.PLAN_PATH, path.join(data, 'cache', 'plan.json'));
     assert.equal(ctx.LOCALE, 'es');
     assert.deepEqual(warns, []);
     // an empty data root: the tracked example plan, with the fresh-clone warning
-    const empty = gen.load({ env: { HC_DATA_DIR: path.join(data, 'none') }, warn: (w) => warns.push(w) });
+    const empty = gen.load({ env: { HC_DATA_DIR: path.join(data, 'none') }, warn: (w) => /** @type {string[]} */ (warns).push(w) });
     assert.equal(empty.PLAN_PATH, path.join(__dirname, 'plan-data.example.json'));
     assert.match(warns[0], /personal plan .*none.*cache.*plan\.json not found/);
   } finally {
@@ -317,8 +320,8 @@ test('load(): the food names follow the page\'s language precedence (LOCALE > se
     fs.mkdirSync(path.join(data, 'cache'));
     fs.mkdirSync(path.join(data, 'profile'));
     const plan = JSON.parse(fs.readFileSync(path.join(__dirname, 'plan-data.example.json'), 'utf8'));
-    const writePlan = (locale) => fs.writeFileSync(path.join(data, 'cache', 'plan.json'), JSON.stringify({ ...plan, locale }));
-    const writeSettings = (s) => fs.writeFileSync(path.join(data, 'profile', 'settings.json'), JSON.stringify(s));
+    const writePlan = (/** @type {string | undefined} */ locale) => fs.writeFileSync(path.join(data, 'cache', 'plan.json'), JSON.stringify({ ...plan, locale }));
+    const writeSettings = (/** @type {unknown} */ s) => fs.writeFileSync(path.join(data, 'profile', 'settings.json'), JSON.stringify(s));
     const localeOf = (env = {}) => gen.load({ env: { HC_DATA_DIR: data, ...env }, warn: () => {} }).LOCALE;
 
     writePlan('es');

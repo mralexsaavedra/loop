@@ -14,19 +14,20 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const NBSP = ' ';
 const WATCH = `Apple${NBSP}Watch de Demo`;
 
+/** @param {string[]} lines */
 function runExtract(lines) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-test-'));
   fs.writeFileSync(path.join(dir, 'export.xml'), ['<HealthData locale="en_GB">', ...lines, '</HealthData>', ''].join('\n'));
   execFileSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { stdio: 'ignore', env: { ...process.env, EXTRACT_DIR: dir } });
   const out = path.join(dir, 'extract');
-  const read = f => fs.readFileSync(path.join(out, f), 'utf8');
+  const read = (/** @type {string} */ f) => fs.readFileSync(path.join(out, f), 'utf8');
   return { read, files: fs.readdirSync(out), meta: JSON.parse(read('_meta.json')), cleanup: () => fs.rmSync(dir, { recursive: true }) };
 }
-const rec = (type, src, start, value, extra = '') =>
+const rec = (/** @type {string} */ type, /** @type {string} */ src, /** @type {string} */ start, /** @type {string | number} */ value, extra = '') =>
   `<Record type="HKQuantityTypeIdentifier${type}" sourceName="${src}" unit="kcal" startDate="${start}" endDate="${start}" value="${value}"${extra}/>`;
 
 const PHONE = 'iPhone de Demo';
-const later = d => rec('StepCount', PHONE, `${d} 12:00:00 +0100`, 10); // a later date, so the tested day is not the (partial) last one
+const later = (/** @type {string} */ d) => rec('StepCount', PHONE, `${d} 12:00:00 +0100`, 10); // a later date, so the tested day is not the (partial) last one
 
 test('energy: Apple Watch + iPhone on the same day -> the Watch only (never a sum)', () => {
   const x = runExtract([
@@ -140,7 +141,7 @@ test('without an <ExportDate>, the last date is the newest record date', () => {
 
 test('extract.mjs uses the same anchored Apple Watch regex as lib/training/sessions.mjs', async () => {
   const { SOURCE_PRECEDENCE } = await import('../../lib/training/sessions.mjs');
-  const watch = SOURCE_PRECEDENCE.find(p => p.name === 'Apple Watch').re;
+  const watch = /** @type {NonNullable<ReturnType<typeof SOURCE_PRECEDENCE.find>>} */ (SOURCE_PRECEDENCE.find(p => p.name === 'Apple Watch')).re;
   assert.equal(APPLE_WATCH_RE.source, watch.source);
   assert.equal(APPLE_WATCH_RE.flags, watch.flags);
   assert.ok(APPLE_WATCH_RE.test(WATCH) && !APPLE_WATCH_RE.test('My Apple Watch') && !APPLE_WATCH_RE.test('RENPHO'));
@@ -198,7 +199,7 @@ test('strict CLI: --help prints the usage (exit 0), an unknown flag or a stray a
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-cli-'));
   try {
     fs.writeFileSync(path.join(dir, 'export.xml'), '<HealthData>\n</HealthData>\n');
-    const run = (...args) => spawnSync(process.execPath, [path.join(__dirname, 'extract.mjs'), ...args], { encoding: 'utf8', env: { ...process.env, EXTRACT_DIR: dir } });
+    const run = (/** @type {string[]} */ ...args) => spawnSync(process.execPath, [path.join(__dirname, 'extract.mjs'), ...args], { encoding: 'utf8', env: { ...process.env, EXTRACT_DIR: dir } });
     const help = run('--help');
     assert.equal(help.status, 0);
     assert.match(help.stdout, /^Usage: node data\/apple-health\/extract\.mjs/);
@@ -268,11 +269,11 @@ test('the writes run under the _meta.json lock the syncs share: a held fresh loc
 // Shapes observed on a real Mi Fitness export: sleep = InBed records only (whole nights + many 0.3-1 h
 // afternoon fragments); heart rate = hour BUCKETS (every record spans one clock hour, start hh:00:00,
 // several records per hour), no RestingHeartRate, no HRV.
-const sleepRec = (src, start, end, value) =>
+const sleepRec = (/** @type {string} */ src, /** @type {string} */ start, /** @type {string} */ end, /** @type {string} */ value) =>
   `<Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="${src}" sourceVersion="1" creationDate="${end}" startDate="${start}" endDate="${end}" value="HKCategoryValueSleepAnalysis${value}"/>`;
-const hrRec = (src, start, end, bpm) =>
+const hrRec = (/** @type {string} */ src, /** @type {string} */ start, /** @type {string} */ end, /** @type {number} */ bpm) =>
   `<Record type="HKQuantityTypeIdentifierHeartRate" sourceName="${src}" sourceVersion="1" unit="count/min" creationDate="${end}" startDate="${start}" endDate="${end}" value="${bpm}"/>`;
-const rhrRec = (src, start, bpm) =>
+const rhrRec = (/** @type {string} */ src, /** @type {string} */ start, /** @type {number} */ bpm) =>
   `<Record type="HKQuantityTypeIdentifierRestingHeartRate" sourceName="${src}" unit="count/min" startDate="${start}" endDate="${start}" value="${bpm}"/>`;
 
 // An Apple Watch user: staged asleep night + the iPhone's InBed bedtime, a Watch-off night with only the
@@ -328,8 +329,8 @@ test('a Mi Fitness export: in-bed-only nights become ESTIMATED sleep rows ("Mi F
 });
 
 test('a Mi Fitness export: resting HR is DERIVED from the night\'s hour-bucket heart rate ("Mi Fitness (derived)"); a measured value wins its date', () => {
-  const hour = (date, hh, bpms) => bpms.map(b => hrRec(MIF, `${date} ${hh}:00:00 +0100`, `${date} ${String(+hh + 1).padStart(2, '0')}:00:00 +0100`, b));
-  const night = (date, low) => [
+  const hour = (/** @type {string} */ date, /** @type {string} */ hh, /** @type {number[]} */ bpms) => bpms.map(b => hrRec(MIF, `${date} ${hh}:00:00 +0100`, `${date} ${String(+hh + 1).padStart(2, '0')}:00:00 +0100`, b));
+  const night = (/** @type {string} */ date, /** @type {number} */ low) => [
     ...hour(date, '00', [64, 62, 63, 65, 61]),
     ...hour(date, '02', [low, low + 1, low - 1, low, low + 2]),
     ...hour(date, '05', [60, 59, 61, 60]),
@@ -353,7 +354,7 @@ test('a Mi Fitness export: resting HR is DERIVED from the night\'s hour-bucket h
 test('HC_DATA_DIR: export.xml read from <data root>/files/import (HC_FILES_DIR moves it), the extract written to <data root>/extract; EXTRACT_DIR still wins', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-data-root-'));
   const xml = ['<HealthData locale="en_GB">', later('2030-01-02'), later('2030-01-03'), '</HealthData>', ''].join('\n');
-  const env = (extra) => { const e = { ...process.env }; delete e.EXTRACT_DIR; delete e.HC_FILES_DIR; return { ...e, ...extra }; };
+  const env = (/** @type {NodeJS.ProcessEnv} */ extra) => { const e = { ...process.env }; delete e.EXTRACT_DIR; delete e.HC_FILES_DIR; return { ...e, ...extra }; };
   try {
     fs.mkdirSync(path.join(root, 'files', 'import'), { recursive: true });
     fs.writeFileSync(path.join(root, 'files', 'import', 'export.xml'), xml);
@@ -382,8 +383,8 @@ test('HC_DATA_DIR: export.xml read from <data root>/files/import (HC_FILES_DIR m
 test('--source <file> reads that export instead of <files>/import/export.xml (scripts/import-health.mjs passes its work file); output byte-identical to the default path', () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'extract-source-'));
   const xml = ['<HealthData locale="en_GB">', later('2030-01-02'), later('2030-01-03'), '</HealthData>', ''].join('\n');
-  const env = (extra) => { const e = { ...process.env }; delete e.EXTRACT_DIR; delete e.HC_FILES_DIR; return { ...e, ...extra }; };
-  const snapshot = (dir) => Object.fromEntries(fs.readdirSync(dir).sort().map((f) => [f, fs.readFileSync(path.join(dir, f), 'utf8')]));
+  const env = (/** @type {NodeJS.ProcessEnv} */ extra) => { const e = { ...process.env }; delete e.EXTRACT_DIR; delete e.HC_FILES_DIR; return { ...e, ...extra }; };
+  const snapshot = (/** @type {string} */ dir) => Object.fromEntries(fs.readdirSync(dir).sort().map((f) => [f, fs.readFileSync(path.join(dir, f), 'utf8')]));
   try {
     fs.mkdirSync(path.join(root, 'a', 'files', 'import'), { recursive: true });
     fs.writeFileSync(path.join(root, 'a', 'files', 'import', 'export.xml'), xml);

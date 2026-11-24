@@ -11,8 +11,9 @@ import { readIngestToken, readBaseUrl } from './lib/sync-common.mjs';
 
 const TOKEN = 't'.repeat(40);
 
+/** @param {number} status */
 async function server(status) {
-  const seen = [];
+  const seen = /** @type {Array<{ path: string | undefined, auth: string | null }>} */ ([]);
   const s = http.createServer((req, res) => {
     seen.push({ path: req.url, auth: req.headers.authorization ?? null });
     if (req.url === '/export/files' && status === 200 && req.headers.authorization === `Bearer ${TOKEN}`) {
@@ -22,8 +23,8 @@ async function server(status) {
     res.writeHead(status === 200 ? 401 : status, { 'content-type': 'application/json' });
     res.end('{"error":"x"}');
   });
-  await new Promise((r) => s.listen(0, '127.0.0.1', r));
-  return { seen, url: `http://127.0.0.1:${s.address().port}`, close: () => new Promise((r) => s.close(r)) };
+  await /** @type {Promise<void>} */ (new Promise((r) => s.listen(0, '127.0.0.1', r)));
+  return { seen, url: `http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */ (s.address()).port}`, close: () => new Promise((r) => s.close(r)) };
 }
 
 function clone() {
@@ -32,8 +33,8 @@ function clone() {
   return { dir, data, file: path.join(data, 'server.json'), env: (extra = {}) => ({ SYNC_CLIENT_ROOT: dir, HC_DATA_DIR: data, INGEST_ENV_FILE: path.join(dir, 'none.env'), ...extra }), cleanup: () => fs.rmSync(dir, { recursive: true, force: true }) };
 }
 
-const run = async (argv, env, extra = {}) => {
-  const out = { logs: [], warns: [] };
+const run = async (/** @type {string[]} */ argv, /** @type {Record<string, string | undefined>} */ env, /** @type {Partial<Parameters<typeof main>[0]>} */ extra = {}) => {
+  const out = { logs: /** @type {string[]} */ ([]), warns: /** @type {string[]} */ ([]) };
   const code = await main({ argv, env, log: (m) => out.logs.push(m), warn: (m) => out.warns.push(m), isTTY: false, ...extra });
   return { code, ...out };
 };
@@ -58,8 +59,9 @@ test('connect: the token comes from a TTY prompt without echo when INGEST_TOKEN 
   const s = await server(200);
   const c = clone();
   t.after(async () => { await s.close(); c.cleanup(); });
+  /** @type {string[]} */
   const asked = [];
-  const r = await run([s.url], c.env(), { isTTY: true, prompt: async (q) => { asked.push(q); return TOKEN; } });
+  const r = await run([s.url], c.env(), { isTTY: true, prompt: async (/** @type {string} */ q) => { asked.push(q); return TOKEN; } });
   assert.equal(r.code, 0, r.warns.join('\n'));
   assert.match(asked[0], /token/i);
   assert.equal(JSON.parse(fs.readFileSync(c.file, 'utf8')).token, TOKEN);
