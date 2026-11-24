@@ -16,7 +16,7 @@ declare const I18N_DETAIL: PageGlobals['I18N_DETAIL'];
 declare const NAV: PageGlobals['NAV'];
 
 (function () {
-  var T = typeof I18N_DETAIL !== 'undefined' && I18N_DETAIL ? I18N_DETAIL.shortcuts : null;
+  var T = (typeof I18N_DETAIL !== 'undefined' && I18N_DETAIL ? I18N_DETAIL.shortcuts : null)!;
   if (!T || typeof document.addEventListener !== 'function') return;
   var esc = HC.esc;
   var TABS: string[] = (typeof NAV !== 'undefined' && NAV && NAV.tabs) || [];

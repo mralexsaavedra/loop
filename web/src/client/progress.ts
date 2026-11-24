@@ -31,7 +31,7 @@ type Progress = {
 
 (function () {
   var N = typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI;
-  var TN = typeof I18N_NUTRI === 'undefined' || !I18N_NUTRI ? null : I18N_NUTRI;
+  var TN = (typeof I18N_NUTRI === 'undefined' || !I18N_NUTRI ? null : I18N_NUTRI)!;
   if (!N || !TN || !N.progress || !TN.progress) return;
   var P = N.progress, T = TN.progress;
   var esc = HC.esc, format = HC.format;

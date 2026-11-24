@@ -39,8 +39,8 @@ type View = { head: { date: string; r: DayScore } | null; run: DayScore | null; 
   var N = typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI;
   var C = N && N.score ? N.score : null;
   if (!C) return;
-  var TS = typeof I18N_SCORE !== 'undefined' && I18N_SCORE && I18N_SCORE.home ? I18N_SCORE.home.nscore : null;
-  var TN = typeof I18N_NUTRI !== 'undefined' && I18N_NUTRI ? I18N_NUTRI.score : null;
+  var TS = (typeof I18N_SCORE !== 'undefined' && I18N_SCORE && I18N_SCORE.home ? I18N_SCORE.home.nscore : null)!;
+  var TN = (typeof I18N_NUTRI !== 'undefined' && I18N_NUTRI ? I18N_NUTRI.score : null)!;
   var esc = HC.esc, format = HC.format, isoDate = HC.isoDate;
   var DAY = typeof HCDay !== 'undefined' && HCDay ? HCDay : null;
   var WIDE = 30; // the Nutrición block's longer average and line

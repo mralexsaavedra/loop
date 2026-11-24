@@ -67,7 +67,7 @@ type NumFieldOpts = { unit?: string | null; ph?: string; miss?: string };
 type Act = (el: HTMLElement) => void;
 
 (function () {
-  var T = typeof I18N_FOOD === 'undefined' || !I18N_FOOD ? null : I18N_FOOD;
+  var T = (typeof I18N_FOOD === 'undefined' || !I18N_FOOD ? null : I18N_FOOD)!;
   var K = typeof FOOD_CONST === 'undefined' || !FOOD_CONST ? null : FOOD_CONST;
   // the public basics (lib/nutrition/basics.mjs): [{k, n, u, m: [kcal, p, c, f] per 100 of u, pc?, v?, h?}]
   var BASICS: Basic[] = typeof FOOD_BASICS !== 'undefined' && Array.isArray(FOOD_BASICS) ? FOOD_BASICS : [];

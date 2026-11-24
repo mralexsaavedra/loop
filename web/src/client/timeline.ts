@@ -46,7 +46,7 @@ type DetailSession = { d: string; m: string; min: number; re?: number | null; n?
   var hostEl: HTMLElement = host;
   var S = typeof SCORES === 'undefined' ? null : SCORES;
   var TL = S && S.timeline;
-  var T = typeof I18N_SCORE === 'undefined' || !I18N_SCORE ? null : I18N_SCORE.timeline;
+  var T = (typeof I18N_SCORE === 'undefined' || !I18N_SCORE ? null : I18N_SCORE.timeline)!;
   if (!TL || !T) return;
   // shared helpers (web/src/client/util.ts); HC.num reads LOCALE at call time, inside the try below
   var esc = HC.esc, format = HC.format, num = HC.num, isoDate = HC.isoDate, todayIso = HC.todayIso, daysOld = HC.daysOld;

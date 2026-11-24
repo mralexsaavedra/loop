@@ -38,7 +38,7 @@ type Summary = {
   if (!host) return;
   var root: HTMLElement = host; // the narrowed host, for the render closure
   var A = typeof ACTIVITY === 'undefined' ? null : ACTIVITY;
-  var T = typeof I18N_ACTIVITY === 'undefined' ? null : I18N_ACTIVITY;
+  var T = (typeof I18N_ACTIVITY === 'undefined' ? null : I18N_ACTIVITY)!;
   if (!T) return;
   var W = typeof window === 'undefined' ? null : window;
   // calendar geometry (SVG user units): square cells with a gap, a weekday header row on top

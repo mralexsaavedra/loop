@@ -53,7 +53,7 @@ type OnbDoc = {
 };
 
 (function () {
-  var T = typeof I18N_ONB !== 'undefined' ? I18N_ONB : null, E = typeof HC_ENERGY !== 'undefined' ? HC_ENERGY : null;
+  var T = (typeof I18N_ONB !== 'undefined' ? I18N_ONB : null)!, E = typeof HC_ENERGY !== 'undefined' ? HC_ENERGY : null;
   if (!T || !E) return;
   var esc = HC.esc, format = HC.format;
   var LATER_KEY = 'hc.onboarding.later';
