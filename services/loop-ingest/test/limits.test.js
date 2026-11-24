@@ -45,3 +45,10 @@ test('token bucket: starts full, refills continuously up to capacity', () => {
   now.t += 10 * 60_000
   assert.deepEqual([b.take(), b.take(), b.take(), b.take()], [true, true, true, false], 'never above capacity')
 })
+
+test('createWindowLimiter refuses a maxKeys below 1 at construction (it would spin forever on the first request)', () => {
+  for (const maxKeys of [0, -1, 0.5, NaN]) {
+    assert.throws(() => createWindowLimiter({ limit: 1, windowMs: 1000, maxKeys }), RangeError, String(maxKeys))
+  }
+  assert.doesNotThrow(() => createWindowLimiter({ limit: 1, windowMs: 1000, maxKeys: 1 }))
+})

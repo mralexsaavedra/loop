@@ -161,3 +161,9 @@ test('concurrent identical misses share ONE upstream request', async () => {
   assert.equal(n, 1)
   assert.deepEqual(x, y)
 })
+
+test('createOffClient refuses a cacheMax below 1 at construction (remember() would spin forever)', () => {
+  for (const cacheMax of [0, -5, 1.5]) {
+    assert.throws(() => createOffClient({ fetch: async () => { throw new Error('no network in tests') }, cacheMax }), RangeError, String(cacheMax))
+  }
+})
