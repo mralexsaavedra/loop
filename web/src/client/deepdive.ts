@@ -634,19 +634,19 @@ type Card = { title: string; get: (iso: string) => unknown; text: (v: number) =>
   }
   // Relative Effort per modality stays one tap away: the Entreno load deep-dives
   function reLinksHtml(X: Baked): string {
-    var P = X.T.deep.strain, mods = ['gym', 'run', 'bike'].filter(function (k) { return !!X.metric('load-' + k); });
+    var P = X.T.deep.strain, mods = ['strength', 'hybrid', 'run', 'bike'].filter(function (k) { return !!X.metric('load-' + k); });
     if (!mods.length) return '';
     return '<section class="dd-re"><h3 class="dd-sec">' + esc(P.reTitle) + '</h3><div class="dd-re-links">' + mods.map(function (k) {
       return '<span class="dd-re-link"' + HC.detailAttrs('load-' + k) + '>' + esc(X.titleOf('load-' + k)) + '</span>';
     }).join('') + '</div></section>';
   }
 
-  // load pages: the gym / run / bike pills: each opens that
+  // load pages: the strength / hybrid / run / bike pills: each opens that
   // modality's page and sets Inicio's load dial to it (data-mod: score.ts's delegated listener, when window.HCScore is loaded); the page's own
   // modality is the pressed one. Fewer than two modalities with a load series: no pills.
   function modSwitch(key: string, X: Baked): string {
     var cur = X.modOf(key);
-    var mods = ['gym', 'run', 'bike'].filter(function (k) { return !!X.metric('load-' + k); });
+    var mods = ['strength', 'hybrid', 'run', 'bike'].filter(function (k) { return !!X.metric('load-' + k); });
     if (mods.length < 2) return '';
     var set = typeof window !== 'undefined' && !!window.HCScore && typeof (window.HCScore as { setMod?: unknown }).setMod === 'function';
     return '<div class="dial-switch" role="group" aria-label="' + esc(X.T.deep.modSwitch) + '">' + mods.map(function (k) {

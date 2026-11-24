@@ -59,8 +59,9 @@ Classic scripts inlined in this order right after `deepdive.ts` (`web/src/client
   newest data date (never the build clock, so builds stay byte-identical); `null` = no data that day
   (never 0); rounded to the card's precision.
 - Keys (`DETAIL_KEYS`): sleep, recovery, hrv, rhr, respiratory, wristTemp, walkingHr, vo2max, fitnessAge,
-  steps, exercise, distance, flights, energy, weight, bodyfat, lean, waist, workouts, load-gym, load-run,
-  load-bike. A key without data is absent (the view shows its empty state: recovery gated by too little
+  steps, exercise, distance, flights, energy, weight, bodyfat, lean, waist, workouts, load-strength,
+  load-hybrid, load-run, load-bike. An old `#detail/load-gym` link opens `load-strength`
+  (`lib/nav/tabs.mjs` `DETAIL_ALIAS`). A key without data is absent (the view shows its empty state: recovery gated by too little
   history (`SCORES.recovery.gated`) shows the Salud card's own gate text (`rec.insufficient`); a night signal
   (sleep, HRV, resting HR, respiratory, wrist temp) absent while the build holds other data says the
   device does not record it (`unrecordedSheet`); otherwise, e.g. a build before any sync, "No data for this
@@ -85,7 +86,7 @@ Same readers and rules as the cards.
 | `load-<m>` | RE per day after the load rule (`null` = sessions without RE), the card's typical day (the same `typicalDay` value the load dial puts at its ring midpoint), calendar cuts at 0.5 / 1 / 1.5 typical days, and the dial's `gate` (null / `baselineBuilding` / `fewDays`) + `last` scored session |
 | strain | kind `strain`, only when day strain is calibrated (`lib/score/strain.mjs`): the day strain 0–21 of every day with all-day heart rate (one K for every day); calendar shades at 10 / 14 / 18 (the reference's light / moderate / high / all-out bands on our scale); bars in the chart; the day panel lists the day's sessions |
 | zones13, zones45 | kind `total`, `week` (My dashboard shows their 7-day total): whole minutes per day in heart-rate zones 1–3 / 4–5 (`lib/score/strain.mjs` `zoneMinutes`, the strain's max HR and zone cuts): the all-day hours' histograms plus each Strava workout's zone seconds, Z0 not counted; only days with all-day heart rate (like strain); no max HR → not baked |
-| gymTime | kind `total`, `week`: gym minutes per day (`scoreModality` gym: strength, HIIT, functional, other) from the same-day merged sessions, zero-filled from the first gym session up to `asOf` |
+| gymTime | kind `total`, `week`: gym minutes per day (strength + hybrid: weights, HIIT, functional, other) from the same-day merged sessions, zero-filled from the first gym session up to `asOf` |
 
 ### Metrics outside `DETAIL`
 

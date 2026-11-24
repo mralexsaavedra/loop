@@ -39,7 +39,7 @@ How it's built: [Home tab](../home-tab.md), [detail views](../detail-views.md).
 
 | Card | What it tells you | Where the data comes from |
 | --- | --- | --- |
-| **Load** (gym / run / bike) | Your last scored session in each sport, and whether your 7-day load is above, below or in line with your 42-day load | Relative Effort from Strava |
+| **Load** (strength / hybrid / run / bike) | Your last scored session in each sport, and whether your 7-day load is above, below or in line with your 42-day load | Relative Effort from Strava |
 | **Activity** | Total training time for the week, month or 6 months (W / M / 6M) against the period before it; sessions, training days, days per week; the split by sport; a 30-day calendar | Apple Watch workouts and Strava |
 | **Running** / **Cycling** | One row per run or ride: distance, time, pace, heart rate, effort, elevation | Apple Watch workouts and Strava |
 | **Weekly cardiovascular load** | Your training load per week, and how your HRV and resting heart rate compare in harder and easier weeks | Workouts with heart rate; Apple Health |

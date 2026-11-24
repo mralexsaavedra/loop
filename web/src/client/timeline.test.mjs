@@ -70,7 +70,7 @@ test('today not in the data: the newest earlier day, labelled by its date, with 
   assert.equal(rows(html).length, 3);
   const earlier = render(TL, { now: '2026-09-28' });
   assert.ok(earlier.includes(`<h3>${enT.timeline.heading}</h3>`), 'viewer a day behind the data: their today is the 28th');
-  assert.deepEqual(rows(earlier).map((r) => r.cls), ['tl-sleep', 'tl-gym']);
+  assert.deepEqual(rows(earlier).map((r) => r.cls), ['tl-sleep', 'tl-strength']);
 });
 
 test('clock edge: 23:59 is still that day, 00:01 is the next one (local calendar)', () => {
@@ -79,7 +79,7 @@ test('clock edge: 23:59 is still that day, 00:01 is the next one (local calendar
   assert.ok(after.includes(enT.timeline.dateHeading.replace('{date}', 'Tue 29 Sep')));
   assert.doesNotMatch(after, /sc-note/);
   const behind = render(TL, { at: '2026-09-28T00:01:00' });
-  assert.deepEqual(rows(behind).map((r) => r.cls), ['tl-sleep', 'tl-gym'], 'just after midnight on the 28th: the 28th');
+  assert.deepEqual(rows(behind).map((r) => r.cls), ['tl-sleep', 'tl-strength'], 'just after midnight on the 28th: the 28th');
 });
 
 test('clock skew: the viewer\'s today EARLIER than every baked day -> the newest baked day under its date, never the empty state', () => {
@@ -109,12 +109,13 @@ test('empty state: no baked days, or no timeline at all', () => {
   assert.doesNotThrow(() => render(undefined));
 });
 
-test('es: h:mm, Spanish labels, merged parts counted', () => {
-  const tl = timelineFromInputs([w(ASOF, 'HighIntensityIntervalTraining', 30), w(ASOF, 'TraditionalStrengthTraining', 25, 20)], [{ date: ASOF, value: 7.25 }]);
+test('es: h:mm, Spanish labels, merged parts counted; strength and hybrid are separate rows', () => {
+  const tl = timelineFromInputs([w(ASOF, 'TraditionalStrengthTraining', 30), w(ASOF, 'TraditionalStrengthTraining', 25, 20), w(ASOF, 'HighIntensityIntervalTraining', 40)], [{ date: ASOF, value: 7.25 }]);
   const r = rows(render(tl, { locale: 'es' }));
   assert.deepEqual(r, [
     { cls: 'tl-sleep', text: '7:15 Sueño' },
-    { cls: 'tl-gym', text: '20 Gimnasio 0:55 2 partes' },
+    { cls: 'tl-strength', text: '20 Fuerza 0:55 2 partes' },
+    { cls: 'tl-hybrid', text: '0:40 Híbrido' },
   ]);
 });
 
@@ -211,9 +212,9 @@ test('day stepping: a past day lists THAT day from DETAIL — the same rows SCOR
   // the timeline's own rendering of 2026-09-28 (viewer on that day, before 09-29 existed)
   const ref = render(timelineFromInputs(WO.filter((r) => r.date <= '2026-09-28'), SL.filter((r) => r.date <= '2026-09-28')), { detail: DET, now: '2026-09-28' });
   assert.deepEqual(rows(html), rows(ref));
-  assert.deepEqual(rows(html).map((r) => r.cls), ['tl-sleep', 'tl-gym', 'tl-run']);
-  assert.match(rows(html)[1].text, /^40 Gym 0:55 2 parts$/);
-  assert.match(html, /<span class="tl-name">Gym<\/span><span class="sr-only">RE 40<\/span><span class="tl-side tl-times"><span>0:55<\/span><span>2 parts<\/span><\/span>/, 'named "Gym RE 40 0:55 2 parts"');
+  assert.deepEqual(rows(html).map((r) => r.cls), ['tl-sleep', 'tl-strength', 'tl-run']);
+  assert.match(rows(html)[1].text, /^40 Strength 0:55 2 parts$/);
+  assert.match(html, /<span class="tl-name">Strength<\/span><span class="sr-only">RE 40<\/span><span class="tl-side tl-times"><span>0:55<\/span><span>2 parts<\/span><\/span>/, 'named "Strength RE 40 0:55 2 parts"');
   assert.match(html, /data-detail="load-run" data-date="2026-09-28"/);
   assert.doesNotMatch(html, /sc-stale|tl-prog|Nothing logged yet today/);
 });

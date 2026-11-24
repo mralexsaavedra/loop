@@ -154,7 +154,7 @@ export const en = {
       strainByRecOne: 'On days when your recovery was {band}, your day strain was usually about {lo} ({n} of the last 90 days).',
       recBand: { above: 'above your usual', at: 'around your usual', below: 'below your usual' },
     },
-    // the gym / run / bike pills on a load page (deepdive.ts modSwitch; they also set Inicio's load dial)
+    // the strength / hybrid / run / bike pills on a load page (deepdive.ts modSwitch; they also set Inicio's load dial)
     modSwitch: 'Load modality',
     contrib: {
       aria: 'What makes up today\'s value',
@@ -175,7 +175,7 @@ export const en = {
     // the day strain page (key 'strain', lib/score/strain.mjs): contributors, insight, notes, RE links
     strain: {
       contribAria: 'What made up the day\'s strain',
-      mods: { gym: 'Gym', run: 'Run', bike: 'Bike', other: 'Other activity' },
+      mods: { strength: 'Strength', hybrid: 'Hybrid', run: 'Run', bike: 'Bike', other: 'Other activity' },
       allDay: 'All day (outside workouts)',
       loadLbl: 'load {load} (minutes × HR zone)',
       shareNote: 'Each row = its share of the day\'s strain, in proportion to its load.',
@@ -324,7 +324,8 @@ export const en = {
     lean: { title: 'Lean mass', unit: 'kg' },
     waist: { title: 'Waist', unit: 'cm' },
     workouts: { title: 'Training time', unit: 'min' },
-    'load-gym': { title: 'Gym load', unit: 'RE' },
+    'load-strength': { title: 'Strength load', unit: 'RE' },
+    'load-hybrid': { title: 'Hybrid load', unit: 'RE' },
     'load-run': { title: 'Run load', unit: 'RE' },
     'load-bike': { title: 'Bike load', unit: 'RE' },
     strain: { title: 'Day strain', unit: '/ 21' },
@@ -389,7 +390,7 @@ export const en = {
     recValue: `{value} ${UE} · {band}`,
     bands: { above: 'above baseline', at: 'at baseline', below: 'below baseline' },
   },
-  modalities: { gym: 'Gym', run: 'Run', bike: 'Bike', other: 'Other' },
+  modalities: { strength: 'Strength', hybrid: 'Hybrid', run: 'Run', bike: 'Bike', other: 'Other' },
   types: {
     Running: 'Run', Cycling: 'Ride', IndoorCycling: 'Indoor ride', Walking: 'Walk', Hiking: 'Hike', Swimming: 'Swim', Rowing: 'Row', Yoga: 'Yoga',
     HighIntensityIntervalTraining: 'HIIT', TraditionalStrengthTraining: 'Strength', FunctionalStrengthTraining: 'Functional strength',
@@ -560,7 +561,7 @@ export const es = {
     // la página de carga del día (clave 'strain', lib/score/strain.mjs)
     strain: {
       contribAria: 'Qué formó la carga del día',
-      mods: { gym: 'Gimnasio', run: 'Carrera', bike: 'Bici', other: 'Otra actividad' },
+      mods: { strength: 'Fuerza', hybrid: 'Híbrido', run: 'Carrera', bike: 'Bici', other: 'Otra actividad' },
       allDay: 'Resto del día (fuera de entrenos)',
       loadLbl: 'carga {load} (minutos × zona de FC)',
       shareNote: 'Cada fila = su parte de la carga del día, en proporción a su carga.',
@@ -706,7 +707,8 @@ export const es = {
     lean: { title: 'Masa magra', unit: 'kg' },
     waist: { title: 'Cintura', unit: 'cm' },
     workouts: { title: 'Tiempo de entreno', unit: 'min' },
-    'load-gym': { title: 'Carga de gimnasio', unit: 'RE' },
+    'load-strength': { title: 'Carga de fuerza', unit: 'RE' },
+    'load-hybrid': { title: 'Carga de híbrido', unit: 'RE' },
     'load-run': { title: 'Carga de carrera', unit: 'RE' },
     'load-bike': { title: 'Carga de bici', unit: 'RE' },
     strain: { title: 'Carga del día', unit: '/ 21' },
@@ -767,7 +769,7 @@ export const es = {
     recValue: `{value} ${US} · {band}`,
     bands: { above: 'por encima de tu línea base', at: 'en tu línea base', below: 'por debajo de tu línea base' },
   },
-  modalities: { gym: 'Gimnasio', run: 'Carrera', bike: 'Bici', other: 'Otro' },
+  modalities: { strength: 'Fuerza', hybrid: 'Híbrido', run: 'Carrera', bike: 'Bici', other: 'Otro' },
   types: {
     Running: 'Carrera', Cycling: 'Bici', IndoorCycling: 'Rodillo', Walking: 'Caminata', Hiking: 'Senderismo', Swimming: 'Natación', Rowing: 'Remo', Yoga: 'Yoga',
     HighIntensityIntervalTraining: 'HIIT', TraditionalStrengthTraining: 'Fuerza', FunctionalStrengthTraining: 'Fuerza funcional',

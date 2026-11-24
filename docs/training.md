@@ -56,13 +56,13 @@ What it shows: a centred uppercase title with an ⓘ.
 
 ## Load summary
 
-What it shows: per modality (gym / run / bike), the last scored session's Relative Effort and its
+What it shows: per modality (strength / hybrid / run / bike), the last scored session's Relative Effort and its
 7-day vs 42-day trend.
 
 - Header: "LOAD" with its own ⓘ (`#ld-info`): the as-of date, how to read a card, one line per modality
   with the relative score / the trend band or why it is gated / sessions without effort, other
   activities, coverage, the RE epoch and the caveats list.
-- Three compact cards (gym / run / bike), each:
+- Four compact cards (strength / hybrid / run / bike), each:
   - the LAST scored session's Relative Effort big, in `--strain`;
   - a small ring = the dial's own baked arc for that session (`DIALS.load.modalities[].days[].fill`, the
     typical-day tick);
@@ -109,7 +109,7 @@ calendar.
 
 | Modality | Split colour |
 | --- | --- |
-| gym | `--strain` |
+| hybrid | `--strain` |
 | strength | `--strain-ink` |
 | run | `--up` |
 | bike | `--mid` |
@@ -196,10 +196,13 @@ Data-honesty rules baked in:
 - Use DURATION, not kcal (blank on recent exports).
 - Count DISTINCT DAYS, not raw rows (the Watch fragments one session into several records), after the
   shared same-day `DISPLAY_RULE` (stubs dropped, a Watch copy of a Strava session counted once).
-- The modality buckets (strength / hiit / run / bike / other) reflect the WATCH's auto-labels, which
-  over-tag HIIT and under-count strength — the Activity card's ⓘ says so.
-- The `hiit` bucket is LABELLED `Gimnasio` / "Gym" (display only, same bucket) so it matches Home's gym
-  load card; `strength` keeps its own label.
+- The modality buckets are Home's (`lib/training/modality.mjs`): strength (weights: Hevy uploads
+  `WeightTraining` to Strava), hybrid (HIIT / CrossTraining / the generic `Other`: metcon), run, bike
+  (outdoor and indoor) and other. Strength and HIIT of one day are two sessions; a Watch copy of a
+  Strava session is still counted once (the dedupe runs on the physical gym family first, see
+  [the same-day rule](home-tab.md#same-day-merge-rule)).
+- An indoor ride (`IndoorCycling`: Strava's trainer flag or a virtual ride) is the bike modality,
+  listed as "Rodillo" / "Indoor ride" in the day's sessions.
 
 ## Per-workout HR zones
 

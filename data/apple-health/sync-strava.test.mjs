@@ -131,31 +131,32 @@ test('racket and team sports map to Apple-style types in the `other` modality', 
   }
 });
 
-test('Strava "Workout" (its generic type, where a Watch "Other" workout lands) keeps the Watch\'s gym label', async () => {
+test('Strava "Workout" (its generic type, where a Watch "Other" workout lands) keeps the Watch\'s hybrid label', async () => {
   const { scoreModality } = await import('../../lib/training/modality.mjs');
   assert.equal(translateType('Workout'), 'Other');
-  assert.equal(scoreModality('Other'), 'gym');
+  assert.equal(scoreModality('Other'), 'hybrid');
 });
 
 test('every mapped type lands where its name says: no racket/outdoor sport is ever gym, run or bike by accident', async () => {
   const { scoreModality } = await import('../../lib/training/modality.mjs');
-  const GYMISH = new Set(['WeightTraining', 'HighIntensityIntervalTraining', 'Crossfit', 'Workout']);
+  const GYM = { WeightTraining: 'strength', HighIntensityIntervalTraining: 'hybrid', Crossfit: 'hybrid', Workout: 'hybrid' };
   for (const [sport, t] of Object.entries(SPORT_TYPE_MAP)) {
     const m = scoreModality(t);
     if (/Run$/.test(sport)) assert.equal(m, 'run', sport);
     else if (/Ride$|Handcycle|Velomobile/.test(sport)) assert.equal(m, 'bike', sport);
-    else if (GYMISH.has(sport)) assert.equal(m, 'gym', sport);
+    else if (GYM[sport]) assert.equal(m, GYM[sport], sport);
     else assert.equal(m, 'other', sport);
   }
 });
 
 test('a Watch Tennis row and a Strava Tennis row on the same day merge into ONE session', async () => {
-  const { parseWorkouts, mergeKey } = await import('../../lib/training/dashboard.mjs');
+  const { parseWorkouts } = await import('../../lib/training/dashboard.mjs');
+  const { byModality, byPhysical } = await import('../../lib/training/modality.mjs');
   const { mergeSameDay, DISPLAY_RULE } = await import('../../lib/training/sessions.mjs');
   const strava = toRow({ id: '9', start_local: '2026-08-22T18:00:00', sport_type: 'Tennis', moving_time: 3600, average_heartrate: 140, suffer_score: 30 });
   const watch = '2026-08-22,Tennis,62,,138,90,170,Apple\u00a0Watch de Demo,,,,';
   const rows = parseWorkouts([WORKOUTS_HEADER, watch, strava.line].join('\n'));
-  const groups = mergeSameDay(rows, mergeKey, DISPLAY_RULE);
+  const groups = mergeSameDay(rows, byModality, { ...DISPLAY_RULE, dedupeKey: byPhysical });
   assert.equal(groups.length, 1, 'one session for the day');
   assert.deepEqual(groups[0].rows.map(r => r.source), ['Strava API'], 'the Strava copy supersedes the Watch copy');
 });

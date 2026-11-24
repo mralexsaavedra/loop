@@ -2,7 +2,7 @@
  * split, 30-day calendar: web/src/client/training-activity.ts), baked as I18N_ACTIVITY by
  * tabs/TrainingDetail.astro (all but `head`, the header built there).
  * JSON-safe only: `{placeholder}` strings, substituted client-side. Modality labels follow the
- * dashboard's (the Watch's `hiit` bucket is shown as Gym). */
+ * shared buckets (lib/training/modality.mjs). */
 export const es = {
   // the Entreno header (tabs/TrainingDetail.astro, built server-side): centred title + an ⓘ with the
   // tab intro and the data caveats that apply to every block
@@ -11,12 +11,12 @@ export const es = {
     info: 'Sobre Entreno',
     intro: 'Tu carga por modalidad, tu actividad, tus sesiones de carrera y bici y cómo responde tu recuperación, desde el reloj y Strava.',
     help: 'Cada tarjeta: el número, una etiqueta y ▲▼ frente a lo habitual; toca para ver su historial. Las notas de cada bloque están tras su ⓘ.',
-    caveat: 'Duración, no kcal; días distintos, no registros (el reloj divide una sesión). Las modalidades son las etiquetas automáticas del reloj. Descriptivo, no es consejo médico.',
+    caveat: 'Duración, no kcal; días distintos, no registros (el reloj divide una sesión). Las modalidades salen de cómo se grabó cada sesión. Descriptivo, no es consejo médico.',
   },
   heading: 'Actividad',
   infoLbl: 'Sobre {section}',
   help: 'Tiempo total de la ventana elegida (S = 7 días, M = 30, 6M = 182, terminando hoy) frente a la ventana anterior de la misma longitud; sin comparación si esa ventana empieza antes de tu primer entreno. Sesiones = una por día y modalidad; días = días distintos con entreno; por semana = el total repartido en semanas. La barra reparte los minutos por modalidad (× = sesiones). El calendario son siempre los últimos 30 días: el color es el tiempo total del día; toca un día para verlo.',
-  labelsNote: 'Estas etiquetas las pone el reloj solo: «Gimnasio» domina porque el reloj marca como HIIT casi todo el gimnasio con pulso alto, incluido el bloque de fuerza; tu fuerza real es mayor que «Fuerza», que solo cuenta cuando la registras aparte. La carrera está infra-registrada. Tiempo y días sí son fiables. Las calorías no se muestran: vienen vacías en los exports recientes.',
+  labelsNote: 'Las etiquetas salen de cómo se grabó cada sesión: «Fuerza» son las sesiones de pesas (Hevy o entrenamiento de fuerza) e «Híbrido» las de HIIT y metcon. La carrera está infra-registrada. Tiempo y días sí son fiables. Las calorías no se muestran: vienen vacías en los exports recientes.',
   rangeLabel: 'Ventana',
   ranges: { w: 'S', m: 'M', m6: '6M' },
   rangesLong: { w: 'Última semana', m: 'Último mes', m6: 'Últimos 6 meses' },
@@ -41,9 +41,9 @@ export const es = {
   staleShort: 'Datos de hace {days} d',
   staleNote: 'Datos de hace {days} días: las ventanas terminan el {date}.',
   empty: 'Aún no hay entrenos. Aparecen con los entrenos del reloj o desde Strava.',
-  modalityLabels: { strength: 'Fuerza', hiit: 'Gimnasio', run: 'Carrera', bike: 'Bici', other: 'Otro' },
+  modalityLabels: { strength: 'Fuerza', hybrid: 'Híbrido', run: 'Carrera', bike: 'Bici', other: 'Otro' },
   units: { h: 'h', min: 'min' },
-  note: 'Días distintos, no registros (el reloj divide una sesión); duración, no kcal. Las modalidades son las etiquetas automáticas del reloj.',
+  note: 'Días distintos, no registros (el reloj divide una sesión); duración, no kcal. Las modalidades salen de cómo se grabó cada sesión.',
 };
 
 export const en = {
@@ -52,12 +52,12 @@ export const en = {
     info: 'About Training',
     intro: 'Your load per modality, your activity, your runs and rides, and how your recovery responds, from the watch and Strava.',
     help: 'Each card: the number, a label and ▲▼ against your usual; tap it for its history. Each block\'s notes sit behind its ⓘ.',
-    caveat: 'Duration, not kcal; distinct days, not records (the watch splits a session). Modalities are the watch\'s auto-labels. Descriptive, not medical advice.',
+    caveat: 'Duration, not kcal; distinct days, not records (the watch splits a session). Modalities come from how each session was recorded. Descriptive, not medical advice.',
   },
   heading: 'Activity',
   infoLbl: 'About {section}',
   help: 'Total time of the chosen window (W = 7 days, M = 30, 6M = 182, ending today) against the window of the same length before it; no comparison when that window starts before your first workout. Sessions = one per day and modality; days = distinct training days; per week = the total spread over weeks. The bar splits the minutes by modality (× = sessions). The calendar is always the last 30 days: colour = total time that day; tap a day to open it.',
-  labelsNote: 'These labels come from the watch itself: “Gym” dominates because the watch tags almost any high-heart-rate gym work as HIIT, strength block included; your real strength volume is higher than “Strength”, which only counts when logged separately. Running is under-logged. Time and days are reliable. Workout calories are omitted: recent exports leave them blank.',
+  labelsNote: 'The labels come from how each session was recorded: “Strength” is weight sessions (Hevy or strength training) and “Hybrid” is HIIT and metcon. Running is under-logged. Time and days are reliable. Workout calories are omitted: recent exports leave them blank.',
   rangeLabel: 'Window',
   ranges: { w: 'W', m: 'M', m6: '6M' },
   rangesLong: { w: 'Last week', m: 'Last month', m6: 'Last 6 months' },
@@ -82,7 +82,7 @@ export const en = {
   staleShort: 'Data {days} d old',
   staleNote: 'Data is {days} days old: the windows end on {date}.',
   empty: 'No workouts yet. They appear with Watch workouts or from Strava.',
-  modalityLabels: { strength: 'Strength', hiit: 'Gym', run: 'Run', bike: 'Bike', other: 'Other' },
+  modalityLabels: { strength: 'Strength', hybrid: 'Hybrid', run: 'Run', bike: 'Bike', other: 'Other' },
   units: { h: 'h', min: 'min' },
-  note: 'Distinct days, not records (the watch splits a session); duration, not kcal. Modalities are the watch’s auto-labels.',
+  note: 'Distinct days, not records (the watch splits a session); duration, not kcal. Modalities come from how each session was recorded.',
 };

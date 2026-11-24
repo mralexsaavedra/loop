@@ -11,7 +11,7 @@
  * never in this tracked file.
  */
 export const es = {
-  modalityLabels: { strength: 'Fuerza', hiit: 'Gimnasio', run: 'Carrera', bike: 'Ciclismo', other: 'Otro cardio' },
+  modalityLabels: { strength: 'Fuerza', hybrid: 'Híbrido', run: 'Carrera', bike: 'Ciclismo', other: 'Otro cardio' },
   intensityHeading: 'Intensidad (FC)',
   infoLbl: 'Sobre {section}',
   // a row's words after its name and value, screen readers only (the row is named by its content)
@@ -24,7 +24,7 @@ export const es = {
 };
 
 export const en = {
-  modalityLabels: { strength: 'Strength', hiit: 'Gym', run: 'Running', bike: 'Cycling', other: 'Other cardio' },
+  modalityLabels: { strength: 'Strength', hybrid: 'Hybrid', run: 'Running', bike: 'Cycling', other: 'Other cardio' },
   intensityHeading: 'Intensity (HR)',
   infoLbl: 'About {section}',
   rowSr: 'mean HR',

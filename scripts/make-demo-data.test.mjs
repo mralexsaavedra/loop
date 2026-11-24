@@ -71,7 +71,7 @@ test('the demo extract populates every Inicio dial and every Salud section', () 
   const inputs = readExtract(dir);
   const scores = buildScoresFrom(inputs);
   assert.equal(scores.recovery.gated, false, 'recovery is ungated');
-  assert.deepEqual(scores.load.modalities.map((m) => [m.key, m.trend.ok]), [['gym', true], ['run', true], ['bike', true]]);
+  assert.deepEqual(scores.load.modalities.map((m) => [m.key, m.trend.ok]), [['strength', true], ['hybrid', true], ['run', true], ['bike', true]]);
   const health = healthFrom(inputs);
   for (const k of ['body', 'activity', 'energy', 'running', 'cycling', 'recovery', 'loadRecovery']) assert.equal(health[k].hasData, true, k);
   assert.ok(health.body.waist && health.body.bodyfat && health.body.lean);
