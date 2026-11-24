@@ -1,11 +1,21 @@
 {
   "extends": "./jsconfig.json",
-  "compilerOptions": { "strict": true },
+  "compilerOptions": {
+    "strict": true
+  },
   "include": [
     "lib/*.mjs",
     "lib/format/*.mjs",
     "lib/build/*.mjs",
-    "lib/nav/*.mjs"
+    "lib/nav/*.mjs",
+    "lib/extract/samples.mjs",
+    "lib/training/*.mjs",
+    "lib/journal/*.mjs",
+    "lib/score/*.mjs",
+    "lib/health/*.mjs",
+    "lib/detail/*.mjs"
   ],
-  "exclude": ["lib/**/*.test.mjs"]
+  "exclude": [
+    "lib/**/*.test.mjs"
+  ]
 }
