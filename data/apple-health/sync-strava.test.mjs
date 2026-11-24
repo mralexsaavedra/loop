@@ -17,7 +17,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const {
   SPORT_TYPE_MAP, FALLBACK_TYPE, translateType, toRow, buildRows, planSync, syncDir,
   fetchActivities, WORKOUTS_HEADER, WORKOUTS_CSV, staleImageWarning,
-  RIDES_CSV, RIDES_HEADER, rideRow, buildRides, stalePowerWarning,
+  RIDES_CSV, RIDES_HEADER, rideRow, buildRides, stalePowerWarning, staleTrainerWarning,
 } = strava;
 
 // ---- rides.csv: ride windows + real power for the active-energy correction ----------------
@@ -158,6 +158,31 @@ test('a Watch Tennis row and a Strava Tennis row on the same day merge into ONE 
   const groups = mergeSameDay(rows, mergeKey, DISPLAY_RULE);
   assert.equal(groups.length, 1, 'one session for the day');
   assert.deepEqual(groups[0].rows.map(r => r.source), ['Strava API'], 'the Strava copy supersedes the Watch copy');
+});
+
+// ---- indoor rides: Strava's trainer flag or a virtual ride -> IndoorCycling (still a ride) ------
+
+test('toRow writes IndoorCycling for a trainer ride or a VirtualRide, Cycling for an outdoor ride', () => {
+  const base = { id: '1', start_local: '2026-11-24T18:00:00', moving_time: 3600 };
+  assert.match(toRow({ ...base, sport_type: 'Ride', trainer: true }).line, /^2026-11-24,IndoorCycling,60,/);
+  assert.match(toRow({ ...base, sport_type: 'VirtualRide', trainer: false }).line, /^2026-11-24,IndoorCycling,60,/);
+  assert.match(toRow({ ...base, sport_type: 'VirtualRide' }).line, /^2026-11-24,IndoorCycling,60,/);
+  assert.match(toRow({ ...base, sport_type: 'Ride', trainer: false }).line, /^2026-11-24,Cycling,60,/);
+  assert.match(toRow({ ...base, sport_type: 'Ride' }).line, /^2026-11-24,Cycling,60,/, 'no flag (stale image) stays outdoor');
+  assert.match(toRow({ ...base, sport_type: 'Run', trainer: true }).line, /^2026-11-24,Running,60,/, 'a treadmill run keeps its type');
+});
+
+test('an indoor ride still lands in rides.csv (the power-meter energy correction)', () => {
+  const line = rideRow({ id: '1', start_local: '2026-11-24T18:00:00Z', start_utc: '2026-11-24T17:00:00Z', sport_type: 'Ride', trainer: true, elapsed_time: 3600, kilojoules: 700, device_watts: true });
+  assert.equal(line, '2026-11-24,2026-11-24T18:00:00+01:00,3600,700,true,Strava API');
+});
+
+test('staleTrainerWarning: rides but none carrying the trainer flag -> stale ingest image', () => {
+  const ride = { id: '1', start_local: '2026-11-24T18:00:00', sport_type: 'Ride', moving_time: 3600 };
+  assert.equal(staleTrainerWarning([]), null);
+  assert.equal(staleTrainerWarning([{ ...ride, sport_type: 'Run' }]), null, 'only rides count');
+  assert.equal(staleTrainerWarning([{ ...ride, trainer: false }]), null);
+  assert.match(staleTrainerWarning([ride]), /trainer.*docker compose up -d --build loop-ingest/s);
 });
 
 // ---- toRow: moving vs elapsed, blanks, 9-column shape, invalid input -> null -------------

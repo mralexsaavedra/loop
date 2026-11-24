@@ -365,8 +365,12 @@ still shows up.
 
 **Type mapping**
 
-- Cycling-family sport types (incl. e-bike and virtual/indoor rides) all translate to the same
-  `Cycling` type as Apple Health uses, so they land in the `bike` modality.
+- Cycling-family sport types (incl. e-bike) translate to the same `Cycling` type as Apple Health
+  uses, so they land in the `bike` modality.
+- An indoor ride (Strava's `trainer` flag, or a `VirtualRide`) is written as `IndoorCycling`: still
+  the `bike` modality (every reader matches `/Cycling/`), shown as "Rodillo" / "Indoor ride" on the
+  page. `rides.csv` and the HR zones keep every ride. Without the flag (an ingest image that does not
+  export `trainer`) a ride stays `Cycling` and the sync warns that the image is stale.
 - Racket, team and outdoor sports map to the Apple type the Watch writes (Tennis, Squash, Badminton,
   Pickleball, Soccer, Basketball, Volleyball, Golf…; Padel keeps its name), all in the `other`
   modality, so a Watch Tennis row and a Strava Tennis row merge into ONE session (pinned by a test).

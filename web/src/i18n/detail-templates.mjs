@@ -391,7 +391,7 @@ export const en = {
   },
   modalities: { gym: 'Gym', run: 'Run', bike: 'Bike', other: 'Other' },
   types: {
-    Running: 'Run', Cycling: 'Ride', Walking: 'Walk', Hiking: 'Hike', Swimming: 'Swim', Rowing: 'Row', Yoga: 'Yoga',
+    Running: 'Run', Cycling: 'Ride', IndoorCycling: 'Indoor ride', Walking: 'Walk', Hiking: 'Hike', Swimming: 'Swim', Rowing: 'Row', Yoga: 'Yoga',
     HighIntensityIntervalTraining: 'HIIT', TraditionalStrengthTraining: 'Strength', FunctionalStrengthTraining: 'Functional strength',
     CrossTraining: 'Cross training', WeightTraining: 'Weight training', Elliptical: 'Elliptical', Other: 'Workout',
   },
@@ -769,7 +769,7 @@ export const es = {
   },
   modalities: { gym: 'Gimnasio', run: 'Carrera', bike: 'Bici', other: 'Otro' },
   types: {
-    Running: 'Carrera', Cycling: 'Bici', Walking: 'Caminata', Hiking: 'Senderismo', Swimming: 'Natación', Rowing: 'Remo', Yoga: 'Yoga',
+    Running: 'Carrera', Cycling: 'Bici', IndoorCycling: 'Rodillo', Walking: 'Caminata', Hiking: 'Senderismo', Swimming: 'Natación', Rowing: 'Remo', Yoga: 'Yoga',
     HighIntensityIntervalTraining: 'HIIT', TraditionalStrengthTraining: 'Fuerza', FunctionalStrengthTraining: 'Fuerza funcional',
     CrossTraining: 'Entrenamiento cruzado', WeightTraining: 'Pesas', Elliptical: 'Elíptica', Other: 'Entreno',
   },

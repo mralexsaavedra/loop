@@ -224,6 +224,12 @@ test('strava export exposes the UTC start and device_watts (ride window + real p
   assert.match(pool.calls[0].sql, /payload->'device_watts' AS device_watts/)
 })
 
+test('strava export exposes the trainer flag (indoor ride)', async () => {
+  const pool = fakePool([])
+  await listStravaActivities(pool, { sinceId: '0', limit: 5 })
+  assert.match(pool.calls[0].sql, /payload->'trainer' AS trainer/)
+})
+
 test('strava export carries the HR histogram (hr_hist) of the activity, only for an ok row, never the stream', async () => {
   const pool = fakePool([{ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 600, hr_hist: { 150: 600 } }])
   const rows = await listStravaActivities(pool, { sinceId: '0', limit: 5 })
