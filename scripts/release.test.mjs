@@ -63,7 +63,7 @@ test('CI runs the lint, the typecheck and both suites on every push and pull req
   assert.match(ci, /npm run lint/);
   assert.match(ci, /npm run typecheck/);
   assert.equal(JSON.parse(read('package.json')).scripts.lint, 'eslint .');
-  assert.equal(JSON.parse(read('package.json')).scripts.typecheck, 'tsc --noEmit -p jsconfig.json && tsc --noEmit -p jsconfig.strict.json && tsc -p web/src/client/tsconfig.json');
+  assert.equal(JSON.parse(read('package.json')).scripts.typecheck, 'tsc --noEmit -p jsconfig.json && tsc -p web/src/client/tsconfig.json');
   assert.match(ci, /npm test/);
   assert.match(ci, /npm run test:services/);
   const rel = read('.github/workflows/release.yml');

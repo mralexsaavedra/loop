@@ -6,12 +6,25 @@
     "target": "es2022",
     "module": "nodenext",
     "moduleResolution": "nodenext",
-    "lib": ["es2023"],
-    "types": ["node"],
-    "strict": false,
+    "lib": [
+      "es2023"
+    ],
+    "types": [
+      "node"
+    ],
+    "strict": true,
     "skipLibCheck": true,
     "maxNodeModuleJsDepth": 0
   },
-  "include": ["lib/**/*.mjs", "data/**/*.mjs", "scripts/*.mjs"],
-  "exclude": ["lib/**/*.test.mjs", "data/**/*.test.mjs", "scripts/*.test.mjs"]
+  "include": [
+    "lib/**/*.mjs",
+    "data/**/*.mjs",
+    "scripts/*.mjs",
+    "scripts/types/*.d.ts"
+  ],
+  "exclude": [
+    "lib/**/*.test.mjs",
+    "data/**/*.test.mjs",
+    "scripts/*.test.mjs"
+  ]
 }
