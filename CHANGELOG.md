@@ -4,6 +4,17 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [1.8.0] - 2026-11-24
+
+- **Nutrition day types follow your sport.** Besides rest, strength (the old "gym") and the two ride lengths, a day
+  can now be hybrid (HIIT / metcon), indoor ride or run, each with its own targets. The page picks it from what you
+  did: strength, hybrid or run sessions of 20 minutes or more; an indoor ride of 30–119 minutes, or an outdoor ride
+  of 30–74, is an indoor-ride day; longer rides keep the ride and long-ride days. Strength plus hybrid on one day
+  counts as hybrid once the hybrid part reaches 20 minutes; the most demanding day type wins. A programmed session
+  can now be `hybrid` or `indoor` too.
+- **Your current numbers keep working.** A plan or a saved onboarding without the new day types uses its own
+  strength-day targets for them until you set your own; the onboarding now sets them from your sports.
+
 ## [1.7.1] - 2026-11-24
 
 - **Strava activity ids ready for 64 bits.** Strava will start handing out activity ids too large for a JavaScript
