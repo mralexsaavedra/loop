@@ -1,5 +1,5 @@
 /* The page's classic client scripts, in the ONE order layouts/Plan.astro inlines them (after the bakes:
- * the per-tab data globals, NAV + HC_CONST, then HC_FMT … HC_GUIDE from the libs' clientSource()).
+ * the per-tab data globals, NAV + HC_CONST; lib-globals.ts, first here, publishes HC_FMT … HC_ENERGY).
  * Every script is a classic `is:inline` script; they talk only through page globals, so the order is
  * the contract this list states and web/test/script-manifest.test.mjs checks:
  * - provides: the globals the file defines: top-level `var` / `function` names + every `window.X =`
@@ -13,6 +13,11 @@
  *   so the reader falls back now and the later script calls back (intakeRefresh, HCNutri.render…).
  * Adding a script: add it here at its place; the test names any missing require or provide. */
 export const CLIENT_SCRIPTS = [
+  {
+    file: 'lib-globals.ts',
+    provides: ['HC_FMT', 'HC_BAND', 'HC_ADH', 'HC_PROG', 'HC_NSCORE', 'HC_FOODLOG', 'HC_DAYTYPE', 'HC_FUEL', 'HC_SCALE', 'HC_GUIDE', 'HC_ENERGY'],
+    requires: [],
+  },
   { file: 'util.ts', provides: ['HC', 'HCViews'], requires: ['HC_CONST', 'HC_FMT'] },
   {
     file: 'core.ts',

@@ -57,10 +57,10 @@ would delete each other's chunks.
 
 ### Inlined scripts and CSS are slimmed
 
-- `web/layouts/Plan.astro` inlines every `web/src/client/*.js` through `web/src/slim-script.mjs`
-  `slimScript` (esbuild `transformSync`; esbuild is declared in package.json at the exact version astro /
-  vite lock): `minifyWhitespace`, `legalComments: 'none'`, `charset: 'utf8'`; NO identifier renaming, NO
-  syntax rewriting, still a classic script.
+- `web/layouts/Plan.astro` inlines every client script (the esbuild bundle of each `web/src/client/*.ts`)
+  through `web/src/slim-script.mjs` `slimScript` (esbuild `transformSync`; esbuild is declared in package.json at
+  the exact version astro / vite lock): `minifyWhitespace`, `legalComments: 'none'`, `charset: 'utf8'`; NO
+  identifier renaming, NO syntax rewriting, still a plain inline script (not `type="module"`).
 - The built page drops comments and may re-print quotes / number literals (`'x'` → `"x"`): a test that
   matches a script in the built HTML compares against `slimScript(source)` or a whitespace / quote
   tolerant regex, never the raw file. Baked JSON globals are not touched.
@@ -134,15 +134,12 @@ shared by the Astro build, `data/nutrition/generate.mjs` and the test suite — 
 - No per-directory `build*(extractDir)` wrappers: tests run the pure `*From` cores over `readExtract` or
   over readExtract-shaped literals.
 
-### Emitting lib code into the page
+### Lib code in the page
 
-- Only modules that neither import `fs` nor import a reader can be emitted into the page via
-  `clientSource()`.
-- The emitter (`lib/format/numbers.mjs` `classicGlobal`) declares each constant under its own name and
-  under every Rollup rename (`NAME$n`, the only form Rollup emits) the function bodies reference in CODE.
-- Comments and string / template / regex literal contents are stripped first by the string-aware scanner
-  `lib/format/js-scan.mjs`, so a `'NAME$2'` string or an unrelated local `NAME2` adds no declaration.
-- The registerView static scan (`web/src/client/util.test.mjs`) uses the same scanner over every client
+- Only modules that neither import `fs` nor import a reader can ship in the page: `web/src/client/lib-globals.ts`
+  imports their `CLIENT` descriptors and esbuild bundles them like any client script ("Globals from `lib/`" below).
+- The string-aware scanner `lib/format/js-scan.mjs` strips comments and string / template / regex literal
+  contents for static scans: the registerView scan (`web/src/client/util.test.mjs`) runs it over every client
   script, subdirectories included.
 
 ## Bakes & the golden guard
@@ -175,12 +172,13 @@ A missing `--root` value or `--root` without `--personal` is exit 2 (`web/test/g
 
 ### Module scripts (TypeScript)
 
-A client script may be a **module** (`web/src/client/*.ts`) instead of a classic `*.js`. It is TypeScript checked
+Every client script is a **module** (`web/src/client/*.ts`; no classic `*.js` script is left, and
+`web/test/script-manifest.test.mjs` refuses a new one). It is TypeScript checked
 with `strict` (`web/src/client/tsconfig.json`, part of `npm run typecheck`), and it can `import` lib modules
 directly (`home-week.ts` imports `fin` from `lib/nutrition/num.mjs` instead of reading `HC.fin`). At build time
-`web/src/client-bundle.mjs` bundles it with esbuild into ONE classic IIFE (types stripped, imports inlined; no
+`web/src/client-bundle.mjs` bundles it with esbuild into ONE IIFE (types stripped, imports inlined; no
 minification). `astro.config.mjs` exposes the result as the virtual module `virtual:client-modules`, and
-`layouts/Plan.astro` inlines it at the module's place in the manifest, exactly like a classic script, so the page
+`layouts/Plan.astro` inlines it at the module's place in the manifest as a plain inline script, so the page
 stays one file and the CSP hashes it like any other script. The tests run the same bytes
 (`clientScriptSource(file)`). The page globals a module reads are typed in `web/src/client/page-globals.d.ts`:
 `HC` with util.ts's own inferred API (`HCApi`), so every call into it is checked; `LOCALE` and every copy table
@@ -196,10 +194,10 @@ the scripts' own checks narrow it; the scripts import those typedefs instead of 
 `buildBasics`, `NUTRI_ARC` and `TRAINING_META` with their literal shapes; `PROFILE` with `lib/profile/profile.mjs`'s
 `Profile` (`photo` reduced to a flag, as Avatar.astro bakes it); `NAV` and `FOOD_CONST` with the lib constants they
 copy (`NAV`'s maps as string records, looked up with a runtime key); `TRAINING` / `TRAINING_META` with
-`lib/training/program.mjs`'s `ProgramSession` and `trainingMeta`; the `HC_*` globals with what `classicGlobal`
-emits: each module's `CLIENT` descriptor, its `consts` and `fns` (`ClientOf`), so a call into `HC_SCALE` / `HC_GUIDE`
-/ `HC_FUEL` … is checked against the lib function's own JSDoc. No page global is `any` any more. A type that only a
-JSDoc cast inside an emitted function can give (`/** @type {…} */ ({})`) ships in the page as a comment. A script reads a copy table through a guarded alias (`var T = (… ? null : I18N_X)!; if (!T) return;`): the
+`lib/training/program.mjs`'s `ProgramSession` and `trainingMeta`; the `HC_*` globals with what `lib-globals.ts`
+publishes: each module's `CLIENT` descriptor, its `consts` and `fns` (`ClientOf`), so a call into `HC_SCALE` / `HC_GUIDE`
+/ `HC_FUEL` … is checked against the lib function's own JSDoc. No page global is `any` any more. A JSDoc cast inside
+a lib function (`/** @type {…} */ ({})`) ships in the page as a comment (the bundle is not minified). A script reads a copy table through a guarded alias (`var T = (… ? null : I18N_X)!; if (!T) return;`): the
 `!` is type-only (esbuild drops it) and says what the guard already enforces, because the closures that read `T` are
 declared before the guard and TypeScript cannot carry its narrowing into them. Every client script is a module script now (the last, `util.ts`, sets `globalThis.HC` itself: once bundled into an IIFE its `var HC` is no longer a page global).
 
@@ -207,17 +205,17 @@ ESLint lints only `*.js` / `*.mjs`: for a module script `tsc` takes its place (`
 shapes, `noUnusedLocals` for ESLint's `no-unused-vars`; unused parameters stay allowed, as ESLint's `args: 'none'`).
 
 A module script runs in **strict mode**: the client `tsconfig.json` sets `strict`, which implies `alwaysStrict`, so
-esbuild opens every bundle with `"use strict";` (classic scripts stay sloppy). For these scripts that changes
+esbuild opens every bundle with `"use strict";` (a plain script would run sloppy). For these scripts that changes
 nothing observable: they assign no undeclared variable (ESLint `no-undef` already forbade it), use no `this` outside
 methods, write no baked or frozen global, and `delete` only own properties of their own objects. A new module
-script must keep to that (a write into a frozen `HC_*` object, silently ignored in a classic script, throws here).
+script must keep to that: the `HC_*` constants are the lib's own frozen objects, and a write into one throws here.
 
 ### Script order: one manifest
 
-The client scripts are classic `is:inline` scripts that talk only through page globals, so their order is
+The client scripts are inline `is:inline` scripts (IIFE bundles, not ES modules) that talk only through page globals, so their order is
 a contract. `web/src/client/manifest.mjs` (`CLIENT_SCRIPTS`) is its ONE source: `layouts/Plan.astro`
-inlines every `web/src/client/*.js` (`import.meta.glob` `?raw`) in that order, after the bakes and
-`HC_FMT … HC_GUIDE`. Each entry declares:
+inlines every client script in that order, after the bakes; `lib-globals.ts` (the `HC_*` lib globals) is
+first, then `util.ts`. Each entry declares:
 
 | Field | Meaning |
 | --- | --- |
@@ -237,7 +235,7 @@ inlines every `web/src/client/*.js` (`import.meta.glob` `?raw`) in that order, a
 
 ## Shared client helpers (`HC`)
 
-`web/src/client/util.ts` is inlined FIRST (right after `var NAV` and `var HC_CONST`, baked by
+`web/src/client/util.ts` is inlined right after `lib-globals.ts` (and after `var NAV` and `var HC_CONST`, baked by
 `layouts/Plan.astro` from `lib/stale.mjs`) and exposes the global `HC` (window.HC). The client scripts
 read these instead of redefining them (a test guards it). Tests load it with `web/test/client-util.mjs`
 `loadUtil(ctx)`.
@@ -254,24 +252,28 @@ read these instead of redefining them (a test guards it). Tests load it with `we
 | `detailAttrs`, `registerView` / `view` | detail-sheet openers and registered views; `registerView` is the one writer of `window.HCViews` ([`detail-views.md`](detail-views.md)) |
 | `rolloverAction`, `publishAction` | the midnight rollover and the new-publish reload (below) |
 
-### Globals emitted from `lib/`
+### Globals from `lib/`
 
-`HC_FMT` is the ONE number formatter (`lib/format/numbers.mjs` `clientSource()`, inlined right before
-util.ts; rules in [`design-system.md`](design-system.md) → "Numbers"). The same inlined script carries:
+`web/src/client/lib-globals.ts` (first in the manifest, before util.ts) imports each module's plain `CLIENT`
+descriptor (`{consts, hidden, fns}`) and publishes `globalThis.HC_X` = its `consts` then its `fns`, so the page
+carries ONE copy of each lib function. `HC_FMT` is the ONE number formatter (`lib/format/numbers.mjs`; rules in
+[`design-system.md`](design-system.md) → "Numbers"). The same script publishes:
 
 | Global | Source | Read by |
 | --- | --- | --- |
-| `HC_BAND` — recovery 0–100 bands `PCT_GOOD` / `PCT_LOW` / `pctBand` | `lib/score/recovery.mjs` `clientSource()` | the recovery % colour and the energy bank (instead of literals) |
+| `HC_BAND` — recovery 0–100 bands `PCT_GOOD` / `PCT_LOW` / `pctBand` | `lib/score/recovery.mjs` | the recovery % colour and the energy bank (instead of literals) |
 | `HC_ADH` — food log adherence | `lib/nutrition/adherence.mjs` | `client/adherence.ts` (instead of a copy) |
 | `HC_PROG` — weight progress | `lib/nutrition/progress.mjs` | `client/progress.ts` |
 | `HC_NSCORE` — nutrition score | `lib/nutrition/nutri-score.mjs` | `client/nutri-score.ts` |
 | `HC_FOODLOG` — food log formula | `lib/nutrition/foodlog.mjs` | `client/food-core.ts` |
 | `HC_DAYTYPE` / `HC_FUEL` — day type detection, ride fuelling | `lib/nutrition/daytype.mjs` / `fuel.mjs` | `client/nutri-day.ts` |
-| `HC_SCALE` — portion scaling | `lib/nutrition/scale.mjs` | `client/nutri-day.ts` |
-| `HC_GUIDE` — portion guide | `lib/nutrition/guide.mjs` | `client/nutri-day.ts` |
+| `HC_SCALE` — portion scaling | `lib/nutrition/scale.mjs` + `amounts.mjs`, `num.mjs` `round2`, `units.mjs`, `fill.mjs`, `fuel.mjs` | `client/nutri-day.ts` |
+| `HC_GUIDE` — portion guide | `lib/nutrition/guide.mjs` + `num.mjs` `fin`, `amounts.mjs` `floorToStep`, `names.mjs` `foldName` | `client/nutri-day.ts` |
+| `HC_ENERGY` — onboarding energy math | `lib/nutrition/energy.mjs` | `client/onboarding.ts` |
 
-Every nutrition global is emitted by `lib/nutrition/client.mjs` `clientSource()` from the modules'
-`CLIENT` descriptors. Constants come baked from `lib/` (`STALE_DAYS` via `HC_CONST`; the calendar's
+A global merged from several modules throws at load if one name carries two different values. Tests:
+`web/src/client/lib-globals.test.mjs` (parity, the bundle in a vm) and `web/test/client-globals-build.test.mjs`
+(the built page). Constants come baked from `lib/` (`STALE_DAYS` via `HC_CONST`; the calendar's
 `windowDays` / `levelMin` via `activityBake` into `ACTIVITY`), never as client literals.
 
 ### Dates

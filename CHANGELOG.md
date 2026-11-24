@@ -4,6 +4,13 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [1.7.1] - 2026-11-24
+
+- **Strava activity ids ready for 64 bits.** Strava will start handing out activity ids too large for a JavaScript
+  number after 1 June 2027. The sync now stores each activity under Strava's text id (`id_str`), so new rides keep
+  their exact id and are never merged with, or overwritten by, another one. Nothing to do after updating.
+- **Under the hood.** More of the page's globals are type-checked; nothing changes on the page.
+
 ## [1.7.0] - 2026-11-24
 
 - **Strength and hybrid training apart.** Weight sessions (for example Hevy, which uploads them to Strava as weight

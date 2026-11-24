@@ -377,3 +377,28 @@ test('a successful upsert releases the client normally', async () => {
   assert.equal(await upsertActivities({ connect: async () => client }, [{ id: 1, start_date_local: '2030-01-01T00:00:00Z' }]), 1)
   assert.deepEqual(released, [undefined])
 })
+
+// --- 64-bit activity ids (Strava, after 2027-06-01) --------------------------------------------
+
+function capturingPool () {
+  const inserts = []
+  const client = {
+    query: async (sql, params) => { if (sql.startsWith('INSERT')) inserts.push(params); return { rows: [] } },
+    release: () => {}
+  }
+  return { pool: { connect: async () => client }, inserts }
+}
+
+test('upsert keys an activity by id_str, so an id above 2^53 is stored exactly', async () => {
+  const { pool, inserts } = capturingPool()
+  // JSON.parse turns 9007199254740993 into 9007199254740992: only id_str keeps the real value
+  const activity = JSON.parse('{"id":9007199254740993,"id_str":"9007199254740993","start_date_local":"2030-01-01T00:00:00Z"}')
+  await upsertActivities(pool, [activity])
+  assert.equal(inserts[0][0], '9007199254740993')
+})
+
+test('upsert still keys an activity without id_str by its numeric id', async () => {
+  const { pool, inserts } = capturingPool()
+  await upsertActivities(pool, [{ id: 12345678901, start_date_local: '2030-01-01T00:00:00Z' }])
+  assert.equal(inserts[0][0], '12345678901')
+})

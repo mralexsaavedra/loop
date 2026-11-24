@@ -40,7 +40,8 @@ export async function upsertActivities (pool, activities) {
                sport_type = EXCLUDED.sport_type,
                synced_at = now()`,
         [
-          activity.id,
+          // id_str: Strava ids can exceed 2^53 (64-bit from 2027-06-01) and JSON.parse rounds those numbers
+          activity.id_str ?? String(activity.id),
           activity.start_date_local,
           activity.sport_type ?? activity.type ?? 'Unknown',
           activity.name ?? null,

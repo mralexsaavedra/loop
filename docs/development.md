@@ -63,9 +63,9 @@ the README.
   ([`services/loop-ingest/README.md` → Database migrations](../services/loop-ingest/README.md#database-migrations)).
 - Each rule gets a test through the public interface; a changed command, option or message updates its help
   text and docs in the same commit.
-- Lib code that also runs in the page is emitted from the lib itself (`lib/nutrition/client.mjs` and friends),
-  never copied: `web/test/client-copies.test.mjs` fails on a hand-kept copy, and
-  `web/test/client-globals-build.test.mjs` runs the emitted globals against the lib.
+- Lib code that also runs in the page is the lib itself, bundled from each module's `CLIENT` descriptor by
+  `web/src/client/lib-globals.ts`, never copied: `web/test/client-copies.test.mjs` fails on a hand-kept copy, and
+  `web/test/client-globals-build.test.mjs` runs the built page's globals against the lib.
 
 ### Browser end-to-end tests
 
@@ -203,7 +203,9 @@ has the full table; `lib/paths.test.mjs` pins both layouts path by path.
   each importing only from lower layers. The two composition roots, `lib/extract/read.mjs` (`readExtract`) and
   `lib/score/index.mjs` (`buildScoresFrom`), may import any layer, and no lib module imports them (only
   `web/src/bakes.mjs` does). `lib/layers.test.mjs` pins all of it, with an empty list of known exceptions. The page's
-  classic client scripts cannot import modules: they keep their local-calendar twins in `web/src/client/util.ts`.
+  client scripts may import lib modules (each script's bundle inlines what it imports; shared lib code reaches every
+  script once through the `HC_*` globals of `web/src/client/lib-globals.ts`); the local-calendar twins of the date
+  helpers (the viewer's clock, not UTC) live in `web/src/client/util.ts`.
 - If you run the LAN services from this clone, keep it on `main`: the refresh only publishes from `main`. Do
   feature work in a separate `git worktree`.
 - Never commit personal data (`CLAUDE.md` → Repo rules); `data/demo/` is tracked and must stay synthetic.

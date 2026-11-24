@@ -1,5 +1,5 @@
 /* The recovery-style 0-100 bands (good >= 67, low <= 33, mid between) have ONE source,
- * lib/score/recovery.mjs (PCT_GOOD / PCT_LOW / pctBand), baked for the page as HC_BAND (clientSource).
+ * lib/score/recovery.mjs (PCT_GOOD / PCT_LOW / pctBand), published for the page as HC_BAND (web/src/client/lib-globals.ts).
  * Guard: no client script re-types the thresholds; behaviour: every client site bands the edges
  * (33 / 33.5 / 66.9 / 67) exactly like the lib. */
 import { test } from 'node:test';
@@ -21,7 +21,7 @@ const EDGES = [100, 67, 66.9, 34, 33.5, 33, 0];
 test('no client script hardcodes a recovery band threshold (67 / 33 / 34 comparisons)', () => {
   const hits = [];
   // classic *.js and module *.ts scripts (the source as written: the check reads the code's own literals)
-  for (const f of fs.readdirSync(clientDir).filter((n) => (n.endsWith('.js') || (n.endsWith('.ts') && !n.endsWith('.d.ts'))) && !n.includes('.test.'))) {
+  for (const f of fs.readdirSync(clientDir).filter((n) => (n.endsWith('.ts') && !n.endsWith('.d.ts')) && !n.includes('.test.'))) {
     read(f).split('\n').forEach((line, i) => {
       if (/[<>]=?\s*(67|33|34)\b/.test(line)) hits.push(`${f}:${i + 1}: ${line.trim()}`);
     });
@@ -33,7 +33,7 @@ test('no client script hardcodes a recovery band threshold (67 / 33 / 34 compari
 function bandFn(file, name) {
   // a module script (*.ts) is read as its bundle (types stripped, re-indented by esbuild): the function runs from
   // its declaration to the closing brace at the declaration's own indentation
-  const src = file.endsWith('.ts') ? clientScriptSource(file) : read(file);
+  const src = clientScriptSource(file);
   const m = new RegExp(`\\n([ \\t]*)function ${name}\\(\\w+\\) \\{[\\s\\S]*?\\n\\1\\}`).exec(src);
   assert.ok(m, `${file}: function ${name}`);
   const ctx = vm.createContext({ LOCALE: 'en', Math, String, Number, Array, Object, JSON });

@@ -1,10 +1,9 @@
-/* The classic-script globals emitted by the libs' clientSource() (HC_FMT, HC_BAND, HC_ADH, HC_PROG,
- * HC_NSCORE, HC_FOODLOG, HC_DAYTYPE, HC_FUEL, HC_SCALE, HC_GUIDE) as
- * they ship in the BUILT page, not as the unbundled modules emit them: Vite / Rollup bundles the libs
- * together and renames clashing top-level names (fin -> fin$3, ISO_RE -> ISO_RE$2), so a global whose
- * keys or constants came from those names breaks only on the real page. Extracts the inline script
- * from each built fixture (`npm run pretest`), runs it in a vm and checks the public keys and results
- * against the lib modules on the shared cases. */
+/* The lib globals (HC_FMT, HC_BAND, HC_ADH, HC_PROG, HC_NSCORE, HC_FOODLOG, HC_DAYTYPE, HC_FUEL, HC_SCALE,
+ * HC_GUIDE, HC_ENERGY) as they ship in the BUILT page: web/src/client/lib-globals.ts bundled by esbuild, which
+ * merges the lib modules into one scope and renames clashing names (two modules' `round2`, `zero`), so the
+ * public keys and results are checked on the real page. Extracts that inline script from each built fixture
+ * (`npm run pretest`), runs it in an empty vm and checks the public keys and results against the lib modules
+ * on the shared cases. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -13,9 +12,12 @@ import vm from 'node:vm';
 import { fileURLToPath } from 'node:url';
 import * as F from '../../lib/format/numbers.mjs';
 import { pctBand, PCT_GOOD, PCT_LOW } from '../../lib/score/recovery.mjs';
-import { ADHERENCE, ADHERENCE_CASES, isComplete, dayState } from '../../lib/nutrition/adherence.mjs';
-import { PROGRESS, PROGRESS_CASES, rollPoints, weeklyRate, etaMonths } from '../../lib/nutrition/progress.mjs';
+import { ADHERENCE, isComplete, dayState } from '../../lib/nutrition/adherence.mjs';
+import { ADHERENCE_CASES } from '../../lib/nutrition/adherence.cases.mjs';
+import { PROGRESS, rollPoints, weeklyRate, etaMonths } from '../../lib/nutrition/progress.mjs';
+import { PROGRESS_CASES } from '../../lib/nutrition/progress.cases.mjs';
 import * as NS from '../../lib/nutrition/nutri-score.mjs';
+import { NSCORE_CASES } from '../../lib/nutrition/nutri-score.cases.mjs';
 import * as FL from '../../lib/nutrition/foodlog.mjs';
 import { DAY_TYPES as DAY_TYPES_LIB } from '../../lib/nutrition/targets.mjs';
 import * as FLC from '../../lib/nutrition/foodlog.cases.mjs';
@@ -69,8 +71,8 @@ const KEYS = {
 
 function globalsOf(htmlPath) {
   const html = fs.readFileSync(htmlPath, 'utf8');
-  const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]).find((s) => /\bvar HC_FMT\s*=/.test(s));
-  assert.ok(script, `${htmlPath}: the HC_FMT script`);
+  const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]).find((s) => /\bglobalThis\.HC_FMT\s*=/.test(s));
+  assert.ok(script, `${htmlPath}: the lib globals script (lib-globals.ts)`);
   const ctx = vm.createContext({});
   vm.runInContext(script, ctx);
   return ctx;
@@ -93,7 +95,7 @@ test('at least the example build is present (npm run pretest)', () => {
 for (const page of PAGES) {
   const rel = path.relative(WEB_ROOT, page);
 
-  test(`${rel}: the clientSource globals expose exactly their public keys, every function defined`, () => {
+  test(`${rel}: the lib globals expose exactly their public keys, every function defined`, () => {
     const g = globalsOf(page);
     for (const [name, keys] of Object.entries(KEYS)) {
       assert.ok(g[name], `${name} defined`);
@@ -135,12 +137,12 @@ for (const page of PAGES) {
   test(`${rel}: HC_NSCORE scores what lib/nutrition/nutri-score.mjs scores`, () => {
     const { HC_NSCORE } = globalsOf(page);
     assert.deepEqual(js(HC_NSCORE.NSCORE), js(NS.NSCORE));
-    for (const c of NS.NSCORE_CASES) {
+    for (const c of NSCORE_CASES) {
       assert.deepEqual(js(HC_NSCORE.nutritionScore(c.day, c.target, { today: c.today })), js(c.expect), c.name);
     }
-    const dates = NS.NSCORE_CASES.map((c, i) => '2030-01-' + String(i + 1).padStart(2, '0'));
-    const days = NS.NSCORE_CASES.map((c, i) => ({ ...c.day, date: dates[i] }));
-    const targets = Object.fromEntries(dates.map((d, i) => [d, NS.NSCORE_CASES[i].target]));
+    const dates = NSCORE_CASES.map((c, i) => '2030-01-' + String(i + 1).padStart(2, '0'));
+    const days = NSCORE_CASES.map((c, i) => ({ ...c.day, date: dates[i] }));
+    const targets = Object.fromEntries(dates.map((d, i) => [d, NSCORE_CASES[i].target]));
     assert.deepEqual(js(HC_NSCORE.scoreSeries(dates, days, targets, dates[2])), js(NS.scoreSeries(dates, days, targets, dates[2])));
     for (const s of [100, 85, 84.9, 60, 59, null]) assert.equal(HC_NSCORE.scoreBand(s), NS.scoreBand(s), String(s));
     for (const k of [1300, 1799.9, 2200, 2200.1, 2699]) assert.equal(HC_NSCORE.kcalPoints(k, 2000), NS.kcalPoints(k, 2000), String(k));

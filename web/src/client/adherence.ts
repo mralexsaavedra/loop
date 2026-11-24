@@ -4,8 +4,8 @@
  * window.HCNutri.targetFor(date) (the CURRENT goal × that day's detected day type; null = unknown type)
  * and NUTRI.adherence + I18N_NUTRI.adherence.
  *
- * isComplete / dayState / adherence are lib/nutrition/adherence.mjs's own functions, emitted at build time
- * as HC_ADH (its clientSource, inlined before util.ts; a test runs it over ADHERENCE_CASES): logged
+ * isComplete / dayState / adherence are lib/nutrition/adherence.mjs's own functions, published
+ * as HC_ADH by lib-globals.ts (first in the manifest, before util.ts; a test runs it over ADHERENCE_CASES): logged
  * days, COMPLETE days (>= 1 entry in each of breakfast, lunch, dinner — the rule sits behind the
  * section ⓘ), mean kcal vs mean target and protein-target days, computed ONLY over complete
  * days with a target; a complete day without one is counted apart. A 7 / 14 / 28-day switch (real
@@ -45,7 +45,7 @@ type AdherenceStore = {
   var MARK: Record<string, string> = { none: '', partial: '·', unknown: '?', assumed: '–', under: '↓', on: '✓', over: '↑' };
   var S: AdherenceStore = { win: A.windows[0], days: null, from: null, to: null, failed: false, seq: 0, timer: null };
 
-  // the lib's own functions (lib/nutrition/adherence.mjs clientSource, inlined before util.ts)
+  // the lib's own functions (lib/nutrition/adherence.mjs via lib-globals.ts, before util.ts)
   var fin = HC_ADH.fin, isComplete = HC_ADH.isComplete, dayState = HC_ADH.dayState, adherence = HC_ADH.adherence;
 
   /* ---------- data ---------- */

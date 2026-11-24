@@ -2,8 +2,8 @@
 /* Shared page shell — header (personal copy), tab nav, footer
  * (personal copy), and the end-of-body script order per design: bake (the
  * shared Bake rendered by pages/index.astro, plus the per-tab bakes such as Dia's NUTRI) → NAV +
- * HC_CONST → HC_FMT + HC_BAND + HC_ADH + HC_PROG + HC_NSCORE + HC_FOODLOG + HC_DAYTYPE + HC_FUEL + HC_SCALE + HC_GUIDE (the one number formatter, lib/format/numbers.mjs clientSource; the recovery 0-100 bands, lib/score/recovery.mjs clientSource; every nutrition global — food log adherence, weight progress, nutrition score, food log formula, day type, ride fuelling, portion scaling and guide — lib/nutrition/client.mjs clientSource) →
- * every web/src/client/*.js in the order of src/client/manifest.mjs (util FIRST, … detail → freshness; each entry
+ * HC_CONST → every client script in the order of src/client/manifest.mjs: lib-globals.ts FIRST (HC_FMT, HC_BAND, HC_ADH, HC_PROG, HC_NSCORE, HC_FOODLOG, HC_DAYTYPE, HC_FUEL, HC_SCALE, HC_GUIDE, HC_ENERGY: the lib modules' own functions, bundled from their CLIENT descriptors),
+ * then util.ts, … detail → freshness (each entry
  * states what it provides and requires at load, web/test/script-manifest.test.mjs keeps it true).
  * Tabs render inside <slot />; the detail sheet (components/DetailSheet.astro) renders in the `overlay`
  * slot, after .wrap, so detail.ts can make the page behind it inert (the dock and the "+" popover sit inside .wrap). The top bar
@@ -24,16 +24,11 @@ import '../src/styles/detail.css';
 import '../src/styles/profile.css';
 import '../src/styles/food.css';
 import '../src/styles/journal.css';
-import { clientSource as fmtClientSource } from '../../lib/format/numbers.mjs';
-import { clientSource as bandClientSource } from '../../lib/score/recovery.mjs';
-import { clientSource as nutriClientSource } from '../../lib/nutrition/client.mjs';
 import { CLIENT_SCRIPTS } from '../src/client/manifest.mjs';
-// the raw source of every client script, keyed by path; inlined in CLIENT_SCRIPTS order below (the
-// markup keeps </body> on the map's line: a line break after an expression renders as a space)
-const clientSources = import.meta.glob('../src/client/*.js', { query: '?raw', import: 'default', eager: true });
-// the module scripts (*.ts), already bundled into classic IIFEs by astro.config.mjs's virtual module
+// every client script (*.ts), bundled into an IIFE by astro.config.mjs's virtual module, inlined in CLIENT_SCRIPTS
+// order below (the markup keeps </body> on the map's line: a line break after an expression renders as a space)
 import clientModules from 'virtual:client-modules';
-const clientScript = (file) => (file.endsWith('.ts') ? clientModules[file] : clientSources[`../src/client/${file}`]);
+const clientScript = (file) => clientModules[file];
 import Avatar from '../src/components/Avatar.astro';
 import tokensCss from '../src/styles/tokens.css?raw';
 import { es as esSync, en as enSync } from '../src/i18n/sync-templates.mjs';
@@ -194,6 +189,5 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
     </div>
     <slot name="overlay" />
     <script is:inline set:html={navSource} />
-    <script is:inline set:html={slimScript(fmtClientSource() + '\n' + bandClientSource() + '\n' + nutriClientSource())} />
     {CLIENT_SCRIPTS.map(({ file }) => <script is:inline set:html={slimScript(clientScript(file))} />)}</body>
 </html>

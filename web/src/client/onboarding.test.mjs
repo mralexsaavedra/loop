@@ -4,7 +4,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
-import { energySource } from '../../../lib/nutrition/client.mjs';
 import { computeTargets, SPORTS } from '../../../lib/nutrition/energy.mjs';
 import { es as esO, en as enO } from '../i18n/onboarding-templates.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
@@ -54,8 +53,7 @@ function setup({ locale = 'en', profile = null, settings = { goal: null }, proto
     Promise, Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite, parseInt,
   };
   vm.createContext(ctx);
-  loadUtil(ctx);
-  vm.runInContext(energySource(), ctx);
+  loadUtil(ctx); // with lib-globals.ts: HC_ENERGY
   vm.runInContext(source, ctx);
   const el = (attrs, extra = {}) => ({ getAttribute: (k) => (k in attrs ? attrs[k] : null), closest: (sel) => (sel.includes(Object.keys(attrs)[0]) ? el(attrs, extra) : null), ...extra });
   const fire = (type, target) => (listeners[type] || []).forEach((fn) => fn({ type, target }));

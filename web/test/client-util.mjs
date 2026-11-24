@@ -1,22 +1,16 @@
-/* Test harness helper for the classic client scripts: every script reads the shared helpers from
- * the global HC (web/src/client/util.ts), which layouts/Plan.astro inlines FIRST, right after the
- * baked HC_CONST and I18N_DATE. loadUtil(ctx) reproduces that order inside a vm context. */
+/* Test harness helper for the client scripts: every script reads the shared helpers from the global HC
+ * (web/src/client/util.ts), which layouts/Plan.astro inlines right after the baked HC_CONST and I18N_DATE and
+ * the lib globals (web/src/client/lib-globals.ts). loadUtil(ctx) reproduces that order inside a vm context. */
 import vm from 'node:vm';
 import { hcConst } from '../../lib/stale.mjs';
-import { clientSource } from '../../lib/format/numbers.mjs';
-import { clientSource as bandSource } from '../../lib/score/recovery.mjs';
-import { clientSource as nutriSource } from '../../lib/nutrition/client.mjs';
 import { es as esDate, en as enDate } from '../src/i18n/date-templates.mjs';
 import { clientScriptSource } from '../src/client-bundle.mjs';
 
 export const HC_CONST_BAKE = hcConst();
-/** The one number formatter's classic-script twin (lib/format/numbers.mjs) + the recovery bands'
- * (lib/score/recovery.mjs HC_BAND) + every nutrition global (lib/nutrition/client.mjs: HC_ADH, HC_PROG,
- * HC_NSCORE, HC_FOODLOG, HC_DAYTYPE, HC_FUEL, HC_SCALE, HC_GUIDE), inlined together before util.ts like
- * layouts/Plan.astro does. */
-const FMT_SOURCE = clientSource() + '\n' + bandSource() + '\n' + nutriSource();
-/** util.ts as the page runs it: after HC_FMT + HC_BAND + HC_ADH + HC_PROG + HC_NSCORE + HC_FOODLOG + HC_DAYTYPE + HC_FUEL + HC_SCALE + HC_GUIDE (so running UTIL_SOURCE alone in a vm gives a working HC). */
-export const UTIL_SOURCE = FMT_SOURCE + '\n' + clientScriptSource('util.ts'); // a module script: its bundle (it sets globalThis.HC)
+/** util.ts as the page runs it: after lib-globals.ts (HC_FMT, HC_BAND, HC_ADH, HC_PROG, HC_NSCORE, HC_FOODLOG,
+ * HC_DAYTYPE, HC_FUEL, HC_SCALE, HC_GUIDE, HC_ENERGY), both as their bundles, so running UTIL_SOURCE alone in a
+ * vm gives a working HC. */
+export const UTIL_SOURCE = clientScriptSource('lib-globals.ts') + '\n' + clientScriptSource('util.ts');
 
 /** Bakes HC_CONST and I18N_DATE (by ctx.LOCALE, like the page; unless the test set its own) and runs
  * util.ts in `ctx` (already a vm context). */

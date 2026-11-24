@@ -7,8 +7,8 @@
  * today's workouts and programmed session. Everything time-based is decided HERE on the viewer's clock,
  * so builds stay byte-identical.
  *
- * - Day type: detectDayType = lib/nutrition/daytype.mjs itself (HC_DAYTYPE, emitted by lib/nutrition/client.mjs
- *   and inlined with HC_FMT before util.ts; no copy). A manual override is kept in localStorage WITH its date (so it expires
+ * - Day type: detectDayType = lib/nutrition/daytype.mjs itself (HC_DAYTYPE, published by lib-globals.ts
+ *   before util.ts; no copy). A manual override is kept in localStorage WITH its date (so it expires
  *   the next day) and the type detected when it was picked: an override LESS demanding than a type
  *   detected later that day (picked gym, then a long ride synced) is dropped with a one-line note; a
  *   more demanding one (planning a ride) stays. Storage is a per-viewer convenience: every access is
@@ -118,7 +118,7 @@ type RingTarget = { k: number; p: number; c: number; g: number; fatMax: number; 
     } catch (e) { return null; }
   }
 
-  /* ---------- day type detection: lib/nutrition/daytype.mjs's own functions (lib/nutrition/client.mjs -> HC_DAYTYPE) ---------- */
+  /* ---------- day type detection: lib/nutrition/daytype.mjs's own functions (lib-globals.ts -> HC_DAYTYPE) ---------- */
   // dayInputFor: a date's detection input — the timeline (SCORES, the last 3 data days) wins its dates; any
   // other date takes its workouts from DETAIL.sessions + its programmed session (TRAINING); `known` = the
   // day type rests on data (a timeline row, a session, a sleep reading or a programmed session)
@@ -138,18 +138,18 @@ type RingTarget = { k: number; p: number; c: number; g: number; fatMax: number; 
     return input;
   }
 
-  /* ---------- fuelling: lib/nutrition/fuel.mjs's own fuelPlan (lib/nutrition/client.mjs -> HC_FUEL) ---------- */
+  /* ---------- fuelling: lib/nutrition/fuel.mjs's own fuelPlan (lib-globals.ts -> HC_FUEL) ---------- */
   var fuelPlan = HC_FUEL.fuelPlan;
 
   /* ---------- portion scaling: lib/nutrition/scale.mjs solveScale / planFor with amounts.mjs, units.mjs
-   * and fill.mjs (lib/nutrition/client.mjs -> HC_SCALE) ---------- */
+   * and fill.mjs (lib-globals.ts -> HC_SCALE) ---------- */
   var SC = HC_SCALE;
   // the model line [unit, amt, k, p, c, g, step?, key?, cap?] (lib/nutrition/amounts.mjs LINE): never read by a bare index
   var LINE = SC.LINE, GRID_EPS = SC.GRID_EPS;
   var floorToStep = SC.floorToStep, fmtPieces = SC.fmtPieces, fmtAmt = SC.fmtAmt, waterFill = SC.waterFill,
     solveScale = SC.solveScale, planFor = SC.planFor;
 
-  /* ---------- the portion guide: lib/nutrition/guide.mjs's own functions (lib/nutrition/client.mjs -> HC_GUIDE) ---------- */
+  /* ---------- the portion guide: lib/nutrition/guide.mjs's own functions (lib-globals.ts -> HC_GUIDE) ---------- */
   var G = N.guide || null; // the baked guide data (defaults, oil meals, Extras examples)
   var GU = HC_GUIDE;
   var MACS = GU.MACS, ROLE_KEYS = GU.ROLE_KEYS, zero4 = GU.zero;
