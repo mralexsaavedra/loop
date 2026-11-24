@@ -154,6 +154,10 @@ paths and the `git restore --staged` line to unstage them) when:
    catches what a line comparison cannot, such as a reordered `!` line (the last matching line wins). It runs
    only when a `.gitignore` is staged.
 
+It **fails closed**: a `git check-ignore` that errors (exit above 1) or never finishes (killed by a signal, no
+exit status) throws, so the hook exits non-zero and the commit is refused, never read as "nothing ignored"
+(`checkIgnoreResult`).
+
 It asks git directly instead of importing the guard hook: the hook judges shell commands and exports only its
 tokenizer (`tokenize`, `collectForceAdds`), not a per-path check. `git commit --no-verify` skips it;
 `git config --unset core.hooksPath` turns it off. Tests: `scripts/precommit-guard.test.mjs` (real commits in a
