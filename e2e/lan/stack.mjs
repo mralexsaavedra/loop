@@ -33,6 +33,7 @@ import { makeDemoData } from '../../scripts/make-demo-data.mjs';
 
 export const LAN_PORT = Number(process.env.E2E_LAN_PORT || 18290);
 const SERVICE = path.join(ROOT, 'services', 'loop-ingest');
+/** @param {string} msg */
 const log = (msg) => console.log(`[e2e-stack] ${msg}`);
 
 /** The pg driver the data service installs (npm --prefix services/loop-ingest ci); the root package has none. */
@@ -40,6 +41,10 @@ function pgDriver() {
   return createRequire(path.join(SERVICE, 'package.json'))('pg');
 }
 
+/**
+ * @param {string} url
+ * @param {string} sql
+ */
 async function admin(url, sql) {
   const client = new (pgDriver().Client)({ connectionString: url });
   await client.connect();
@@ -50,30 +55,35 @@ async function admin(url, sql) {
   }
 }
 
-/** A free TCP port on loopback. */
+/** A free TCP port on loopback.
+ * @returns {Promise<number>} */
 function freePort() {
   return new Promise((resolve, reject) => {
     const srv = http.createServer();
     srv.once('error', reject);
     srv.listen(0, '127.0.0.1', () => {
-      const { port } = srv.address();
+      const { port } = /** @type {import('node:net').AddressInfo} */ (srv.address());
       srv.close(() => resolve(port));
     });
   });
 }
 
+/** @param {number} ms @returns {Promise<void>} */
 const wait = (ms) => new Promise((r) => setTimeout(r, ms));
 
 /** `pid` and every process below it (Linux `ps --ppid`): the data service and the page build it runs
  * (scripts/refresh.mjs and its Astro child). They stay in the stack's own process group, so a forced kill of that
- * group (Playwright's webServer escalation) ends them too; stop() walks the tree for the graceful path. */
+ * group (Playwright's webServer escalation) ends them too; stop() walks the tree for the graceful path.
+ * @param {number} pid
+ * @returns {number[]} */
 function processTree(pid) {
   const out = [pid];
   for (let i = 0; i < out.length; i++) {
     let kids = '';
     try {
       kids = execFileSync('ps', ['-o', 'pid=', '--ppid', String(out[i])], { encoding: 'utf8', stdio: ['ignore', 'pipe', 'pipe'] });
-    } catch (err) {
+    } catch (caught) {
+      const err = /** @type {{ status?: number | null, stderr?: unknown, code?: string, message?: string }} */ (caught);
       // exit 1 with no output is "no child"; anything else (no ps, a ps without --ppid) means the build children
       // cannot be found and may outlive the stop: say so instead of failing silently
       if (err.status !== 1 || String(err.stderr || '').trim()) log(`cannot list the children of ${out[i]} (${err.code || err.message}): the page build may outlive the stop`);
@@ -83,6 +93,7 @@ function processTree(pid) {
   return out;
 }
 
+/** @param {number} pid */
 const alive = (pid) => {
   try {
     process.kill(pid, 0);
@@ -92,7 +103,8 @@ const alive = (pid) => {
   }
 };
 
-/** SIGTERM the tree, then SIGKILL what is left; resolves once none of it runs. */
+/** SIGTERM the tree, then SIGKILL what is left; resolves once none of it runs.
+ * @param {number} pid */
 async function stopTree(pid) {
   let tree = processTree(pid);
   for (const p of tree) {
@@ -119,7 +131,7 @@ function dropOrphanBuildLock() {
   try {
     process.kill(holder, 0);
   } catch (err) {
-    if (err.code === 'ESRCH') fs.rmSync(BUILD_LOCK, { force: true });
+    if (/** @type {NodeJS.ErrnoException} */ (err).code === 'ESRCH') fs.rmSync(BUILD_LOCK, { force: true });
   }
 }
 
@@ -127,7 +139,10 @@ function dropOrphanBuildLock() {
 /** nginx's /api route for a request: null (no such route: 404), { deny: true } (a method nginx's limit_except
  * refuses: 403), or { path, body, forwardHost }: the upstream path, whether the body is passed on, and whether the
  * browser's Host goes upstream as X-Forwarded-Host (the food / journal blocks; the service checks a write's Origin
- * against it). The X-HC-* headers pass through untouched, like nginx's proxy_set_header of the same value. */
+ * against it). The X-HC-* headers pass through untouched, like nginx's proxy_set_header of the same value.
+ * @param {string} method
+ * @param {string} pathname
+ * @returns {{ deny: true, path?: undefined, body?: undefined, forwardHost?: undefined } | { deny?: undefined, path: string, body: boolean, forwardHost?: boolean } | null} */
 export function upstreamFor(method, pathname) {
   if (pathname === '/api/sync') return method === 'POST' ? { path: '/sync', body: false } : { deny: true };
   if (pathname === '/api/sync/status') return method === 'GET' ? { path: '/sync/status', body: false } : { deny: true };
@@ -150,7 +165,8 @@ export const CLIENT_HEADER = 'x-e2e-client';
 /** Whether this host routes every 127/8 address to loopback (Linux), so a test can have an address of its own. */
 const PER_CLIENT_ADDRESS = process.platform === 'linux';
 
-/** A stable loopback address (127.x.y.z, never 127.0.0.1) for a client id: Linux routes all of 127/8 to lo. */
+/** A stable loopback address (127.x.y.z, never 127.0.0.1) for a client id: Linux routes all of 127/8 to lo.
+ * @param {unknown} id */
 export function clientAddress(id) {
   let h = 2166136261;
   for (const ch of String(id)) h = Math.imul(h ^ ch.charCodeAt(0), 16777619) >>> 0;
@@ -169,8 +185,14 @@ export const SECURITY_HEADERS = Object.freeze({
   'content-security-policy': "frame-ancestors 'none'",
 });
 
+/** @type {Record<string, string>} */
 const STATIC_TYPES = { '.html': 'text/html; charset=utf-8', '.json': 'application/json', '.pdf': 'application/pdf' };
 
+/**
+ * @param {string} siteDir
+ * @param {string} pathname
+ * @param {http.ServerResponse} res
+ */
 function serveStatic(siteDir, pathname, res) {
   let rel = pathname === '/' ? 'index.html' : pathname.slice(1);
   const ok = rel === 'index.html' || rel === 'status.json' || /^manuales\/[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.pdf$/.test(rel);
@@ -190,18 +212,20 @@ function serveStatic(siteDir, pathname, res) {
     .pipe(res);
 }
 
-/** The front server: the published site + nginx's /api proxy rules, upstream = the data service on `ingestPort`. */
+/** The front server: the published site + nginx's /api proxy rules, upstream = the data service on `ingestPort`.
+ * @param {{ siteDir: string, ingestPort: number }} opts */
 export function createFront({ siteDir, ingestPort }) {
   return http.createServer((req, res) => {
     for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
-    const url = new URL(req.url, 'http://front');
+    const url = new URL(/** @type {string} */ (req.url), 'http://front');
     if (!url.pathname.startsWith('/api/')) {
       if (req.method !== 'GET' && req.method !== 'HEAD') return res.writeHead(405).end();
       return serveStatic(siteDir, url.pathname, res);
     }
-    const route = upstreamFor(req.method, url.pathname);
+    const route = upstreamFor(/** @type {string} */ (req.method), url.pathname);
     if (!route) return res.writeHead(404, { 'content-type': 'text/plain' }).end('not found');
     if (route.deny) return res.writeHead(403, { 'content-type': 'text/plain' }).end('forbidden');
+    /** @type {http.OutgoingHttpHeaders} */
     const headers = {};
     // what nginx forwards by default (minus hop-by-hop headers) plus its explicit proxy_set_header lines
     for (const [k, v] of Object.entries(req.headers)) {
@@ -226,7 +250,7 @@ export function createFront({ siteDir, ingestPort }) {
         ...(client && PER_CLIENT_ADDRESS ? { localAddress: clientAddress(client) } : {}),
       },
       (upRes) => {
-        res.writeHead(upRes.statusCode, upRes.headers);
+        res.writeHead(/** @type {number} */ (upRes.statusCode), upRes.headers);
         upRes.pipe(res);
       },
     );
@@ -244,23 +268,32 @@ export function createFront({ siteDir, ingestPort }) {
 }
 
 /** Start the whole stack; resolves to { baseURL, stop() } once the first page is published. `onStop(stop)` receives the
- * teardown before anything is created, so a signal during the (long) boot build still cleans up. */
+ * teardown before anything is created, so a signal during the (long) boot build still cleans up.
+ * @param {{ databaseUrl?: string, port?: number, onStop?: (stop: () => Promise<void>) => void }} [opts]
+ * @returns {Promise<{ baseURL: string, stop: () => Promise<void> }>} */
 export async function startStack({ databaseUrl = process.env.TEST_DATABASE_URL, port = LAN_PORT, onStop = () => {} } = {}) {
   if (!databaseUrl) throw new Error('TEST_DATABASE_URL is not set: the LAN E2E stack needs a Postgres it may CREATE DATABASE on');
   // every piece is created after the teardown that removes it exists
+  /** @type {string | null} */
   let tmp = null;
+  /** @type {string | null} */
   let dbName = null;
+  /** @type {Promise<void> | null} */
   let creating = null; // the CREATE DATABASE in flight, which a stop must wait for before its DROP
+  /** @type {import('node:child_process').ChildProcess | null} */
   let child = null;
   let exited = false;
+  /** @type {http.Server | null} */
   let front = null;
+  /** @type {Promise<void> | null} */
   let stopping = null;
   const stop = () => (stopping ??= (async () => {
-    if (front) await new Promise((r) => front.close(() => r()));
+    const server = front;
+    if (server) await new Promise((r) => server.close(() => r(undefined)));
     if (child) {
       // the data service AND the page build it may be running, which would otherwise keep writing into the folder
       // removed below
-      await stopTree(child.pid);
+      await stopTree(/** @type {number} */ (child.pid));
       dropOrphanBuildLock();
     }
     // a stop during CREATE DATABASE waits for it: a DROP that ran first would find nothing and the database would stay
@@ -326,10 +359,11 @@ export async function startStack({ databaseUrl = process.env.TEST_DATABASE_URL, 
       } catch {}
       await wait(500);
     }
-    front = createFront({ siteDir: dirs.site, ingestPort });
+    const server = createFront({ siteDir: dirs.site, ingestPort });
+    front = server;
     await new Promise((resolve, reject) => {
-      front.once('error', reject);
-      front.listen(port, '127.0.0.1', resolve);
+      server.once('error', reject);
+      server.listen(port, '127.0.0.1', () => resolve(undefined));
     });
     log(`ready on http://127.0.0.1:${port} (data service :${ingestPort}, database ${dbName})`);
   } catch (err) {
@@ -341,6 +375,7 @@ export async function startStack({ databaseUrl = process.env.TEST_DATABASE_URL, 
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   // registered before the start, so Ctrl-C or Playwright's SIGTERM during the boot build still tears down
+  /** @type {(() => Promise<void>) | null} */
   let stop = null;
   for (const sig of ['SIGINT', 'SIGTERM']) {
     process.once(sig, async () => {

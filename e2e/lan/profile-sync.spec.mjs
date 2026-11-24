@@ -17,11 +17,14 @@ test('the goal and the target weight are saved from the profile sheet', async ({
   await withCleanup(() => goalAndTarget(page), () => restoreSettings(page, found));
 });
 
-/** Put the goal and the target weight back as they were (a missing target is stored as none). */
+/** Put the goal and the target weight back as they were (a missing target is stored as none).
+ * @param {import('@playwright/test').Page} page
+ * @param {{ goal: unknown, targetWeightKg?: unknown }} settings */
 function restoreSettings(page, { goal, targetWeightKg }) {
   return apiWrite(page, 'PUT', '/api/food/settings', 'food', { goal, targetWeightKg: targetWeightKg ?? null });
 }
 
+/** @param {import('@playwright/test').Page} page */
 async function goalAndTarget(page) {
   await openLan(page);
   await page.locator('#avatar-btn').click();

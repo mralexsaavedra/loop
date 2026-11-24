@@ -11,12 +11,29 @@ import { test, expect, openLan, unique, apiResponse, apiWrite, withCleanup, uniq
 import { settle } from '../fixtures.mjs';
 import { openAddSheet, saveEntry, openProducts, logRow } from './food-ui.mjs';
 
+/** @typedef {import('@playwright/test').Page} Page */
+/** A product as the food API lists it (only the fields these tests read are typed). */
+/** @typedef {{ id: number, name: string, [key: string]: unknown }} Product */
+/** A recipe ingredient row as stored. */
+/** @typedef {{ productId: number, amount: number, [key: string]: unknown }} Ingredient */
+/** A recipe as the food API lists it. */
+/** @typedef {{ id: number, name: string, ingredients: Ingredient[], [key: string]: unknown }} Recipe */
+/** A food-log entry as the food API lists it. */
+/** @typedef {{ id: number, [key: string]: unknown }} FoodEntry */
+/** A built-in basic as findBasic returns it: key, name and macros [kcal, protein, carbs, fat]. */
+/** @typedef {{ k: string, n: string, m: number[] }} Basic */
+/** The ids a test created, archived by cleanUp. */
+/** @typedef {{ products?: number[], recipes?: number[], entries?: number[] }} Made */
+
 // every test walks a whole flow (several API calls, an editor, a reload or the add sheet) on the shared stack
 test.slow(true, 'multi-step catalog flows against the real data service');
 
 /* ---------- local helpers ---------- */
 
-/** Create a product straight through the API (before the page loads, so the page boots with it); returns it. */
+/** Create a product straight through the API (before the page loads, so the page boots with it); returns it.
+ * @param {Page} page
+ * @param {{ name: string, kcal: number, p: number, c: number, f: number, [key: string]: unknown }} product
+ * @returns {Promise<Product>} */
 async function apiProduct(page, { name, kcal, p, c, f, ...rest }) {
   const res = await apiWrite(page, 'POST', '/api/food/products', 'food', {
     name, store: 'mercadona', unit: 'g', per100: { kcal, protein: p, carbs: c, fat: f }, source: 'label', ...rest,
@@ -24,22 +41,30 @@ async function apiProduct(page, { name, kcal, p, c, f, ...rest }) {
   return (await res.json()).product;
 }
 
-/** A read of the food API (every request needs the X-HC-Food header, docs/lan-services.md). */
+/** A read of the food API (every request needs the X-HC-Food header, docs/lan-services.md).
+ * @param {Page} page
+ * @param {string} pathname */
 const apiGet = (page, pathname) => page.request.get(pathname, { headers: { 'X-HC-Food': '1' } });
 
-/** The catalog as the data service lists it now. */
+/** The catalog as the data service lists it now.
+ * @param {Page} page
+ * @returns {Promise<Product[]>} */
 async function listProducts(page) {
   const res = await apiGet(page, '/api/food/products');
   expect(res.status()).toBe(200);
   return (await res.json()).products;
 }
+/** @param {Page} page
+ * @returns {Promise<Recipe[]>} */
 async function listRecipes(page) {
   const res = await apiGet(page, '/api/food/recipes');
   expect(res.status()).toBe(200);
   return (await res.json()).recipes;
 }
 
-/** Archive what a test created; a row already archived through the UI is skipped (the service answers 404). */
+/** Archive what a test created; a row already archived through the UI is skipped (the service answers 404).
+ * @param {Page} page
+ * @param {Made} made */
 async function cleanUp(page, { products = [], recipes = [], entries = [] }) {
   for (const id of entries) await apiWrite(page, 'DELETE', `/api/food/log/${id}`, 'food');
   const liveR = new Set((await listRecipes(page)).map((r) => r.id));
@@ -48,15 +73,19 @@ async function cleanUp(page, { products = [], recipes = [], entries = [] }) {
   for (const id of products) if (liveP.has(id)) await apiWrite(page, 'DELETE', `/api/food/products/${id}`, 'food');
 }
 
-/** Open the Nutrition tab's recipes fold (it ships closed). */
+/** Open the Nutrition tab's recipes fold (it ships closed).
+ * @param {Page} page */
 async function openRecipes(page) {
   await page.locator('#t-nutricion').click();
   const fold = page.locator('#food-recipes');
-  if (!(await fold.evaluate((d) => d.open))) await fold.locator('summary').first().click();
+  if (!(await fold.evaluate((d) => /** @type {HTMLDetailsElement} */ (d).open))) await fold.locator('summary').first().click();
   await expect(page.locator('#fr-body')).toBeVisible();
 }
 
-/** Pick one of the user's products for ingredient row i of the open recipe editor. */
+/** Pick one of the user's products for ingredient row i of the open recipe editor.
+ * @param {Page} page
+ * @param {number} i
+ * @param {Product} product */
 async function pickProduct(page, i, product) {
   await page.locator(`#frf-ing-${i}`).fill(product.name);
   await page.locator(`#frf-list-${i} [data-food-act="r-pick"][data-kind="product"][data-id="${product.id}"]`).click();
@@ -65,17 +94,23 @@ async function pickProduct(page, i, product) {
 
 /** A built-in basic of the page (window.HCFoodInternal.BASICS, the baked public food DB) measured in grams with
  * no piece (one amount mode), not hidden, whose macros pass (`atwater` true) or break (false) the Atwater check
- * (lib/nutrition/foodlog.mjs atwaterOk); null when the page has none. */
+ * (lib/nutrition/foodlog.mjs atwaterOk); null when the page has none.
+ * @param {Page} page
+ * @param {boolean} atwater
+ * @returns {Promise<Basic | null>} */
 function findBasic(page, atwater) {
   return page.evaluate((want) => {
-    const ok = (m) => Math.abs(4 * m[1] + 4 * m[2] + 9 * m[3] - m[0]) <= Math.max(0.25 * m[0], 10);
-    const b = window.HCFoodInternal.BASICS.find((x) => x.u === 'g' && !x.pc && !x.h && ok(x.m) === want);
+    const ok = (/** @type {number[]} */ m) => Math.abs(4 * m[1] + 4 * m[2] + 9 * m[3] - m[0]) <= Math.max(0.25 * m[0], 10);
+    const b = /** @type {any} */ (window).HCFoodInternal.BASICS.find((/** @type {{ u: string, pc?: unknown, h?: unknown, k: string, n: string, m: number[] }} */ x) => x.u === 'g' && !x.pc && !x.h && ok(x.m) === want);
     return b ? { k: b.k, n: b.n, m: b.m } : null;
   }, atwater);
 }
 
-/** Every write the page sends to `pathname` from now on (method + path), to prove a cancel sent none. */
+/** Every write the page sends to `pathname` from now on (method + path), to prove a cancel sent none.
+ * @param {Page} page
+ * @param {string} pathname */
 function recordWrites(page, pathname) {
+  /** @type {string[]} */
   const writes = [];
   page.on('request', (r) => {
     if (r.method() !== 'GET' && new URL(r.url()).pathname.startsWith(pathname)) writes.push(`${r.method()} ${r.url()}`);
@@ -87,6 +122,7 @@ function recordWrites(page, pathname) {
 /* ---------- recipes ---------- */
 
 test('a recipe of several products is saved, edited and archived', async ({ page }) => {
+  /** @type {{ products: number[], recipes: number[] }} */
   const made = { products: [], recipes: [] };
   await withCleanup(async () => {
     const a = await apiProduct(page, { name: unique('E2E rice'), kcal: 130, p: 2.7, c: 28, f: 0.3 });
@@ -146,7 +182,7 @@ test('a recipe of several products is saved, edited and archived', async ({ page
     await expect(page.locator('#fr-body')).not.toContainText(name);
     const stored = (await listRecipes(page)).find((r) => r.id === recipe.id);
     expect(stored).toMatchObject({ name: renamed, kind: 'serving', servings: 2 });
-    expect(stored.ingredients.map((i) => [i.productId, i.amount])).toEqual([[a.id, 200], [b.id, 50]]);
+    expect(/** @type {Recipe} */ (stored).ingredients.map((i) => [i.productId, i.amount])).toEqual([[a.id, 200], [b.id, 50]]);
 
     // still there after a reload
     await page.reload();
@@ -166,12 +202,14 @@ test('a recipe of several products is saved, edited and archived', async ({ page
 });
 
 test('a built-in basic ingredient is stored as its snapshot, and Change clears a pick', async ({ page }) => {
+  /** @type {{ products: number[], recipes: number[] }} */
   const made = { products: [], recipes: [] };
   await withCleanup(async () => {
     const a = await apiProduct(page, { name: unique('E2E pasta'), kcal: 350, p: 12, c: 70, f: 2 });
     made.products.push(a.id);
     await openLan(page);
-    const basic = await findBasic(page, true);
+    // typed as found: the expect below fails the test when it is null
+    const basic = /** @type {Basic} */ (await findBasic(page, true));
     expect(basic, 'the page bakes a basic measured in grams').not.toBeNull();
     await openRecipes(page);
     await page.locator('#food-recipes [data-food-act="r-new"]').click();
@@ -203,17 +241,19 @@ test('a built-in basic ingredient is stored as its snapshot, and Change clears a
     made.recipes.push(recipe.id);
     await expect(page.locator('#fr-body')).toContainText(name);
     const stored = (await listRecipes(page)).find((r) => r.id === recipe.id);
-    expect(stored.ingredients).toEqual([snapshot]);
+    expect(/** @type {Recipe} */ (stored).ingredients).toEqual([snapshot]);
   }, () => cleanUp(page, made));
 });
 
 test('a basic that breaks the Atwater check is refused until the recipe is saved anyway', async ({ page, pageErrors }) => {
   // the refused save is a 400 on purpose
   pageErrors.allow(/Failed to load resource: the server responded with a status of 400/);
+  /** @type {{ recipes: number[] }} */
   const made = { recipes: [] };
   await withCleanup(async () => {
     await openLan(page);
-    const basic = await findBasic(page, false);
+    // typed as found: the test skips below when it is null
+    const basic = /** @type {Basic} */ (await findBasic(page, false));
     test.skip(!basic, 'the baked food DB has no gram basic that breaks the Atwater check');
     await openRecipes(page);
     await page.locator('#food-recipes [data-food-act="r-new"]').click();
@@ -246,6 +286,7 @@ test('a basic that breaks the Atwater check is refused until the recipe is saved
 });
 
 test('a batch recipe is saved by its cooked weight and logged by grams', async ({ page, today }) => {
+  /** @type {{ products: number[], recipes: number[], entries: number[] }} */
   const made = { products: [], recipes: [], entries: [] };
   await withCleanup(async () => {
     const a = await apiProduct(page, { name: unique('E2E lentils'), kcal: 130, p: 9, c: 20, f: 0.4 });
@@ -290,11 +331,12 @@ test('a batch recipe is saved by its cooked weight and logged by grams', async (
     await page.locator('#t-nutricion').click();
     await expect(logRow(page, name)).toBeVisible();
     const day = await (await apiGet(page, `/api/food/log?date=${today}`)).json();
-    expect(day.entries.find((e) => e.id === entry.id)).toMatchObject({ refId: recipe.id, amount: 200, unit: 'g', kcal: 130 });
+    expect(day.entries.find((/** @type {FoodEntry} */ e) => e.id === entry.id)).toMatchObject({ refId: recipe.id, amount: 200, unit: 'g', kcal: 130 });
   }, () => cleanUp(page, made));
 });
 
 test('cancelling the recipe editor saves nothing', async ({ page }) => {
+  /** @type {{ products: number[] }} */
   const made = { products: [] };
   await withCleanup(async () => {
     const a = await apiProduct(page, { name: unique('E2E oats'), kcal: 380, p: 13, c: 60, f: 7 });
@@ -320,10 +362,12 @@ test('cancelling the recipe editor saves nothing', async ({ page }) => {
 /* ---------- products ---------- */
 
 test('a barcode lookup fills the form and the product is saved with its code', async ({ page }) => {
+  /** @type {{ products: number[] }} */
   const made = { products: [] };
   await withCleanup(async () => {
     const name = unique('E2E OFF yogurt');
     const code = uniqueBarcode();
+    /** @type {string[]} */
     const lookups = [];
     await page.route('**/api/food/off?**', (route) => {
       lookups.push(new URL(route.request().url()).search);
@@ -366,6 +410,7 @@ test('a barcode lookup fills the form and the product is saved with its code', a
 });
 
 test('a product marked "log by serving" starts the add sheet in one serving', async ({ page, today }) => {
+  /** @type {{ products: number[], entries: number[] }} */
   const made = { products: [], entries: [] };
   await withCleanup(async () => {
     await openLan(page);
@@ -437,6 +482,7 @@ test('cancelling the product form saves nothing', async ({ page }) => {
 test('a field the service refuses is marked under that field', async ({ page, pageErrors }) => {
   // both refused saves are a 400 on purpose
   pageErrors.allow(/Failed to load resource: the server responded with a status of 400/);
+  /** @type {{ products: number[] }} */
   const made = { products: [] };
   await withCleanup(async () => {
     await openLan(page);

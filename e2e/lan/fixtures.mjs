@@ -17,10 +17,18 @@
 import { test as base, expect, zonedInstant, loadPage } from '../fixtures.mjs';
 import { E2E_TZ } from '../paths.mjs';
 
+/** @typedef {import('@playwright/test').Page} Page */
+/** @typedef {import('@playwright/test').APIResponse} APIResponse */
+/** @typedef {import('@playwright/test').Response} Response */
+/** @typedef {import('@playwright/test').PlaywrightTestArgs & import('@playwright/test').PlaywrightTestOptions & import('../fixtures.mjs').E2EFixtures} LanBaseTestArgs */
+/** @typedef {import('@playwright/test').PlaywrightWorkerArgs & import('@playwright/test').PlaywrightWorkerOptions} LanBaseWorkerArgs */
+/** The fixture this file adds: the day the test runs on (YYYY-MM-DD in E2E_TZ). */
+/** @typedef {{ today: string }} LanFixtures */
+
 /** Today's date (YYYY-MM-DD) in E2E_TZ. */
 export const todayIso = () => new Intl.DateTimeFormat('en-CA', { timeZone: E2E_TZ }).format(new Date());
 
-export const test = base.extend({
+export const test = base.extend(/** @type {import('@playwright/test').Fixtures<LanFixtures, {}, LanBaseTestArgs, LanBaseWorkerArgs>} */ ({
   // every test is its own client of the data service (its own rate-limit budget, like one phone): see stack.mjs
   context: async ({ context }, use, testInfo) => {
     await context.setExtraHTTPHeaders({ 'x-e2e-client': testInfo.testId });
@@ -29,11 +37,14 @@ export const test = base.extend({
   // the day the test runs on, read once: a test crossing midnight still compares against one day
   today: async ({}, use) => use(todayIso()),
   now: async ({ today }, use) => use(zonedInstant(today, 12)),
-});
+}));
 
 export { expect };
 
-/** `iso` shifted by `days` calendar days (YYYY-MM-DD, computed at UTC noon so no zone or DST moves it). */
+/** `iso` shifted by `days` calendar days (YYYY-MM-DD, computed at UTC noon so no zone or DST moves it).
+ * @param {string} iso
+ * @param {number} days
+ * @returns {string} */
 export function shiftDays(iso, days) {
   const d = new Date(`${iso}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + days);
@@ -41,14 +52,16 @@ export function shiftDays(iso, days) {
 }
 
 /** Run `body`, then `cleanup` whatever happened. A failing clean-up fails a test whose body passed (the shared
- * database is left broken), but after a failed body it is only logged: it never hides the failure that got here. */
+ * database is left broken), but after a failed body it is only logged: it never hides the failure that got here.
+ * @param {() => Promise<unknown>} body
+ * @param {() => Promise<unknown>} cleanup */
 export async function withCleanup(body, cleanup) {
   let passed = false;
   try {
     await body();
     passed = true;
   } finally {
-    await cleanup().catch((err) => {
+    await cleanup().catch((/** @type {Error} */ err) => {
       if (passed) throw err;
       console.warn(`clean-up failed: ${err.message}`);
     });
@@ -56,10 +69,11 @@ export async function withCleanup(body, cleanup) {
 }
 
 /** Open the served page and its profile sheet once the settings API answered (its goal and language sections
- * need it). */
+ * need it).
+ * @param {Page} page */
 export async function openProfile(page) {
   await openLan(page);
-  await expect.poll(() => page.evaluate(() => Boolean(window.HCSettings && window.HCSettings.ready()))).toBe(true);
+  await expect.poll(() => page.evaluate(() => Boolean(/** @type {any} */ (window).HCSettings && /** @type {any} */ (window).HCSettings.ready()))).toBe(true);
   await page.locator('#avatar-btn').click();
   await expect(page.locator('#detail')).toBeVisible();
 }
@@ -69,18 +83,27 @@ export async function openProfile(page) {
  * already stored, and every LAN project runs against the same database. */
 export const uniqueBarcode = () => String(Date.now()).slice(-9) + String(Math.floor(Math.random() * 1e4)).padStart(4, '0');
 
-/** A name no other test (or retry) uses. */
+/** A name no other test (or retry) uses.
+ * @param {string} prefix */
 export const unique = (prefix) => `${prefix} ${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`;
 
 /** Open the served page with a real load (loadPage) at a hash, and wait until the food API answered (the "+" button
- * shows then). */
+ * shows then).
+ * @param {Page} page
+ * @param {string} [hash] */
 export async function openLan(page, hash = '') {
   await loadPage(page, '/' + hash);
   await expect(page.locator('#act-btn')).toBeVisible();
 }
 
 /** A write straight to the data service (no Origin: the service's LAN trust model, like curl), for clean-up
- * that must run even when the UI steps failed. `kind` 'food' or 'journal' picks the required X-HC-* header. */
+ * that must run even when the UI steps failed. `kind` 'food' or 'journal' picks the required X-HC-* header.
+ * @param {Page} page
+ * @param {string} method
+ * @param {string} pathname
+ * @param {'food' | 'journal'} kind
+ * @param {unknown} [data]
+ * @returns {Promise<APIResponse>} */
 export async function apiWrite(page, method, pathname, kind, data) {
   const header = kind === 'journal' ? 'X-HC-Journal' : 'X-HC-Food';
   const res = await page.request.fetch(pathname, { method, headers: { [header]: '1' }, data });
@@ -99,9 +122,12 @@ export const SYNC_TEST_MS = SYNC_RELOAD_MS + 40_000;
  * reload unseen), a marker set before the click is gone (a real reload, not the same document) and status.json
  * reports a processedSeq at least `seq`. `trigger(page)` is what starts it (default: press #sync-btn; the language
  * switch starts one by itself); `whileBusy(page)` runs between the 202 and the reload. Returns { seq }.
+ * @param {Page} page
+ * @param {{ reloadMs?: number, trigger?: (page: Page) => Promise<unknown>, whileBusy?: (page: Page) => Promise<unknown> }} [opts]
+ * @returns {Promise<{ seq: number }>}
  */
 export async function syncAndReload(page, { reloadMs = SYNC_RELOAD_MS, trigger = (p) => p.locator('#sync-btn').click(), whileBusy = async () => {} } = {}) {
-  await page.evaluate(() => { window.__e2eBeforeSync = true; });
+  await page.evaluate(() => { /** @type {any} */ (window).__e2eBeforeSync = true; });
   const reloaded = page.waitForEvent('load', { timeout: reloadMs });
   const posted = apiResponse(page, 'POST', '/api/sync');
   await trigger(page);
@@ -110,13 +136,17 @@ export async function syncAndReload(page, { reloadMs = SYNC_RELOAD_MS, trigger =
   const { seq } = await res.json();
   await whileBusy(page);
   await reloaded;
-  expect(await page.evaluate(() => window.__e2eBeforeSync)).toBeUndefined();
+  expect(await page.evaluate(() => /** @type {any} */ (window).__e2eBeforeSync)).toBeUndefined();
   const status = await (await page.request.get('/status.json')).json();
   expect(status.processedSeq).toBeGreaterThanOrEqual(seq);
   return { seq };
 }
 
-/** Wait for the response to `method path` (a path under /api/, query ignored) and return it. */
+/** Wait for the response to `method path` (a path under /api/, query ignored) and return it.
+ * @param {Page} page
+ * @param {string} method
+ * @param {string} pathname
+ * @returns {Promise<Response>} */
 export function apiResponse(page, method, pathname) {
   return page.waitForResponse((r) => r.request().method() === method && new URL(r.url()).pathname === pathname);
 }

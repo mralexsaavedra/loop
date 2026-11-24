@@ -1,0 +1,15 @@
+{
+  "extends": "../jsconfig.json",
+  "compilerOptions": {
+    "lib": [
+      "es2023",
+      "dom",
+      "dom.iterable"
+    ],
+    "maxNodeModuleJsDepth": 0
+  },
+  "include": [
+    "**/*.mjs",
+    "../playwright.config.mjs"
+  ]
+}

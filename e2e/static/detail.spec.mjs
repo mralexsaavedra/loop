@@ -2,15 +2,17 @@
 // example page: every opener on every tab, the ways to close it, focus, and the deep links.
 import { test, expect, openStatic, TABS, hashOf, settle } from '../fixtures.mjs';
 
-const sheet = (page) => page.locator('#detail');
-const title = (page) => page.locator('#dt-title');
+const sheet = (/** @type {import('@playwright/test').Page} */ page) => page.locator('#detail');
+const title = (/** @type {import('@playwright/test').Page} */ page) => page.locator('#dt-title');
 
+/** @param {import('@playwright/test').Page} page */
 async function expectOpen(page) {
   await expect(sheet(page)).toBeVisible();
   await expect(title(page)).not.toBeEmpty();
   await expect(page.locator('.wrap')).toHaveAttribute('inert', '');
 }
 
+/** @param {import('@playwright/test').Page} page */
 async function expectClosed(page) {
   await expect(sheet(page)).toBeHidden();
   await expect(page.locator('.wrap')).not.toHaveAttribute('inert', '');

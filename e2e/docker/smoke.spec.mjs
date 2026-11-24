@@ -8,7 +8,7 @@ import { openAddSheet, saveEntry } from '../lan/food-ui.mjs';
 test.describe.configure({ mode: 'serial' });
 
 test('the served page loads without console errors or CSP violations, and the first-run assistant opens', async ({ page }) => {
-  const res = await page.goto('/');
+  const res = /** @type {import('@playwright/test').Response} */ (await page.goto('/'));
   expect(res.status()).toBe(200);
   // loop-web's security headers as served (services/loop-web/nginx.conf.template)
   expect(res.headers()).toMatchObject({

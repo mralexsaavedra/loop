@@ -5,7 +5,9 @@
 // again with the Sync button, so the LAN specs that depend on it still run and a broken rebuild still fails.
 import { test, expect, apiResponse, syncAndReload, SYNC_RELOAD_MS, SYNC_TEST_MS } from './fixtures.mjs';
 
+/** @param {import('@playwright/test').Page} page */
 const sheet = (page) => page.locator('#detail');
+/** @param {import('@playwright/test').Page} page */
 const next = (page) => page.locator('#detail [data-onb-act="next"]');
 
 test('the first-run assistant saves the profile and the goal, then the page rebuilds', async ({ page }) => {
