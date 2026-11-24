@@ -590,7 +590,8 @@ Optional. Without `STRAVA_*` credentials the service runs Apple Health ingestion
 alone and `/sync/strava` answers `409`.
 
 When configured, activities are pulled every `STRAVA_SYNC_MINUTES` and upserted
-into `strava_activity` by id. Each run re-reads a seven-day overlap window, so an
+into `strava_activity` by id, read from Strava's `id_str` (ids can pass 2^53 from 2027-06-01, beyond what a
+JavaScript number holds exactly). Each run re-reads a seven-day overlap window, so an
 activity edited after upload — renamed, or given a description by the coach — is
 picked up on the next pass rather than frozen at its first version.
 
