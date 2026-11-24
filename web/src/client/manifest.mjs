@@ -1,5 +1,5 @@
 /* The page's classic client scripts, in the ONE order layouts/Plan.astro inlines them (after the bakes:
- * the per-tab data globals, NAV + HC_CONST, then HC_FMT … HC_GUIDE from the libs' clientSource()).
+ * the per-tab data globals, NAV + HC_CONST; lib-globals.ts, first here, publishes HC_FMT … HC_ENERGY).
  * Every script is a classic `is:inline` script; they talk only through page globals, so the order is
  * the contract this list states and web/test/script-manifest.test.mjs checks:
  * - provides: the globals the file defines: top-level `var` / `function` names + every `window.X =`

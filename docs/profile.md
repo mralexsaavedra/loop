@@ -379,8 +379,8 @@ The document may carry `sports` — `[{sport, minutes, perWeek}]`, one entry per
 - That day type's exercise becomes the time-weighted MET and average length of its sessions (`exerciseFor`);
   day types no sport reaches keep `EXERCISE`. `usedDayTypes` lists the ones a week has.
 - Without `sports` the numbers are the `EXERCISE` defaults.
-- `HC_ENERGY` is `lib/nutrition/energy.mjs` emitted as a classic global (`lib/nutrition/client.mjs`
-  `energySource`), so the page and the build compute the same numbers
+- `HC_ENERGY` is `lib/nutrition/energy.mjs` itself, published from its `CLIENT` descriptor by
+  `web/src/client/lib-globals.ts`, so the page and the build compute the same numbers
   (`web/test/client-globals-build.test.mjs` runs both).
 
 ### Saving

@@ -18,7 +18,7 @@
  *
  * Data honesty: macros come from the user's products / recipes (per-100 values from the label or Open
  * Food Facts, confirmed by the user) and the live preview runs lib/nutrition/foodlog.mjs's own
- * functions, emitted at build time as HC_FOODLOG (its clientSource, inlined with HC_FMT before util.ts;
+ * functions, published as HC_FOODLOG by lib-globals.ts (first in the manifest, before util.ts;
  * window.HCFood; food.test.mjs runs them over the shared FOODLOG_CASES).
  * A quick entry without macros counts its kcal only; unknown macros are never filled in.
  *
@@ -95,7 +95,7 @@ type Act = (el: HTMLElement) => void;
   // follow today, so a midnight roll moves with it), dayLog / dayFail = that past day's log / load error
   var S = { ok: false, boot: true, products: [] as Product[], recipes: [] as unknown[], log: null as DayLog | null, view: null as string | null, autoView: false, dayLog: null as DayLog | null, dayFail: null as { date: string; msg: string } | null, sheet: null as unknown, pform: null as unknown, rform: null as unknown, confirm: null as unknown };
 
-  /* ---------- the formula: lib/nutrition/foodlog.mjs's own functions (clientSource -> HC_FOODLOG) ---------- */
+  /* ---------- the formula: lib/nutrition/foodlog.mjs's own functions (lib-globals.ts -> HC_FOODLOG) ---------- */
   var FL = HC_FOODLOG;
   var MACROS = FL.MACROS, fin = FL.fin, round1 = FL.round1, roundMacros = FL.roundMacros, productEntry = FL.productEntry,
     recipeBasis = FL.recipeBasis, entryFromBasis = FL.entryFromBasis, recipeEntry = FL.recipeEntry, dayTotals = FL.dayTotals,

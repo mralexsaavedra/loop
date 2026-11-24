@@ -1,6 +1,6 @@
 /* web/src/client/progress.ts — Nutrición "Progreso" (weight vs the goal) + the profile sheet's line.
  * Runs the real classic script in node:vm against web/test/dom-stub.mjs with a fixed clock and SYNTHETIC
- * weight series; its numbers are lib/nutrition/progress.mjs run as HC_PROG (clientSource). */
+ * weight series; its numbers are lib/nutrition/progress.mjs run as HC_PROG (lib-globals.ts). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';

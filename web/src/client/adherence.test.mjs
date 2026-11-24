@@ -1,6 +1,6 @@
 /* web/src/client/adherence.ts — Nutrición "Constancia" (food log adherence, LAN page). Runs the real
  * classic script in node:vm against web/test/dom-stub.mjs with a fixed clock, a stubbed HCFood.api and
- * a stand-in for HCNutri.targetFor; its counts are lib/nutrition/adherence.mjs run as HC_ADH (clientSource). */
+ * a stand-in for HCNutri.targetFor; its counts are lib/nutrition/adherence.mjs run as HC_ADH (lib-globals.ts). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';

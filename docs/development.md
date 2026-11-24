@@ -63,9 +63,9 @@ the README.
   ([`services/loop-ingest/README.md` → Database migrations](../services/loop-ingest/README.md#database-migrations)).
 - Each rule gets a test through the public interface; a changed command, option or message updates its help
   text and docs in the same commit.
-- Lib code that also runs in the page is emitted from the lib itself (`lib/nutrition/client.mjs` and friends),
-  never copied: `web/test/client-copies.test.mjs` fails on a hand-kept copy, and
-  `web/test/client-globals-build.test.mjs` runs the emitted globals against the lib.
+- Lib code that also runs in the page is the lib itself, bundled from each module's `CLIENT` descriptor by
+  `web/src/client/lib-globals.ts`, never copied: `web/test/client-copies.test.mjs` fails on a hand-kept copy, and
+  `web/test/client-globals-build.test.mjs` runs the built page's globals against the lib.
 
 ### Browser end-to-end tests
 

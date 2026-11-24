@@ -1,5 +1,5 @@
 /* The recovery-style 0-100 bands (good >= 67, low <= 33, mid between) have ONE source,
- * lib/score/recovery.mjs (PCT_GOOD / PCT_LOW / pctBand), baked for the page as HC_BAND (clientSource).
+ * lib/score/recovery.mjs (PCT_GOOD / PCT_LOW / pctBand), published for the page as HC_BAND (web/src/client/lib-globals.ts).
  * Guard: no client script re-types the thresholds; behaviour: every client site bands the edges
  * (33 / 33.5 / 66.9 / 67) exactly like the lib. */
 import { test } from 'node:test';

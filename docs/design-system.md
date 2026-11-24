@@ -130,29 +130,25 @@ the shown day only: "No data", rest or no session, never an earlier day's value)
 
 ONE formatter for every number a viewer reads: `lib/format/numbers.mjs` (pure, no `Intl`, so every
 browser and Node ICU build prints the same bytes). The build imports it (Tablas' `RefTable.astro`,
-the advice copy); the page gets the SAME functions as a classic script, `clientSource()` →
-`var HC_FMT`, inlined by `layouts/Plan.astro` right before `client/util.ts`, whose `HC.num` /
-`HC.int` / `HC.nf` / `HC.pct` / `HC.hours` / `HC.duration` add the page `LOCALE`. The recovery 0–100
-bands ride along the same way: `lib/score/recovery.mjs` `clientSource()` → `var HC_BAND` (`PCT_GOOD`,
-`PCT_LOW`, `pctBand`), so no client script re-types 67 / 33 (`web/test/recovery-band.test.mjs` guards it). The
-food log adherence and weight progress functions ride along too (`lib/nutrition/adherence.mjs` →
-`var HC_ADH`, read by `client/adherence.ts`; `lib/nutrition/progress.mjs` → `var HC_PROG`, read by
-`client/progress.ts`; `lib/nutrition/nutri-score.mjs` → `var HC_NSCORE`, read by `client/nutri-score.ts`;
-`lib/nutrition/foodlog.mjs` → `var HC_FOODLOG`, read by `client/food-core.ts`; `lib/nutrition/daytype.mjs` →
-`var HC_DAYTYPE`, `lib/nutrition/fuel.mjs` → `var HC_FUEL` and `lib/nutrition/scale.mjs` (+ amounts / units /
-fill) → `var HC_SCALE` and `lib/nutrition/guide.mjs` → `var HC_GUIDE`, read by `client/nutri-day.ts`. Every
-nutrition module only declares a plain `CLIENT` descriptor; `lib/nutrition/client.mjs` is the ONE module there that
-imports the emitter and exposes the `clientSource()` functions, because `data/nutrition/generate.mjs` loads
-`lib/nutrition` without `lib/format` — `lib/nutrition/client.test.mjs` guards that no other module imports it);
-`web/test/client-copies.test.mjs` guards that no client file re-defines them). Every one is built by `classicGlobal()` (`lib/format/numbers.mjs`): public keys come from an
-explicit map and constants are declared under every spelling the function bodies use, because the
-bundler renames clashing lib names (`fin` → `fin$3`); two different functions declaring one name are refused (they would
-shadow each other in the one IIFE); only function declarations can be emitted, so a lib helper a global needs is a
-`function`, not an arrow const; constants are written by the same `literal()` as the service's generated modules
-(`lib/build/literal.mjs`: a value JSON cannot carry — NaN, `undefined`, a Date — is refused, a RegExp is kept);
-`lib/format/classic-globals.test.mjs` checks that every emitted global declares each identifier its functions use
-(ESLint `no-undef`, ECMAScript built-ins only); `web/test/client-globals-build.test.mjs` runs the
-globals out of the BUILT page.
+the advice copy); the page gets the SAME functions: `web/src/client/lib-globals.ts` (first in the client
+manifest, bundled by esbuild like every client script) publishes the module's `CLIENT` descriptor as `HC_FMT`,
+right before `client/util.ts`, whose `HC.num` / `HC.int` / `HC.nf` / `HC.pct` / `HC.hours` / `HC.duration` add
+the page `LOCALE`. The recovery 0–100 bands ride along the same way: `lib/score/recovery.mjs` → `HC_BAND`
+(`PCT_GOOD`, `PCT_LOW`, `pctBand`), so no client script re-types 67 / 33 (`web/test/recovery-band.test.mjs`
+guards it). The food log adherence and weight progress functions ride along too (`lib/nutrition/adherence.mjs` →
+`HC_ADH`, read by `client/adherence.ts`; `lib/nutrition/progress.mjs` → `HC_PROG`, read by
+`client/progress.ts`; `lib/nutrition/nutri-score.mjs` → `HC_NSCORE`, read by `client/nutri-score.ts`;
+`lib/nutrition/foodlog.mjs` → `HC_FOODLOG`, read by `client/food-core.ts`; `lib/nutrition/daytype.mjs` →
+`HC_DAYTYPE`, `lib/nutrition/fuel.mjs` → `HC_FUEL` and `lib/nutrition/scale.mjs` (+ amounts / num `round2` /
+units / fill / fuel) → `HC_SCALE` and `lib/nutrition/guide.mjs` (+ num `fin`, amounts `floorToStep`, names
+`foldName`) → `HC_GUIDE`, read by `client/nutri-day.ts`; `lib/nutrition/energy.mjs` → `HC_ENERGY`, read by
+`client/onboarding.ts`). Every module only declares a plain `CLIENT` descriptor (`{consts, hidden, fns}`); a
+global exposes its `consts` then its `fns`, ONE copy of each function on the page, and the constants are the
+lib's own frozen objects. No `lib/nutrition` module imports `lib/format`, because `data/nutrition/generate.mjs`
+loads `lib/nutrition` on its own (`lib/nutrition/imports.test.mjs` guards it);
+`web/test/client-copies.test.mjs` guards that no client file re-defines them.
+`web/src/client/lib-globals.test.mjs` runs the bundle in a vm against the modules and
+`web/test/client-globals-build.test.mjs` runs the globals out of the BUILT page.
 
 | Rule | es | en | Call |
 | --- | --- | --- | --- |
@@ -193,7 +189,7 @@ comments stripped) and fails on `toLocaleString` / `Intl.NumberFormat`, a hand-r
 grouping, a hand-made decimal comma (string or regex form), a `toFixed` that is not geometry (per-file
 counts), a space before `%` (a template literal's `${v} %` too), and a `{value} h` template, a `' h'`
 or a `${v} h` built in code; each exception above is its allowlist. `lib/format/numbers.test.mjs` pins the rules (es + en,
-0, negatives, absent, 999 / 1,000, h:mm rounding) and that `clientSource()` behaves like the module.
+0, negatives, absent, 999 / 1,000, h:mm rounding); `web/src/client/lib-globals.test.mjs` checks that `HC_FMT` behaves like the module.
 
 ## Components
 

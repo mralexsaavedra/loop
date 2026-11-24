@@ -1,6 +1,6 @@
 /* Nutrition score — a day's 0-100 adherence to the viewer's own targets. The math is
- * lib/nutrition/nutri-score.mjs itself: its clientSource() emits HC_NSCORE (inlined with HC_FMT before
- * util.ts), so nothing here re-implements it; NSCORE_CASES test it. Module script (bundled into the page, docs/plan-page.md → Module scripts), after
+ * lib/nutrition/nutri-score.mjs itself: lib-globals.ts publishes it as HC_NSCORE (first in the manifest,
+ * before util.ts), so nothing here re-implements it; NSCORE_CASES test it. Module script (bundled into the page, docs/plan-page.md → Module scripts), after
  * nutri-day.ts, adherence.ts and today-date.ts.
  *
  * Inputs: the baked food log (INTAKE.log.days: the synced foodlog-daily.csv, the example's demo data)
@@ -45,7 +45,7 @@ type View = { head: { date: string; r: DayScore } | null; run: DayScore | null; 
   var DAY = typeof HCDay !== 'undefined' && HCDay ? HCDay : null;
   var WIDE = 30; // the Nutrición block's longer average and line
 
-  /* ---------- the score: lib/nutrition/nutri-score.mjs's own functions (clientSource -> HC_NSCORE) ---------- */
+  /* ---------- the score: lib/nutrition/nutri-score.mjs's own functions (lib-globals.ts -> HC_NSCORE) ---------- */
   var fin = HC_NSCORE.fin, scoreBand = HC_NSCORE.scoreBand, nutritionScore = HC_NSCORE.nutritionScore, scoreSeries = HC_NSCORE.scoreSeries;
 
   /* ---------- inputs ---------- */
