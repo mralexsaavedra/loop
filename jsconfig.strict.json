@@ -13,7 +13,10 @@
     "lib/journal/*.mjs",
     "lib/score/*.mjs",
     "lib/health/*.mjs",
-    "lib/detail/*.mjs"
+    "lib/detail/*.mjs",
+    "lib/profile/*.mjs",
+    "lib/load/*.mjs",
+    "lib/nutrition/*.mjs"
   ],
   "exclude": [
     "lib/**/*.test.mjs"
