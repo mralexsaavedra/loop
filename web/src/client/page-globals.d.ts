@@ -1,6 +1,6 @@
 /* The shapes of the page globals the module client scripts (*.ts) read: HC, LOCALE, the copy tables (I18N_*) and
- * SCORES / DETAIL / DIALS / DASH / INTAKE / ACTIVITY / HEALTH / NUTRI / FOOD_BASICS (from their builders), NUTRI_ARC
- * and TRAINING_META are typed; the baked data globals are `any` until each gets its own type (their shapes live in lib/). */
+ * SCORES / DETAIL / DIALS / DASH / INTAKE / ACTIVITY / HEALTH / NUTRI / FOOD_BASICS (from their builders), NUTRI_ARC,
+ * TRAINING_META, PROFILE, NAV and FOOD_CONST are typed; TRAINING (the training document as is) and the HC_* emissions are still `any`. */
 /** A copy table the scripts also index by a runtime key (a kind, a range, a metric): each nested table keeps its
  * named keys and also takes any string key (an unknown key reads `undefined` at runtime, as before). */
 type Lookup<T> = T extends readonly unknown[]
@@ -25,11 +25,16 @@ export type PageGlobals = {
   DASH: ReturnType<typeof import('../bakes.mjs').computeBakes>['dash'];
   I18N_DASH: Copy<typeof import('../i18n/dash-templates.mjs')>;
   I18N_DETAIL: Copy<typeof import('../i18n/detail-templates.mjs')>;
-  NAV: any;
+  /** Plan.astro's one baked copy of lib/nav/tabs.mjs: the tab keys and the maps (section / detail metric / view /
+   * anchor -> its tab) the scripts look up with a runtime key. */
+  NAV: { tabs: readonly string[]; sectionTab: Readonly<Record<string, string>>; detailTab: Readonly<Record<string, string>>;
+    viewTab: Readonly<Record<string, string | null>>; anchorTab: Readonly<Record<string, string>>;
+    day: typeof import('../../../lib/nav/tabs.mjs')['DAY_HASH'] };
   I18N_DATE: Copy<typeof import('../i18n/date-templates.mjs')>;
   I18N_PROFILE: Copy<typeof import('../i18n/profile-templates.mjs')>;
   LOCALE: 'es' | 'en';
-  PROFILE: any;
+  /** computeBakes' profile (lib/profile/read.mjs loadProfile + the goal options) with `photo` reduced to a flag (Avatar.astro). */
+  PROFILE: Omit<ReturnType<typeof import('../bakes.mjs').computeBakes>['profile'], 'photo'> & { photo: boolean };
   ACTIVITY: ReturnType<typeof import('../../../lib/training/activity.mjs').activityBake>;
   HC_FMT: any;
   HC_ENERGY: any;
@@ -49,7 +54,10 @@ export type PageGlobals = {
   HCSettings: any;
   HCViews: any;
   FOOD_BASICS: ReturnType<typeof import('../../../lib/nutrition/basics.mjs').buildBasics>;
-  FOOD_CONST: any;
+  /** Dia.astro's food log constants (lib/nutrition/foodlog.mjs + slots.mjs). */
+  FOOD_CONST: { meals: typeof import('../../../lib/nutrition/foodlog.mjs')['FOOD_MEALS']; stores: typeof import('../../../lib/nutrition/foodlog.mjs')['FOOD_STORES']; units: typeof import('../../../lib/nutrition/foodlog.mjs')['FOOD_UNITS']; limits: typeof import('../../../lib/nutrition/foodlog.mjs')['FOOD_LIMITS'];
+    goals: typeof import('../../../lib/nutrition/foodlog.mjs')['SETTINGS_GOALS']; groups: typeof import('../../../lib/nutrition/slots.mjs')['MEAL_GROUPS']; mainSlots: typeof import('../../../lib/nutrition/slots.mjs')['MAIN_SLOTS']; addonGroup: typeof import('../../../lib/nutrition/slots.mjs')['ADDON_GROUP'];
+    addonSlot: typeof import('../../../lib/nutrition/slots.mjs')['ADDON_SLOT']; lateNightHour: typeof import('../../../lib/nutrition/slots.mjs')['LATE_NIGHT_HOUR'] };
   HCAdherence: any;
   HCFood: any;
   HC_ADH: any;

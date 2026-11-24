@@ -35,7 +35,9 @@ type RequestError = { code?: string; status?: number } | null | undefined;
 
 (function () {
   var K = typeof FOOD_CONST === 'undefined' || !FOOD_CONST ? null : FOOD_CONST;
-  var LIM = K && K.limits ? K.limits : {};
+  // without FOOD_CONST the limits are undefined and every comparison with them is false (saveTarget then rejects
+  // any target; the form check lets any number through): the `!` below only keeps that existing behaviour
+  var LIM: Partial<PageGlobals['FOOD_CONST']['limits']> = K && K.limits ? K.limits : {};
   var S: SettingsStore = { ok: false, goal: null, target: null, locale: null, last: null };
   var LOCALES = ['es', 'en']; // web/src/env.mjs PAGE_LOCALES
   var listeners: Array<(s: SettingsState) => void> = [];
@@ -105,7 +107,7 @@ type RequestError = { code?: string; status?: number } | null | undefined;
   }
   /** kg (a number within the limits) or null (clears it). */
   function saveTarget(kg: number | null) {
-    if (kg !== null && !(fin(kg) && kg >= LIM.targetWeightMin && kg <= LIM.targetWeightMax)) return Promise.reject({ code: 'invalid' });
+    if (kg !== null && !(fin(kg) && kg >= LIM.targetWeightMin! && kg <= LIM.targetWeightMax!)) return Promise.reject({ code: 'invalid' });
     return put({ targetWeightKg: kg === null ? null : Math.round(kg * 10) / 10 }, 'target');
   }
   /** 'es' | 'en' or null (clears it: the build falls back to HC_LOCALE / the plan's locale). */
@@ -120,7 +122,7 @@ type RequestError = { code?: string; status?: number } | null | undefined;
     var v = F && typeof F.parseNum === 'function' ? F.parseNum(text, ['kg']) : NaN;
     if (v === null) return { value: null };
     if (!fin(v)) return { error: 'number' };
-    if (v < LIM.targetWeightMin || v > LIM.targetWeightMax) return { error: 'range' };
+    if (v < LIM.targetWeightMin! || v > LIM.targetWeightMax!) return { error: 'range' };
     return { value: Math.round(v * 10) / 10 };
   }
 

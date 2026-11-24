@@ -193,8 +193,10 @@ the scripts' own checks narrow it; the scripts import those typedefs instead of 
 `DASH`, `INTAKE` and `ACTIVITY` with their builders' return types (`ACTIVITY` = `lib/training/activity.mjs`'s
 `activityBake` over its `Activity` typedef); `HEALTH` with `lib/health/aggregate.mjs`'s section typedefs (each
 `{hasData: false}` or its data); `NUTRI` with `lib/nutrition/today.mjs`'s `buildNutriToday`, `FOOD_BASICS` with
-`buildBasics`, `NUTRI_ARC` and `TRAINING_META` with their literal shapes. The other baked data globals stay `any`
-until each gets its own type. A script reads a copy table through a guarded alias (`var T = (… ? null : I18N_X)!; if (!T) return;`): the
+`buildBasics`, `NUTRI_ARC` and `TRAINING_META` with their literal shapes; `PROFILE` with `lib/profile/profile.mjs`'s
+`Profile` (`photo` reduced to a flag, as Avatar.astro bakes it); `NAV` and `FOOD_CONST` with the lib constants they
+copy (`NAV`'s maps as string records, looked up with a runtime key). `TRAINING` (the training document as is) and
+the `HC_*` emissions stay `any`. A script reads a copy table through a guarded alias (`var T = (… ? null : I18N_X)!; if (!T) return;`): the
 `!` is type-only (esbuild drops it) and says what the guard already enforces, because the closures that read `T` are
 declared before the guard and TypeScript cannot carry its narrowing into them. Every client script is a module script now (the last, `util.ts`, sets `globalThis.HC` itself: once bundled into an IIFE its `var HC` is no longer a page global).
 

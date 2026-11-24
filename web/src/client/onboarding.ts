@@ -63,7 +63,7 @@ type OnbDoc = {
   var TIMES = [1, 2, 3, 4, 5, 6, 7];
   // a new pick's session: an hour three times a week, a ride two hours twice
   var SESSION: Record<string, Session> = { cycling: { minutes: 120, perWeek: 2 } };
-  var P = (typeof PROFILE !== 'undefined' && PROFILE) || {};
+  var P: Partial<typeof PROFILE> = (typeof PROFILE !== 'undefined' && PROFILE) || {};
   var S = fresh();
 
   function fresh(): State {

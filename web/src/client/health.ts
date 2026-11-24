@@ -112,7 +112,7 @@ type RowFn = () => string;
   // chronological age and the fitness age's change over 90 (else 30) days as rows. Missing sex,
   // birthdate or VO2max -> no number, the reason. {before, rows, note}; null = no block (an old bake).
   function fitnessAgeBlock(SC: any): { before: string; rows: RowFn[]; note: string } | null {
-    var F = SC && SC.fitnessAge, FT = T.fitnessAge, P = typeof PROFILE === 'undefined' || !PROFILE ? {} : PROFILE;
+    var F = SC && SC.fitnessAge, FT = T.fitnessAge, P: Partial<typeof PROFILE> = typeof PROFILE === 'undefined' || !PROFILE ? {} : PROFILE;
     if (!F || !FT) return null;
     if (!F.ok) return { before: note(F.reason === 'no-sex' ? FT.noSex : FT.noVo2), rows: [], note: FT.noteHtml };
     var ca = HC.ageOn(P.birthdate, HC.todayIso());
@@ -290,7 +290,7 @@ type RowFn = () => string;
   function habitsSection(SC: any): string {
     var H = (typeof DETAIL !== 'undefined' && DETAIL && DETAIL.habits ? DETAIL.habits : null)!, TH = T.habits;
     if (!H || !H.ref || !TH) return '';
-    var R = H.ref, U = TH.units, P = typeof PROFILE === 'undefined' || !PROFILE ? {} : PROFILE;
+    var R = H.ref, U = TH.units, P: Partial<typeof PROFILE> = typeof PROFILE === 'undefined' || !PROFILE ? {} : PROFILE;
     var age = HC.ageOn(P.birthdate, HC.todayIso());
     var rows: string[] = [], met = 0, n = 0;
     function add(k: string, ok: boolean | null, o: any) {
