@@ -7,7 +7,10 @@ import { readFileSync, writeFileSync } from 'node:fs';
 
 /** Writes `source` to `path` when it differs (nothing when current), or with `check` writes nothing and
  * reports drift. `label` names the file, `script` the npm script that regenerates it. Returns the process
- * exit code (1 = `check` found drift). */
+ * exit code (1 = `check` found drift).
+ * @param {string} path @param {string} source
+ * @param {{ label: string, script: string, check?: boolean }} opts
+ * @returns {number} */
 export function writeGenerated(path, source, { label, script, check = false }) {
   let current = null;
   try {
@@ -33,7 +36,8 @@ export function writeGenerated(path, source, { label, script, check = false }) {
 
 /** The generators' shared CLI (gen-food-calc, gen-journal-calc, gen-profile-rules): `--check` and `--help` only, parsed strictly
  * by runCli (an unknown flag such as `--chek` or a stray argument exits 2 before anything is written). */
-export const GENERATOR_OPTIONS = { check: { type: 'boolean' } };
+export const GENERATOR_OPTIONS = /** @type {const} */ ({ check: { type: 'boolean' } });
+/** @param {string} script @param {string} label */
 export function generatorUsage(script, label) {
   return `Usage: npm run ${script} [-- --check]
 

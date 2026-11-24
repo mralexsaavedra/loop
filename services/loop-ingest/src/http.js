@@ -15,7 +15,12 @@ const IPV6_RE = /^\[[0-9a-f:.]+\]$/
 // the hop's name before loop-net (an old loop-web container still proxying through the host port)
 const LOCAL_HOSTS = ['localhost', 'loop-ingest', 'host.docker.internal']
 
-/** An Error carrying the HTTP status and a coarse {error: code, field?} for the response. */
+/** An HTTP error: the status and the coarse code (+ field) of the response; a route may add `reason` or `revision`.
+ * @typedef {Error & { status: number, code: string, field?: string, reason?: string, revision?: number }} HttpError */
+
+/** An Error carrying the HTTP status and a coarse {error: code, field?} for the response.
+ * @param {number} status @param {string} code @param {string} [field]
+ * @returns {HttpError} */
 export function httpError (status, code, field) {
   return Object.assign(new Error(code), { status, code, field })
 }
@@ -23,6 +28,8 @@ export function httpError (status, code, field) {
 /**
  * A JSON response with only content-type and content-length, then `headers` in the given order. The
  * bearer-token routes (/export/*, /ingest) and /sync use it directly with their historical headers.
+ * @param {import('node:http').ServerResponse} res @param {number} status @param {unknown} body
+ * @param {import('node:http').OutgoingHttpHeaders} [headers]
  */
 export function writeJson (res, status, body, headers = {}) {
   const payload = JSON.stringify(body)
@@ -34,7 +41,9 @@ export function writeJson (res, status, body, headers = {}) {
   res.end(payload)
 }
 
-/** The page routes' JSON response: never cached, never sniffed; `extra` headers come last (may override). */
+/** The page routes' JSON response: never cached, never sniffed; `extra` headers come last (may override).
+ * @param {import('node:http').ServerResponse} res @param {number} status @param {unknown} body
+ * @param {import('node:http').OutgoingHttpHeaders} [extra] */
 export function send (res, status, body, extra = {}) {
   writeJson(res, status, body, {
     'cache-control': 'no-store',
@@ -43,7 +52,8 @@ export function send (res, status, body, extra = {}) {
   })
 }
 
-/** Whether the request declares `Content-Type: application/json` (parameters and case ignored). */
+/** Whether the request declares `Content-Type: application/json` (parameters and case ignored).
+ * @param {import('node:http').IncomingMessage} req */
 export function isJson (req) {
   const ct = String(req.headers['content-type'] ?? '').split(';')[0].trim().toLowerCase()
   return ct === 'application/json'
@@ -52,15 +62,18 @@ export function isJson (req) {
 /**
  * The parsed JSON body; 413 payload_too_large over `limit` (declared or counted; JSON_BODY_LIMIT unless a
  * route with bigger documents passes its own, documents.js), 400 bad_json.
+ * @param {import('node:http').IncomingMessage} req @param {number} [limit]
+ * @returns {Promise<any>} the parsed body, untrusted: every route checks it field by field
  */
 export function readJson (req, limit = JSON_BODY_LIMIT) {
   const declared = Number(req.headers['content-length'])
   if (Number.isFinite(declared) && declared > limit) return Promise.reject(httpError(413, 'payload_too_large'))
   return new Promise((resolve, reject) => {
+    /** @type {Buffer[]} */
     const chunks = []
     let size = 0
     let over = false
-    req.on('data', (chunk) => {
+    req.on('data', (/** @type {Buffer} */ chunk) => {
       if (over) return
       size += chunk.length
       if (size > limit) {
@@ -82,8 +95,10 @@ export function readJson (req, limit = JSON_BODY_LIMIT) {
   })
 }
 
-/** Whether any string (value or object key) in a parsed JSON value holds U+0000. Iterative: no recursion limit. */
+/** Whether any string (value or object key) in a parsed JSON value holds U+0000. Iterative: no recursion limit.
+ * @param {unknown} value */
 export function containsNul (value) {
+  /** @type {unknown[]} */
   const stack = [value]
   while (stack.length > 0) {
     const v = stack.pop()
@@ -103,7 +118,8 @@ export function containsNul (value) {
 
 // U+0000 (Postgres text and jsonb cannot store it: 22021 / 22P05, a 500) and the other C0 controls, but tab,
 // line feed and carriage return, which the text validators collapse or keep
-/** Whether a string holds a character no text field accepts (the shared check of food.js str and journal.js notes). */
+/** Whether a string holds a character no text field accepts (the shared check of food.js str and journal.js notes).
+ * @param {string} s */
 export function hasControlChars (s) {
   for (let i = 0; i < s.length; i++) {
     const c = s.charCodeAt(i)
@@ -112,7 +128,8 @@ export function hasControlChars (s) {
   return false
 }
 
-/** YYYY-MM-DD that is a real calendar day (2026-02-31 is refused), years 2000-2100. */
+/** YYYY-MM-DD that is a real calendar day (2026-02-31 is refused), years 2000-2100.
+ * @param {unknown} s @returns {string | null} */
 export function validDate (s) {
   const m = typeof s === 'string' ? DATE_RE.exec(s) : null
   if (!m) return null
@@ -121,19 +138,22 @@ export function validDate (s) {
   return y >= 2000 && y <= 2100 && d.toISOString().slice(0, 10) === s ? s : null
 }
 
-/** An allowed host name (no port): an IP literal, localhost, loop-ingest, host.docker.internal or an allowlisted name. */
+/** An allowed host name (no port): an IP literal, localhost, loop-ingest, host.docker.internal or an allowlisted name.
+ * @param {string | null | undefined} hostname @param {string[]} [extra] */
 export function hostAllowed (hostname, extra = []) {
   const h = String(hostname || '').toLowerCase()
   if (!h) return false
   return IPV4_RE.test(h) || IPV6_RE.test(h) || LOCAL_HOSTS.includes(h) || extra.includes(h)
 }
-/** The host part of a Host header ("192.168.1.10:8090" -> "192.168.1.10", "[::1]:8088" -> "[::1]"). */
+/** The host part of a Host header ("192.168.1.10:8090" -> "192.168.1.10", "[::1]:8088" -> "[::1]").
+ * @param {string | undefined} v */
 export function hostOfHeader (v) {
   const s = String(v || '').trim()
   const m = /^(\[[^\]]*\]|[^:]*)(?::\d+)?$/.exec(s)
   return m ? m[1] : ''
 }
-/** The host of an Origin header, or null when it is not a URL ("null", garbage). */
+/** The host of an Origin header, or null when it is not a URL ("null", garbage).
+ * @param {string} v */
 export function hostOfOrigin (v) {
   try {
     const u = new URL(v)
@@ -150,6 +170,7 @@ export function hostOfOrigin (v) {
  * refused even though each would pass the allowlist alone. Neither header (curl, the food-log skill): allowed,
  * the LAN-only trust model. The SSO tunnel works when its public host is in FOOD_ALLOWED_HOSTS: nginx sees
  * that host, and the page's Origin names it.
+ * @param {import('node:http').IncomingHttpHeaders} headers @param {string[]} [extra]
  */
 export function writeOriginOk (headers, extra = []) {
   const site = headers['sec-fetch-site']
@@ -165,7 +186,8 @@ export function writeOriginOk (headers, extra = []) {
   return new URL(origin).host === String(forwarded).trim().toLowerCase()
 }
 
-/** FOOD_ALLOWED_HOSTS: comma / space separated names, lowercased. */
+/** FOOD_ALLOWED_HOSTS: comma / space separated names, lowercased.
+ * @param {string | undefined} v */
 export function parseAllowedHosts (v) {
   return String(v || '').split(/[\s,]+/).map((s) => s.trim().toLowerCase()).filter(Boolean)
 }

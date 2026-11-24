@@ -53,9 +53,18 @@ const LOCK_TOUCH_MS = 30_000;
 const KILL_GRACE_MS = 10_000;
 const SEQ = /^\d{1,15}$/;
 
+/** @typedef {Record<string, string | undefined>} Env */
+/** The refresh steps, each resolving true on success (realSteps; the tests inject fakes).
+ * @typedef {{ import?: () => Promise<boolean>, sync: () => Promise<boolean>, generate: () => Promise<boolean>, manuals: () => Promise<boolean> }} RefreshSteps */
+/** The outcome of one refresh: `code` = the status.json error code (null: status.json itself could not be written).
+ * @typedef {{ ok: boolean, code?: string | null, skipped?: boolean, processedSeq?: number }} RefreshResult */
+/** A held lock. @typedef {{ release: () => void }} Lock */
+
 /** The version status.json reports as `commit`: HC_VERSION, else the repo's package.json version; only the
- * characters a version tag uses (so it is always a safe JSON string), at most 64. */
+ * characters a version tag uses (so it is always a safe JSON string), at most 64.
+ * @param {{ env?: Env, repoRoot?: string }} [opts] */
 export function imageVersion({ env = process.env, repoRoot = ROOT } = {}) {
+  /** @param {unknown} v */
   const clean = (v) => String(v ?? '').replace(/[^A-Za-z0-9._+-]/g, '').slice(0, 64);
   const fromEnv = clean(env.HC_VERSION);
   if (fromEnv) return fromEnv;
@@ -66,7 +75,8 @@ export function imageVersion({ env = process.env, repoRoot = ROOT } = {}) {
   }
 }
 
-/** The last good publish recorded in <site>/status.json ({publishedAt, commit, processedSeq}), or null. */
+/** The last good publish recorded in <site>/status.json ({publishedAt, commit, processedSeq}), or null.
+ * @param {string} siteDir @returns {{ publishedAt: string, commit: string, processedSeq: number } | null} */
 export function readPublished(siteDir) {
   try {
     const s = JSON.parse(fs.readFileSync(path.join(siteDir, 'status.json'), 'utf8'));
@@ -77,7 +87,8 @@ export function readPublished(siteDir) {
   }
 }
 
-/** Writes <site>/status.json atomically (temp file + rename in the same folder). */
+/** Writes <site>/status.json atomically (temp file + rename in the same folder).
+ * @param {string} siteDir @param {Record<string, unknown>} body */
 export function writeStatus(siteDir, body) {
   fs.mkdirSync(siteDir, { recursive: true });
   const tmp = path.join(siteDir, `.status.json.${process.pid}.tmp`);
@@ -85,7 +96,7 @@ export function writeStatus(siteDir, body) {
   fs.renameSync(tmp, path.join(siteDir, 'status.json'));
 }
 
-/** True when `file` is a non-empty, whole HTML document (it ends its <html>). */
+/** True when `file` is a non-empty, whole HTML document (it ends its <html>). @param {string} file */
 export function pageIsSane(file) {
   try {
     const st = fs.statSync(file);
@@ -96,23 +107,26 @@ export function pageIsSane(file) {
   }
 }
 
+/** @param {number} pid */
 function isAlive(pid) {
   if (!Number.isInteger(pid) || pid <= 0) return false;
   try {
     process.kill(pid, 0);
     return true;
   } catch (err) {
-    return err.code !== 'ESRCH';
+    return /** @type {NodeJS.ErrnoException} */ (err).code !== 'ESRCH';
   }
 }
 
-/** One lock file per site dir, in the temp dir (a container's /tmp starts empty, so a restart never inherits it). */
+/** One lock file per site dir, in the temp dir (a container's /tmp starts empty, so a restart never inherits it).
+ * @param {string} siteDir */
 export function defaultLockFile(siteDir) {
   return path.join(os.tmpdir(), `loop-refresh-${createHash('sha256').update(path.resolve(siteDir)).digest('hex').slice(0, 12)}.lock`);
 }
 
 /** Takes the lock now, or returns null when a live holder has it. A lock file whose pid is gone, or that was not
- * refreshed for `staleMs`, is taken over. Returns { release }; the holder's mtime is refreshed while held. */
+ * refreshed for `staleMs`, is taken over. Returns { release }; the holder's mtime is refreshed while held.
+ * @param {string} file @param {{ staleMs?: number, now?: () => number, touchMs?: number }} [opts] @returns {Lock | null} */
 export function tryLock(file, { staleMs = LOCK_STALE_MS, now = Date.now, touchMs = LOCK_TOUCH_MS } = {}) {
   for (let attempt = 0; attempt < 2; attempt++) {
     try {
@@ -123,14 +137,14 @@ export function tryLock(file, { staleMs = LOCK_STALE_MS, now = Date.now, touchMs
       touch.unref();
       return { release() { clearInterval(touch); try { fs.unlinkSync(file); } catch {} } };
     } catch (err) {
-      if (err.code !== 'EEXIST') throw err;
+      if (/** @type {NodeJS.ErrnoException} */ (err).code !== 'EEXIST') throw err;
     }
     let stale;
     try {
       const pid = Number(fs.readFileSync(file, 'utf8').trim());
       stale = !isAlive(pid) || now() - fs.statSync(file).mtimeMs > staleMs;
     } catch (err) {
-      stale = err.code === 'ENOENT';
+      stale = /** @type {NodeJS.ErrnoException} */ (err).code === 'ENOENT';
     }
     if (!stale) return null;
     try { fs.unlinkSync(file); } catch {}
@@ -138,7 +152,8 @@ export function tryLock(file, { staleMs = LOCK_STALE_MS, now = Date.now, touchMs
   return null;
 }
 
-/** tryLock, retried every `pollMs` for up to `waitMs` (0 = one attempt). */
+/** tryLock, retried every `pollMs` for up to `waitMs` (0 = one attempt).
+ * @param {string} file @param {{ waitMs?: number, pollMs?: number, staleMs?: number, touchMs?: number }} [opts] */
 export async function acquireLock(file, { waitMs = 0, pollMs = 1000, staleMs = LOCK_STALE_MS, touchMs = LOCK_TOUCH_MS } = {}) {
   const deadline = Date.now() + waitMs;
   for (;;) {
@@ -151,17 +166,20 @@ export async function acquireLock(file, { waitMs = 0, pollMs = 1000, staleMs = L
 /** Runs `node <args>` from the repo root with inherited stdio, under `timeoutMs` (SIGTERM, then SIGKILL after 10 s).
  * Resolves true on exit 0, false on any failure (never rejects).
  * @param {string[]} args
- * @param {{ timeoutMs: number, cwd?: string, env?: NodeJS.ProcessEnv, log?: (m: string) => void }} opts */
+ * @param {{ timeoutMs: number, cwd?: string, env?: NodeJS.ProcessEnv, log?: (m: string) => void }} opts
+ * @returns {Promise<boolean>} */
 export function runNode(args, { timeoutMs, cwd = ROOT, env = process.env, log = console.error }) {
   return new Promise((resolve) => {
+    /** @type {import('node:child_process').ChildProcess} */
     let child;
     try {
       child = spawn(process.execPath, args, { cwd, env, stdio: 'inherit' });
     } catch (err) {
-      log(`refresh: could not start ${args[0]}: ${err.message}`);
+      log(`refresh: could not start ${args[0]}: ${/** @type {Error} */ (err).message}`);
       resolve(false);
       return;
     }
+    /** @type {NodeJS.Timeout | null} */
     let killer = null;
     const timer = setTimeout(() => {
       log(`refresh: ${args[0]} timed out after ${Math.round(timeoutMs / 1000)} s`);
@@ -179,8 +197,11 @@ export function runNode(args, { timeoutMs, cwd = ROOT, env = process.env, log = 
 }
 
 /** The real steps (each resolves true on success): the Health import, the syncs, the plan validation + page build into `buildDir`,
- * the manuals into <site>/manuales. */
+ * the manuals into <site>/manuales.
+ * @param {{ buildDir: string, siteDir: string, stepTimeoutMs: number, manualsTimeoutMs: number, importTimeoutMs?: number, env?: Env }} opts
+ * @returns {RefreshSteps} */
 export function realSteps({ buildDir, siteDir, stepTimeoutMs, manualsTimeoutMs, importTimeoutMs = DEFAULTS.importTimeoutS * 1000, env = process.env }) {
+  /** @param {string[]} args @param {number} timeoutMs */
   const run = (args, timeoutMs) => runNode(args, { timeoutMs, env });
   return {
     import: () => run(['scripts/import-health.mjs'], importTimeoutMs),
@@ -196,6 +217,9 @@ export function realSteps({ buildDir, siteDir, stepTimeoutMs, manualsTimeoutMs, 
 /**
  * One refresh pass for `seq` (see the header). `steps` = { import?, sync, generate, manuals }, async, each resolving true on
  * success (injected by the tests). Returns { ok, code?, skipped?, processedSeq? }.
+ * @param {{ seq?: number | null, siteDir: string, buildDir: string, steps: RefreshSteps, version?: string, waitLock?: boolean,
+ *   lockWaitMs?: number, lockFile?: string, lockTouchMs?: number, now?: () => Date, log?: (m: string) => void }} opts
+ * @returns {Promise<RefreshResult>}
  */
 export async function refresh({
   seq = null,
@@ -210,13 +234,14 @@ export async function refresh({
   now = () => new Date(),
   log = (m) => console.error(`refresh: ${m}`),
 }) {
+  /** @param {string} code @param {number} at @param {string} message @returns {RefreshResult} */
   const fail = (code, at, message) => {
     log(message);
     const published = readPublished(siteDir);
     try {
       writeStatus(siteDir, { ...(published || {}), error: code, errorSeq: at });
     } catch (err) {
-      log(`could not write status.json: ${err.message}`);
+      log(`could not write status.json: ${/** @type {Error} */ (err).message}`);
     }
     return { ok: false, code };
   };
@@ -243,7 +268,7 @@ export async function refresh({
       fs.copyFileSync(out, tmp);
       fs.renameSync(tmp, path.join(siteDir, 'index.html'));
     } catch (err) {
-      return fail('sanity', start, `copy to site failed (${err.message}), keeping previous page`);
+      return fail('sanity', start, `copy to site failed (${/** @type {Error} */ (err).message}), keeping previous page`);
     }
 
     const processedSeq = Math.max(readPublished(siteDir)?.processedSeq ?? 0, start);
@@ -251,7 +276,7 @@ export async function refresh({
     try {
       writeStatus(siteDir, { publishedAt, commit: version, processedSeq });
     } catch (err) {
-      log(`could not write status.json: ${err.message}`);
+      log(`could not write status.json: ${/** @type {Error} */ (err).message}`);
       return { ok: false, code: null };
     }
     log(`published ${publishedAt} (processedSeq ${processedSeq}, version ${version})`);
@@ -272,7 +297,7 @@ Syncs, builds the personal page and publishes it into HC_SITE_DIR with status.js
 Env: HC_SITE_DIR (required), HC_BUILD_DIR, HC_VERSION, HC_IMPORT_TIMEOUT (default 1800), HC_REFRESH_STEP_TIMEOUT, HC_REFRESH_MANUALS_TIMEOUT,
 HC_REFRESH_LOCK_WAIT (seconds); the syncs read INGEST_URL / INGEST_TOKEN, the build HC_DATA_DIR.`;
 
-/** A positive whole number of seconds from env `name`, else `def`. */
+/** A positive whole number of seconds from env `name`, else `def`. @param {Env} env @param {string} name @param {number} def */
 export function secondsEnv(env, name, def) {
   const raw = env[name];
   if (raw === undefined || String(raw).trim() === '') return def;

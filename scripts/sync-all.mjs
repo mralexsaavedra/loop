@@ -53,7 +53,8 @@ const SHORTCUT = path.join(ROOT, 'data', 'apple-health', 'sync-shortcut.mjs');
 const DOCUMENTS = SCRIPTS[0];
 
 /** The argv each script gets from sync-all's own flags: --full is the Shortcut sync's (every script parses
- * its flags strictly, so an unknown one would fail it). */
+ * its flags strictly, so an unknown one would fail it).
+ * @param {{ full?: boolean }} [opts] @returns {(script: string) => string[]} */
 export function scriptArgs ({ full = false } = {}) {
   return (script) => (full && script === SHORTCUT ? ['--full'] : []);
 }
@@ -64,6 +65,8 @@ export function scriptArgs ({ full = false } = {}) {
  * earlier failures, and returns 0 only if every one of them exited 0. `args` is one argv for every
  * script, or a function script -> argv. `spawn` is injected for testing (defaults to `spawnSync`
  * with inherited stdio).
+ * @param {string[]} scripts @param {string[] | ((script: string) => string[])} args
+ * @param {(cmd: string, args: string[]) => { status: number | null } | null | undefined} spawn
  */
 export function runAll (scripts, args, spawn) {
   let exitCode = 0;
@@ -74,6 +77,7 @@ export function runAll (scripts, args, spawn) {
   return exitCode;
 }
 
+/** @param {string} cmd @param {string[]} spawnArgs */
 function realSpawn (cmd, spawnArgs) {
   return spawnSync(cmd, spawnArgs, { stdio: 'inherit' });
 }

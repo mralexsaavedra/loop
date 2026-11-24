@@ -13,8 +13,10 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { dataPaths, DATA_DIR_ENV, FILES_DIR_ENV } from '../../lib/paths.mjs';
 
-/** `p` with its longest existing prefix resolved through realpath (a symlink into the clone counts as inside). */
+/** `p` with its longest existing prefix resolved through realpath (a symlink into the clone counts as inside).
+ * @param {string} p */
 function realish(p) {
+  /** @type {string[]} */
   const rest = [];
   let cur = path.resolve(p);
   for (;;) {
@@ -29,7 +31,8 @@ function realish(p) {
   }
 }
 
-/** The folder relative to the clone ('' = the clone itself), or null when it is outside. */
+/** The folder relative to the clone ('' = the clone itself), or null when it is outside.
+ * @param {string} repoRoot @param {string} dir */
 function insideRel(repoRoot, dir) {
   const rel = path.relative(realish(repoRoot), realish(dir));
   return rel.startsWith('..') || path.isAbsolute(rel) ? null : rel;

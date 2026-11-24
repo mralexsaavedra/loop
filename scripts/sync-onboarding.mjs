@@ -20,13 +20,15 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 /** The folder onboarding.json lands in (lib/paths.mjs: data/profile, or <HC_DATA_DIR>/profile). */
 export const defaultOut = (env = process.env) => dataPaths({ repoRoot: ROOT, env }).profileDir;
 
+/** @param {string} baseUrl @param {{ fetchImpl?: typeof fetch, timeoutMs?: number }} [opts] */
 async function fetchProfile(baseUrl, { fetchImpl = fetch, timeoutMs = 10000 } = {}) {
   try {
     return await fetchJson(`${baseUrl}/food/profile`, null, {
       fetchImpl, timeoutMs, headers: { 'x-hc-food': '1', accept: 'application/json' }, redirect: 'error',
     });
   } catch (err) {
-    if (err.status === 404) err.message += ' (rebuild the loop-ingest container)';
+    const e = /** @type {import('./lib/sync-common.mjs').SyncError} */ (err);
+    if (e.status === 404) e.message += ' (rebuild the loop-ingest container)';
     throw err;
   }
 }
@@ -38,7 +40,7 @@ export async function main({ env = process.env, log = console.log, warn = consol
   try {
     doc = normalizeOnboarding(await fetchProfile(base, { fetchImpl }));
   } catch (err) {
-    warn(`WARNING: onboarding sync skipped (${err.message}); the previous ${ONBOARDING_JSON} is kept`);
+    warn(`WARNING: onboarding sync skipped (${/** @type {Error} */ (err).message}); the previous ${ONBOARDING_JSON} is kept`);
     return 0;
   }
   if (doc === null) {
@@ -58,7 +60,7 @@ export async function main({ env = process.env, log = console.log, warn = consol
     log(`Onboarding: written -> ${displayPath(ROOT, file)}`);
     return 0;
   } catch (err) {
-    warn(`ERROR: onboarding sync could not write ${ONBOARDING_JSON} (${err.message})`);
+    warn(`ERROR: onboarding sync could not write ${ONBOARDING_JSON} (${/** @type {Error} */ (err).message})`);
     return 1;
   }
 }

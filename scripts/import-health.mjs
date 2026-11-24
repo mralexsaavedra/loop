@@ -48,20 +48,27 @@ const WORK_MAX_AGE_MS = 6 * 3600_000;
 const WORK_RE = /^export\.xml\.(\d+)\.tmp$/;
 const DEFAULT_MAX_BYTES = 10 * 1024 ** 3;
 
+/** @typedef {import('./lib/zip.mjs').ZipEntry} ZipEntry */
+/** An error something threw while importing (an ImportError, a ZipError, an fs error...). @typedef {(Error & { code?: string }) | null | undefined} Thrown */
+
 class ImportError extends Error {
+  /** @param {string} code @param {string} message */
   constructor(code, message) {
     super(message);
     this.code = code;
   }
 }
 
+/** @param {string} s */
 const fold = (s) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase();
-const base = (name) => name.split('/').pop();
+/** @param {string} name */
+const base = (name) => /** @type {string} */ (name.split('/').pop()); // split always yields one part
 
 /** The export entry of a Health zip's entries, or null: `export.xml` / `exportación.xml` (accent- and
  * case-insensitive) at the top or one folder down; else the ONLY other .xml there besides export_cda.xml (an iPhone
  * in another language); never a workout route. Two exact matches (export.xml AND exportación.xml, or the same name
- * twice) are ambiguous: null, never first-wins. */
+ * twice) are ambiguous: null, never first-wins.
+ * @param {ZipEntry[]} entries @returns {ZipEntry | null} */
 export function exportEntry(entries) {
   const xml = entries.filter((e) => {
     const parts = e.name.split('/');
@@ -72,8 +79,10 @@ export function exportEntry(entries) {
   return xml.length === 1 ? xml[0] : null;
 }
 
-/** The newest *.zip or export.xml (by mtime, then name) in `dir`: { file, kind: 'zip' | 'xml', size, mtimeMs } or null. */
+/** The newest *.zip or export.xml (by mtime, then name) in `dir`: { file, kind: 'zip' | 'xml', size, mtimeMs } or null.
+ * @param {string} dir */
 export function newestCandidate(dir) {
+  /** @type {{ file: string, kind: 'zip' | 'xml', size: number, mtimeMs: number } | null} */
   let best = null;
   for (const name of fs.readdirSync(dir)) {
     if (name.startsWith('.')) continue;
@@ -90,7 +99,7 @@ export function newestCandidate(dir) {
   return best;
 }
 
-/** @param {string} file @param {(chunk: Buffer) => void} [onChunk] */
+/** @param {string} file @param {(chunk: Buffer) => void} [onChunk] @returns {Promise<string>} */
 function sha256File(file, onChunk) {
   return new Promise((resolve, reject) => {
     const h = createHash('sha256');
@@ -115,6 +124,8 @@ function recordScanner() {
   return s;
 }
 
+/** The import state (untrusted JSON: each field is checked where it is read); {} when missing or broken.
+ * @param {string} file @returns {Record<string, any>} */
 function readState(file) {
   try {
     const s = JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -124,17 +135,20 @@ function readState(file) {
   }
 }
 
+/** @param {string} file @param {Record<string, unknown>} state */
 function writeState(file, state) {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   writeAtomic(file, JSON.stringify(state, null, 2) + '\n');
 }
 
+/** @param {number} pid */
 function isAlive(pid) {
-  try { process.kill(pid, 0); return true; } catch (err) { return err.code !== 'ESRCH'; }
+  try { process.kill(pid, 0); return true; } catch (err) { return /** @type {NodeJS.ErrnoException} */ (err).code !== 'ESRCH'; }
 }
 
 /** Removes work files a killed import left: its pid is gone, it is our own pid (a restarted container reuses pids)
- * or it is older than WORK_MAX_AGE_MS. */
+ * or it is older than WORK_MAX_AGE_MS.
+ * @param {string} dir @param {number} [now] */
 function removeStaleWork(dir, now = Date.now()) {
   let names;
   try { names = fs.readdirSync(dir); } catch { return; }
@@ -149,7 +163,7 @@ function removeStaleWork(dir, now = Date.now()) {
   }
 }
 
-/** True when the last 64 KiB of `file` hold the closing </HealthData>. */
+/** True when the last 64 KiB of `file` hold the closing </HealthData>. @param {string} file */
 function hasClosingTag(file) {
   const fd = fs.openSync(file, 'r');
   try {
@@ -164,9 +178,11 @@ function hasClosingTag(file) {
 }
 
 // the running extract child and work file, so a SIGTERM (refresh.mjs's import timeout) can stop and clean them
+/** @type {{ child: import('node:child_process').ChildProcess | null, work: string | null }} */
 const running = { child: null, work: null };
 
-/** node extract.mjs --source <file>: its counts are re-printed by the caller, its errors go to stderr. */
+/** node extract.mjs --source <file>: its counts are re-printed by the caller, its errors go to stderr.
+ * @param {string} source @param {Record<string, string | undefined>} env @returns {Promise<number | null>} */
 function runExtract(source, env) {
   const childEnv = { ...env };
   delete childEnv.EXTRACT_DIR; // the test hook would move the output away from the data root
@@ -178,6 +194,7 @@ function runExtract(source, env) {
   });
 }
 
+/** @param {number} n */
 const mb = (n) => (n / 1024 / 1024).toFixed(1);
 
 /** The command; returns the exit code.
@@ -185,6 +202,7 @@ const mb = (n) => (n / 1024 / 1024).toFixed(1);
  * @param {{ env?: Record<string, string | undefined>, log?: (m: string) => void, error?: (m: string) => void, now?: () => Date }} [deps] */
 export async function main({ force = false } = {}, { env = process.env, log = console.log, error = console.error, now = () => new Date() } = {}) {
   const paths = dataPaths({ repoRoot: ROOT, env });
+  /** @param {string} p */
   const shown = (p) => displayPath(ROOT, p);
   const guard = dataRootGuardError({ repoRoot: ROOT, env });
   if (guard) {
@@ -226,6 +244,7 @@ export async function main({ force = false } = {}, { env = process.env, log = co
   if (!force && state.sha256 === sha256) return skip(sha256);
 
   const started = Date.now();
+  /** @type {string | null} */
   let work = null;
   try {
     let source = cand.file;
@@ -241,7 +260,7 @@ export async function main({ force = false } = {}, { env = process.env, log = co
       try {
         await extractEntry(cand.file, entry, work, { maxBytes, onChunk: scan.push });
       } catch (err) {
-        throw err?.code === 'too-large' ? overCap() : err;
+        throw /** @type {Thrown} */ (err)?.code === 'too-large' ? overCap() : err;
       }
       source = work;
     }
@@ -255,13 +274,14 @@ export async function main({ force = false } = {}, { env = process.env, log = co
     const rows = Object.entries(next.rows).map(([k, n]) => `${k} ${n}`).join(', ');
     log(`${TAG}: ${name} (${mb(cand.size)} MB, sha256 ${sha256.slice(0, 12)}) imported in ${((Date.now() - started) / 1000).toFixed(1)} s: ${(meta.linesScanned ?? 0).toLocaleString('en')} lines, exportLastDate ${next.exportLastDate}; rows: ${rows}`);
     return 0;
-  } catch (err) {
+  } catch (thrown) {
+    const err = /** @type {Thrown} */ (thrown);
     const code = err instanceof ImportError || err?.code === 'corrupt' ? err.code : 'failed';
     const { lastError, ...good } = state;
     try {
       writeState(paths.importState, { ...good, lastError: { at: now().toISOString().replace(/\.\d{3}Z$/, 'Z'), file: name, sha256, code, message: String(err?.message ?? err) } });
     } catch (e) {
-      error(`${TAG}: could not record the error in ${shown(paths.importState)}: ${e.message}`);
+      error(`${TAG}: could not record the error in ${shown(paths.importState)}: ${/** @type {Error} */ (e).message}`);
     }
     error(`ERROR: ${TAG}: ${name}: ${err?.message ?? err}; the previous extract is kept`);
     return 1;

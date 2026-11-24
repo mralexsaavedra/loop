@@ -46,7 +46,9 @@ export const FIXTURES = {
   personal: path.join(ROOT, 'web', 'test', '.golden', 'bake-golden.personal.json'),
 };
 /** The committed (tracked) golden kinds, in report order. */
-export const TRACKED = ['example', 'empty', 'null'];
+export const TRACKED = /** @type {const} */ (['example', 'empty', 'null']);
+/** A differing JSON path (diffPaths); `expected` / `actual` only for a changed value.
+ * @typedef {{ path: string, kind: 'changed' | 'added' | 'removed', expected?: unknown, actual?: unknown }} Diff */
 
 /** The env a build of `kind` resolves ('example' | 'personal' | 'empty' = example with an empty extract dir |
  * 'null' = example with no extract dir); `root` = the clone whose data it reads (default: this checkout). */
@@ -55,13 +57,16 @@ function goldenEnv(kind, { emptyDir, root = ROOT } = {}) {
   // personal: the data root this process was given (lib/paths.mjs), like the page build
   const dataRoot = kind === 'personal' ? { [DATA_DIR_ENV]: process.env[DATA_DIR_ENV], [FILES_DIR_ENV]: process.env[FILES_DIR_ENV] } : {};
   const env = resolveEnv({ ...dataRoot, HC_REPO_ROOT: root, DATA_MODE: kind === 'personal' ? 'personal' : 'example', LOCALE: 'en' });
-  if (kind === 'empty') return { ...env, extractDir: emptyDir };
+  // trackedGoldens always passes emptyDir with 'empty'
+  if (kind === 'empty') return { ...env, extractDir: /** @type {string} */ (emptyDir) };
   if (kind === 'null') return { ...env, extractDir: null };
   return env;
 }
 
-/** Recursively sorted keys; JSON round trip first (undefined dropped, NaN -> null, like the page's bake). */
+/** Recursively sorted keys; JSON round trip first (undefined dropped, NaN -> null, like the page's bake).
+ * @param {unknown} value @returns {any} the canonical JSON value (any JSON shape) */
 export function canonical(value) {
+  /** @type {(v: any) => any} a parsed JSON value of any shape */
   const sort = (v) => {
     if (Array.isArray(v)) return v.map(sort);
     if (v && typeof v === 'object') return Object.fromEntries(Object.keys(v).sort().map((k) => [k, sort(v[k])]));
@@ -70,7 +75,8 @@ export function canonical(value) {
   return sort(JSON.parse(JSON.stringify(value)));
 }
 
-/** computeBakes(env) under the fixed clock + UTC, canonicalised (see the drops in the header). */
+/** computeBakes(env) under the fixed clock + UTC, canonicalised (see the drops in the header).
+ * @param {ReturnType<typeof goldenEnv>} env */
 function goldenBakes(env) {
   const tz = process.env.TZ;
   process.env.TZ = 'UTC';
@@ -97,8 +103,11 @@ export function trackedGoldens() {
   }
 }
 
-/** The differing JSON paths between two canonical values: [{path, kind}] (kind: changed | added | removed). */
+/** The differing JSON paths between two canonical values: [{path, kind}] (kind: changed | added | removed).
+ * @param {any} expected @param {any} actual canonical JSON values, any shape @param {string} [at] @param {Diff[]} [out]
+ * @returns {Diff[]} */
 export function diffPaths(expected, actual, at = '$', out = []) {
+  /** @param {unknown} v @returns {boolean} */
   const isObj = (v) => v !== null && typeof v === 'object';
   if (isObj(expected) && isObj(actual) && Array.isArray(expected) === Array.isArray(actual)) {
     const keys = new Set([...Object.keys(expected), ...Object.keys(actual)]);
@@ -114,8 +123,10 @@ export function diffPaths(expected, actual, at = '$', out = []) {
   return out;
 }
 
-/** A compact report: the count and the first `limit` paths; values only when `values` (never for personal data). */
+/** A compact report: the count and the first `limit` paths; values only when `values` (never for personal data).
+ * @param {string} name @param {Diff[]} diffs @param {{ limit?: number, values?: boolean }} [opts] */
 export function formatDiff(name, diffs, { limit = 20, values = true } = {}) {
+  /** @param {unknown} v */
   const short = (v) => { const s = JSON.stringify(v); return s === undefined ? 'undefined' : s.length > 80 ? s.slice(0, 77) + '...' : s; };
   const lines = [`${name}: ${diffs.length} differing path(s)${diffs.length > limit ? `, first ${limit}` : ''}:`];
   for (const d of diffs.slice(0, limit)) {
@@ -124,15 +135,19 @@ export function formatDiff(name, diffs, { limit = 20, values = true } = {}) {
   return lines.join('\n');
 }
 
+/** @param {string} file @param {unknown} value */
 const write = (file, value) => {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, JSON.stringify(value, null, 1) + '\n');
 };
+/** @param {string} file @returns {any} the parsed golden (canonical JSON) or null */
 const readJson = (file) => (fs.existsSync(file) ? JSON.parse(fs.readFileSync(file, 'utf8')) : null);
+/** @param {string} file @param {string} [root] */
 const rel = (file, root = ROOT) => path.relative(root, file);
 
 /** root = the clone holding the personal data and golden (--root; default this checkout). With a foreign
- * root nothing is written unless `update`: a missing golden there is exit 2. */
+ * root nothing is written unless `update`: a missing golden there is exit 2.
+ * @param {boolean} update @param {string} [root] */
 export function runPersonal(update, root = ROOT) {
   const foreign = path.resolve(root) !== ROOT;
   const planFile = dataPaths({ repoRoot: root }).documents.plan;
@@ -160,6 +175,7 @@ export function runPersonal(update, root = ROOT) {
   return 1;
 }
 
+/** @param {boolean} update */
 function runTracked(update) {
   const actual = trackedGoldens();
   let failed = 0;
@@ -184,9 +200,12 @@ Compares every build-time bake against its golden (example, empty, null; or the 
 
 /** argv (after the script) -> {update, personal, root} with root an absolute path or null (= this checkout),
  * {help} for --help / -h, or {error} for an unknown flag or stray argument, or when --root / --root= has no
- * directory or comes without --personal. Strict: a typo never silently runs the comparison instead. */
+ * directory or comes without --personal. Strict: a typo never silently runs the comparison instead.
+ * @param {string[]} args */
 export function parseArgs(args) {
-  let update = false, personal = false, help = false, root = null;
+  let update = false, personal = false, help = false;
+  /** @type {string | null} */
+  let root = null;
   for (let i = 0; i < args.length; i++) {
     const a = args[i];
     if (a === '--update') update = true;
@@ -214,6 +233,8 @@ if (isMain(import.meta.url)) {
     console.error(opts.error);
     process.exitCode = 2;
   } else {
-    process.exitCode = opts.personal ? runPersonal(opts.update, opts.root || ROOT) : runTracked(opts.update);
+    // neither help nor error: the {update, personal, root} result
+    const update = /** @type {boolean} */ (opts.update);
+    process.exitCode = opts.personal ? runPersonal(update, opts.root || ROOT) : runTracked(update);
   }
 }

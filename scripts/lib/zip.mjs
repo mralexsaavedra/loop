@@ -22,6 +22,7 @@ import { Readable, Transform } from 'node:stream';
 import { pipeline } from 'node:stream/promises';
 
 export class ZipError extends Error {
+  /** @param {string} message @param {'corrupt' | 'too-large'} [code] */
   constructor(message, code = 'corrupt') {
     super(message);
     this.code = code;
@@ -39,12 +40,14 @@ const MAX_CENTRAL_BYTES = 64 * 1024 * 1024;
 
 const utf8 = new TextDecoder('utf-8', { fatal: true });
 /** Entry names: UTF-8 when flagged OR when the bytes are valid UTF-8 (the iPhone omits the flag), else CP437-ish
- * latin1 (enough to match ASCII names). */
+ * latin1 (enough to match ASCII names).
+ * @param {Buffer} buf @param {number} flags */
 function decodeName(buf, flags) {
   if (flags & 0x800) return buf.toString('utf8');
   try { return utf8.decode(buf); } catch { return buf.toString('latin1'); }
 }
 
+/** Up to `length` bytes of `fd` at `position` (fewer at the end of the file). @param {number} fd @param {number} position @param {number} length */
 function readAt(fd, position, length) {
   const buf = Buffer.alloc(length);
   let done = 0;
@@ -56,13 +59,17 @@ function readAt(fd, position, length) {
   return done === length ? buf : buf.subarray(0, done);
 }
 
+/** @param {Buffer} b @param {number} at */
 const big = (b, at) => {
   const v = b.readBigUInt64LE(at);
   if (v > BigInt(Number.MAX_SAFE_INTEGER)) throw new ZipError('zip64 value out of range');
   return Number(v);
 };
 
-/** The entries of `file`, from its central directory. */
+/** A central directory entry. @typedef {{ name: string, method: number, flags: number, crc32: number,
+ *   compressedSize: number, size: number, localOffset: number }} ZipEntry */
+
+/** The entries of `file`, from its central directory. @param {string} file @returns {Promise<ZipEntry[]>} */
 export async function listZip(file) {
   const fd = fs.openSync(file, 'r');
   try {
@@ -132,6 +139,7 @@ export async function listZip(file) {
 }
 
 /** Streams `entry` of `file` into `dest` (created exclusively, mode 0600; the caller removes it on failure).
+ * @param {string} file @param {ZipEntry} entry @param {string} dest
  * @param {{ maxBytes?: number, onChunk?: (chunk: Buffer) => void }} [opts] */
 export async function extractEntry(file, entry, dest, opts = {}) {
   const { maxBytes = Infinity, onChunk } = opts;
@@ -172,7 +180,8 @@ export async function extractEntry(file, entry, dest, opts = {}) {
     else await pipeline(source, check, out);
   } catch (err) {
     if (err instanceof ZipError) throw err;
-    if (err && typeof err.code === 'string' && err.code.startsWith('Z_')) throw new ZipError(`${entry.name} does not inflate (${err.message})`);
+    const e = /** @type {{ code?: unknown, message?: string } | null | undefined} */ (err);
+    if (e && typeof e.code === 'string' && e.code.startsWith('Z_')) throw new ZipError(`${entry.name} does not inflate (${e.message})`);
     throw err;
   }
   if (written !== entry.size || (crc >>> 0) !== (entry.crc32 >>> 0)) {

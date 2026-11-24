@@ -36,36 +36,44 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 
 // Default: lib/paths.mjs foodlogDir (data/nutrition, or <HC_DATA_DIR>/foodlog).
 // SYNC_FOODLOG_OUT_DIR exists ONLY so the child-process tests can point main() at a tmp dir
+/** @typedef {import('../../scripts/lib/sync-common.mjs').SyncError} SyncError */
+/** One day of the summary, checked (lib/nutrition/foodlog.mjs daySummaries). @typedef {ReturnType<typeof import('../../lib/nutrition/foodlog.mjs').daySummaries>[number]} SummaryDay */
+/** @param {common.Env} env */
 const defaultOut = (env) => env.SYNC_FOODLOG_OUT_DIR || dataPaths({ repoRoot: path.resolve(__dirname, '..', '..'), env }).foodlogDir
 const CSV_FILE = 'foodlog-daily.csv'
 const META_FILE = 'foodlog-daily.meta.json'
 // copy of lib/nutrition/foodlog.mjs FOOD_LIMITS.summaryDaysMax (a test pins it equal)
 const DAYS_MAX = 120
-const GROUPS = ['breakfast', 'lunch', 'dinner', 'addon']
+const GROUPS = /** @type {const} */ (['breakfast', 'lunch', 'dinner', 'addon'])
+/** @type {ReadonlyArray<['p' | 'c' | 'f', string]>} */
 const MACROS = [['p', 'protein'], ['c', 'carbs'], ['f', 'fat']]
 const HEADER = ['date', 'kcal', 'protein_g', 'carbs_g', 'fat_g', 'entries', ...GROUPS, 'missing_macros']
 
+/** @param {unknown} v */
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v) && v >= 0
-const isCount = (v) => Number.isInteger(v) && v >= 0
+/** @param {unknown} v */
+const isCount = (v) => Number.isInteger(v) && /** @type {number} */ (v) >= 0
 
 /** {from, to}: DAYS_MAX days inclusive, ending on the local date of `now`. */
 function windowFor (now = new Date()) {
   return common.windowEndingOn(now, DAYS_MAX)
 }
 
-/** The GET /food/log/summary body reduced to the known per-day fields; throws when malformed. */
+/** The GET /food/log/summary body reduced to the known per-day fields; throws when malformed.
+ * @param {any} body the parsed response, untrusted: every field is checked here
+ * @returns {{ from: string, to: string, days: SummaryDay[] }} */
 function normalizeSummary (body) {
   if (!body || typeof body !== 'object' || !Array.isArray(body.days)) throw new Error('unexpected response shape (expected {from, to, days: [...]})')
   if (!isIsoDate(body.from)) throw new Error('unexpected from')
   if (!isIsoDate(body.to) || body.to < body.from) throw new Error('unexpected to')
   const seen = new Set()
-  const days = body.days.map((d) => {
+  const days = body.days.map((/** @type {any} */ d) => {
     if (!d || typeof d !== 'object') throw new Error('unexpected day')
     if (!isIsoDate(d.date) || d.date < body.from || d.date > body.to) throw new Error(`unexpected date ${JSON.stringify(d.date)}`)
     if (seen.has(d.date)) throw new Error(`duplicate date ${d.date}`)
     seen.add(d.date)
     if (!isNum(d.k)) throw new Error(`unexpected kcal on ${d.date}`)
-    const out = { date: d.date, k: d.k }
+    const out = /** @type {SummaryDay} */ ({ date: d.date, k: d.k }) // the other fields: set and checked below
     for (const [k, name] of MACROS) {
       if (d[k] !== null && !isNum(d[k])) throw new Error(`unexpected ${name} on ${d.date}`)
       out[k] = d[k]
@@ -83,17 +91,20 @@ function normalizeSummary (body) {
   return { from: body.from, to: body.to, days }
 }
 
+/** @param {SummaryDay} d */
 function dayRow (d) {
   const missing = MACROS.filter(([k]) => d.missing[k]).map(([, name]) => name).join(';')
   return [d.date, d.k, ...MACROS.map(([k]) => (d[k] == null ? '' : d[k])), d.n, ...GROUPS.map((k) => d.groups[k]), missing].join(',')
 }
 
-/** CSV text: HEADER + one row per day (rows are pre-formatted strings or day objects). */
+/** CSV text: HEADER + one row per day (rows are pre-formatted strings or day objects).
+ * @param {(string | SummaryDay)[]} days */
 function toCsv (days) {
   return [HEADER.join(','), ...days.map((d) => (typeof d === 'string' ? d : dayRow(d)))].join('\n') + '\n'
 }
 
-/** Previous CSV rows (raw lines) older than `from`; an unreadable / foreign file yields none. */
+/** Previous CSV rows (raw lines) older than `from`; an unreadable / foreign file yields none.
+ * @param {string} file @param {string} from @returns {string[]} */
 function olderRows (file, from) {
   let text
   try {
@@ -109,6 +120,7 @@ function olderRows (file, from) {
   }).sort()
 }
 
+/** @param {string} file @returns {any} the parsed JSON (untrusted) or null */
 function readJsonOrNull (file) {
   try {
     return JSON.parse(fs.readFileSync(file, 'utf8'))
@@ -117,7 +129,9 @@ function readJsonOrNull (file) {
   }
 }
 
-/** GET <base>/food/log/summary?from&to with the food layer's header; the HTTP status (if any) is kept on err.status. */
+/** GET <base>/food/log/summary?from&to with the food layer's header; the HTTP status (if any) is kept on err.status.
+ * @param {string} baseUrl @param {{ from: string, to: string }} window
+ * @param {{ fetchImpl?: typeof fetch, timeoutMs?: number }} [opts] */
 async function fetchSummary (baseUrl, { from, to }, { fetchImpl = fetch, timeoutMs = 15000 } = {}) {
   const qs = new URLSearchParams({ from, to })
   return common.fetchJson(`${String(baseUrl).replace(/\/+$/, '')}/food/log/summary?${qs}`, null, {
@@ -125,7 +139,8 @@ async function fetchSummary (baseUrl, { from, to }, { fetchImpl = fetch, timeout
   })
 }
 
-/** Writes the CSV + meta when the CSV changed or the stored fetchedAt is from an earlier UTC day. */
+/** Writes the CSV + meta when the CSV changed or the stored fetchedAt is from an earlier UTC day.
+ * @param {string} dir @param {unknown} body @param {{ now?: Date, writeAtomic?: typeof common.writeAtomic }} [opts] */
 function syncFoodlog (dir, body, { now = new Date(), writeAtomic = common.writeAtomic } = {}) {
   const s = normalizeSummary(body)
   fs.mkdirSync(dir, { recursive: true })
@@ -147,11 +162,15 @@ function syncFoodlog (dir, body, { now = new Date(), writeAtomic = common.writeA
 
 // A body the service sent but that is not the summary (non-JSON, or normalizeSummary rejected it): the
 // service was reached, so the warning says so instead of "could not read".
-function malformedWarning (err, baseUrl) {
+/** @param {unknown} thrown @param {string} baseUrl */
+function malformedWarning (thrown, baseUrl) {
+  const err = /** @type {SyncError | null | undefined} */ (thrown)
   return `WARNING: unexpected response from the food log at ${baseUrl} (${(err && err.message) || err}). ${CSV_FILE} kept.`
 }
 
-function warning (err, baseUrl) {
+/** @param {unknown} thrown @param {string} baseUrl */
+function warning (thrown, baseUrl) {
+  const err = /** @type {SyncError | null | undefined} */ (thrown)
   if (err && err.name === 'SyntaxError') return malformedWarning(err, baseUrl)
   const status = err && err.status
   if (status === 404) return `WARNING: the ingest service has no /food/log/summary — rebuild/restart the loop-ingest container. ${CSV_FILE} kept.`
@@ -191,7 +210,7 @@ async function main ({ env = process.env, log = console.log, error = console.err
     log(`Food log: ${r.days} logged day${r.days === 1 ? '' : 's'} in ${body.from}..${body.to}; ${r.written ? 'written' : 'unchanged'}`)
     return 0
   } catch (err) {
-    error(`ERROR: food log sync failed (${(err && err.message) || err}). The files are only ever replaced atomically.`)
+    error(`ERROR: food log sync failed (${(err && /** @type {Error} */ (err).message) || err}). The files are only ever replaced atomically.`)
     return 1
   }
 }

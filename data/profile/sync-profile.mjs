@@ -30,15 +30,20 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 // Default: lib/paths.mjs profileDir (data/profile, or <HC_DATA_DIR>/profile).
 // SYNC_PROFILE_OUT_DIR / INGEST_ENV_FILE exist ONLY so the child-process tests can point main()
 // at a disposable tmp dir / env file — unset in production.
+/** @typedef {import('../../scripts/lib/sync-common.mjs').SyncError} SyncError */
+/** @param {common.Env} env */
 const defaultOut = (env) => env.SYNC_PROFILE_OUT_DIR || dataPaths({ repoRoot: path.resolve(__dirname, '..', '..'), env }).profileDir
 const PROFILE_JSON = 'strava-profile.json'
 const AVATAR_FILE = 'avatar.jpg'
 const MAX_AVATAR_BYTES = 60 * 1024
 
+/** @param {unknown} v */
 const str = (v) => (typeof v === 'string' && v.trim() ? v.trim() : null)
+/** @param {unknown} v */
 const list = (v) => (Array.isArray(v) ? v : [])
 
-/** The /export/athlete body reduced to the fields the build reads (unknown keys dropped). */
+/** The /export/athlete body reduced to the fields the build reads (unknown keys dropped).
+ * @param {any} body the parsed response, untrusted: each field is checked or coerced here */
 function normalizeExport (body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw new Error('unexpected response shape (expected an object)')
   return {
@@ -59,11 +64,15 @@ function normalizeExport (body) {
   }
 }
 
+/** @typedef {ReturnType<typeof normalizeExport>} StravaSnapshot */
+
 /**
  * 'download' | 'keep' | 'remove'. No snapshot on the service yet (fetchedAt null) -> keep
  * whatever is on disk; a snapshot without a photo -> remove the old one. The decision compares
  * the URL the saved photo was actually downloaded from (`avatarSourceUrl`, set only after a
  * successful download), not the last profileMedium seen, so a failed download is retried.
+ * @param {{ next: StravaSnapshot, prev: { avatarSourceUrl?: unknown } | null, avatarExists: boolean }} state
+ * @returns {'download' | 'keep' | 'remove'}
  */
 function planAvatar ({ next, prev, avatarExists }) {
   if (!next.fetchedAt) return 'keep'
@@ -82,6 +91,7 @@ function planAvatar ({ next, prev, avatarExists }) {
 const AVATAR_HOSTS = ['dgalywyr863hv.cloudfront.net']
 const AVATAR_HOST_SUFFIXES = ['.strava.com']
 
+/** @param {unknown} value */
 function isAllowedAvatarUrl (value) {
   let u
   try {
@@ -94,7 +104,7 @@ function isAllowedAvatarUrl (value) {
   return AVATAR_HOSTS.includes(host) || AVATAR_HOST_SUFFIXES.some((s) => host.endsWith(s))
 }
 
-/** null when `buf` is an acceptable avatar, else the reason. */
+/** null when `buf` is an acceptable avatar, else the reason. @param {Buffer} buf */
 function checkAvatar (buf) {
   if (!buf || !buf.length) return 'empty image'
   if (buf.length > MAX_AVATAR_BYTES) return `too large (${buf.length} bytes, cap ${MAX_AVATAR_BYTES})`
@@ -103,6 +113,7 @@ function checkAvatar (buf) {
 }
 
 // JPEG (FF D8 FF) or PNG (89 50 4E 47); null otherwise
+/** @param {Buffer} buf */
 function imageKind (buf) {
   if (!buf || buf.length < 4) return null
   if (buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) return 'jpeg'
@@ -110,10 +121,12 @@ function imageKind (buf) {
   return null
 }
 
-/** Reads the body chunk by chunk and gives up (cancelling the stream) as soon as it passes `cap`. */
+/** Reads the body chunk by chunk and gives up (cancelling the stream) as soon as it passes `cap`.
+ * @param {Response} res @param {number} cap */
 async function readCapped (res, cap) {
   if (!res.body || typeof res.body.getReader !== 'function') throw new Error('avatar response has no body')
   const reader = res.body.getReader()
+  /** @type {Buffer[]} */
   const chunks = []
   let total = 0
   for (;;) {
@@ -129,6 +142,7 @@ async function readCapped (res, cap) {
   return Buffer.concat(chunks)
 }
 
+/** @param {string} url @param {{ fetchImpl?: typeof fetch, timeoutMs?: number }} [opts] */
 async function downloadAvatar (url, { fetchImpl = fetch, timeoutMs = 15000 } = {}) {
   if (!isAllowedAvatarUrl(url)) throw new Error('not an allowed Strava photo URL')
   const ctrl = new AbortController()
@@ -153,13 +167,14 @@ async function downloadAvatar (url, { fetchImpl = fetch, timeoutMs = 15000 } = {
     if (bad) throw new Error(bad)
     return buf
   } catch (err) {
-    if (err.name === 'AbortError') throw new Error(`avatar download timed out after ${timeoutMs / 1000} s`, { cause: err })
+    if (/** @type {Error} */ (err).name === 'AbortError') throw new Error(`avatar download timed out after ${timeoutMs / 1000} s`, { cause: err })
     throw err
   } finally {
     clearTimeout(timer)
   }
 }
 
+/** @param {string} file @returns {any} the parsed JSON (untrusted) or null */
 function readJsonOrNull (file) {
   try {
     return JSON.parse(fs.readFileSync(file, 'utf8'))
@@ -168,7 +183,8 @@ function readJsonOrNull (file) {
   }
 }
 
-/** Writes the snapshot (when changed) and settles the avatar. Returns a small report. */
+/** Writes the snapshot (when changed) and settles the avatar. Returns a small report.
+ * @param {string} dir @param {unknown} body @param {{ fetchImpl?: typeof fetch, writeAtomic?: typeof common.writeAtomic }} [opts] */
 async function syncProfile (dir, body, { fetchImpl = fetch, writeAtomic = common.writeAtomic } = {}) {
   const next = normalizeExport(body)
   fs.mkdirSync(dir, { recursive: true })
@@ -190,11 +206,12 @@ async function syncProfile (dir, body, { fetchImpl = fetch, writeAtomic = common
     avatarSourceUrl = null
   } else if (action === 'download') {
     try {
-      writeAtomic(avatarPath, await downloadAvatar(next.profileMedium, { fetchImpl }))
+      // profileMedium is set: planAvatar only downloads then
+      writeAtomic(avatarPath, await downloadAvatar(/** @type {string} */ (next.profileMedium), { fetchImpl }))
       avatar = 'downloaded'
       avatarSourceUrl = next.profileMedium
     } catch (err) {
-      avatar = `failed: ${err.message}`
+      avatar = `failed: ${/** @type {Error} */ (err).message}`
     }
   }
 
@@ -204,7 +221,9 @@ async function syncProfile (dir, body, { fetchImpl = fetch, writeAtomic = common
   return { profileWritten, avatar, bikes: next.bikes.length, shoes: next.shoes.length, devices: next.devices.length, gearScopeMissing: next.gearScopeMissing, snapshot: Boolean(next.fetchedAt) }
 }
 
-function errorMessage (err, baseUrl) {
+/** @param {unknown} thrown @param {string} baseUrl */
+function errorMessage (thrown, baseUrl) {
+  const err = /** @type {SyncError | null | undefined} */ (thrown)
   if (err && err.status === 404) return 'ERROR: ingest service has no /export/athlete — rebuild/restart the loop-ingest container. No files touched.'
   const cause = (err && err.cause && (err.cause.code || err.cause.message)) || (err && err.message)
   return `ERROR: could not read from the ingest service at ${baseUrl} (${cause}). Is it running? No files touched.`
@@ -237,7 +256,7 @@ async function main ({ env = process.env, log = console.log, error = console.err
   try {
     r = await syncProfile(outDir, body, { fetchImpl })
   } catch (err) {
-    error(`ERROR: profile sync failed (${(err && err.message) || err}). Files are only ever replaced atomically, so each one is either the previous or the new version.`)
+    error(`ERROR: profile sync failed (${(err && /** @type {Error} */ (err).message) || err}). Files are only ever replaced atomically, so each one is either the previous or the new version.`)
     return 1
   }
   log(`Profile: ${r.snapshot ? 'Strava snapshot' : 'no Strava snapshot yet'}; ${r.bikes} bike(s), ${r.shoes} shoe(s), ${r.devices} device(s); ${r.profileWritten ? 'written' : 'unchanged'}; avatar ${r.avatar}`)

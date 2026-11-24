@@ -7,7 +7,8 @@ import { fileURLToPath } from 'node:url';
 
 /** True when the module at `importMetaUrl` is the process entry point (`process.argv[1]`). Both sides go
  * through realpath, so a relative argv, a symlinked script or a symlinked directory still match; false
- * when argv[1] is missing or either path cannot be resolved. */
+ * when argv[1] is missing or either path cannot be resolved.
+ * @param {string} importMetaUrl */
 export function isMain(importMetaUrl) {
   const entry = process.argv[1];
   if (!entry) return false;
