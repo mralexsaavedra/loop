@@ -352,7 +352,7 @@ type DialParts = { fill?: string | null; mid?: { x: number; y: number } | null }
 
 
   /* ---- dials ---- */
-  var D = typeof DIALS === 'undefined' ? null : DIALS;
+  var D = (typeof DIALS === 'undefined' ? null : DIALS)!; // read only by dialsHtml() and its helpers, after its own guard
   // the past day Inicio shows (null = the viewer's today), set from HCDay before each dial render
   var DAY = typeof HCDay !== 'undefined' && HCDay ? HCDay : null;
   var VIEW: string | null = null;

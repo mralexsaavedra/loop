@@ -253,7 +253,7 @@ type RingTarget = { k: number; p: number; c: number; g: number; fatMax: number; 
     if (lan) return null;
     var I = typeof INTAKE === 'undefined' || !INTAKE ? null : INTAKE;
     var L = I && I.latest;
-    return L && L.date === todayIso() && L.k > 0 ? L : null;
+    return L && L.date === todayIso() && (L.k as number) > 0 ? L : null;
   }
   function pctOf(v: number, t: number) { return Math.round(Math.min(1, Math.max(0, v / t)) * 100); }
   // The kcal ring = the Inicio dial language: the full ring baked as NUTRI_ARC (view/dial.mjs

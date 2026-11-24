@@ -26,6 +26,9 @@ import type { PageGlobals } from './page-globals';
 declare const I18N_INTAKE: PageGlobals['I18N_INTAKE'];
 declare const HC: PageGlobals['HC'];
 declare const INTAKE: PageGlobals['INTAKE'];
+// the day the rings show: INTAKE.latest (Apple Health, lib/nutrition/intake.mjs) or the page food log's day
+// totals (window.foodTotals / HCFood.recentDay), which add which macros are minimums and where they came from
+type DayIntake = { date: string; k: number | null; p: number | null; c: number | null; g: number | null; missing?: Record<string, boolean>; src?: string };
 
 (function () {
   var T = I18N_INTAKE;
@@ -65,7 +68,7 @@ declare const INTAKE: PageGlobals['INTAKE'];
   function render() {
     var host = document.getElementById('intake');
     if (!host) return;
-    var L = INTAKE.latest;
+    var L: DayIntake | null = INTAKE.latest;
     var F = window.HCFood, lan = lanReady();
     // the food API boot request is still in flight: no source yet, so no rings (never a flash of the
     // Apple Health day) — until it answers / fails (food-log.ts re-renders us) or the grace period ends
