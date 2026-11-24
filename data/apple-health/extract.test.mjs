@@ -402,3 +402,18 @@ test('--source <file> reads that export instead of <files>/import/export.xml (sc
     fs.rmSync(root, { recursive: true, force: true });
   }
 });
+
+test('a sleep or wrist-temperature <Record> missing its start / end date is skipped, never a crash of the whole extract', () => {
+  const x = runExtract([
+    '<Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Watch" startDate="2030-01-01 23:00:00 +0100" value="HKCategoryValueSleepAnalysisAsleepCore"/>',
+    '<Record type="HKQuantityTypeIdentifierAppleSleepingWristTemperature" sourceName="Watch" unit="degC" endDate="2030-01-02 07:00:00 +0100" value="0.2"/>',
+    '<Record type="HKCategoryTypeIdentifierSleepAnalysis" sourceName="Watch" startDate="2030-01-02 23:00:00 +0100" endDate="2030-01-03 07:00:00 +0100" value="HKCategoryValueSleepAnalysisAsleepCore"/>',
+    later('2030-01-05'),
+  ]);
+  try {
+    const sleep = x.read('sleep-daily.csv').trim().split('\n').slice(1);
+    assert.deepEqual(sleep.map((l) => l.split(',')[0]), ['2030-01-03'], 'only the complete night');
+  } finally {
+    x.cleanup();
+  }
+});

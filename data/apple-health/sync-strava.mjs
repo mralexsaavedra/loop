@@ -91,7 +91,8 @@ const FALLBACK_TYPE = 'Unmapped'
 
 /** @param {unknown} sportType @returns {string} */
 function translateType (sportType) {
-  return SPORT_TYPE_MAP[/** @type {string} */ (sportType)] || FALLBACK_TYPE
+  // own keys only: an inherited name ("toString", "__proto__") is not a sport type, as toRow already reads it
+  return Object.prototype.hasOwnProperty.call(SPORT_TYPE_MAP, /** @type {string} */ (sportType)) ? SPORT_TYPE_MAP[/** @type {string} */ (sportType)] || FALLBACK_TYPE : FALLBACK_TYPE
 }
 
 // An indoor ride (Strava's `trainer` flag, or a VirtualRide: Zwift & co.) is written as

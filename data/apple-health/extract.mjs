@@ -147,7 +147,11 @@ function handleRecord(line) {
       return cm != null && readings.waist.push({ date: d, value: +cm.toFixed(1), source: src });
     }
     // dated by the wake-up night (like sleep-daily.csv), not the sample's start date
-    case Q + 'AppleSleepingWristTemperature': return v != null && readings.wristTemp.push({ date: wristTempDate(/** @type {string} */ (attr(line, 'startDate')), attr(line, 'endDate')), value: +v.toFixed(2), source: src });
+    case Q + 'AppleSleepingWristTemperature': {
+      // a record without its start date is skipped (it cannot be dated), never a crash of the whole extract
+      const start = attr(line, 'startDate');
+      return v != null && start != null && readings.wristTemp.push({ date: wristTempDate(start, attr(line, 'endDate')), value: +v.toFixed(2), source: src });
+    }
     case Q + 'AppleExerciseTime':       return addMaxSrc(maxSrc.exercise, d, src, v);
     case Q + 'DistanceWalkingRunning':  return addMaxSrc(maxSrc.distance, d, src, v);
     case Q + 'FlightsClimbed':          return addMaxSrc(maxSrc.flights, d, src, v);
@@ -162,9 +166,9 @@ function handleRecord(line) {
       // every stage is kept: asleep ones build the night, Awake / InBed only add their stage columns
       const stage = sleepStage(attr(line, 'value'));
       if (!stage) return;
-      // every <Record> carries startDate, endDate and sourceName
-      const start = /** @type {string} */ (attr(line, 'startDate')), end = /** @type {string} */ (attr(line, 'endDate'));
-      if (!(minutesBetween(start, end) > 0)) return;
+      // a segment without its start or end date is skipped (it has no length), never a crash of the whole extract
+      const start = attr(line, 'startDate'), end = attr(line, 'endDate');
+      if (start == null || end == null || !(minutesBetween(start, end) > 0)) return;
       return sleepSegs.push({ start, end, source: /** @type {string} */ (src), stage });
     }
   }

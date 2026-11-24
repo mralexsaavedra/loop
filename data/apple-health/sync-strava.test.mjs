@@ -95,6 +95,11 @@ test('stalePowerWarning: rides with kJ but none carrying device_watts / start_ut
 
 // ---- sport_type -> type mapping table ----------------------------------------------------
 
+test('translateType reads only its own keys: an inherited name ("toString", "constructor", "__proto__") is unmapped', () => {
+  for (const t of ['toString', 'constructor', '__proto__', 'hasOwnProperty']) assert.equal(translateType(t), FALLBACK_TYPE, t);
+  assert.equal(translateType(undefined), FALLBACK_TYPE);
+});
+
 test('translateType maps known Strava sport types to the HealthKit-style type', () => {
   assert.equal(translateType('Run'), 'Running');
   assert.equal(translateType('TrailRun'), 'Running');

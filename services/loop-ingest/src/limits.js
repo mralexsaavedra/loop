@@ -8,12 +8,14 @@
  */
 /** @param {{ limit: number, windowMs: number, now?: () => number, maxKeys?: number }} opts */
 export function createWindowLimiter ({ limit, windowMs, now = Date.now, maxKeys = 1000 }) {
+  // fewer than one key could never make room: the first request would spin forever in prune()
+  if (!Number.isInteger(maxKeys) || maxKeys < 1) throw new RangeError(`createWindowLimiter: maxKeys must be a whole number >= 1, got ${maxKeys}`)
   /** @type {Map<string, { start: number, count: number }>} */
   const windows = new Map()
   /** @param {number} t */
   function prune (t) {
     for (const [k, w] of windows) if (t - w.start >= windowMs) windows.delete(k)
-    // the map is not empty here (size >= maxKeys >= 1), so the first key exists
+    // the map is not empty here (size >= maxKeys >= 1, checked above), so the first key exists
     while (windows.size >= maxKeys) windows.delete(/** @type {string} */ (windows.keys().next().value))
   }
   return {

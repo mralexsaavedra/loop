@@ -117,6 +117,8 @@ export function createOffClient ({
   cacheTtlMs = 24 * 3_600_000,
   cacheMax = 200
 } = {}) {
+  // fewer than one entry could never make room: remember() would spin forever
+  if (!Number.isInteger(cacheMax) || cacheMax < 1) throw new RangeError(`createOffClient: cacheMax must be a whole number >= 1, got ${cacheMax}`)
   const buckets = {
     search: createTokenBucket({ capacity: 10, perMs: 60_000, now }),
     product: createTokenBucket({ capacity: 100, perMs: 60_000, now })
@@ -138,7 +140,7 @@ export function createOffClient ({
   /** @param {string} key @param {CacheEntry} entry @param {number} ttl */
   function remember (key, entry, ttl) {
     cache.delete(key)
-    // the map is not empty here (size >= cacheMax >= 1), so the first key exists
+    // the map is not empty here (size >= cacheMax >= 1, checked above), so the first key exists
     while (cache.size >= cacheMax) cache.delete(/** @type {string} */ (cache.keys().next().value))
     cache.set(key, { ...entry, expires: now() + ttl })
   }
