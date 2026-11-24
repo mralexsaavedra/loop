@@ -36,8 +36,8 @@ type Series = { days: Record<string, DayScore>; avg: number | null; n: number; d
 type View = { head: { date: string; r: DayScore } | null; run: DayScore | null; sel: string | null; extra?: string };
 
 (function () {
-  var N = typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI;
-  var C = N && N.score ? N.score : null;
+  var N = (typeof NUTRI === 'undefined' || !NUTRI ? null : NUTRI)!;
+  var C = (N && N.score ? N.score : null)!;
   if (!C) return;
   var TS = (typeof I18N_SCORE !== 'undefined' && I18N_SCORE && I18N_SCORE.home ? I18N_SCORE.home.nscore : null)!;
   var TN = (typeof I18N_NUTRI !== 'undefined' && I18N_NUTRI ? I18N_NUTRI.score : null)!;

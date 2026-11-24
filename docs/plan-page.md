@@ -191,7 +191,10 @@ the monitor cards, the stress and energy days, the journal insights, each a unio
 the scripts' own checks narrow it; the scripts import those typedefs instead of keeping copies); `DETAIL` with
 `lib/detail/detail.mjs`'s `DetailBake` (`DetailMetric`: the common series fields + what each kind adds); `DIALS`,
 `DASH`, `INTAKE` and `ACTIVITY` with their builders' return types (`ACTIVITY` = `lib/training/activity.mjs`'s
-`activityBake` over its `Activity` typedef). The other baked data globals stay `any` until each gets its own type. A script reads a copy table through a guarded alias (`var T = (… ? null : I18N_X)!; if (!T) return;`): the
+`activityBake` over its `Activity` typedef); `HEALTH` with `lib/health/aggregate.mjs`'s section typedefs (each
+`{hasData: false}` or its data); `NUTRI` with `lib/nutrition/today.mjs`'s `buildNutriToday`, `FOOD_BASICS` with
+`buildBasics`, `NUTRI_ARC` and `TRAINING_META` with their literal shapes. The other baked data globals stay `any`
+until each gets its own type. A script reads a copy table through a guarded alias (`var T = (… ? null : I18N_X)!; if (!T) return;`): the
 `!` is type-only (esbuild drops it) and says what the guard already enforces, because the closures that read `T` are
 declared before the guard and TypeScript cannot carry its narrowing into them. Every client script is a module script now (the last, `util.ts`, sets `globalThis.HC` itself: once bundled into an IIFE its `var HC` is no longer a page global).
 

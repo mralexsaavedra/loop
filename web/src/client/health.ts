@@ -489,7 +489,7 @@ type RowFn = () => string;
       var lax = '<div class="waxis"><span>' + esc(fmtD(s[0].w)) + '</span><span>' + esc(fmtD(s[s.length - 1].w)) + '</span></div>';
       var bars = '<div class="lvr-card"><span class="dt-trend-lbl">' + esc(T.loadSec.heading) + '</span><div class="wbars">' + lbars + '</div>' + lax + '</div>';
       var rows: string[] = [];
-      var sp = LR.split || {};
+      var sp: { hrvHigh?: number | null; hrvLow?: number | null; rhrHigh?: number | null; rhrLow?: number | null } = LR.split || {};
       var C = T.loadCards;
       if (sp.hrvHigh != null && sp.hrvLow != null) rows.push(splitRow('hrv', C.hrvHighLbl, C.hrvLowLbl, sp.hrvHigh, sp.hrvLow, 'ms', 1));
       if (sp.rhrHigh != null && sp.rhrLow != null) rows.push(splitRow('rhr', C.rhrHighLbl, C.rhrLowLbl, sp.rhrHigh, sp.rhrLow, T.trend.rhr.unit, -1));
