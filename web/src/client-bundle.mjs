@@ -29,6 +29,9 @@ export function clientScriptSource(file) {
     platform: 'browser',
     charset: 'utf8',
     legalComments: 'none',
+    // a lib constant is `Object.freeze({...})`: pure, so one the page never reads is dropped with its module's
+    // other unused code (a freeze kept for its effect, lib/extract/read.mjs, is Node-only: never in a page bundle)
+    pure: ['Object.freeze'],
     write: false,
     logLevel: 'silent',
   });

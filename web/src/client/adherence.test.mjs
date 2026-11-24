@@ -7,7 +7,8 @@ import vm from 'node:vm';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { es as esN, en as enN } from '../i18n/nutri-templates.mjs';
-import { ADHERENCE, ADHERENCE_CASES, isComplete, dayState } from '../../../lib/nutrition/adherence.mjs';
+import { ADHERENCE, isComplete, dayState } from '../../../lib/nutrition/adherence.mjs';
+import { ADHERENCE_CASES } from '../../../lib/nutrition/adherence.cases.mjs';
 import { clientScriptSource } from '../client-bundle.mjs';
 
 // a module script: run the bytes the page inlines (web/src/client-bundle.mjs)

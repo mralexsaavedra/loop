@@ -24,9 +24,6 @@ import '../src/styles/detail.css';
 import '../src/styles/profile.css';
 import '../src/styles/food.css';
 import '../src/styles/journal.css';
-import { clientSource as fmtClientSource } from '../../lib/format/numbers.mjs';
-import { clientSource as bandClientSource } from '../../lib/score/recovery.mjs';
-import { clientSource as nutriClientSource } from '../../lib/nutrition/client.mjs';
 import { CLIENT_SCRIPTS } from '../src/client/manifest.mjs';
 // the raw source of every client script, keyed by path; inlined in CLIENT_SCRIPTS order below (the
 // markup keeps </body> on the map's line: a line break after an expression renders as a space)
@@ -194,6 +191,5 @@ const textFontFace = `@font-face{font-family:"HC Text";src:url(${textFontUrl}) f
     </div>
     <slot name="overlay" />
     <script is:inline set:html={navSource} />
-    <script is:inline set:html={slimScript(fmtClientSource() + '\n' + bandClientSource() + '\n' + nutriClientSource())} />
     {CLIENT_SCRIPTS.map(({ file }) => <script is:inline set:html={slimScript(clientScript(file))} />)}</body>
 </html>

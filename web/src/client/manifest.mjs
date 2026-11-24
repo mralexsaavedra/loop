@@ -13,6 +13,11 @@
  *   so the reader falls back now and the later script calls back (intakeRefresh, HCNutri.render…).
  * Adding a script: add it here at its place; the test names any missing require or provide. */
 export const CLIENT_SCRIPTS = [
+  {
+    file: 'lib-globals.ts',
+    provides: ['HC_FMT', 'HC_BAND', 'HC_ADH', 'HC_PROG', 'HC_NSCORE', 'HC_FOODLOG', 'HC_DAYTYPE', 'HC_FUEL', 'HC_SCALE', 'HC_GUIDE', 'HC_ENERGY'],
+    requires: [],
+  },
   { file: 'util.ts', provides: ['HC', 'HCViews'], requires: ['HC_CONST', 'HC_FMT'] },
   {
     file: 'core.ts',

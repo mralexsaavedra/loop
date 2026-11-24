@@ -1,9 +1,9 @@
 /* The shapes of the page globals the module client scripts (*.ts) read: HC, LOCALE, the copy tables (I18N_*) and
  * SCORES / DETAIL / DIALS / DASH / INTAKE / ACTIVITY / HEALTH / NUTRI / FOOD_BASICS (from their builders), NUTRI_ARC,
  * TRAINING_META, PROFILE, NAV and FOOD_CONST are typed; TRAINING (lib/training/program.mjs) and
- * the HC_* globals (the lib functions classicGlobal emits, lib/nutrition/client.mjs) too. */
-/** A classic global lib/format/numbers.mjs classicGlobal emits from a module's `CLIENT` descriptor: its public
- * constants and functions (`hidden` constants are declared inside, never returned). */
+ * the HC_* globals (the lib CLIENT descriptors web/src/client/lib-globals.ts publishes) too. */
+/** A lib global web/src/client/lib-globals.ts publishes from a module's `CLIENT` descriptor: its public
+ * constants and functions (`hidden` constants are the module's own, never exposed). */
 type ClientOf<C extends { consts?: object; fns?: object }> = C['consts'] & C['fns'];
 /** A copy table the scripts also index by a runtime key (a kind, a range, a metric): each nested table keeps its
  * named keys and also takes any string key (an unknown key reads `undefined` at runtime, as before). */
@@ -26,7 +26,7 @@ export type PageGlobals = {
   TRAINING: Record<string, import('../../../lib/training/program.mjs').ProgramSession>;
   I18N_SCORE: Copy<typeof import('../i18n/score-templates.mjs')>;
   I18N_SYNC: Copy<typeof import('../i18n/sync-templates.mjs')>;
-  HC_BAND: Pick<typeof import('../../../lib/score/recovery.mjs'), 'PCT_GOOD' | 'PCT_LOW' | 'pctBand'>;
+  HC_BAND: ClientOf<typeof import('../../../lib/score/recovery.mjs')['CLIENT']>;
   DASH: ReturnType<typeof import('../bakes.mjs').computeBakes>['dash'];
   I18N_DASH: Copy<typeof import('../i18n/dash-templates.mjs')>;
   I18N_DETAIL: Copy<typeof import('../i18n/detail-templates.mjs')>;
@@ -42,7 +42,7 @@ export type PageGlobals = {
   /** computeBakes' profile (lib/profile/read.mjs loadProfile + the goal options) with `photo` reduced to a flag (Avatar.astro). */
   PROFILE: Omit<ReturnType<typeof import('../bakes.mjs').computeBakes>['profile'], 'photo'> & { photo: boolean };
   ACTIVITY: ReturnType<typeof import('../../../lib/training/activity.mjs').activityBake>;
-  HC_FMT: Pick<typeof import('../../../lib/format/numbers.mjs'), 'DASH' | 'toNum' | 'groupDigits' | 'localise' | 'fmtNumber' | 'fmtInt' | 'fmtRaw' | 'fmtPercent' | 'fmtMinutes' | 'fmtHours' | 'fmtPlain'>;
+  HC_FMT: ClientOf<typeof import('../../../lib/format/numbers.mjs')['CLIENT']>;
   HC_ENERGY: ClientOf<typeof import('../../../lib/nutrition/energy.mjs')['CLIENT']>;
   I18N_ACTIVITY: Lookup<Omit<typeof import('../i18n/activity-templates.mjs')['en'], 'head'>>; // Bake drops `head`
   I18N_ONB: Copy<typeof import('../i18n/onboarding-templates.mjs')>;
