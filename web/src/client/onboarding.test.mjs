@@ -178,6 +178,20 @@ test('each screen refuses a missing / out-of-range answer and stays (inline erro
   assert.match(s.html(), /Weight between 30 and 250 kg/);
 });
 
+test('going back to a body answer and clearing it never reaches the targets: the next Continue refuses it again', () => {
+  const s = setup();
+  s.act('next'); s.act('next'); s.act('next');
+  s.choose('sex', 'male'); s.act('next');
+  s.field('birthdate', '1990-01-01'); s.act('next');
+  s.field('heightCm', '180'); s.act('next');
+  assert.match(s.html(), /data-onb-field="weightKg"/);
+  s.act('back');
+  assert.match(s.html(), /data-onb-field="heightCm"/);
+  s.field('heightCm', ''); s.act('next');
+  assert.match(s.html(), /Height between 120 and 230 cm/, 'a cleared height is refused, so computeTargets never sees a null height');
+  assert.match(s.html(), /data-onb-field="heightCm"/);
+});
+
 test('sports: every SPORTS key is a card; none picked is refused; each pick gets its own session screen', () => {
   const s = setup();
   toSports(s);
