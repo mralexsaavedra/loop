@@ -188,3 +188,12 @@ test('a reorder that un-ignores a file on disk (no line dropped, no ! added) is 
     assert.match(c.stderr, /old\.bak/);
   } finally { r.cleanup(); }
 });
+
+test('a git check-ignore that did not finish (killed by a signal: no status) fails the guard closed', async () => {
+  const { checkIgnoreResult } = await import('./precommit-guard.mjs');
+  assert.deepEqual(checkIgnoreResult({ status: 0, stdout: 'a\0b\0', stderr: '' }), ['a', 'b'], 'matches listed');
+  assert.deepEqual(checkIgnoreResult({ status: 1, stdout: '', stderr: '' }), [], 'exit 1 = nothing ignored');
+  assert.throws(() => checkIgnoreResult({ status: 128, stdout: '', stderr: 'fatal: x' }), /git check-ignore failed: fatal: x/);
+  assert.throws(() => checkIgnoreResult({ status: null, signal: 'SIGKILL', stdout: '', stderr: '' }), /git check-ignore failed/,
+    'no exit status is never "nothing ignored"');
+});

@@ -83,13 +83,22 @@ function materialiseRules(cwd, from = 'HEAD') {
   return { dir, env };
 }
 
+/** A `git check-ignore -z` run -> the paths it matched. Exit 0 = some matched, 1 = none; anything else, and a
+ * run with no exit status (killed by a signal), is a failure that throws: the guard then refuses the commit
+ * (fails closed) instead of reading "nothing ignored".
+ * @param {{status: number | null, stdout: string, stderr: string, signal?: string | null}} r @returns {string[]} */
+export function checkIgnoreResult(r) {
+  if (r.status !== 0 && r.status !== 1) {
+    throw new Error(`git check-ignore failed: ${r.status === null ? `killed by ${r.signal || 'a signal'}` : r.stderr.trim()}`);
+  }
+  return r.stdout.split('\0').filter(Boolean);
+}
+
 /** The `paths` a scratch rules repo ignores (git check-ignore --no-index).
  * @param {Rules} rules @param {string[]} paths @returns {string[]} */
 function ignoredBy(rules, paths) {
   if (paths.length === 0) return [];
-  const r = git(rules.dir, ['check-ignore', '--no-index', '--stdin', '-z'], paths.join('\0') + '\0', rules.env);
-  if ((r.status ?? 0) > 1) throw new Error(`git check-ignore failed: ${r.stderr.trim()}`);
-  return r.stdout.split('\0').filter(Boolean);
+  return checkIgnoreResult(git(rules.dir, ['check-ignore', '--no-index', '--stdin', '-z'], paths.join('\0') + '\0', rules.env));
 }
 
 /** Runs `fn(rules)` on HEAD's (or the index's) materialised rules, then removes the scratch repo.
