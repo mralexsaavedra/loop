@@ -1,6 +1,7 @@
 /* Day view-model shared by the Mi día section and the Inicio "today you eat" card, so both show
  * the same numbers. Pure presentation glue over lib/nutrition/macros.mjs's buildNutrition()
  * result (mealMacros per meal, summed) — no new computation. */
+/** @param {import('../../../lib/nutrition/macros.mjs').Nutrition} nut @param {string} day */
 export function dayViewModel(nut, day) {
   const cfg = nut.DAYPLAN[day];
   const meals = cfg.meals.map((meal) => ({ meal, m: nut.mealMacros(meal) }));

@@ -22,18 +22,21 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const FIXTURE_PATH = path.join(ROOT, 'web', 'test', 'fixtures', 'css-expected.json');
 const BUILD_PATH = path.join(ROOT, 'web', '.test-dist', 'en-example', 'index.html');
 
+/** @param {string} html */
 function extractStyleCss(html) {
   const blocks = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]);
   if (blocks.length === 0) throw new Error('no <style> block found in the given HTML');
   return blocks.join('\n');
 }
 
-/** Declaration map (`${media}|||${selector}|||${prop}` → normalized value) of a built page. */
+/** Declaration map (`${media}|||${selector}|||${prop}` → normalized value) of a built page.
+ * @param {string} html */
 export function buildDeclarationMap(html) {
   return ruleDeclarationMap(parseCssRules(extractStyleCss(html)));
 }
 
 // Fixture keys predate the whitespace-minified CSS: canonicalize their selector part the same way.
+/** @param {string} key */
 function canonicalKey(key) {
   const [media, selector, prop] = key.split('|||');
   return `${media}|||${canonicalSelector(selector)}|||${prop}`;
@@ -43,8 +46,13 @@ function canonicalKey(key) {
  * Two-way comparison of the fixture (plain object) against the build's declaration map.
  * Returns one line per problem: MISSING (in the fixture, not in the CSS), MISMATCH (different
  * value) and EXTRA (in the CSS, not in the fixture). Keys in `allowlist` (canonical form) are skipped.
+ * @param {Record<string, string>} fixture
+ * @param {Map<string, string>} outputMap
+ * @param {Set<string>} [allowlist]
+ * @returns {string[]}
  */
 export function compareCss(fixture, outputMap, allowlist = new Set()) {
+  /** @type {string[]} */
   const problems = [];
   const seen = new Set();
   for (const [key, value] of Object.entries(fixture)) {
@@ -64,8 +72,11 @@ export function compareCss(fixture, outputMap, allowlist = new Set()) {
 /**
  * The regenerated fixture: existing keys in their order (value from the build), stale keys dropped,
  * new keys appended in build order. Returns `{ fixture, added, removed, changed }`.
+ * @param {Record<string, string>} fixture
+ * @param {Map<string, string>} outputMap
  */
 export function updateFixture(fixture, outputMap) {
+  /** @type {Record<string, string | undefined>} */
   const next = {};
   const seen = new Set();
   let removed = 0;
@@ -90,6 +101,7 @@ export function updateFixture(fixture, outputMap) {
   return { fixture: next, added, removed, changed };
 }
 
+/** @param {Record<string, string | undefined>} fixture */
 export function serializeFixture(fixture) {
   return JSON.stringify(fixture, null, 2) + '\n';
 }
@@ -103,15 +115,17 @@ Rewrites web/test/fixtures/css-expected.json from the example build (npm run pre
 /** The CLI: compare (or with `--check`, only check) the fixture against the build. `buildPath` and
  * `fixturePath` default to the real files and are injectable for tests. Returns the exit code:
  * 0 = up to date, rewritten or --help, 1 = `--check` found drift (nothing written), 2 = no build, or an
- * unknown flag / stray argument (parseCli, before anything is read). */
+ * unknown flag / stray argument (parseCli, before anything is read).
+ * @param {string[]} argv @param {{ buildPath?: string, fixturePath?: string }} [paths] */
 export function main(argv, { buildPath = BUILD_PATH, fixturePath = FIXTURE_PATH } = {}) {
   const cli = parseCli(argv, { usage: USAGE, options: { check: { type: 'boolean' } } });
+  // the casts keep the non-strict check (no discriminated narrowing without strictNullChecks) happy
   if (cli.exit != null) {
-    if (cli.exit) console.error(cli.err);
-    else console.log(cli.out);
+    if (cli.exit) console.error(/** @type {{ err: string }} */ (cli).err);
+    else console.log(/** @type {{ out: string }} */ (cli).out);
     return cli.exit;
   }
-  const check = !!(/** @type {{check?: boolean}} */ (cli.values)).check;
+  const check = !!(/** @type {{ values: { check?: boolean } }} */ (cli)).values.check;
   if (!fs.existsSync(buildPath)) {
     console.error(`update-css-fixture: missing ${path.relative(ROOT, buildPath)} — run \`npm run pretest\` first`);
     return 2;

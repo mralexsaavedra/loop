@@ -41,6 +41,7 @@ const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 export const DEMO_DIR = path.join(ROOT, 'data', 'demo', 'extract');
 
 // mulberry32: tiny, well-distributed, seedable (Math.random is not)
+/** @param {number} seed @returns {() => number} a draw in [0, 1) */
 export function prng(seed) {
   let a = seed >>> 0;
   return () => {
@@ -52,31 +53,41 @@ export function prng(seed) {
   };
 }
 
+/** @param {string} iso */
 const weekday = (iso) => new Date(iso + 'T00:00:00Z').getUTCDay(); // 0 = Sunday
+/** @param {number} v @param {number} d decimals */
 const fx = (v, d) => (Math.round(v * 10 ** d) / 10 ** d).toFixed(d);
+/** @param {string} header @param {string[]} rows */
 const csv = (header, rows) => [header, ...rows].join('\n') + '\n';
 
 const SRC = { watch: 'Demo Watch', phone: 'Demo Phone', scale: 'Demo Scale', tape: 'Demo Tape', strava: 'Demo Strava' };
 
 // weekly template (0 = Sunday): what the invented athlete does on each weekday
+/** @type {Record<number, 'gym' | 'run' | 'bike' | 'long' | null>} */
 const PLAN = { 0: null, 1: 'gym', 2: 'run', 3: 'gym', 4: 'bike', 5: 'gym', 6: 'long' };
 
-/** Pure: { 'file.csv': text } for the whole demo extract. */
+/** Pure: { 'file.csv': text } for the whole demo extract.
+ * @param {{ end?: string, days?: number, seed?: number }} [opts] @returns {Record<string, string>} */
 export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.days, seed = DEMO_DEFAULTS.seed } = {}) {
   const rnd = prng(seed);
+  /** @param {number} sd */
   const noise = (sd) => (rnd() + rnd() + rnd() - 1.5) * sd * 1.41; // ~N(0, sd), bounded
   const dates = Array.from({ length: days }, (_, i) => addDays(end, i - days + 1));
+  /** @type {Record<string, string>} */
   const out = {};
+  /** @param {number} i */
   const T = (i) => i / (days - 1); // 0 -> 1 across the window
 
   // ---- training -------------------------------------------------------------------------
-  const workouts = [], running = [], workMin = new Map();
+  const workouts = /** @type {string[]} */ ([]), running = /** @type {string[]} */ ([]), workMin = /** @type {Map<string, number>} */ (new Map());
   dates.forEach((date, i) => {
+    /** @type {string | null} */
     let kind = PLAN[weekday(date)];
     if (kind === 'long') kind = Math.floor(i / 7) % 2 ? 'longRide' : 'longRun';
     const deload = Math.floor(i / 7) % 6 === 5; // every sixth week is lighter
     if (!kind || rnd() < 0.08) return; // the odd missed session
     const k = deload ? 0.7 : 1;
+    /** @type {(string | number)[]} */
     let row;
     if (kind === 'gym') {
       const dur = (55 + noise(6)) * k, hr = 128 + noise(5);
@@ -97,7 +108,7 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
   out['running-daily.csv'] = csv('date,speed_kmh,power_w,gct_ms,vosc_cm,stride_m,samples', running);
 
   // ---- body -----------------------------------------------------------------------------
-  const weight = [], bodyfat = [], lean = [], waist = [];
+  const weight = /** @type {string[]} */ ([]), bodyfat = /** @type {string[]} */ ([]), lean = /** @type {string[]} */ ([]), waist = /** @type {string[]} */ ([]);
   dates.forEach((date, i) => {
     const w = 82.4 - 2.6 * T(i) + 0.35 * Math.sin(i / 3.1) + noise(0.25);
     if (rnd() < 0.72) weight.push(`${date},${fx(w, 2)},${SRC.scale}`);
@@ -114,9 +125,10 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
   out['waist.csv'] = csv(READING_HEADER, waist);
 
   // ---- recovery -------------------------------------------------------------------------
-  const hrv = [], rhr = [], vo2 = [], sleep = [], resp = [], temp = [], walk = [];
+  const hrv = /** @type {string[]} */ ([]), rhr = /** @type {string[]} */ ([]), vo2 = /** @type {string[]} */ ([]), sleep = /** @type {string[]} */ ([]), resp = /** @type {string[]} */ ([]), temp = /** @type {string[]} */ ([]), walk = /** @type {string[]} */ ([]);
   // sleep stages draw from their OWN stream, so adding them left every other demo series unchanged
   const srnd = prng(seed + 1);
+  /** @param {number} sd */
   const snoise = (sd) => (srnd() + srnd() + srnd() - 1.5) * sd * 1.41;
   dates.forEach((date, i) => {
     const hard = workMin.has(addDays(date, -1)) ? 1 : 0; // the morning after a session
@@ -147,7 +159,7 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
   out['walking-hr-daily.csv'] = csv('date,bpm', walk);
 
   // ---- activity + energy ----------------------------------------------------------------
-  const steps = [], exercise = [], distance = [], flights = [], active = [], basal = [], diet = [];
+  const steps = /** @type {string[]} */ ([]), exercise = /** @type {string[]} */ ([]), distance = /** @type {string[]} */ ([]), flights = /** @type {string[]} */ ([]), active = /** @type {string[]} */ ([]), basal = /** @type {string[]} */ ([]), diet = /** @type {string[]} */ ([]);
   dates.forEach((date, i) => {
     const wm = workMin.get(date) || 0;
     const st = Math.max(2500, 8800 + (weekday(date) === 0 ? -2500 : 0) + noise(1800));
@@ -178,6 +190,7 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
   const zrnd = prng(seed + 2);
   const stravaRows = workouts.map((l) => l.split(',')).filter((c) => c[7] === SRC.strava);
   const zMax = Math.max(...stravaRows.map((c) => Number(c[6])));
+  /** @type {Record<string, number[]>} */
   const SPLIT = { Running: [0.02, 0.05, 0.2, 0.45, 0.22, 0.06], Cycling: [0.05, 0.2, 0.45, 0.22, 0.07, 0.01] };
   const zoneRows = stravaRows.map((c, i) => {
     const w = SPLIT[c[1]].map((x) => x * (0.7 + zrnd() * 0.6));
@@ -196,6 +209,7 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
   const hrnd = prng(seed + 3);
   const gymDays = new Set(workouts.map((l) => l.split(',')).filter((c) => c[7] === SRC.watch).map((c) => c[0]));
   const actSec = new Map(zoneRows.map((l) => l.split(',')).map((c) => [c[0], Number(c[15])]));
+  /** @type {string[]} */
   const hourly = [];
   for (const date of dates.slice(-HR_DAYS)) {
     for (let h = 0; h < 24; h++) {
@@ -225,11 +239,14 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
   const jrnd = prng(seed + 4);
   // the 1.0.3 behaviours draw from their own stream, so the original nine keep their demo answers
   const jrnd2 = prng(seed + 41);
+  /** @type {import('../lib/journal/journal.mjs').JournalDayIn[]} */
   const journal = [];
   for (const date of dates.slice(-JOURNAL_DAYS)) {
     if (jrnd() < 0.12) continue;
     const wd = weekday(date), weekend = wd === 5 || wd === 6;
+    /** @param {number} p */
     const yes = (p) => jrnd() < p;
+    /** @param {number} p */
     const yes2 = (p) => jrnd2() < p;
     journal.push({ date, notes: null, answers: {
       caffeine_late: yes(0.3), nap: yes(weekend ? 0.4 : 0.15), mobility: yes(PLAN[wd] ? 0.25 : 0.8),
@@ -249,13 +266,16 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
   // ~1 day in 8 not logged, a looser weekend, a dinner left unlogged now and then, and a few days with
   // an entry lacking protein or fat (missing_macros: those sums are minimums). Its own PRNG.
   const frnd = prng(seed + 5);
+  /** @param {number} sd */
   const fnoise = (sd) => (frnd() + frnd() + frnd() - 1.5) * sd * 1.41;
+  /** @type {Record<string, number>} */
   const MEALS_K = { gym: 2700, run: 2700, bike: 2800, long: 2900 };
+  /** @type {string[]} */
   const food = [];
   for (const date of dates.slice(-FOOD_DAYS)) {
     if (frnd() < 0.12) continue;
     const wd = weekday(date), weekend = wd === 0 || wd === 6;
-    const kcalT = MEALS_K[PLAN[wd]] || 2300;
+    const kcalT = MEALS_K[/** @type {string} */ (PLAN[wd])] || 2300; // a rest day (null) has no entry
     const noDinner = frnd() < 0.08;
     const k = Math.round(kcalT * (1 + fnoise(weekend ? 0.16 : 0.1)) * (noDinner ? 0.7 : 1));
     const p = Math.max(40, 125 * (0.95 + fnoise(0.15)) * (noDinner ? 0.7 : 1));
@@ -279,7 +299,7 @@ Rewrites the synthetic demo extract data/demo/extract/ (deterministic).
   --days N          days of data, a whole number ${DAYS_RANGE[0]}-${DAYS_RANGE[1]} (default ${DEMO_DEFAULTS.days})
   --seed N          the PRNG seed, a whole number (default ${DEMO_DEFAULTS.seed})
   --help, -h        this text`;
-export const OPTIONS = { end: { type: 'string' }, days: { type: 'string' }, seed: { type: 'string' } };
+export const OPTIONS = /** @type {const} */ ({ end: { type: 'string' }, days: { type: 'string' }, seed: { type: 'string' } });
 
 /** Parsed flag strings -> makeDemoData options, or {error} for a bad value (checked before anything is written).
  * @param {{end?: string, days?: string, seed?: string}} [values]
@@ -316,4 +336,5 @@ export function main(values = {}, { dir = DEMO_DIR, log = console.log, error = c
   return 0;
 }
 
-if (isMain(import.meta.url)) runCli((values) => main(values), { usage: USAGE, options: OPTIONS });
+// the cast: without strictNullChecks parseArgs types a string option as string | string[]
+if (isMain(import.meta.url)) runCli((values) => main(/** @type {{end?: string, days?: string, seed?: string}} */ (values)), { usage: USAGE, options: OPTIONS });

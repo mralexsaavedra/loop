@@ -25,6 +25,7 @@ export const RANGES = [
   [0x25bc, 0x25bc],
 ];
 
+/** @param {number} n */
 const hex = (n) => n.toString(16).toUpperCase();
 
 /** Every character of the subset, as one string (the subsetter's input). */

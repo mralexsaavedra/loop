@@ -22,7 +22,7 @@ Copies the device manuals profile.json names from the gear folder into the LAN p
   --out <dir>       the published folder (default services/loop-web/site/manuales)
   --help, -h        this text`;
 
-export const OPTIONS = { profile: { type: 'string' }, gear: { type: 'string' }, out: { type: 'string' } };
+export const OPTIONS = /** @type {const} */ ({ profile: { type: 'string' }, gear: { type: 'string' }, out: { type: 'string' } });
 
 /** The CLI after its flags are parsed; `publish` is injectable for tests. Returns the exit code.
  * @param {{profile?: string, gear?: string, out?: string}} [values] */
@@ -44,9 +44,10 @@ export function main({ profile, gear, out } = {}, { publish = publishManuals, lo
     }
     return 0;
   } catch (err) {
-    error(`ERROR: device manuals not published: ${err.message}`);
+    error(`ERROR: device manuals not published: ${/** @type {Error} */ (err).message}`);
     return 1;
   }
 }
 
-if (isMain(import.meta.url)) runCli((values) => main(values), { usage: USAGE, options: OPTIONS });
+// the cast: without strictNullChecks parseArgs types a string option as string | string[]
+if (isMain(import.meta.url)) runCli((values) => main(/** @type {{profile?: string, gear?: string, out?: string}} */ (values)), { usage: USAGE, options: OPTIONS });

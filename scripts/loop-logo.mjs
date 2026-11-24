@@ -43,8 +43,10 @@ export const WORDMARK = {
   inkGapEm: 0.14,
 };
 
+/** @param {number} n */
 const fmt = (n) => String(Number(n.toFixed(3)));
 
+/** @param {number} sw stroke width in the 100-unit box */
 export function ringGeometry(sw) {
   const r = 50 - sw / 2;
   const C = 2 * Math.PI * r;
@@ -56,6 +58,11 @@ export function ringGeometry(sw) {
 
 /* One ring in its 100×100 box: 'plain' = a currentColor circle, 'arcs' = the three coloured arcs
  * (each with its token class unless `classes` is false, and the hex as the attribute fallback). */
+/**
+ * @param {number} sw
+ * @param {'plain' | 'arcs'} kind
+ * @param {{ classes?: boolean }} [opts]
+ */
 export function ringMarkup(sw, kind, { classes = true } = {}) {
   const g = ringGeometry(sw);
   const base = `cx="50" cy="50" r="${fmt(g.r)}" fill="none"`;
@@ -65,6 +72,7 @@ export function ringMarkup(sw, kind, { classes = true } = {}) {
   ).join('');
 }
 
+/** @param {{ size: number, ring: number, sw: number, radius: number }} icon */
 export function iconSvg({ size, ring, sw, radius }) {
   const o = (size - ring) / 2;
   return (
@@ -79,6 +87,9 @@ export function iconSvg({ size, ring, sw, radius }) {
 /* Wordmark layout in 1000-unit em, y down, baseline at y = 0. Glyphs come in font units (y up):
  * { d, advance, minX, maxX } for L and P (minX / maxX = the ink's horizontal extent), plus the font's
  * unitsPerEm. */
+/** @typedef {{ d: string, advance: number, minX: number, maxX: number }} Glyph */
+/** @typedef {{ unitsPerEm: number, L: Glyph, P: Glyph }} WordmarkGlyphs */
+/** @param {WordmarkGlyphs} glyphs */
 export function wordmarkLayout({ unitsPerEm, L, P }) {
   const s = 1000 / unitsPerEm;
   const size = WORDMARK.ringEm * 1000;
@@ -102,10 +113,13 @@ export function wordmarkLayout({ unitsPerEm, L, P }) {
   };
 }
 
+/** @param {WordmarkGlyphs} glyphs */
 export function wordmarkSvg(glyphs) {
   const lay = wordmarkLayout(glyphs);
   const s = fmt(lay.scale);
+  /** @param {Glyph} g @param {number} x */
   const letter = (g, x) => `<path fill="currentColor" transform="matrix(${s} 0 0 -${s} ${fmt(x)} 0)" d="${g.d}"/>`;
+  /** @param {{ x: number, y: number, size: number }} r @param {'plain' | 'arcs'} kind */
   const ring = (r, kind) => `<g transform="translate(${fmt(r.x)} ${fmt(r.y)}) scale(${fmt(r.size / 100)})">${ringMarkup(WORDMARK.sw, kind)}</g>`;
   const vb = lay.viewBox;
   return (
