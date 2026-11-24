@@ -209,7 +209,7 @@ type in [Today's summary](#todays-summary).
 
 ## Day-type detection
 
-`lib/nutrition/daytype.mjs` is the ONE implementation; `lib/nutrition/client.mjs` emits it as `HC_DAYTYPE`
+`lib/nutrition/daytype.mjs` is the ONE implementation; `web/src/client/lib-globals.ts` publishes it as `HC_DAYTYPE`
 (its `CLIENT` descriptor) for nutri-day.ts — no copy. `DAYTYPE_CASES` / `DAYINPUT_CASES` test it in the
 lib, the page and the built page.
 
@@ -293,8 +293,8 @@ strawberries 250, blueberries 150 g).
   the fuel all carbs) → `{base, t, minutes, fuelK, fuelC, mt, meals (each plan meal's [k, p, c, g],
   whole), tot, factor, clamp, udOnly, capped, allCapped, rem}`.
 - The page bakes only `{base, t}` per (goal, day type) + the two models (`{sl (each meal's slot), fixed,
-  flex}`) and runs `solveScale` / `planFor` itself (`HC_SCALE`, emitted by `lib/nutrition/client.mjs` with
-  what they call from `amounts.mjs`, `units.mjs`, `fill.mjs`, `fuel.mjs`; no copy), so a new ride duration
+  flex}`) and runs `solveScale` / `planFor` itself (`HC_SCALE`, published by `web/src/client/lib-globals.ts` with
+  what they call from `amounts.mjs`, `num.mjs`, `units.mjs`, `fill.mjs`, `fuel.mjs`; no copy), so a new ride duration
   re-scales the budgets.
 - `planModel` names parts (`label`, else the ingredient's `name`, else its key); `solveScale` formats
   amounts (`q`); a countable food shows pieces + grams (`fmtPieces`: "1½ medium bananas (~180 g)" on the
@@ -372,7 +372,7 @@ draws four rings (kcal, protein, carbs, fat).
 ## Portion guide (Today's plan)
 
 An orientative "how much can I eat", not a menu. `lib/nutrition/guide.mjs` is the ONE implementation, run
-by nutri-day.ts as `HC_GUIDE` (emitted by `lib/nutrition/client.mjs`; `GUIDE_CASES` / `DAYCAP_CASES` test
+by nutri-day.ts as `HC_GUIDE` (published by `web/src/client/lib-globals.ts`; `GUIDE_CASES` / `DAYCAP_CASES` test
 it in the lib, the page and the built page). Always four groups — Breakfast, Lunch, Dinner + Extras
 (`Desayuno`, `Comida`, `Cena`) — whatever the day type; goal and day type change only amounts.
 
@@ -469,7 +469,7 @@ workout, cena / dinner, merienda / snack / anclaje).
 ## Ride fuelling
 
 Bike day types only. `lib/nutrition/fuel.mjs` is the ONE implementation, run by nutri-day.ts as `HC_FUEL`
-(emitted by `lib/nutrition/client.mjs`), pinned by `FUEL_CASES`. Orientative, not medical advice.
+(published by `web/src/client/lib-globals.ts`), pinned by `FUEL_CASES`. Orientative, not medical advice.
 
 | Step | Guidance |
 | --- | --- |

@@ -9,7 +9,8 @@ import { StubDocument } from '../../test/dom-stub.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { es as esN, en as enN } from '../i18n/nutri-templates.mjs';
 import { es as esS, en as enS } from '../i18n/score-templates.mjs';
-import { NSCORE, NSCORE_CASES, nutritionScore, scoreSeries } from '../../../lib/nutrition/nutri-score.mjs';
+import { NSCORE, nutritionScore, scoreSeries } from '../../../lib/nutrition/nutri-score.mjs';
+import { NSCORE_CASES } from '../../../lib/nutrition/nutri-score.cases.mjs';
 import { clientScriptSource } from '../client-bundle.mjs';
 
 // a module script: run the bytes the page inlines (web/src/client-bundle.mjs)

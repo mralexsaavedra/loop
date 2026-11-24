@@ -1,8 +1,8 @@
-/* The client scripts run the lib's OWN pure functions, emitted at build time (clientSource, inlined by
- * layouts/Plan.astro before util.ts), never hand-kept copies: HC_ADH = lib/nutrition/adherence.mjs, HC_PROG = lib/nutrition/progress.mjs,
+/* The client scripts run the lib's OWN pure functions, bundled into the page by web/src/client/lib-globals.ts
+ * (first in the manifest, before util.ts), never hand-kept copies: HC_ADH = lib/nutrition/adherence.mjs, HC_PROG = lib/nutrition/progress.mjs,
  * HC_NSCORE = lib/nutrition/nutri-score.mjs, HC_FOODLOG = lib/nutrition/foodlog.mjs (+ num.mjs fin / roundEps).
- * Guard: the client files no longer define the copied functions, and the built page carries the
- * emitted source before the script that uses it. Reads the fixture built by `npm run pretest`. */
+ * Guard: the client files no longer define the copied functions, and the built page publishes the
+ * global before the script that uses it. Reads the fixture built by `npm run pretest`. */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
@@ -37,12 +37,12 @@ for (const [file, global, fns] of COPIES) {
     assert.match(s, new RegExp(`\\b${global}\\b`), `${file} reads ${global}`);
   });
 
-  test(`the built page inlines var ${global} (clientSource) before ${file}`, () => {
+  test(`the built page publishes ${global} (lib-globals.ts) before ${file}`, () => {
     assert.ok(html, `missing ${htmlPath}: run npm run pretest`);
-    const g = html.indexOf(`var ${global}=`) >= 0 ? html.indexOf(`var ${global}=`) : html.indexOf(`var ${global} =`);
+    const g = html.search(new RegExp(`globalThis\\.${global}\\s*=`));
     // a module script (*.ts) is inlined as its bundle (web/src/client-bundle.mjs), a classic one as is
     const at = html.indexOf(slimScript(file.endsWith('.ts') ? clientScriptSource(file) : src(file)));
-    assert.ok(g > 0, `var ${global} inlined`);
+    assert.ok(g > 0, `${global} published`);
     assert.ok(at > 0, `${file} inlined whole`);
     assert.ok(g < at, `${global} before ${file}`);
   });

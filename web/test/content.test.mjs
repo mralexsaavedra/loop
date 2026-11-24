@@ -367,7 +367,7 @@ test('example build: Salud headers — the page ⓘ sits beside the centred titl
   assert.equal(map.get('|||.hm .hs-head>.hs-i|||margin-left'), 'auto', 'the ⓘ closes the row');
 });
 
-test('example build: the shared client helpers (util.ts) are inlined FIRST, right after the baked HC_CONST, before every other script', () => {
+test('example build: the lib globals (lib-globals.ts) then the shared client helpers (util.ts) come right after the baked HC_CONST, before every other script', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
   const utilIdx = scripts.findIndex((s) => /\bvar HC\s*=\s*\(function/.test(s));
@@ -378,8 +378,8 @@ test('example build: the shared client helpers (util.ts) are inlined FIRST, righ
   assert.match(html, /var ACTIVITY = \{[^;]*"windowDays":30,"periods":\[7,30,182\],"bakeDays":367,"levelMin":\[1,30,60,90\]\}/, 'calendar + window constants baked from lib');
   const dateIdx = scripts.findIndex((s) => /\bvar I18N_DATE = \{"weekdays":\["Mon"/.test(s));
   assert.ok(dateIdx !== -1 && dateIdx <= utilIdx, 'the date names of HC.fmtDate are baked before util.ts');
-  const fmtIdx = scripts.findIndex((s) => /\bvar HC_FMT\s*=\s*\(function/.test(s));
-  assert.ok(fmtIdx !== -1 && fmtIdx < utilIdx, 'the one number formatter (HC_FMT) is inlined before util.ts');
+  const fmtIdx = scripts.findIndex((s) => /\bglobalThis\.HC_FMT\s*=/.test(s));
+  assert.ok(fmtIdx !== -1 && fmtIdx < utilIdx, 'the one number formatter (HC_FMT, web/src/client/lib-globals.ts) is published before util.ts');
 });
 
 test('example build: the detail sheet ships hidden OUTSIDE .wrap (so the page can go inert), with DETAIL baked for every demo metric and detail.ts before freshness.ts', () => {

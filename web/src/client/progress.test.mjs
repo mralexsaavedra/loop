@@ -1,13 +1,14 @@
 /* web/src/client/progress.ts — Nutrición "Progreso" (weight vs the goal) + the profile sheet's line.
  * Runs the real classic script in node:vm against web/test/dom-stub.mjs with a fixed clock and SYNTHETIC
- * weight series; its numbers are lib/nutrition/progress.mjs run as HC_PROG (clientSource). */
+ * weight series; its numbers are lib/nutrition/progress.mjs run as HC_PROG (lib-globals.ts). */
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import vm from 'node:vm';
 import { StubDocument } from '../../test/dom-stub.mjs';
 import { loadUtil } from '../../test/client-util.mjs';
 import { es as esN, en as enN } from '../i18n/nutri-templates.mjs';
-import { PROGRESS, PROGRESS_CASES, etaMonths, weeklyRate, rollPoints } from '../../../lib/nutrition/progress.mjs';
+import { PROGRESS, etaMonths, weeklyRate, rollPoints } from '../../../lib/nutrition/progress.mjs';
+import { PROGRESS_CASES } from '../../../lib/nutrition/progress.cases.mjs';
 import { clientScriptSource } from '../client-bundle.mjs';
 
 // a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
