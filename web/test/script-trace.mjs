@@ -15,6 +15,7 @@
  */
 import vm from 'node:vm';
 
+/** @param {string} src @returns {string[]} */
 export function declaredGlobals(src) {
   const ctx = vm.createContext({});
   const base = new Set(Object.getOwnPropertyNames(vm.runInContext('globalThis', ctx)));
@@ -23,10 +24,13 @@ export function declaredGlobals(src) {
 }
 
 // a `window.X =` or `globalThis.X =` write (a module script exposes a shared global through globalThis: util.ts's HC)
+/** @param {string} src @returns {string[]} */
 export function windowWrites(src) {
   return [...new Set([...src.matchAll(/\b(?:window|globalThis)\.([A-Za-z_$][\w$]*)\s*=(?!=)/g)].map((m) => m[1]))];
 }
 
+/** A permissive stand-in: every property, call and construction returns another one.
+ * @returns {Function} */
 function anything() {
   const fn = function () { return anything(); };
   return new Proxy(fn, {
@@ -45,7 +49,9 @@ function anything() {
 }
 
 /** bakes: the page's inline sources before the first client script; entries: [{file, src}] in order.
- * Returns { baked: [names], scripts: {file: {reads: [names], wrote: [names], error}} }. */
+ * Returns { baked: [names], scripts: {file: {reads: [names], wrote: [names], error}} }.
+ * @param {string[]} bakes @param {Array<{ file: string, src: string }>} entries @param {string} [hash]
+ * @returns {{ baked: string[], scripts: Record<string, { reads: string[], wrote: string[], error: string | null }> }} */
 export function traceLoad(bakes, entries, hash = '') {
   const ctx = vm.createContext({ console: { log() {}, warn() {}, error() {} } });
   const g = vm.runInContext('globalThis', ctx);
@@ -60,21 +66,24 @@ export function traceLoad(bakes, entries, hash = '') {
     addEventListener: noop, removeEventListener: noop, fetch: () => new Promise(noop), innerWidth: 400,
     IntersectionObserver: anything(), ResizeObserver: anything(), MutationObserver: anything(),
   });
-  let reads = null, own = null, wrote = null;
-  const note = (k) => { if (reads && typeof k === 'string' && !own.has(k)) reads.add(k); };
+  /** @type {Set<string> | null} */ let reads = null;
+  /** @type {Set<string> | null} */ let own = null;
+  /** @type {Set<string> | null} */ let wrote = null;
+  const note = (/** @type {string | symbol} */ k) => { if (reads && typeof k === 'string' && !/** @type {Set<string>} */ (own).has(k)) reads.add(k); };
   g.window = g.self = new Proxy(g, {
     get(t, k) { note(k); return Reflect.get(t, k); },
     has(t, k) { note(k); return Reflect.has(t, k); },
-    set(t, k, v) { if (wrote && typeof k === 'string') { wrote.add(k); own.add(k); } return Reflect.set(t, k, v); },
+    set(t, k, v) { if (wrote && typeof k === 'string') { wrote.add(k); /** @type {Set<string>} */ (own).add(k); } return Reflect.set(t, k, v); },
   });
   g.__hcScope = new Proxy({}, { has(t, k) { if (typeof k === 'string' && k in g) note(k); return false; } });
+  /** @type {Record<string, { reads: string[], wrote: string[], error: string | null }>} */
   const scripts = {};
   for (const { file, src } of entries) {
     own = new Set(declaredGlobals(src));
     reads = new Set();
     wrote = new Set();
     let error = null;
-    try { vm.runInContext('with (__hcScope) {\n' + src + '\n}', ctx, { filename: file }); } catch (e) { error = String((e && e.message) || e); }
+    try { vm.runInContext('with (__hcScope) {\n' + src + '\n}', ctx, { filename: file }); } catch (e) { error = String((e && /** @type {{ message?: unknown }} */ (e).message) || e); }
     scripts[file] = { reads: [...reads], wrote: [...wrote], error };
   }
   reads = own = wrote = null;

@@ -13,7 +13,9 @@ export const HC_CONST_BAKE = hcConst();
 export const UTIL_SOURCE = clientScriptSource('lib-globals.ts') + '\n' + clientScriptSource('util.ts');
 
 /** Bakes HC_CONST and I18N_DATE (by ctx.LOCALE, like the page; unless the test set its own) and runs
- * util.ts in `ctx` (already a vm context). */
+ * util.ts in `ctx` (already a vm context).
+ * @param {import('node:vm').Context} ctx
+ * @returns {import('node:vm').Context} */
 export function loadUtil(ctx) {
   if (!('HC_CONST' in ctx)) ctx.HC_CONST = HC_CONST_BAKE;
   if (!('I18N_DATE' in ctx)) ctx.I18N_DATE = ctx.LOCALE === 'es' ? esDate : enDate;

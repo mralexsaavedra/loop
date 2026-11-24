@@ -9,6 +9,7 @@ import { fileURLToPath } from 'node:url';
 export const ROOT = path.join(path.dirname(fileURLToPath(import.meta.url)), '..', '..');
 
 // every `ext` file under `dir` (repo-relative), sub-folders included, sorted
+/** @param {string} dir @param {string} ext @returns {string[]} */
 export function list(dir, ext) {
   return fs.readdirSync(path.join(ROOT, dir), { recursive: true })
     .map((f) => String(f).split(path.sep).join('/'))
@@ -31,8 +32,9 @@ export const I18N = list('web/src/i18n', '.mjs');
 
 // comments out (block comments, and a `//` comment at a line start or after whitespace — a URL's
 // "://" has no space before it), so a comment that says "±2 %" never trips a guard
+/** @param {string} src @returns {string} */
 export function stripComments(src) {
   return src.replace(/\/\*[\s\S]*?\*\//g, '').replace(/(^|\s)\/\/.*$/gm, '$1');
 }
-const read = (f) => stripComments(fs.readFileSync(path.join(ROOT, f), 'utf8'));
+const read = (/** @type {string} */ f) => stripComments(fs.readFileSync(path.join(ROOT, f), 'utf8'));
 export const SRC = Object.fromEntries([...CODE, ...I18N].map((f) => [f, read(f)]));
