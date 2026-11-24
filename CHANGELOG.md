@@ -4,6 +4,20 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [1.8.1] - 2026-11-24
+
+- **A night with blank hours no longer counts as sleep.** A sleep row whose hours are empty is skipped instead of
+  being read as a night, and an Apple Health sleep or wrist-temperature record that is missing its dates is ignored
+  during the import instead of being placed on a wrong day.
+- **Strava activity types.** An activity type Strava sends that LOOP does not know is now always filed under
+  "other"; a name that happens to match a built-in JavaScript property can no longer be mistaken for a known type.
+- **Safer server settings.** The data service rejects a request-limiter or Open Food Facts cache size below 1 with
+  a clear error instead of misbehaving later.
+- **Commit guard fails closed.** The guard that keeps personal files out of commits now blocks the commit when its
+  own git check cannot run, instead of letting it through.
+- **Under the hood.** Every part of the code (the page, its build, the data service, the tests and the browser
+  tests) is now type-checked in strict mode; nothing changes on the page.
+
 ## [1.8.0] - 2026-11-24
 
 - **Nutrition day types follow your sport.** Besides rest, strength (the old "gym") and the two ride lengths, a day
