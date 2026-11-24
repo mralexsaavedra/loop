@@ -5,6 +5,7 @@
  * directory (see the Dockerfile) and cannot import lib/. The repo's root suite checks this file is
  * current (scripts/gen-journal-calc.test.mjs). A behaviour key is stored history: renaming one orphans
  * its answers. */
+// @ts-nocheck: a generated copy of type-checked lib source (lib/build/esm-module.mjs)
 
 export const JOURNAL_GROUPS = ["day","night","status"];
 export const JOURNAL_BEHAVIORS = [{"key":"caffeine_late","group":"day","kind":"yesno"},{"key":"nap","group":"day","kind":"yesno"},{"key":"mobility","group":"day","kind":"yesno"},{"key":"alcohol","group":"night","kind":"count"},{"key":"late_meal","group":"night","kind":"yesno"},{"key":"screen_in_bed","group":"night","kind":"yesno"},{"key":"evening_supplements","group":"night","kind":"yesno"},{"key":"stressful_day","group":"status","kind":"yesno"},{"key":"ill","group":"status","kind":"yesno"},{"key":"travel","group":"day","kind":"yesno"},{"key":"big_meal","group":"day","kind":"yesno"},{"key":"meditation","group":"day","kind":"yesno"},{"key":"sauna","group":"day","kind":"yesno"},{"key":"reading_before_bed","group":"night","kind":"yesno"},{"key":"screens_before_bed","group":"night","kind":"yesno"},{"key":"hot_bedroom","group":"night","kind":"yesno"},{"key":"sex","group":"night","kind":"yesno"},{"key":"muscle_soreness","group":"status","kind":"yesno"},{"key":"period","group":"status","kind":"yesno","sexes":["female"]}];
