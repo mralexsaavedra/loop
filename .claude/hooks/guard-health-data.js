@@ -40,6 +40,27 @@ const os = require('os');
 const path = require('path');
 const { spawnSync } = require('child_process');
 
+/** A shell word, quotes and escapes resolved; `dynamic` when its value is unknown before running.
+ * @typedef {{ word: string, dynamic: boolean, op?: undefined }} Word */
+/** A control operator (`&&`, `|`, `;`, `(`, …).
+ * @typedef {{ op: string, word?: undefined, dynamic?: undefined }} OpToken */
+/** @typedef {Word | OpToken} Token */
+/** A force-add target; `cwd` null = a preceding `cd` could not be resolved.
+ * @typedef {{ cwd: string | null, spec: string, unknown: boolean }} Target */
+/** One alias as known to the walk: its value, or why it has none.
+ * @typedef {{ value?: string, missing?: boolean, nogit?: boolean, unknown?: boolean }} AliasEntry */
+/** The state carried through nested commands and alias expansions.
+ * @typedef {{ aliases: Map<string, AliasEntry>, chain: string[], chainText: string[], viaXargs: boolean,
+ *   envConfig: boolean }} WalkCtx */
+/** A wrapper command's options: taking an argument, changing the directory, splitting a string; the
+ * positional arguments before the command, and the subcommand word that precedes it.
+ * @typedef {{ arg?: string[], chdir?: string[], split?: string[], positional?: number, sub?: string[] }} WrapperSpec */
+/** The fields of a tool call's input the hook reads (raw JSON: any may be missing or of another type).
+ * @typedef {{ command?: unknown, file_path?: unknown, content?: unknown, edits?: unknown, old_string?: unknown,
+ *   new_string?: unknown, replace_all?: unknown }} ToolInput */
+/** The PreToolUse payload read from stdin (raw JSON).
+ * @typedef {{ cwd?: unknown, tool_name?: unknown, tool_input?: ToolInput }} Payload */
+
 // Fallback personal-data path fragments, used ONLY when git cannot answer (not
 // installed, cwd missing or not a repo); the primary check asks git, so this
 // list is never consulted in normal operation. It is a hand-maintained SUBSET
@@ -97,8 +118,9 @@ const ALLOWED = [
   /(^|\/)data\/apple-health\/[^/]+\.test\.mjs$/,
   /(^|\/)data\/profile\/sync-(profile|settings)(\.test)?\.mjs$/,
 ];
-const isAllowed = (p) => ALLOWED.some((re) => re.test(p));
+const isAllowed = (/** @type {string} */ p) => ALLOWED.some((re) => re.test(p));
 
+/** @param {string} reason */
 function block(reason) {
   process.stderr.write(
     `\u{1F6E1}️  BLOCKED by guard-health-data hook\n\n` +
@@ -117,10 +139,13 @@ const OPS = ['&&', '||', '|&', ';;', '|', ';', '&', '(', ')'];
  * Minimal POSIX-ish tokenizer: words (quotes and escapes resolved) and
  * control operators. A word built from `$...` / backticks outside single
  * quotes is flagged `dynamic` (its value is unknown to the hook).
+ * @param {string} cmd
+ * @returns {Token[]}
  */
 function tokenize(cmd) {
+  /** @type {Token[]} */
   const tokens = [];
-  let word = null;
+  let word = /** @type {Word | null} */ (null);
   let skipNext = false; // next word is a redirection target
   const startWord = () => {
     if (!word) word = { word: '', dynamic: false };
@@ -146,19 +171,19 @@ function tokenize(cmd) {
       startWord();
       const j = cmd.indexOf("'", i + 1);
       const end = j === -1 ? cmd.length : j;
-      word.word += cmd.slice(i + 1, end);
+      /** @type {Word} */ (word).word += cmd.slice(i + 1, end);
       i = end;
     } else if (c === '"') {
       startWord();
       i++;
       while (i < cmd.length && cmd[i] !== '"') {
         if (cmd[i] === '\\' && i + 1 < cmd.length && '"\\$`\n'.includes(cmd[i + 1])) {
-          if (cmd[i + 1] !== '\n') word.word += cmd[i + 1];
+          if (cmd[i + 1] !== '\n') /** @type {Word} */ (word).word += cmd[i + 1];
           i += 2;
           continue;
         }
-        if (cmd[i] === '$' || cmd[i] === '`') word.dynamic = true;
-        word.word += cmd[i];
+        if (cmd[i] === '$' || cmd[i] === '`') /** @type {Word} */ (word).dynamic = true;
+        /** @type {Word} */ (word).word += cmd[i];
         i++;
       }
     } else if (c === '\\') {
@@ -167,14 +192,14 @@ function tokenize(cmd) {
         continue;
       }
       startWord();
-      if (i + 1 < cmd.length) word.word += cmd[++i];
+      if (i + 1 < cmd.length) /** @type {Word} */ (word).word += cmd[++i];
     } else if (c === '$' || c === '`') {
       startWord();
-      word.dynamic = true;
+      /** @type {Word} */ (word).dynamic = true;
       if (c === '`') {
         const j = cmd.indexOf('`', i + 1);
         const end = j === -1 ? cmd.length : j;
-        word.word += cmd.slice(i, end + 1);
+        /** @type {Word} */ (word).word += cmd.slice(i, end + 1);
         i = end;
       } else if (cmd[i + 1] === '(' || cmd[i + 1] === '{') {
         const open = cmd[i + 1];
@@ -185,10 +210,10 @@ function tokenize(cmd) {
           if (cmd[j] === open) depth++;
           else if (cmd[j] === close && --depth === 0) break;
         }
-        word.word += cmd.slice(i, j + 1);
+        /** @type {Word} */ (word).word += cmd.slice(i, j + 1);
         i = j;
       } else {
-        word.word += c;
+        /** @type {Word} */ (word).word += c;
       }
     } else if (c === '>' || c === '<') {
       // Redirection: drop a pure fd prefix (`2>`), the operator and its target.
@@ -211,7 +236,7 @@ function tokenize(cmd) {
         i += op.length - 1;
       } else {
         startWord();
-        word.word += c;
+        /** @type {Word} */ (word).word += c;
       }
     }
   }
@@ -222,6 +247,7 @@ function tokenize(cmd) {
 // Wrapper commands that run another command, with the options that take an
 // argument (so `sudo -u x git …` unwraps to `git`), the ones that change the
 // directory the command runs in, and `env -S` (a whole command in one string).
+/** @type {Record<string, WrapperSpec>} */
 const WRAPPERS = {
   command: {},
   builtin: {},
@@ -246,6 +272,7 @@ const WRAPPERS = {
 };
 const SHELLS = new Set(['bash', 'sh', 'zsh', 'dash', 'ksh']);
 
+/** @param {string} p @returns {string} */
 function expandTilde(p) {
   if (p === '~') return os.homedir();
   if (p.startsWith('~/')) return path.join(os.homedir(), p.slice(2));
@@ -255,12 +282,16 @@ function expandTilde(p) {
 /**
  * Strip one wrapper's options from the front of `words` (mutated). Returns the
  * directory option (`env -C`, `sudo -D`) and the split string (`env -S`) when given.
+ * @param {string} name
+ * @param {Word[]} words
+ * @returns {{ chdir?: Word, split?: Word }}
  */
 function stripWrapperOptions(name, words) {
   const spec = WRAPPERS[name];
   const takesArg = spec.arg || [];
+  /** @type {{ chdir?: Word, split?: Word }} */
   const found = {};
-  const record = (opt, value) => {
+  const record = (/** @type {string} */ opt, /** @type {Word | undefined} */ value) => {
     if ((spec.chdir || []).includes(opt)) found.chdir = value || { word: '', dynamic: true };
     if ((spec.split || []).includes(opt)) found.split = value || { word: '', dynamic: true };
   };
@@ -297,7 +328,7 @@ function stripWrapperOptions(name, words) {
   return found;
 }
 
-const PIPE_OR_BACKGROUND = new Set(['|', '|&', '&']);
+const PIPE_OR_BACKGROUND = /** @type {Set<string | null>} */ (new Set(['|', '|&', '&']));
 // Text of a force-add, for commands the hook cannot parse (a shell fed on stdin).
 const FORCE_ADD_TEXT = /\bgit\b[\s\S]*\b(add|stage)\b[\s\S]*(^|[\s'"])(-[A-Za-z]*f[A-Za-z]*|--f[a-z]*)([\s'"]|$)/;
 
@@ -308,10 +339,18 @@ const FORCE_ADD_TEXT = /\bgit\b[\s\S]*\b(add|stage)\b[\s\S]*(^|[\s'"])(-[A-Za-z]
  * A `cd` only lasts for the rest of its own shell: it is undone at the end of
  * a `( … )` subshell and has no effect when it runs in a pipeline or in the
  * background (`cd x | …`, `cd x & …`).
+ * @param {string} cmd
+ * @param {string | null} startCwd
+ * @param {Target[]} [out]
+ * @param {WalkCtx} [ctx]
+ * @returns {Target[]}
  */
 function collectForceAdds(cmd, startCwd, out = [], ctx = ROOT_CTX) {
+  /** @type {Array<{ words: Word[], before: string | null, after: string | null }>} */
   const segs = [];
+  /** @type {Word[]} */
   let cur = [];
+  /** @type {string | null} */
   let before = null;
   for (const t of tokenize(cmd)) {
     if (t.op) {
@@ -319,12 +358,13 @@ function collectForceAdds(cmd, startCwd, out = [], ctx = ROOT_CTX) {
       cur = [];
       before = t.op;
     } else {
-      cur.push(t);
+      cur.push(/** @type {Word} */ (t));
     }
   }
   segs.push({ words: cur, before, after: null });
 
   let cwd = startCwd;
+  /** @type {Array<string | null>} */
   const stack = [];
   for (const seg of segs) {
     if (seg.words.length) {
@@ -333,16 +373,23 @@ function collectForceAdds(cmd, startCwd, out = [], ctx = ROOT_CTX) {
       if (moved !== undefined && persistent) cwd = moved;
     }
     if (seg.after === '(') stack.push(cwd);
-    else if (seg.after === ')' && stack.length) cwd = stack.pop();
+    else if (seg.after === ')' && stack.length) cwd = /** @type {string | null} */ (stack.pop());
   }
   return out;
 }
 
+/** @type {(cwd: string | null, dir: Word | null | undefined) => string | null} */
 const resolveDir = (cwd, dir) => (!dir || dir.dynamic || cwd === null ? null : path.resolve(cwd, expandTilde(dir.word)));
 
 /**
  * Inspect one simple command. Pushes force-add targets to `out`; returns the
  * new cwd for a `cd` / `pushd` (undefined for any other command).
+ * @param {Word[]} words
+ * @param {string | null} cwd
+ * @param {string} fullText
+ * @param {Target[]} out
+ * @param {WalkCtx} [ctx]
+ * @returns {string | null | undefined}
  */
 function inspectCommand(words, cwd, fullText, out, ctx = ROOT_CTX) {
   let viaXargs = false;
@@ -369,7 +416,7 @@ function inspectCommand(words, cwd, fullText, out, ctx = ROOT_CTX) {
       wrapped = true;
       words.shift();
       while (words.length && words[0].word.startsWith('-')) {
-        const opt = words.shift().word;
+        const opt = /** @type {Word} */ (words.shift()).word;
         if (/^-[IdEsLnP]$/.test(opt)) words.shift();
       }
     } else {
@@ -435,14 +482,17 @@ function inspectCommand(words, cwd, fullText, out, ctx = ROOT_CTX) {
 // --- git: global options, aliases, add / stage -----------------------------------
 
 // The root of every walk: no alias seen yet, no git config from the environment.
+/** @type {WalkCtx} */
 const ROOT_CTX = { aliases: new Map(), chain: [], chainText: [], viaXargs: false, envConfig: false };
 // Alias expansions followed before giving up (git itself stops at a loop).
 const ALIAS_MAX_DEPTH = 10;
 // Text of a force-add inside an alias value (no `git` word: `add -f`).
 const ALIAS_FORCE_TEXT = /\b(add|stage)\b[\s\S]*(^|[\s'"])(-[A-Za-z]*f[A-Za-z]*|--f[a-z]*)([\s'"]|$)/;
 
+/** @type {Set<string> | null | undefined} */
 let builtinsCache;
-/** git's builtin commands (an alias never shadows one); null = git cannot answer. */
+/** git's builtin commands (an alias never shadows one); null = git cannot answer.
+ * @returns {Set<string> | null} */
 function gitBuiltins() {
   if (builtinsCache === undefined) {
     const res = spawnSync('git', ['--list-cmds=builtins'], { encoding: 'utf8' });
@@ -456,20 +506,24 @@ function gitBuiltins() {
  * The value of `alias.<name>` in the git config seen from `cwd` (repo, global,
  * system): `{ value }`, `{ missing: true }`, `{ nogit: true }` (git not
  * installed) or `{ unknown: true }` (git failed to answer).
+ * @param {string} cwd
+ * @param {string} name
+ * @param {string[]} configOpts
+ * @returns {AliasEntry}
  */
 function lookupAlias(cwd, name, configOpts) {
   const res = spawnSync('git', [...configOpts, 'config', '--get', `alias.${name}`], {
     cwd,
     encoding: 'utf8',
   });
-  if (res.error) return res.error.code === 'ENOENT' ? { nogit: true } : { unknown: true };
+  if (res.error) return /** @type {NodeJS.ErrnoException} */ (res.error).code === 'ENOENT' ? { nogit: true } : { unknown: true };
   if (res.status === 0) return { value: res.stdout.replace(/\n$/, '') };
   if (res.status === 1) return { missing: true };
   return { unknown: true };
 }
 
 /** Re-quote a parsed word for a shell command line (unknown words stay unknown). */
-const shellWord = (t) => (t.dynamic ? ' "$UNRESOLVED_ARGUMENT"' : ` '${t.word.replace(/'/g, "'\\''")}'`);
+const shellWord = (/** @type {Word} */ t) => (t.dynamic ? ' "$UNRESOLVED_ARGUMENT"' : ` '${t.word.replace(/'/g, "'\\''")}'`);
 
 /**
  * Inspect the arguments of one `git` invocation (after the `git` word): global
@@ -477,12 +531,17 @@ const shellWord = (t) => (t.dynamic ? ' "$UNRESOLVED_ARGUMENT"' : ` '${t.word.re
  * are judged directly; any other non-builtin subcommand is expanded as an alias
  * (inline `-c alias.x=…` first, then the git config) and the expansion judged
  * the same way, so `git -c alias.x='add -f' x …` cannot hide a force-add.
+ * @param {Word[]} args
+ * @param {string | null} cwd
+ * @param {Target[]} out
+ * @param {WalkCtx} ctx
  */
 function inspectGit(args, cwd, out, ctx) {
   let gitCwd = cwd;
   const aliases = new Map(ctx.aliases);
+  /** @type {string[]} */
   const configOpts = []; // options that change which config git reads
-  const setConfig = (kv, fromEnv) => {
+  const setConfig = (/** @type {Word | undefined} */ kv, /** @type {boolean} */ fromEnv) => {
     if (!kv) return;
     const eq = kv.word.indexOf('=');
     const m = /^alias\.(.+)$/i.exec(eq === -1 ? kv.word : kv.word.slice(0, eq));
@@ -521,12 +580,19 @@ function inspectGit(args, cwd, out, ctx) {
   else expandAlias(sub, rest, gitCwd, out, { ...ctx, aliases }, configOpts);
 }
 
-/** Expand `git <sub> <rest…>` when `sub` is an alias, and judge the expansion. */
+/** Expand `git <sub> <rest…>` when `sub` is an alias, and judge the expansion.
+ * @param {string} sub
+ * @param {Word[]} rest
+ * @param {string | null} gitCwd
+ * @param {Target[]} out
+ * @param {WalkCtx} ctx
+ * @param {string[]} configOpts
+ */
 function expandAlias(sub, rest, gitCwd, out, ctx, configOpts) {
   const builtins = gitBuiltins();
   if (builtins && builtins.has(sub)) return; // git never lets an alias shadow a builtin
   const name = sub.toLowerCase(); // config variable names are case-insensitive
-  const unresolved = (why) => out.push({ cwd: gitCwd, spec: `git alias "${sub}" (${why})`, unknown: true });
+  const unresolved = (/** @type {string} */ why) => out.push({ cwd: gitCwd, spec: `git alias "${sub}" (${why})`, unknown: true });
 
   if (ctx.chain.includes(name) || ctx.chain.length >= ALIAS_MAX_DEPTH) {
     // git refuses an alias loop, but fail closed when any step hides a force-add
@@ -544,7 +610,7 @@ function expandAlias(sub, rest, gitCwd, out, ctx, configOpts) {
   if (entry.missing || entry.nogit) return;
   if (entry.unknown) return unresolved('value cannot be resolved before running');
 
-  const text = entry.value;
+  const text = /** @type {string} */ (entry.value);
   const next = { ...ctx, chain: [...ctx.chain, name], chainText: [...ctx.chainText, text] };
   if (text.startsWith('!')) {
     // A shell alias: git runs `sh -c '<text> "$@"'` from the top of the work
@@ -566,10 +632,15 @@ function expandAlias(sub, rest, gitCwd, out, ctx, configOpts) {
     if (ALIAS_FORCE_TEXT.test(text)) unresolved('alias text looks like a force-add');
     return;
   }
-  inspectGit([...tokens, ...rest], gitCwd, out, next);
+  inspectGit([.../** @type {Word[]} */ (tokens), ...rest], gitCwd, out, next);
 }
 
-/** Judge the arguments of `git add` / `git stage` and push its force-add targets. */
+/** Judge the arguments of `git add` / `git stage` and push its force-add targets.
+ * @param {Word[]} addArgs
+ * @param {string | null} gitCwd
+ * @param {Target[]} out
+ * @param {boolean} viaXargs
+ */
 function inspectAdd(addArgs, gitCwd, out, viaXargs) {
   let force = false;
   let all = false;
@@ -604,6 +675,10 @@ function inspectAdd(addArgs, gitCwd, out, viaXargs) {
  * <mode>,<object>,<path>` (or its three-argument form), and paths read from stdin (--stdin) as an
  * unresolvable source. Without --add, plain paths and --cacheinfo cannot add a new path (git refuses), but
  * --index-info stages whatever entries it reads, ignored paths included, so it is always an unresolvable add.
+ * @param {Word[]} uiArgs
+ * @param {string | null} gitCwd
+ * @param {Target[]} out
+ * @param {boolean} viaXargs
  */
 function inspectUpdateIndex(uiArgs, gitCwd, out, viaXargs) {
   let add = false;
@@ -648,6 +723,11 @@ function inspectUpdateIndex(uiArgs, gitCwd, out, viaXargs) {
 
 // --- ignore checks -------------------------------------------------------------
 
+/** `git -C <cwd> <args…>`, its spawn error folded into the result.
+ * @param {string} cwd
+ * @param {string[]} args
+ * @returns {import('child_process').SpawnSyncReturns<string> | { error: Error, status?: undefined, stdout?: undefined }}
+ */
 function git(cwd, args) {
   const res = spawnSync('git', ['-C', cwd, ...args], { encoding: 'utf8', maxBuffer: 64 * 1024 * 1024 });
   return res.error ? { error: res.error } : res;
@@ -657,6 +737,9 @@ function git(cwd, args) {
  * true  = the pathspec targets at least one gitignored path,
  * false = it does not,
  * null  = git could not answer (unavailable, cwd missing or not a repo).
+ * @param {string} cwd
+ * @param {string} spec
+ * @returns {boolean | null}
  */
 function targetsIgnored(cwd, spec) {
   if (!fs.existsSync(cwd)) return null;
@@ -675,11 +758,13 @@ function targetsIgnored(cwd, spec) {
   return false; // e.g. a path outside the repository: `git add` itself refuses it
 }
 
+/** @param {string} p @returns {string} */
 function normalize(p) {
   return p.replace(/\\/g, '/').replace(/^\.\//, '');
 }
 
-/** Fallback when git is unavailable: the built-in fragment list, per argument. */
+/** Fallback when git is unavailable: the built-in fragment list, per argument.
+ * @param {string} baseCwd @param {string} cwd @param {string} spec @returns {boolean} */
 function fallbackPersonal(baseCwd, cwd, spec) {
   const rel = normalize(path.relative(baseCwd, path.resolve(cwd, spec)));
   return [rel, normalize(spec)].some((c) => {
@@ -691,6 +776,7 @@ function fallbackPersonal(baseCwd, cwd, spec) {
   });
 }
 
+/** @param {string} command @param {string} baseCwd */
 function checkForceAdds(command, baseCwd) {
   const offending = [];
   for (const t of collectForceAdds(command, baseCwd)) {
@@ -720,7 +806,8 @@ function checkForceAdds(command, baseCwd) {
  * command is refused, whatever paths it names. Reading one (cat, grep, sed -n, git diff, cp FROM it)
  * stays allowed.
  */
-/** Split a command line into simple commands at ; && || | and newlines outside quotes. */
+/** Split a command line into simple commands at ; && || | and newlines outside quotes.
+ * @param {string} command @returns {string[]} */
 function simpleCommands(command) {
   const out = [];
   let cur = '';
@@ -748,6 +835,7 @@ function simpleCommands(command) {
   return out;
 }
 
+/** @param {string} command @returns {boolean} */
 function modifiesGitignore(command) {
   return simpleCommands(command).some((seg) => {
     if (!/\.gitignore\b/.test(seg)) return false;
@@ -763,6 +851,7 @@ function modifiesGitignore(command) {
   });
 }
 
+/** @param {string} command */
 function checkShellGitignore(command) {
   if (modifiesGitignore(command)) {
     block(
@@ -774,17 +863,19 @@ function checkShellGitignore(command) {
 
 // --- Edit / Write / MultiEdit on a .gitignore ------------------------------------
 
-/** The file content after the tool call, or null when the edit would not apply. */
+/** The file content after the tool call, or null when the edit would not apply.
+ * @param {string} toolName @param {ToolInput} input @param {string} before @returns {string | null} */
 function contentAfter(toolName, input, before) {
-  const applyEdit = (text, e) => {
+  const applyEdit = (/** @type {string} */ text, /** @type {ToolInput | null | undefined} */ e) => {
     if (!e || typeof e.old_string !== 'string' || typeof e.new_string !== 'string') return null;
     if (e.old_string === '' || !text.includes(e.old_string)) return null; // the tool itself fails
-    return e.replace_all ? text.split(e.old_string).join(e.new_string) : text.replace(e.old_string, () => e.new_string);
+    return e.replace_all ? text.split(e.old_string).join(e.new_string) : text.replace(e.old_string, () => /** @type {string} */ (e.new_string));
   };
   if (toolName === 'Write') return typeof input.content === 'string' ? input.content : null;
   if (toolName === 'Edit') return applyEdit(before, input);
   if (toolName === 'MultiEdit') {
     if (!Array.isArray(input.edits)) return null;
+    /** @type {string | null} */
     let text = before;
     for (const e of input.edits) {
       text = applyEdit(text, e);
@@ -795,7 +886,8 @@ function contentAfter(toolName, input, before) {
   return null;
 }
 
-/** Pattern lines of a .gitignore (no blanks, no comments). */
+/** Pattern lines of a .gitignore (no blanks, no comments).
+ * @param {string} text @returns {string[]} */
 function patternLines(text) {
   return text
     .split(/\r?\n/)
@@ -803,8 +895,10 @@ function patternLines(text) {
     .filter((l) => l && !l.startsWith('#'));
 }
 
-/** Lines in `a` missing from `b`, counted as a multiset. */
+/** Lines in `a` missing from `b`, counted as a multiset.
+ * @param {string[]} a @param {string[]} b @returns {string[]} */
 function missingLines(a, b) {
+  /** @type {Map<string, number>} */
   const counts = new Map();
   for (const l of b) counts.set(l, (counts.get(l) || 0) + 1);
   const out = [];
@@ -816,11 +910,14 @@ function missingLines(a, b) {
   return out;
 }
 
-const nulSplit = (s) => s.split('\0').filter(Boolean);
+const nulSplit = (/** @type {string} */ s) => s.split('\0').filter(Boolean);
 
 /**
  * Paths that are ignored today (by a .gitignore) and would stop being ignored
  * with `newContent` written to `file`. null = git could not answer.
+ * @param {string} file
+ * @param {string} newContent
+ * @returns {string[] | null}
  */
 function wouldUnignore(file, newContent) {
   const dir = path.dirname(file);
@@ -890,6 +987,7 @@ function wouldUnignore(file, newContent) {
   }
 }
 
+/** @param {string} toolName @param {ToolInput} input @param {string} baseCwd */
 function checkGitignoreEdit(toolName, input, baseCwd) {
   if (typeof input.file_path !== 'string' || !input.file_path) return;
   const file = path.resolve(baseCwd, input.file_path);
@@ -900,7 +998,7 @@ function checkGitignoreEdit(toolName, input, baseCwd) {
   } catch (err) {
     // A missing file is a new .gitignore; any other read error (EISDIR,
     // EACCES, …) must not be mistaken for an empty file: rethrow, fail closed.
-    if (!err || (err.code !== 'ENOENT' && err.code !== 'ENOTDIR')) throw err;
+    if (!err || (/** @type {NodeJS.ErrnoException} */ (err).code !== 'ENOENT' && /** @type {NodeJS.ErrnoException} */ (err).code !== 'ENOTDIR')) throw err;
   }
   const after = contentAfter(toolName, input, before);
   if (after === null) return;
@@ -938,6 +1036,7 @@ function checkGitignoreEdit(toolName, input, baseCwd) {
 
 // --- main ----------------------------------------------------------------------
 
+/** @returns {Payload | null} */
 function readPayload() {
   let raw = '';
   try {
@@ -953,6 +1052,7 @@ function readPayload() {
   }
 }
 
+/** @param {Payload} payload */
 function evaluate(payload) {
   const baseCwd = typeof payload.cwd === 'string' && payload.cwd ? payload.cwd : process.cwd();
   const input = payload.tool_input || {};
@@ -962,8 +1062,8 @@ function evaluate(payload) {
     if (typeof command !== 'string' || !command) return;
     checkForceAdds(command, baseCwd);
     checkShellGitignore(command);
-  } else if (['Edit', 'Write', 'MultiEdit'].includes(payload.tool_name)) {
-    checkGitignoreEdit(payload.tool_name, input, baseCwd);
+  } else if (['Edit', 'Write', 'MultiEdit'].includes(/** @type {string} */ (payload.tool_name))) {
+    checkGitignoreEdit(/** @type {string} */ (payload.tool_name), input, baseCwd);
   }
 }
 
@@ -975,7 +1075,7 @@ function main() {
   } catch (err) {
     // A crash must never let the call through (Claude Code treats any exit
     // code other than 2 as non-blocking): fail closed with a clear message.
-    const detail = String((err && (err.code || err.message)) || err).replace(/[\u0000-\u001f]/g, '?').slice(0, 200);
+    const detail = String((err && (/** @type {NodeJS.ErrnoException} */ (err).code || /** @type {NodeJS.ErrnoException} */ (err).message)) || err).replace(/[\u0000-\u001f]/g, '?').slice(0, 200);
     block(`The guard hit an internal error while checking this call (${detail}), so it fails closed.`);
   }
   process.exit(0);

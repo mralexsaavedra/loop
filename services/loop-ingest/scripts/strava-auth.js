@@ -30,7 +30,13 @@ Exchanges a Strava authorization code for a refresh token.
               docker compose exec loop-server node services/loop-ingest/scripts/strava-auth.js --print
   -h, --help  this help`
 
+/**
+ * The KEY=value lines of a .env text (upper-case keys only).
+ * @param {string} text
+ * @returns {Record<string, string>}
+ */
 export function parseEnv (text) {
+  /** @type {Record<string, string>} */
   const out = {}
   for (const line of text.split('\n')) {
     const match = /^([A-Z0-9_]+)=(.*)$/.exec(line.trim())
@@ -39,6 +45,7 @@ export function parseEnv (text) {
   return out
 }
 
+/** @param {string} clientId @returns {string} */
 export function authorizeUrl (clientId) {
   const url = new URL('https://www.strava.com/oauth/authorize')
   url.searchParams.set('client_id', clientId)
@@ -52,6 +59,8 @@ export function authorizeUrl (clientId) {
 /**
  * Accept either the bare code or the whole redirected URL — pasting the full
  * address bar is the obvious thing to do, so handle it.
+ * @param {string} input
+ * @returns {string | null}
  */
 export function extractCode (input) {
   const trimmed = input.trim()
@@ -70,13 +79,15 @@ export function extractCode (input) {
   return trimmed
 }
 
-/** The .env text with STRAVA_REFRESH_TOKEN set to `token` (replaced, or appended). */
+/** The .env text with STRAVA_REFRESH_TOKEN set to `token` (replaced, or appended).
+ * @param {string} envText @param {string} token @returns {string} */
 export function withRefreshToken (envText, token) {
   return envText.includes('STRAVA_REFRESH_TOKEN=')
     ? envText.replace(/STRAVA_REFRESH_TOKEN=.*/, `STRAVA_REFRESH_TOKEN=${token}`)
     : `${envText.trimEnd()}\nSTRAVA_REFRESH_TOKEN=${token}\n`
 }
 
+/** @param {string} question @returns {Promise<string>} */
 async function askOnce (question) {
   const rl = createInterface({ input: stdin, output: stdout })
   try {
@@ -89,6 +100,18 @@ async function askOnce (question) {
 /**
  * The whole flow; returns the exit code. Everything outside is injected (tests): `env` (the process environment, read
  * in --print mode), `envPath` (the .env of the host mode), `ask`, `fetchImpl`, `read` / `write` (files), `log` / `error`.
+ * @param {{
+ *   argv?: string[],
+ *   env?: Record<string, string | undefined>,
+ *   envPath?: string,
+ *   ask?: (question: string) => Promise<string>,
+ *   fetchImpl?: typeof fetch,
+ *   read?: (p: string) => Promise<string>,
+ *   write?: (p: string, text: string) => Promise<void>,
+ *   log?: (...args: unknown[]) => void,
+ *   error?: (...args: unknown[]) => void
+ * }} [options]
+ * @returns {Promise<number>}
  */
 export async function run ({
   argv = process.argv.slice(2),
@@ -113,6 +136,7 @@ export async function run ({
   const print = argv.includes('--print')
 
   let envText = ''
+  /** @type {Record<string, string | undefined>} */
   let creds
   if (print) {
     creds = env
@@ -120,7 +144,7 @@ export async function run ({
     try {
       envText = await read(envPath)
     } catch (err) {
-      if (err.code !== 'ENOENT') throw err
+      if (/** @type {NodeJS.ErrnoException} */ (err).code !== 'ENOENT') throw err
       error(`\nNo ${path.basename(envPath)} next to this script (${envPath}). On a loop-server install run it with --print instead:\n  docker compose exec loop-server node services/loop-ingest/scripts/strava-auth.js --print\n`)
       return 1
     }
@@ -164,7 +188,9 @@ export async function run ({
     return 1
   }
 
-  const body = await res.json()
+  const body = /** @type {{ scope?: string, refresh_token?: unknown, athlete?: { firstname?: string, lastname?: string } }} */ (
+    await res.json()
+  )
   const granted = body.scope ?? '(not reported)'
   if (typeof body.refresh_token !== 'string' || !body.refresh_token) {
     error('\nStrava answered without a refresh token; re-run to get a fresh code.\n')

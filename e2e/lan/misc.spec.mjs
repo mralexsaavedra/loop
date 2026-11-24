@@ -6,17 +6,29 @@
 import { test, expect, openLan, unique, apiResponse, apiWrite, syncAndReload, shiftDays, withCleanup, SYNC_TEST_MS } from './fixtures.mjs';
 import { settle } from '../fixtures.mjs';
 
-/** Reset one journal day to no answers and no note (the journal API keeps a row per day). */
+/** A stored journal day as GET /api/journal/summary lists it. */
+/** @typedef {{ date: string, answers: Record<string, unknown>, notes?: string }} JournalDay */
+/** A day of GET /api/food/log/summary: kcal, entries and entries per meal group. */
+/** @typedef {{ date: string, k: number, n: number, groups: Record<string, number> }} FoodDaySummary */
+
+/** Reset one journal day to no answers and no note (the journal API keeps a row per day).
+ * @param {import('@playwright/test').Page} page
+ * @param {string} date */
 const resetJournalDay = (page, date) => apiWrite(page, 'PUT', '/api/journal/day', 'journal', { date, answers: {} });
 
-/** The stored journal day of `date` ({date, answers, notes}) or undefined, read straight from the service. */
+/** The stored journal day of `date` ({date, answers, notes}) or undefined, read straight from the service.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} date
+ * @returns {Promise<JournalDay | undefined>} */
 async function storedJournalDay(page, date) {
   const res = await page.request.get(`/api/journal/summary?from=${date}&to=${date}`, { headers: { 'X-HC-Journal': '1' } });
   expect(res.status()).toBe(200);
-  return (await res.json()).days.find((d) => d.date === date);
+  return (await res.json()).days.find((/** @type {JournalDay} */ d) => d.date === date);
 }
 
-/** Open the journal sheet from the "+" popover and pick `date` in its strip. */
+/** Open the journal sheet from the "+" popover and pick `date` in its strip.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} date */
 async function openJournalOn(page, date) {
   await page.locator('#act-btn').click();
   await page.locator('#act-pop [data-act="journal"]').click();
@@ -119,7 +131,7 @@ test.describe('the journal sheet', () => {
       await page.locator('#jr-save').click();
       expect((await saved).request().postDataJSON()).toMatchObject({ date, answers: { alcohol: 0 } });
       await expect(page.locator('#detail')).toBeHidden();
-      expect((await storedJournalDay(page, date)).answers).toEqual({ alcohol: 0 });
+      expect(/** @type {JournalDay} */ (await storedJournalDay(page, date)).answers).toEqual({ alcohol: 0 });
     }, () => resetJournalDay(page, date));
   });
 
@@ -234,7 +246,7 @@ test.describe('Sync and freshness', () => {
     expect(posts).toBe(1);
 
     // usable again: a second press posts again
-    await page.evaluate(() => { document.getElementById('sync-msg').textContent = ''; });
+    await page.evaluate(() => { /** @type {HTMLElement} */ (document.getElementById('sync-msg')).textContent = ''; });
     await btn.click();
     await expect(page.locator('#sync-msg')).toHaveText('Could not update, try again');
     expect(posts).toBe(2);
@@ -253,10 +265,12 @@ test.describe('Sync and freshness', () => {
       : route.fallback()));
 
     // synthetic status reads (no route.fetch: a read racing another spec's rebuild must not hang the poll)
+    /** @param {Record<string, unknown>} [extra] */
     const syncStatus = (extra) => ({
       lastShortcutAt: null, lastStravaOkAt: null, lastStravaError: null, lastTriggerAt: new Date().toISOString(),
       lastTriggerError: null, lastTriggerErrorSeq: null, triggerSeq: 0, stravaConfigured: false, ...extra,
     });
+    /** @param {Record<string, unknown>} [extra] */
     const pageStatus = (extra) => ({ publishedAt: new Date().toISOString(), commit: 'e2e', processedSeq: 0, ...extra });
 
     // the data service could not hand the Sync to the builder (/api/sync/status lastTriggerError)
@@ -315,19 +329,19 @@ test('a logged past day reaches Constancia through the food summary and opens in
   // the day as it stands before (a retry may find an entry an interrupted attempt left): the summary must add ours
   const before = await page.request.get(`/api/food/log/summary?from=${date}&to=${date}`, { headers: { 'X-HC-Food': '1' } });
   expect(before.status()).toBe(200);
-  const base = (await before.json()).days.find((d) => d.date === date) || { k: 0, n: 0, groups: { lunch: 0 } };
+  const base = (await before.json()).days.find((/** @type {FoodDaySummary} */ d) => d.date === date) || { k: 0, n: 0, groups: { lunch: 0 } };
   const res = await apiWrite(page, 'POST', '/api/food/log', 'food', { date, meal: 'lunch', refType: 'quick', label, kcal: 437 });
   const { entry } = await res.json();
   await withCleanup(async () => {
     const summary = page.waitForResponse((r) => {
       const u = new URL(r.url());
       return r.request().method() === 'GET' && u.pathname === '/api/food/log/summary' &&
-        u.searchParams.get('from') <= date && u.searchParams.get('to') >= date;
+        /** @type {string} */ (u.searchParams.get('from')) <= date && /** @type {string} */ (u.searchParams.get('to')) >= date;
     });
     await openLan(page, '#nutricion');
     const sres = await summary;
     expect(sres.status()).toBe(200);
-    expect((await sres.json()).days.find((d) => d.date === date)).toMatchObject({ k: base.k + 437, n: base.n + 1, groups: { lunch: base.groups.lunch + 1 } });
+    expect((await sres.json()).days.find((/** @type {FoodDaySummary} */ d) => d.date === date)).toMatchObject({ k: base.k + 437, n: base.n + 1, groups: { lunch: base.groups.lunch + 1 } });
 
     // the Constancia strip marks the day as partly logged (no breakfast, no dinner)
     const cell = page.locator(`#food-adherence [data-adh-day="${date}"]`);

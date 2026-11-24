@@ -10,21 +10,39 @@ import { en as onbEn, es as onbEs } from '../../web/src/i18n/onboarding-template
 // every step waits on the real served page; a loaded host makes 30 s tight
 test.describe.configure({ timeout: 90_000 });
 
+/** @typedef {import('@playwright/test').Page} Page */
+/** @typedef {typeof onbEn} OnbCopy */
+/** A profile document the assistant PUTs (only the parts these tests read are typed). */
+/** @typedef {{ targets: Record<string, Record<string, { kcal: number }>>, [key: string]: unknown }} ProfileWrite */
+/** The writes a mocked first run saw. */
+/** @typedef {{ profileGets: number, profile: ProfileWrite[], settings: unknown[], sync: number }} SeenWrites */
+
 const LATER_KEY = 'hc.onboarding.later';
+/** @param {Page} page */
 const sheet = (page) => page.locator('#detail');
+/** @param {Page} page */
 const next = (page) => page.locator('#detail [data-onb-act="next"]');
+/** @param {Page} page */
 const back = (page) => page.locator('#detail .onb-top [data-onb-act="back"]');
+/** @param {Page} page @param {string} key */
 const field = (page, key) => page.locator(`#detail [data-onb-field="${key}"]`);
+/** @param {Page} page @param {string} name @param {string} value */
 const radio = (page, name, value) => page.locator(`#detail input[name="onb-${name}"][value="${value}"]`);
 
-/** The assistant's copy in the language the page was built in (<html lang>). */
+/** The assistant's copy in the language the page was built in (<html lang>).
+ * @param {Page} page
+ * @returns {Promise<OnbCopy>} */
 async function copyOf(page) {
   return (await page.evaluate(() => document.documentElement.lang)) === 'es' ? onbEs : onbEn;
 }
 
 /** A first run made at the page boundary; returns the writes the page tried, answered here. `profilePut` is the
- * status PUT /api/food/profile answers. */
+ * status PUT /api/food/profile answers.
+ * @param {Page} page
+ * @param {{ profilePut?: number }} [opts]
+ * @returns {Promise<SeenWrites>} */
 async function mockFirstRun(page, { profilePut = 200 } = {}) {
+  /** @type {SeenWrites} */
   const seen = { profileGets: 0, profile: [], settings: [], sync: 0 };
   const settings = { goal: null, targetWeightKg: null, locale: null };
   await page.route('**/api/food/profile', async (route) => {
@@ -60,14 +78,17 @@ async function mockFirstRun(page, { profilePut = 200 } = {}) {
   return seen;
 }
 
-/** Open the page on a mocked first run: the assistant opens by itself. */
+/** Open the page on a mocked first run: the assistant opens by itself.
+ * @param {Page} page */
 async function openFirstRun(page) {
   await openLan(page);
   await expect(sheet(page)).toBeVisible();
   expect(new URL(page.url()).hash).toBe('#onboarding');
 }
 
-/** From the cover to the safety screen: about you, one strength sport at its defaults (60 min, 3 a week). */
+/** From the cover to the safety screen: about you, one strength sport at its defaults (60 min, 3 a week).
+ * @param {Page} page
+ * @param {{ name?: string, sex?: string, birthdate?: string, height?: string, weight?: string }} [answers] */
 async function answerAbout(page, { name = 'Onb Tester', sex = 'male', birthdate = '1985-03-02', height = '180', weight = '82' } = {}) {
   await next(page).click(); // cover
   await page.locator('#onb-name').fill(name);
@@ -94,7 +115,10 @@ const ABOUT = {
   sports: [{ sport: 'strength', minutes: 60, perWeek: 3 }],
 };
 
-/** Assert the stop screen: its heading and reason, no progress, no numbers, only Close. */
+/** Assert the stop screen: its heading and reason, no progress, no numbers, only Close.
+ * @param {Page} page
+ * @param {OnbCopy} T
+ * @param {keyof OnbCopy['stop']} reason */
 async function expectStop(page, T, reason) {
   const onb = page.locator('#detail .onb');
   await expect(onb.locator('.onb-q')).toHaveText(T.stop.heading);
@@ -106,7 +130,9 @@ async function expectStop(page, T, reason) {
   await expect(onb.locator('.onb-nav [data-onb-act="later"]')).toHaveText(T.stop.close);
 }
 
-/** today minus `years` (E2E_TZ's today, as the page sees it), as YYYY-MM-DD. */
+/** today minus `years` (E2E_TZ's today, as the page sees it), as YYYY-MM-DD.
+ * @param {string} today
+ * @param {number} years */
 function yearsAgo(today, years) {
   const [y, m, d] = today.split('-');
   return `${Number(y) - years}-${m}-${d}`;
@@ -328,6 +354,7 @@ test('"Later" is remembered across a reload', async ({ page }) => {
 
 test("the profile sheet's Edit chip reopens the assistant with the stored answers", async ({ page }) => {
   // no mocks: the real stored profile (lan-setup's answers, baked into this build)
+  /** @type {string[]} */
   const writes = [];
   page.on('request', (r) => {
     if (r.method() !== 'GET' && /\/api\/(food\/(profile|settings)|sync)$/.test(new URL(r.url()).pathname)) writes.push(r.url());

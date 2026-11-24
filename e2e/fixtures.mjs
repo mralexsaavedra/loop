@@ -11,48 +11,70 @@ import { DEMO_DEFAULTS } from '../scripts/make-demo-data.mjs';
 import { staticUrl, E2E_TZ } from './paths.mjs';
 import { en as dateEn, es as dateEs } from '../web/src/i18n/date-templates.mjs';
 
+/** @typedef {import('@playwright/test').Page} Page */
+
+/** The `pageErrors` fixture: `allow(re)` accepts console errors matching `re` for the current test. */
+/** @typedef {{ allow: (re: RegExp) => void }} PageErrors */
+
+/** The fixtures this file adds to Playwright's own: the fixed browser clock and the page-error guard. */
+/** @typedef {{ now: Date, pageErrors: PageErrors }} E2EFixtures */
+
+/** @typedef {import('@playwright/test').PlaywrightTestArgs & import('@playwright/test').PlaywrightTestOptions} BaseTestArgs */
+/** @typedef {import('@playwright/test').PlaywrightWorkerArgs & import('@playwright/test').PlaywrightWorkerOptions} BaseWorkerArgs */
+
 export const DEMO_DAY = DEMO_DEFAULTS.end;
 
-/** The instant that is `hour`:00 on `day` in E2E_TZ, whatever the season (CET or CEST) and the host's zone. */
+/** The instant that is `hour`:00 on `day` in E2E_TZ, whatever the season (CET or CEST) and the host's zone.
+ * @param {string} day an ISO calendar date (YYYY-MM-DD)
+ * @param {number} hour
+ * @returns {Date} */
 export function zonedInstant(day, hour) {
   const hh = String(hour).padStart(2, '0');
   const probe = new Date(`${day}T${hh}:00:00Z`);
-  const name = new Intl.DateTimeFormat('en-GB', { timeZone: E2E_TZ, timeZoneName: 'longOffset' })
-    .formatToParts(probe)
-    .find((p) => p.type === 'timeZoneName').value; // "GMT+02:00", or "GMT" at offset 0
+  const part = /** @type {Intl.DateTimeFormatPart} */ (
+    new Intl.DateTimeFormat('en-GB', { timeZone: E2E_TZ, timeZoneName: 'longOffset' })
+      .formatToParts(probe)
+      .find((p) => p.type === 'timeZoneName')
+  );
+  const name = part.value; // "GMT+02:00", or "GMT" at offset 0
   return new Date(`${day}T${hh}:00:00${name.slice(3) || 'Z'}`);
 }
 
 export const DEMO_NOW = zonedInstant(DEMO_DAY, 10);
 
-export const test = base.extend({
-  // the instant the browser clock is fixed to (e2e/lan/fixtures.mjs overrides it)
-  now: async ({}, use) => use(DEMO_NOW),
-  page: async ({ page, now }, use) => {
-    await page.clock.setFixedTime(now);
-    await use(page);
-  },
-  pageErrors: [
-    async ({ page }, use) => {
-      const errors = [];
-      const allowed = [];
-      page.on('console', (msg) => {
-        if (msg.type() === 'error') errors.push(`console: ${msg.text()}`);
-      });
-      page.on('pageerror', (err) => errors.push(`uncaught: ${err.message}`));
-      await use({ allow: (re) => allowed.push(re) });
-      const unexpected = errors.filter((e) => !(e.startsWith('console: ') && allowed.some((re) => re.test(e))));
-      expect(unexpected, 'console errors, uncaught exceptions or CSP violations').toEqual([]);
+export const test = base.extend(
+  /** @type {import('@playwright/test').Fixtures<E2EFixtures, {}, BaseTestArgs, BaseWorkerArgs>} */ ({
+    // the instant the browser clock is fixed to (e2e/lan/fixtures.mjs overrides it)
+    now: async ({}, use) => use(DEMO_NOW),
+    page: async ({ page, now }, use) => {
+      await page.clock.setFixedTime(now);
+      await use(page);
     },
-    { auto: true },
-  ],
-});
+    pageErrors: [
+      async ({ page }, use) => {
+        /** @type {string[]} */
+        const errors = [];
+        /** @type {RegExp[]} */
+        const allowed = [];
+        page.on('console', (msg) => {
+          if (msg.type() === 'error') errors.push(`console: ${msg.text()}`);
+        });
+        page.on('pageerror', (err) => errors.push(`uncaught: ${err.message}`));
+        await use({ allow: (re) => allowed.push(re) });
+        const unexpected = errors.filter((e) => !(e.startsWith('console: ') && allowed.some((re) => re.test(e))));
+        expect(unexpected, 'console errors, uncaught exceptions or CSP violations').toEqual([]);
+      },
+      { auto: true },
+    ],
+  }),
+);
 
 export { expect };
 
 /** Go to `url` with a real page load. From a page already open, a goto that changes only the hash is a same-document
  * navigation: no reload, and a deep link is then handled by `hashchange` instead of the page's own load. Going
  * through about:blank first makes every open a load, so a deep-link test proves what a link opened cold does. */
+/** @param {Page} page @param {string} url */
 export async function loadPage(page, url) {
   if (page.url() !== 'about:blank') await page.goto('about:blank');
   return page.goto(url);
@@ -65,7 +87,9 @@ export const staticLocale = () => test.info().project.metadata?.pageLocale || 'e
 export const dateCopy = () => (staticLocale() === 'es' ? dateEs : dateEn);
 
 /** Open the static example page, in this project's language, with a real load, optionally at a hash
- * (`'#health'`, `'#detail/weight'`). */
+ * (`'#health'`, `'#detail/weight'`).
+ * @param {Page} page
+ * @param {string} [hash] */
 export async function openStatic(page, hash = '') {
   await loadPage(page, staticUrl(staticLocale()) + hash);
   await expect(page.locator('#t-home')).toBeVisible();
@@ -75,7 +99,7 @@ export async function openStatic(page, hash = '') {
 export const TABS = ['home', 'entreno', 'health', 'nutricion'];
 
 /** Let any asynchronous handler run before asserting that something did NOT happen. */
-export const settle = (page) => page.waitForTimeout(300);
+export const settle = (/** @type {Page} */ page) => page.waitForTimeout(300);
 
 /** The hash part of the current URL. */
-export const hashOf = (page) => new URL(page.url()).hash;
+export const hashOf = (/** @type {Page} */ page) => new URL(page.url()).hash;

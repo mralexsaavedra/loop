@@ -1,7 +1,10 @@
 // UI steps the food specs share (docs/nutrition-food-log.md; web/src/client/food-*.js).
 import { expect, apiResponse } from './fixtures.mjs';
 
-/** Open the add sheet from the "+" button. */
+/** @typedef {import('@playwright/test').Page} Page */
+
+/** Open the add sheet from the "+" button.
+ * @param {Page} page */
 export async function openAddSheet(page) {
   await page.locator('#act-btn').click();
   await page.locator('#act-pop [data-act="food"]').click();
@@ -9,7 +12,8 @@ export async function openAddSheet(page) {
   await expect(page.locator('#fa-meal')).toBeVisible();
 }
 
-/** Save the add sheet's entry and return the POST /api/food/log response. */
+/** Save the add sheet's entry and return the POST /api/food/log response.
+ * @param {Page} page */
 export async function saveEntry(page) {
   const logged = apiResponse(page, 'POST', '/api/food/log');
   await page.locator('#fa-save').click();
@@ -19,15 +23,18 @@ export async function saveEntry(page) {
   return res;
 }
 
-/** Open the Nutrition tab's products fold (it ships closed). */
+/** Open the Nutrition tab's products fold (it ships closed).
+ * @param {Page} page */
 export async function openProducts(page) {
   await page.locator('#t-nutricion').click();
   const fold = page.locator('#food-products');
-  if (!(await fold.evaluate((d) => d.open))) await fold.locator('summary').first().click();
+  if (!(await fold.evaluate((d) => /** @type {HTMLDetailsElement} */ (d).open))) await fold.locator('summary').first().click();
   await expect(page.locator('#fp-body')).toBeVisible();
 }
 
-/** Create a product with macros per 100 g through the products fold; returns its name. */
+/** Create a product with macros per 100 g through the products fold; returns its name.
+ * @param {Page} page
+ * @param {{ name: string, kcal: number, p: number, c: number, f: number }} product */
 export async function createProduct(page, { name, kcal, p, c, f }) {
   await openProducts(page);
   await page.locator('#food-products [data-food-act="p-new"]').click();
@@ -45,5 +52,7 @@ export async function createProduct(page, { name, kcal, p, c, f }) {
   return name;
 }
 
-/** The logged row of `label` in the day's food log. */
+/** The logged row of `label` in the day's food log.
+ * @param {Page} page
+ * @param {string} label */
 export const logRow = (page, label) => page.locator('#food-log li').filter({ hasText: label });

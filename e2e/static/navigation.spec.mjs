@@ -2,6 +2,7 @@
 // Tabs and sections, URL hash & navigation, Keyboard shortcuts).
 import { test, expect, openStatic, TABS, hashOf, settle, staticLocale } from '../fixtures.mjs';
 
+/** @param {import('@playwright/test').Page} page @param {string} key */
 async function expectTab(page, key) {
   await expect(page.locator(`#t-${key}`)).toHaveAttribute('aria-current', 'page');
   for (const other of TABS) {

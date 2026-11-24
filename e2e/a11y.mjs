@@ -6,7 +6,9 @@ import { expect } from '@playwright/test';
 
 const TAGS = ['wcag2a', 'wcag2aa', 'wcag21a', 'wcag21aa'];
 
-/** One line per violated rule: id, impact, how many elements, and the first few element selectors. */
+/** One line per violated rule: id, impact, how many elements, and the first few element selectors.
+ * @param {import('axe-core').Result[]} violations
+ * @returns {string[]} */
 function describe(violations) {
   return violations.map((v) => {
     const where = v.nodes.slice(0, 4).map((n) => n.target.join(' ')).join(' | ');
@@ -15,7 +17,9 @@ function describe(violations) {
 }
 
 /** Fail with a readable list when axe finds any WCAG 2.1 A / AA violation on the page as it is now. `label` names the
- * state checked (a tab, a sheet) in the failure message. */
+ * state checked (a tab, a sheet) in the failure message.
+ * @param {import('@playwright/test').Page} page
+ * @param {string} label */
 export async function expectAccessible(page, label) {
   // the wcag21a tag already includes label-content-name-mismatch (withRules would replace the tag selection)
   const result = await new AxeBuilder({ page }).withTags(TAGS).analyze();

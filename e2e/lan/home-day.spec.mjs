@@ -23,7 +23,7 @@ test('a day logged on the server shows on Home when stepping back to it', async 
 
     await page.locator('#day-prev').click();
     expect(hashOf(page)).toBe(`#d=${day}`);
-    const fmt = await page.evaluate((iso) => window.HC.fmtDate(iso), day);
+    const fmt = await page.evaluate((iso) => /** @type {any} */ (window).HC.fmtDate(iso), day);
     await expect(page.locator('#day-word')).toContainText(fmt, { ignoreCase: true });
     await expect(page.locator('#timeline')).toContainText(fmt);
 

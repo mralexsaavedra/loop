@@ -8,7 +8,7 @@ test('a recipe is built from a product and logged', async ({ page }) => {
   const product = await createProduct(page, { name: unique('E2E rice'), kcal: 130, p: 2.7, c: 28, f: 0.3 });
 
   const fold = page.locator('#food-recipes');
-  if (!(await fold.evaluate((d) => d.open))) await fold.locator('summary').first().click();
+  if (!(await fold.evaluate((d) => /** @type {HTMLDetailsElement} */ (d).open))) await fold.locator('summary').first().click();
   await page.locator('#food-recipes [data-food-act="r-new"]').click();
   const name = unique('E2E bowl');
   await page.locator('#frf-name').fill(name);

@@ -34,7 +34,7 @@ test('the Nutrition tab with the food log and the product and recipe forms open'
   await expect(page.locator('#fpf-name')).toBeVisible();
   await expectAccessible(page, 'product form');
   const fold = page.locator('#food-recipes');
-  if (!(await fold.evaluate((d) => d.open))) await fold.locator('summary').first().click();
+  if (!(await fold.evaluate((d) => /** @type {HTMLDetailsElement} */ (d).open))) await fold.locator('summary').first().click();
   await page.locator('#food-recipes [data-food-act="r-new"]').click();
   await expect(page.locator('#frf-name')).toBeVisible();
   await expectAccessible(page, 'recipe form');

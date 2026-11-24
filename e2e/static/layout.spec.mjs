@@ -5,15 +5,20 @@ import { test, expect, openStatic, TABS, DEMO_DAY, hashOf } from '../fixtures.mj
 for (const tab of TABS) {
   test(`${tab} has no horizontal overflow`, async ({ page }) => {
     await openStatic(page, `#${tab}`);
-    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth);
+    const overflow = await page.evaluate(() => {
+      const doc = document;
+      return doc.documentElement.scrollWidth - doc.documentElement.clientWidth;
+    });
     expect(overflow).toBeLessThanOrEqual(0);
   });
 }
 
 test('the avatar sits left on a phone and right on a desktop', async ({ page }) => {
   await openStatic(page);
-  const width = page.viewportSize().width;
-  const box = await page.locator('#avatar-btn').boundingBox();
+  const width = /** @type {{ width: number, height: number }} */ (page.viewportSize()).width;
+  const box = /** @type {{ x: number, y: number, width: number, height: number }} */ (
+    await page.locator('#avatar-btn').boundingBox()
+  );
   const centre = box.x + box.width / 2;
   if (width < 900) expect(centre).toBeLessThan(width / 2);
   else expect(centre).toBeGreaterThan(width / 2);
@@ -21,10 +26,11 @@ test('the avatar sits left on a phone and right on a desktop', async ({ page }) 
 
 test('the dock shows all four tabs within the viewport', async ({ page }) => {
   await openStatic(page);
-  const width = page.viewportSize().width;
+  const width = /** @type {{ width: number, height: number }} */ (page.viewportSize()).width;
   for (const key of TABS) {
-    const box = await page.locator(`#t-${key}`).boundingBox();
-    expect(box, key).not.toBeNull();
+    const found = await page.locator(`#t-${key}`).boundingBox();
+    expect(found, key).not.toBeNull();
+    const box = /** @type {{ x: number, y: number, width: number, height: number }} */ (found);
     expect(box.x).toBeGreaterThanOrEqual(0);
     expect(box.x + box.width).toBeLessThanOrEqual(width);
   }

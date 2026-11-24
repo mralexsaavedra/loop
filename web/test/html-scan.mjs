@@ -4,6 +4,7 @@
  * fast across every guard/parity test that reuses it.
  */
 
+/** @param {string} html */
 export function scanHtml(html) {
   return {
     hasDoctype: /^<!doctype html>/i.test(html.trim()),

@@ -4,16 +4,19 @@
 // detail.spec.mjs does not reach (tonight, journal-insights, hoy-session).
 import { test, expect, openStatic, DEMO_DAY, zonedInstant, hashOf, settle, dateCopy } from '../fixtures.mjs';
 
-const sheet = (page) => page.locator('#detail');
-const inSheet = (page, sel) => page.locator(`#detail ${sel}`);
-const pressedDay = (page) => inSheet(page, '[data-dt-act="day"][aria-pressed="true"]');
-const dayHeading = (page) => inSheet(page, '.dt-day-h');
-const winLabel = (page) => inSheet(page, '.dt-win-lbl');
-const rangeBtn = (page, days) => inSheet(page, `[data-dt-act="range"][data-range="${days}"]`);
-const infoBtn = (page) => inSheet(page, '[data-dt-act="info"]');
-const infoBox = (page) => page.locator('#dd-info');
+/** @typedef {import('@playwright/test').Page} Page */
 
-/** `iso` shifted by `n` days (UTC arithmetic on a calendar date). */
+const sheet = (/** @type {Page} */ page) => page.locator('#detail');
+const inSheet = (/** @type {Page} */ page, /** @type {string} */ sel) => page.locator(`#detail ${sel}`);
+const pressedDay = (/** @type {Page} */ page) => inSheet(page, '[data-dt-act="day"][aria-pressed="true"]');
+const dayHeading = (/** @type {Page} */ page) => inSheet(page, '.dt-day-h');
+const winLabel = (/** @type {Page} */ page) => inSheet(page, '.dt-win-lbl');
+const rangeBtn = (/** @type {Page} */ page, /** @type {number | string} */ days) => inSheet(page, `[data-dt-act="range"][data-range="${days}"]`);
+const infoBtn = (/** @type {Page} */ page) => inSheet(page, '[data-dt-act="info"]');
+const infoBox = (/** @type {Page} */ page) => page.locator('#dd-info');
+
+/** `iso` shifted by `n` days (UTC arithmetic on a calendar date).
+ * @param {string} iso @param {number} n @returns {string} */
 function shiftIso(iso, n) {
   const d = new Date(`${iso}T12:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
@@ -21,25 +24,29 @@ function shiftIso(iso, n) {
 }
 
 /** "20 Sep" / "20 sept" for 2026-09-20: the day-and-month part every date label of the page carries, in the page's
- * own month names (I18N_DATE). */
+ * own month names (I18N_DATE).
+ * @param {string} iso */
 function dayMonth(iso) {
   return `${Number(iso.slice(8, 10))} ${dateCopy().months[Number(iso.slice(5, 7)) - 1]}`;
 }
 /** The page's long month name of a YYYY-MM-DD ("September" / "septiembre"). */
-const monthLong = (iso) => dateCopy().monthsLong[Number(iso.slice(5, 7)) - 1];
+const monthLong = (/** @type {string} */ iso) => dateCopy().monthsLong[Number(iso.slice(5, 7)) - 1];
 
+/** @param {Page} page */
 async function expectOpen(page) {
   await expect(sheet(page)).toBeVisible();
   await expect(page.locator('#dt-title')).not.toBeEmpty();
   await expect(page.locator('.wrap')).toHaveAttribute('inert', '');
 }
 
+/** @param {Page} page */
 async function expectClosed(page) {
   await expect(sheet(page)).toBeHidden();
   await expect(page.locator('.wrap')).not.toHaveAttribute('inert', '');
 }
 
-/** The ⓘ of the open sheet toggles #dd-info both ways, mirrored in aria-expanded. */
+/** The ⓘ of the open sheet toggles #dd-info both ways, mirrored in aria-expanded.
+ * @param {Page} page */
 async function expectInfoToggles(page) {
   await expect(infoBtn(page)).toHaveAttribute('aria-expanded', 'false');
   await expect(infoBtn(page)).toHaveAttribute('aria-controls', 'dd-info');
@@ -81,7 +88,7 @@ test.describe('dated detail deep links', () => {
     await openStatic(page, '#detail/steps/2026-02-31');
     await expectOpen(page);
     await expect(pressedDay(page)).toHaveCount(1);
-    const shown = await pressedDay(page).getAttribute('data-date');
+    const shown = /** @type {string} */ (await pressedDay(page).getAttribute('data-date'));
     expect(shown).not.toBe('2026-02-31');
     await expect.poll(() => hashOf(page)).toBe(`#detail/steps/${shown}`);
     await expect(dayHeading(page)).toContainText(dayMonth(shown));
@@ -93,7 +100,7 @@ test.describe('detail sheet controls', () => {
     await openStatic(page, '#detail/steps');
     await expectOpen(page);
     const before = await page.evaluate(() => history.length);
-    const start = await pressedDay(page).getAttribute('data-date');
+    const start = /** @type {string} */ (await pressedDay(page).getAttribute('data-date'));
     const target = shiftIso(start, -2);
     await inSheet(page, `[data-dt-act="day"][data-date="${target}"]`).click();
     await expect(pressedDay(page)).toHaveAttribute('data-date', target);
@@ -110,7 +117,7 @@ test.describe('detail sheet controls', () => {
     // opens on M
     await expect(rangeBtn(page, 30)).toHaveAttribute('aria-pressed', 'true');
     await expect(inSheet(page, '.dt-wdays')).toHaveCount(0);
-    const month = await winLabel(page).textContent();
+    const month = /** @type {string} */ (await winLabel(page).textContent());
 
     await rangeBtn(page, 7).click();
     await expect(rangeBtn(page, 7)).toHaveAttribute('aria-pressed', 'true');
@@ -119,7 +126,7 @@ test.describe('detail sheet controls', () => {
     await expect(winLabel(page)).not.toHaveText(month);
     // the week chart: weekday labels under 7 bars
     await expect(inSheet(page, '.dt-wdays')).toHaveCount(1);
-    const week = await winLabel(page).textContent();
+    const week = /** @type {string} */ (await winLabel(page).textContent());
 
     await rangeBtn(page, 365).click();
     await expect(rangeBtn(page, 365)).toHaveAttribute('aria-pressed', 'true');
@@ -137,8 +144,8 @@ test.describe('detail sheet controls', () => {
     const fwd = inSheet(page, '[data-dt-act="win"][data-wdir="1"]');
     await expect(fwd).toBeDisabled();
     await expect(back).toBeEnabled();
-    const now = await winLabel(page).textContent();
-    const sentence = await inSheet(page, '.dt-trend-txt').textContent();
+    const now = /** @type {string} */ (await winLabel(page).textContent());
+    const sentence = /** @type {string} */ (await inSheet(page, '.dt-trend-txt').textContent());
 
     await back.click();
     await expect(winLabel(page)).not.toHaveText(now);
@@ -161,7 +168,7 @@ test.describe('detail sheet controls', () => {
     const next = inSheet(page, '[data-dt-act="month"][data-dir="1"]');
     await expect(title).toContainText(monthLong(DEMO_DAY), { ignoreCase: true });
     await expect(next).toBeDisabled();
-    const win = await winLabel(page).textContent();
+    const win = /** @type {string} */ (await winLabel(page).textContent());
 
     await prev.click();
     const prevMonth = new Date(`${DEMO_DAY.slice(0, 7)}-01T12:00:00Z`);
@@ -255,7 +262,7 @@ test.describe('page toggles, tab links and folds', () => {
       expect(count, `ⓘ buttons on ${tab}`).toBeGreaterThan(0);
       for (let i = 0; i < count; i++) {
         const btn = buttons.nth(i);
-        const id = await btn.getAttribute('data-hs-info');
+        const id = /** @type {string} */ (await btn.getAttribute('data-hs-info'));
         const box = page.locator(`[id="${id}"]`);
         await expect(btn, id).toHaveAttribute('aria-controls', id);
         await expect(btn, id).toHaveAttribute('aria-expanded', 'false');
@@ -312,16 +319,18 @@ test.describe('page toggles, tab links and folds', () => {
 });
 
 test.describe('Customize sheets', () => {
-  const homeAct = (page, act, key) => inSheet(page, `[data-home-act="${act}"][data-key="${key}"]`);
-  const dashAct = (page, act, key) => inSheet(page, `[data-dash-act="${act}"][data-key="${key}"]`);
-  const homePrefs = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('hc-home-v1') || 'null'));
-  const dashPrefs = (page) => page.evaluate(() => JSON.parse(localStorage.getItem('hc-dash-v1') || 'null'));
+  const homeAct = (/** @type {Page} */ page, /** @type {string} */ act, /** @type {string} */ key) => inSheet(page, `[data-home-act="${act}"][data-key="${key}"]`);
+  const dashAct = (/** @type {Page} */ page, /** @type {string} */ act, /** @type {string} */ key) => inSheet(page, `[data-dash-act="${act}"][data-key="${key}"]`);
+  const homePrefs = (/** @type {Page} */ page) => page.evaluate(() => JSON.parse(localStorage.getItem('hc-home-v1') || 'null'));
+  const dashPrefs = (/** @type {Page} */ page) => page.evaluate(() => JSON.parse(localStorage.getItem('hc-dash-v1') || 'null'));
   /** True when `a` comes before `b` in document order. */
-  const before = (page, a, b) => page.evaluate(([x, y]) => {
-    const ex = document.querySelector(x), ey = document.querySelector(y);
-    return !!(ex.compareDocumentPosition(ey) & Node.DOCUMENT_POSITION_FOLLOWING);
+  const before = (/** @type {Page} */ page, /** @type {string} */ a, /** @type {string} */ b) => page.evaluate(([x, y]) => {
+    const g = /** @type {any} */ (window);
+    const ex = g.document.querySelector(x), ey = g.document.querySelector(y);
+    return !!(ex.compareDocumentPosition(ey) & g.Node.DOCUMENT_POSITION_FOLLOWING);
   }, [a, b]);
 
+  /** @param {Page} page */
   async function openHomeEdit(page) {
     const btn = page.locator('#home-edit');
     await btn.scrollIntoViewIfNeeded();
@@ -383,6 +392,7 @@ test.describe('Customize sheets', () => {
     expect(await before(page, '#my-day', '.eat-card')).toBe(true);
   });
 
+  /** @param {Page} page */
   async function openDashEdit(page) {
     const btn = page.locator('#dash-edit');
     await btn.scrollIntoViewIfNeeded();
@@ -390,8 +400,8 @@ test.describe('Customize sheets', () => {
     await expectOpen(page);
     expect(hashOf(page)).toBe('#dash-edit');
   }
-  const dashRow = (page, key) => page.locator(`#home-dash [data-detail="${key}"]`);
-  const dashKeys = (page) => page.locator('#home-dash [data-detail]').evaluateAll((els) => els.map((e) => e.getAttribute('data-detail')));
+  const dashRow = (/** @type {Page} */ page, /** @type {string} */ key) => page.locator(`#home-dash [data-detail="${key}"]`);
+  const dashKeys = (/** @type {Page} */ page) => page.locator('#home-dash [data-detail]').evaluateAll((els) => els.map((e) => e.getAttribute('data-detail')));
 
   test('Customize My dashboard hides and shows rows, and it survives a reload', async ({ page }) => {
     await openStatic(page, '#home');

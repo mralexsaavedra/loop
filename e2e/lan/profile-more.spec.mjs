@@ -5,13 +5,19 @@
 import { test, expect, openProfile } from './fixtures.mjs';
 import { en as pfEn, es as pfEs } from '../../web/src/i18n/profile-templates.mjs';
 
+/** @param {import('@playwright/test').Page} page */
 async function copyOf(page) {
   return (await page.evaluate(() => document.documentElement.lang)) === 'es' ? pfEs : pfEn;
 }
 
 /** GET /api/food/settings answers `initial`; each PUT is recorded and answered with the merged settings, or with
- * `putStatus` when it is not 2xx. */
+ * `putStatus` when it is not 2xx.
+ * @param {import('@playwright/test').Page} page
+ * @param {Record<string, unknown>} initial
+ * @param {{ putStatus?: number }} [opts]
+ * @returns {Promise<unknown[]>} */
 async function mockSettings(page, initial, { putStatus = 200 } = {}) {
+  /** @type {unknown[]} */
   const puts = [];
   const settings = { ...initial };
   await page.route('**/api/food/settings', async (route) => {
@@ -29,6 +35,7 @@ async function mockSettings(page, initial, { putStatus = 200 } = {}) {
 // every step waits on the real served page; a loaded host makes 30 s tight
 test.describe.configure({ timeout: 90_000 });
 
+/** @param {import('@playwright/test').Page} page @param {string} g */
 const goal = (page, g) => page.locator(`input[name="pf-goal"][value="${g}"]`);
 
 test('Lose fat and Gain are saved as the goal', async ({ page }) => {
@@ -43,13 +50,13 @@ test('Lose fat and Gain are saved as the goal', async ({ page }) => {
   expect(puts).toEqual([{ goal: 'cut' }]);
   await expect(goal(page, 'cut')).toBeChecked();
   // the plan follows, and the server's answer clears the pending pick
-  expect(await page.evaluate(() => [window.HCNutri.state().goal, window.HCNutri.pendingGoal()])).toEqual(['cut', null]);
+  expect(await page.evaluate(() => [/** @type {any} */ (window).HCNutri.state().goal, /** @type {any} */ (window).HCNutri.pendingGoal()])).toEqual(['cut', null]);
 
   await goal(page, 'bulk').check({ force: true });
   await expect.poll(() => puts.length).toBe(2);
   expect(puts[1]).toEqual({ goal: 'bulk' });
   await expect(page.locator('#pf-goal-msg')).toHaveText(T.goal.savedGoal);
-  expect(await page.evaluate(() => [window.HCNutri.state().goal, window.HCNutri.pendingGoal()])).toEqual(['bulk', null]);
+  expect(await page.evaluate(() => [/** @type {any} */ (window).HCNutri.state().goal, /** @type {any} */ (window).HCNutri.pendingGoal()])).toEqual(['bulk', null]);
   // the target weight is left alone
   await expect(page.locator('#pf-target')).toHaveValue('74.0');
 });
@@ -67,7 +74,7 @@ test('clearing the target weight sends null', async ({ page }) => {
   expect(puts).toEqual([{ targetWeightKg: null }]);
   await expect(page.locator('#pf-target-err')).toBeEmpty();
   await expect(page.locator('#pf-target')).not.toHaveAttribute('aria-invalid', 'true');
-  expect(await page.evaluate(() => window.HCSettings.targetWeight())).toBeNull();
+  expect(await page.evaluate(() => /** @type {any} */ (window).HCSettings.targetWeight())).toBeNull();
   // the goal is untouched
   await expect(goal(page, 'cut')).toBeChecked();
 });
@@ -83,13 +90,14 @@ test('a refused goal save says why and keeps the pick pending', async ({ page, p
   await expect(page.locator('#pf-goal-msg')).toHaveText(`${T.goal.failed.replace('{reason}', T.goal.reasons.generic)} ${T.goal.pending}`);
   expect(puts).toEqual([{ goal: 'cut' }]);
   // kept on this viewer until a save goes through (retried on the next load)
-  expect(await page.evaluate(() => window.HCNutri.pendingGoal())).toBe('cut');
+  expect(await page.evaluate(() => /** @type {any} */ (window).HCNutri.pendingGoal())).toBe('cut');
 });
 
 test('a #profile link opened before the settings answer shows the target weight and the language once they do', async ({ page }) => {
   // the sheet a deep link opens on load can render before GET /api/food/settings answers (WebKit's order showed
   // it): the answer is held back here, so the race is the same in every engine
-  let release;
+  /** @type {(value?: unknown) => void} */
+  let release = () => {};
   const held = new Promise((r) => { release = r; });
   await page.route('**/api/food/settings', async (route) => {
     if (route.request().method() === 'GET') await held;

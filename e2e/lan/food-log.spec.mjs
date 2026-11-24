@@ -33,7 +33,7 @@ test('the a key opens the add sheet, and a built-in basic food is logged by weig
   await openLan(page);
   // the `a` shortcut works once the add sheet's view is registered (after the food API answered); the "+" button
   // shows as soon as any action is available
-  await expect.poll(() => page.evaluate(() => !!(window.HCViews && window.HCViews['food-add']))).toBe(true);
+  await expect.poll(() => page.evaluate(() => !!(/** @type {any} */ (window).HCViews && /** @type {any} */ (window).HCViews['food-add']))).toBe(true);
   await page.keyboard.press('a');
   await expect(page.locator('#fa-q')).toBeVisible();
   await page.locator('#fa-meal').selectOption('dinner');

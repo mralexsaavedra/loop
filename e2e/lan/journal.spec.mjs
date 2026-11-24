@@ -2,11 +2,12 @@
 // back, and a behaviour switched off disappears from the questions.
 import { test, expect, openLan, apiResponse, apiWrite } from './fixtures.mjs';
 
+/** @param {import('@playwright/test').Page} page */
 async function openJournal(page) {
   // the `d` shortcut works once journal.js registered its view (after GET /api/journal/settings answered); the My
   // journal card comes from another request and can show first
   await expect(page.locator('#my-journal')).toBeVisible();
-  await expect.poll(() => page.evaluate(() => !!(window.HCViews && window.HCViews.journal))).toBe(true);
+  await expect.poll(() => page.evaluate(() => !!(/** @type {any} */ (window).HCViews && /** @type {any} */ (window).HCViews.journal))).toBe(true);
   await page.keyboard.press('d');
   await expect(page.locator('#jr-save')).toBeVisible();
 }
