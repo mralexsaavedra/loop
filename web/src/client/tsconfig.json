@@ -11,7 +11,7 @@
     "allowJs": true,
     "checkJs": false,
     "allowImportingTsExtensions": true,
-    "skipLibCheck": true,
+    "skipLibCheck": false,
     "maxNodeModuleJsDepth": 0
   },
   "include": ["*.ts"]
