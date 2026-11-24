@@ -44,6 +44,16 @@ test('esmModule: exported and hidden constants, local and exported functions, fr
   assert.ok(Object.isFrozen(mod.LIST));
 });
 
+test('esmModule: the line right after the header turns type-checking off (the lib source it copies is checked in lib/)', () => {
+  const src = esmModule('two\nlines', { consts: { N: 1 } });
+  assert.equal(src.split('\n').slice(0, 4).join('\n'), '/* two\n * lines */\n// @ts-nocheck: a generated copy of type-checked lib source (lib/build/esm-module.mjs)\n');
+  for (const generated of ['food-calc.js', 'journal-calc.js', 'profile-rules.js']) {
+    const lines = readFileSync(new URL(`../services/loop-ingest/src/${generated}`, import.meta.url), 'utf8').split('\n');
+    const end = lines.findIndex((l) => l.endsWith('*/'));
+    assert.equal(lines[end + 1], '// @ts-nocheck: a generated copy of type-checked lib source (lib/build/esm-module.mjs)', generated);
+  }
+});
+
 test('esmModule: a frozen constant is frozen at every level; an unfrozen one stays mutable', async () => {
   const TREE = Object.freeze({ a: [1, [2, { z: 'x' }]], b: { c: 'y' }, n: null });
   const LOOSE = { d: [1] };

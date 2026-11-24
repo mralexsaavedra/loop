@@ -14,7 +14,9 @@ import { CLIENT_SCRIPTS } from './src/client/manifest.mjs';
 const CLIENT_MODULES_ID = 'virtual:client-modules';
 const clientModules = {
   name: 'client-modules',
+  /** @param {string} id */
   resolveId: (id) => (id === CLIENT_MODULES_ID ? '\0' + CLIENT_MODULES_ID : null),
+  /** @param {string} id */
   load(id) {
     if (id !== '\0' + CLIENT_MODULES_ID) return null;
     const entries = CLIENT_SCRIPTS.map((e) => [e.file, clientScriptSource(e.file)]);
@@ -31,6 +33,7 @@ const clientModules = {
 const postBuild = {
   name: 'page-post-build',
   hooks: {
+    /** @param {{ dir: URL }} options */
     'astro:build:done': ({ dir }) => {
       const root = fileURLToPath(dir);
       for (const entry of fs.readdirSync(root, { recursive: true })) {

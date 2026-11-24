@@ -20,11 +20,16 @@
     "lib/**/*.mjs",
     "data/**/*.mjs",
     "scripts/*.mjs",
+    "web/src/*.mjs",
+    "web/src/client/*.mjs",
+    "web/src/i18n/*.mjs",
+    "web/astro.config.mjs",
     "scripts/types/*.d.ts"
   ],
   "exclude": [
     "lib/**/*.test.mjs",
     "data/**/*.test.mjs",
-    "scripts/*.test.mjs"
+    "scripts/*.test.mjs",
+    "web/src/**/*.test.mjs"
   ]
 }
