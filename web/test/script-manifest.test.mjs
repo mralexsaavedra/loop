@@ -27,8 +27,9 @@ const bakes = inline.slice(0, inline.length - files.length);
 const providerAt = new Map();
 CLIENT_SCRIPTS.forEach((e, i) => e.provides.forEach((n) => { if (!providerAt.has(n)) providerAt.set(n, i); }));
 
-test('manifest: every web/src/client/*.js and *.ts (not *.d.ts) is listed exactly once', () => {
-  const onDisk = fs.readdirSync(CLIENT).filter((f) => f.endsWith('.js') || (f.endsWith('.ts') && !f.endsWith('.d.ts'))).sort();
+test('manifest: every web/src/client/*.ts (not *.d.ts) is listed exactly once, and no classic *.js script is left', () => {
+  assert.deepEqual(fs.readdirSync(CLIENT).filter((f) => f.endsWith('.js')), [], 'a client script is a TypeScript module (*.ts)');
+  const onDisk = fs.readdirSync(CLIENT).filter((f) => f.endsWith('.ts') && !f.endsWith('.d.ts')).sort();
   assert.deepEqual([...files].sort(), onDisk);
   assert.equal(new Set(files).size, files.length, 'no file listed twice');
 });

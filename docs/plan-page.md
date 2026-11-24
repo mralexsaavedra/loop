@@ -57,10 +57,10 @@ would delete each other's chunks.
 
 ### Inlined scripts and CSS are slimmed
 
-- `web/layouts/Plan.astro` inlines every `web/src/client/*.js` through `web/src/slim-script.mjs`
-  `slimScript` (esbuild `transformSync`; esbuild is declared in package.json at the exact version astro /
-  vite lock): `minifyWhitespace`, `legalComments: 'none'`, `charset: 'utf8'`; NO identifier renaming, NO
-  syntax rewriting, still a classic script.
+- `web/layouts/Plan.astro` inlines every client script (the esbuild bundle of each `web/src/client/*.ts`)
+  through `web/src/slim-script.mjs` `slimScript` (esbuild `transformSync`; esbuild is declared in package.json at
+  the exact version astro / vite lock): `minifyWhitespace`, `legalComments: 'none'`, `charset: 'utf8'`; NO
+  identifier renaming, NO syntax rewriting, still a plain inline script (not `type="module"`).
 - The built page drops comments and may re-print quotes / number literals (`'x'` → `"x"`): a test that
   matches a script in the built HTML compares against `slimScript(source)` or a whitespace / quote
   tolerant regex, never the raw file. Baked JSON globals are not touched.
@@ -172,12 +172,13 @@ A missing `--root` value or `--root` without `--personal` is exit 2 (`web/test/g
 
 ### Module scripts (TypeScript)
 
-A client script may be a **module** (`web/src/client/*.ts`) instead of a classic `*.js`. It is TypeScript checked
+Every client script is a **module** (`web/src/client/*.ts`; no classic `*.js` script is left, and
+`web/test/script-manifest.test.mjs` refuses a new one). It is TypeScript checked
 with `strict` (`web/src/client/tsconfig.json`, part of `npm run typecheck`), and it can `import` lib modules
 directly (`home-week.ts` imports `fin` from `lib/nutrition/num.mjs` instead of reading `HC.fin`). At build time
-`web/src/client-bundle.mjs` bundles it with esbuild into ONE classic IIFE (types stripped, imports inlined; no
+`web/src/client-bundle.mjs` bundles it with esbuild into ONE IIFE (types stripped, imports inlined; no
 minification). `astro.config.mjs` exposes the result as the virtual module `virtual:client-modules`, and
-`layouts/Plan.astro` inlines it at the module's place in the manifest, exactly like a classic script, so the page
+`layouts/Plan.astro` inlines it at the module's place in the manifest as a plain inline script, so the page
 stays one file and the CSP hashes it like any other script. The tests run the same bytes
 (`clientScriptSource(file)`). The page globals a module reads are typed in `web/src/client/page-globals.d.ts`:
 `HC` with util.ts's own inferred API (`HCApi`), so every call into it is checked; `LOCALE` and every copy table
@@ -204,14 +205,14 @@ ESLint lints only `*.js` / `*.mjs`: for a module script `tsc` takes its place (`
 shapes, `noUnusedLocals` for ESLint's `no-unused-vars`; unused parameters stay allowed, as ESLint's `args: 'none'`).
 
 A module script runs in **strict mode**: the client `tsconfig.json` sets `strict`, which implies `alwaysStrict`, so
-esbuild opens every bundle with `"use strict";` (classic scripts stay sloppy). For these scripts that changes
+esbuild opens every bundle with `"use strict";` (a plain script would run sloppy). For these scripts that changes
 nothing observable: they assign no undeclared variable (ESLint `no-undef` already forbade it), use no `this` outside
 methods, write no baked or frozen global, and `delete` only own properties of their own objects. A new module
 script must keep to that: the `HC_*` constants are the lib's own frozen objects, and a write into one throws here.
 
 ### Script order: one manifest
 
-The client scripts are classic `is:inline` scripts that talk only through page globals, so their order is
+The client scripts are inline `is:inline` scripts (IIFE bundles, not ES modules) that talk only through page globals, so their order is
 a contract. `web/src/client/manifest.mjs` (`CLIENT_SCRIPTS`) is its ONE source: `layouts/Plan.astro`
 inlines every client script in that order, after the bakes; `lib-globals.ts` (the `HC_*` lib globals) is
 first, then `util.ts`. Each entry declares:

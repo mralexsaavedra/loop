@@ -306,7 +306,7 @@ test('publishAction: reload once the server published a newer page than the one 
 test('one date format: no client script formats a date with toLocale*String / Intl (HC.fmtDate / fmtMonth only)', () => {
   const dir = path.dirname(fileURLToPath(import.meta.url));
   // classic *.js and module *.ts scripts (their type declarations hold no code)
-  const scripts = fs.readdirSync(dir).filter((f) => (f.endsWith('.js') || (f.endsWith('.ts') && !f.endsWith('.d.ts'))) && !/\.test\./.test(f));
+  const scripts = fs.readdirSync(dir).filter((f) => (f.endsWith('.ts') && !f.endsWith('.d.ts')) && !/\.test\./.test(f));
   assert.ok(scripts.length > 30, 'the client scripts are found');
   for (const f of scripts) {
     const src = fs.readFileSync(path.join(dir, f), 'utf8');
@@ -448,7 +448,7 @@ function clientScripts() {
     return e.isDirectory() ? walk(p) : [p];
   });
   return walk(dir).map((p) => path.relative(dir, p).split(path.sep).join('/'))
-    .filter((f) => (f.endsWith('.js') || (f.endsWith('.ts') && !f.endsWith('.d.ts'))) && !/\.test\.m?js$/.test(f) && f !== 'util.ts').sort()
+    .filter((f) => (f.endsWith('.ts') && !f.endsWith('.d.ts')) && !/\.test\.m?js$/.test(f) && f !== 'util.ts').sort()
     .map((f) => ({ f, src: fs.readFileSync(path.join(dir, f), 'utf8') }));
 }
 

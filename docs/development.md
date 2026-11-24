@@ -203,7 +203,9 @@ has the full table; `lib/paths.test.mjs` pins both layouts path by path.
   each importing only from lower layers. The two composition roots, `lib/extract/read.mjs` (`readExtract`) and
   `lib/score/index.mjs` (`buildScoresFrom`), may import any layer, and no lib module imports them (only
   `web/src/bakes.mjs` does). `lib/layers.test.mjs` pins all of it, with an empty list of known exceptions. The page's
-  classic client scripts cannot import modules: they keep their local-calendar twins in `web/src/client/util.ts`.
+  client scripts may import lib modules (each script's bundle inlines what it imports; shared lib code reaches every
+  script once through the `HC_*` globals of `web/src/client/lib-globals.ts`); the local-calendar twins of the date
+  helpers (the viewer's clock, not UTC) live in `web/src/client/util.ts`.
 - If you run the LAN services from this clone, keep it on `main`: the refresh only publishes from `main`. Do
   feature work in a separate `git worktree`.
 - Never commit personal data (`CLAUDE.md` → Repo rules); `data/demo/` is tracked and must stay synthetic.
