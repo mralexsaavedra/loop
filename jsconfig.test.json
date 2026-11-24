@@ -1,0 +1,17 @@
+{
+  "extends": "./jsconfig.json",
+  "include": [
+    "lib/**/*.test.mjs",
+    "data/**/*.test.mjs",
+    "scripts/*.test.mjs",
+    "web/**/*.test.mjs",
+    ".claude/hooks/*.test.js",
+    "scripts/types/*.d.ts",
+    "scripts/types/test/*.d.ts",
+    "services/loop-ingest/src/types/*.d.ts"
+  ],
+  "exclude": [
+    "web/dist",
+    "web/node_modules"
+  ]
+}

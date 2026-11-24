@@ -9,8 +9,8 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
-const read = (p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
-const exists = (p) => fs.existsSync(path.join(ROOT, p));
+const read = (/** @type {string} */ p) => fs.readFileSync(path.join(ROOT, p), 'utf8');
+const exists = (/** @type {string} */ p) => fs.existsSync(path.join(ROOT, p));
 const IMAGES = ['mralexandersaavedra/loop-server', 'mralexandersaavedra/loop-web'];
 const VERSION = JSON.parse(read('package.json')).version;
 
@@ -63,7 +63,7 @@ test('CI runs the lint, the typecheck and both suites on every push and pull req
   assert.match(ci, /npm run lint/);
   assert.match(ci, /npm run typecheck/);
   assert.equal(JSON.parse(read('package.json')).scripts.lint, 'eslint .');
-  assert.equal(JSON.parse(read('package.json')).scripts.typecheck, 'tsc --noEmit -p jsconfig.json && tsc --noEmit -p e2e/jsconfig.json && tsc -p web/src/client/tsconfig.json && astro check --root web');
+  assert.equal(JSON.parse(read('package.json')).scripts.typecheck, 'tsc --noEmit -p jsconfig.json && tsc --noEmit -p jsconfig.test.json && tsc --noEmit -p e2e/jsconfig.json && tsc -p web/src/client/tsconfig.json && astro check --root web');
   assert.match(ci, /npm test/);
   assert.match(ci, /npm run test:services/);
   const rel = read('.github/workflows/release.yml');
@@ -161,7 +161,7 @@ test('CI runs the browser E2E tests in Chromium and WebKit (job e2e, npm run tes
 test('every checkout in the workflows drops the job token from .git/config (persist-credentials: false)', () => {
   for (const f of ['.github/workflows/ci.yml', '.github/workflows/release.yml']) {
     const text = read(f);
-    const checkouts = text.split('\n').map((l, i) => [l, i]).filter(([l]) => /uses: actions\/checkout@/.test(l));
+    const checkouts = text.split('\n').map((l, i) => /** @type {[string, number]} */ ([l, i])).filter(([l]) => /uses: actions\/checkout@/.test(l));
     assert.ok(checkouts.length > 0, f);
     const lines = text.split('\n');
     for (const [, i] of checkouts) {
@@ -186,7 +186,7 @@ const CHECK_SCRIPT = (() => {
   return m[1].split('\n').map((l) => l.slice(10)).join('\n');
 })();
 
-const git = (dir, ...args) => {
+const git = (/** @type {string} */ dir, /** @type {string[]} */ ...args) => {
   const r = spawnSync('git', ['-c', 'user.name=t', '-c', 'user.email=t@t', '-c', 'commit.gpgsign=false', '-c', 'tag.gpgsign=false', ...args], { cwd: dir, encoding: 'utf8', env: { PATH: process.env.PATH, GIT_CONFIG_NOSYSTEM: '1', HOME: dir } });
   assert.equal(r.status, 0, r.stderr);
   return r.stdout.trim();
@@ -194,10 +194,11 @@ const git = (dir, ...args) => {
 
 /* A scratch git repo with the version files, committed on `main` (mirrored as origin/main, as a fetch-depth 0
  * checkout has it), `tags` on that commit; `offMain` tags a commit origin/main does not contain. */
+/** @param {{ tag?: string, version?: string, changelog?: string, compose?: string, env?: string, tags?: string[], offMain?: boolean }} [opts] */
 function runCheck({ tag, version = VERSION, changelog, compose, env, tags = [], offMain = false } = {}) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'release-check-'));
   try {
-    const sub = (s) => (version === VERSION ? s : s.replaceAll(VERSION, version));
+    const sub = (/** @type {string} */ s) => (version === VERSION ? s : s.replaceAll(VERSION, version));
     fs.mkdirSync(path.join(dir, 'docker'));
     fs.writeFileSync(path.join(dir, 'package.json'), sub(read('package.json')));
     fs.writeFileSync(path.join(dir, 'docker/docker-compose.yml'), compose ?? sub(read('docker/docker-compose.yml')));
@@ -309,7 +310,7 @@ test('the image job tags latest only from the check job\'s ordering, never metad
 
 test('CI runs the data service suite against a real Postgres, the same image and digest as the compose file', () => {
   const ci = read('.github/workflows/ci.yml');
-  const pinned = read('services/loop-ingest/docker-compose.yml').match(/image: (postgres:17-alpine@sha256:[0-9a-f]{64})/)[1];
+  const pinned = /** @type {RegExpMatchArray} */ (read('services/loop-ingest/docker-compose.yml').match(/image: (postgres:17-alpine@sha256:[0-9a-f]{64})/))[1];
   assert.ok(ci.includes(`image: ${pinned}`), 'the CI postgres service uses the compose pin');
   assert.match(ci, /TEST_DATABASE_URL: postgres:\/\//);
   assert.match(ci, /npm run test:pg/);
