@@ -4,19 +4,7 @@
     "strict": true
   },
   "include": [
-    "lib/*.mjs",
-    "lib/format/*.mjs",
-    "lib/build/*.mjs",
-    "lib/nav/*.mjs",
-    "lib/extract/samples.mjs",
-    "lib/training/*.mjs",
-    "lib/journal/*.mjs",
-    "lib/score/*.mjs",
-    "lib/health/*.mjs",
-    "lib/detail/*.mjs",
-    "lib/profile/*.mjs",
-    "lib/load/*.mjs",
-    "lib/nutrition/*.mjs"
+    "lib/**/*.mjs"
   ],
   "exclude": [
     "lib/**/*.test.mjs"
