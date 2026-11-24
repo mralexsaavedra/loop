@@ -1,5 +1,5 @@
 /* The shapes of the page globals the module client scripts (*.ts) read: HC, LOCALE, the copy tables (I18N_*) and
- * SCORES / DETAIL / DIALS / DASH / INTAKE / ACTIVITY (from their builders) are typed; the baked data globals are `any` until each gets its own type (their shapes live in lib/). */
+ * SCORES / DETAIL / DIALS / DASH / INTAKE / ACTIVITY / HEALTH (from their builders) are typed; the baked data globals are `any` until each gets its own type (their shapes live in lib/). */
 /** A copy table the scripts also index by a runtime key (a kind, a range, a metric): each nested table keeps its
  * named keys and also takes any string key (an unknown key reads `undefined` at runtime, as before). */
 type Lookup<T> = T extends readonly unknown[]
@@ -35,7 +35,7 @@ export type PageGlobals = {
   I18N_ACTIVITY: Lookup<Omit<typeof import('../i18n/activity-templates.mjs')['en'], 'head'>>; // Bake drops `head`
   I18N_ONB: Copy<typeof import('../i18n/onboarding-templates.mjs')>;
   HCProgram: any;
-  HEALTH: any;
+  HEALTH: ReturnType<typeof import('../bakes.mjs').computeBakes>['health'];
   I18N_HEALTH: Copy<typeof import('../i18n/health-templates.mjs')>;
   DIALS: ReturnType<typeof import('../view/dial.mjs').buildDials>;
   HCFoodInternal: any;
