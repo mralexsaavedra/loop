@@ -14,8 +14,8 @@ import { computeBakes } from '../src/bakes.mjs';
 import { toCsv } from '../../data/nutrition/sync-foodlog.mjs';
 
 const REPO_ROOT = path.dirname(path.dirname(path.dirname(fileURLToPath(import.meta.url))));
-const seed = (rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
-const put = (file, content) => {
+const seed = (/** @type {string} */ rel) => JSON.parse(fs.readFileSync(path.join(REPO_ROOT, rel), 'utf8'));
+const put = (/** @type {string} */ file, /** @type {unknown} */ content) => {
   fs.mkdirSync(path.dirname(file), { recursive: true });
   fs.writeFileSync(file, typeof content === 'string' ? content : JSON.stringify(content));
 };
@@ -69,7 +69,7 @@ test('without HC_DATA_DIR: the clone\'s loop-data/ (the default data root), neve
     assert.equal(env.extractDir, path.join(f.repo, 'loop-data', 'extract'));
     const bakes = computeBakes(env);
     assert.equal(bakes.profile.name, 'Default Root');
-    assert.equal(bakes.profile.weight.kg, 71.5);
+    assert.equal(/** @type {NonNullable<typeof bakes.profile.weight>} */ (bakes.profile.weight).kg, 71.5);
     assert.equal(bakes.intake.log.asOf, '2030-01-03');
   } finally {
     f.cleanup();

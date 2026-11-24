@@ -13,6 +13,7 @@ import { clientScriptSource } from '../client-bundle.mjs';
 // a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
 const source = clientScriptSource('training-dash.ts');
 
+/** @param {string} date @param {string} type @param {number} dur @param {number | null} [hrAvg] @param {number | null} [hrMax] @param {string} [src] */
 const w = (date, type, dur, hrAvg = null, hrMax = null, src = 'Apple Watch') => ({ date, type, dur, hrAvg, hrMax, re: null, source: src });
 const ROWS = [
   w('2026-09-01', 'HighIntensityIntervalTraining', 60, 140, 175),
@@ -22,11 +23,14 @@ const ROWS = [
   w('2026-09-22', 'HighIntensityIntervalTraining', 55, 145, 180),
   w('2026-09-28', 'Running', 30, 155, 178),
 ];
+/** @typedef {Extract<import('../../../lib/training/dashboard.mjs').Dashboard, {hasData: true}>} DashData */
 const DASH = aggregateDashboard(ROWS);
 
+/** @param {unknown} dash @param {{locale?: string, host?: boolean}} [opts] */
 function render(dash, { locale = 'en', host = true } = {}) {
   const doc = new StubDocument();
-  const el = host ? doc.el('train-dash') : null;
+  const el = host ? /** @type {import('../../test/dom-stub.mjs').StubElement & {innerHTML: string}} */ (doc.el('train-dash')) : null;
+  /** @type {import('node:vm').Context} */
   const ctx = { document: doc, DASH: dash, I18N_DASH: locale === 'es' ? esD : enD, LOCALE: locale, Math, String, Number, Array, Object, JSON };
   vm.createContext(ctx);
   loadUtil(ctx);
@@ -36,17 +40,18 @@ function render(dash, { locale = 'en', host = true } = {}) {
 
 test('intensity only: one metric row per modality with HR (mean HR, the peak as the small line), highest first; volume, split and summary cards are gone (Activity card)', () => {
   assert.equal(DASH.hasData, true);
-  const html = render(DASH);
+  const html = /** @type {string} */ (render(DASH));
   assert.match(html, /^<section class="hs-sec" aria-labelledby="int-h"><div class="hs-head"><h3 class="hs-lbl" id="int-h">Intensity \(HR\)<\/h3><button type="button" class="hs-i" data-hs-info="int-info"/);
   const rows = [...html.matchAll(/<li class="db-row"[^>]*>[\s\S]*?<span class="db-name">([^<]+)<\/span><span class="db-vals"><span class="db-val"><b>(\d+)<\/b><small>bpm<\/small><\/span><span class="sr-only">([^<]*)<\/span><span class="db-base" aria-hidden="true">([^<]*)<\/span>/g)].map((m) => [m[1], +m[2], m[3], m[4]]);
-  const withHr = DASH.modality.filter((m) => m.avgHr).sort((a, b) => b.avgHr - a.avgHr);
+  const withHr = DASH.modality.filter((m) => m.avgHr).sort((a, b) => /** @type {number} */ (b.avgHr) - /** @type {number} */ (a.avgHr));
   // named by its content, then "mean HR · peak …" in screen-reader words (the shown peak hidden from them)
-  assert.deepEqual(rows, withHr.map((m) => [enD.modalityLabels[m.key], m.avgHr, `mean HR · peak ${m.peakHr}`, `peak ${m.peakHr}`]));
+  assert.deepEqual(rows, withHr.map((m) => [enD.modalityLabels[/** @type {keyof typeof enD.modalityLabels} */ (m.key)], m.avgHr, `mean HR · peak ${m.peakHr}`, `peak ${m.peakHr}`]));
   assert.doesNotMatch(html, /db-row[^>]*aria-label/);
   assert.doesNotMatch(html, /dash-cards|wbar|class="mrow"|Weekly volume|Modality split/, 'the merged parts are not drawn twice');
   assert.doesNotMatch(html, /NaN|undefined|null|Infinity/);
   // each modality its own icon (not the same heart on every row): the same paths as HC.metricIcon
   const icons = [...html.matchAll(/<li class="db-row"[^>]*>(<svg class="db-ico"[\s\S]*?<\/svg>)/g)].map((m) => m[1]);
+  /** @type {Record<string, string>} */
   const want = { strength: 'gym', hybrid: 're', run: 'run', bike: 'bike' };
   const ctx = loadUtil(vm.createContext({ LOCALE: 'en' }));
   assert.deepEqual(icons, withHr.map((m) => ctx.HC.metricIcon(want[m.key] || 'exercise')));
@@ -54,9 +59,9 @@ test('intensity only: one metric row per modality with HR (mean HR, the peak as 
 });
 
 test('the window, HR coverage, data date and strength caveat sit behind ⓘ (hidden), not lost', () => {
-  const html = render(DASH);
-  const info = html.match(/<div class="hs-info" id="int-info" hidden>([\s\S]*?)<\/div><ul/)[1];
-  assert.ok(info.includes(enD.intensityHint.replace('{withHr}', String(DASH.intensity.withHr)).replace('{total}', String(DASH.intensity.total)).replace('{weeks}', '12')));
+  const html = /** @type {string} */ (render(DASH));
+  const info = /** @type {RegExpMatchArray} */ (html.match(/<div class="hs-info" id="int-info" hidden>([\s\S]*?)<\/div><ul/))[1];
+  assert.ok(info.includes(enD.intensityHint.replace('{withHr}', String(/** @type {DashData} */ (DASH).intensity.withHr)).replace('{total}', String(/** @type {DashData} */ (DASH).intensity.total)).replace('{weeks}', '12')));
   assert.ok(info.includes(enD.asOfLine.replace('{date}', '28 Sep')), 'as-of date through the shared formatter, no weekday');
   assert.ok(info.includes(enD.note2Html));
 });
@@ -68,7 +73,7 @@ test('no HR on any session, or no data: nothing is drawn (the Activity card hold
 });
 
 test('es locale: Spanish labels and Spanish as-of date', () => {
-  const html = render(DASH, { locale: 'es' });
+  const html = /** @type {string} */ (render(DASH, { locale: 'es' }));
   assert.ok(html.includes(esD.asOfLine.replace('{date}', '28 sept')));
   assert.ok(html.includes('Intensidad (FC)'));
   assert.ok(html.includes('<small>ppm</small>'));

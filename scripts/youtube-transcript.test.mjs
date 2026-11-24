@@ -5,6 +5,9 @@ import {
   mergeManifest, pendingIds, renderTranscript, wordCount, parseArgs, isoDate, timestampUrl,
 } from './youtube-transcript.mjs';
 
+/** @typedef {import('./youtube-transcript.mjs').Manifest} Manifest */
+/** @typedef {import('./youtube-transcript.mjs').ManifestEntry} ManifestEntry */
+
 // Synthetic auto-caption VTT: YouTube's rolling captions repeat the previous
 // line at the top of every cue and carry inline word timing tags.
 const AUTO_VTT = `WEBVTT
@@ -131,16 +134,16 @@ test('pickSubtitle prefers a manual track, then the original auto track, never a
 
 test('mergeManifest adds a video without mutating the input and keeps the header', () => {
   const head = { source: 'youtube', channel: 'https://c' };
-  const base = { ...head, videos: { a: { title: 'A' } } };
-  const next = mergeManifest(base, 'b', { title: 'B' }, head);
-  assert.deepEqual(Object.keys(next.videos), ['a', 'b']);
-  assert.equal(base.videos.b, undefined);
-  assert.deepEqual(mergeManifest(null, 'x', { title: 'X' }, head), { ...head, videos: { x: { title: 'X' } } });
+  const base = /** @type {Manifest} */ ({ ...head, videos: { a: /** @type {ManifestEntry} */ ({ title: 'A' }) } });
+  const next = mergeManifest(base, 'b', /** @type {ManifestEntry} */ ({ title: 'B' }), head);
+  assert.deepEqual(Object.keys(/** @type {Record<string, ManifestEntry>} */ (next.videos)), ['a', 'b']);
+  assert.equal(/** @type {Record<string, ManifestEntry>} */ (base.videos).b, undefined);
+  assert.deepEqual(mergeManifest(null, 'x', /** @type {ManifestEntry} */ ({ title: 'X' }), head), { ...head, videos: { x: { title: 'X' } } });
 });
 
 test('pendingIds skips videos already in the manifest, dedupes and honours the limit', () => {
   const listing = [{ id: 'a' }, { id: 'b' }, { id: 'c' }, { id: 'b' }];
-  assert.deepEqual(pendingIds(listing, { videos: { a: {} } }).map((v) => v.id), ['b', 'c']);
+  assert.deepEqual(pendingIds(listing, { videos: { a: /** @type {ManifestEntry} */ ({}) } }).map((v) => v.id), ['b', 'c']);
   assert.deepEqual(pendingIds(listing, null, 1).map((v) => v.id), ['a']);
 });
 
@@ -171,7 +174,7 @@ test('renderTranscript marks unknown date and duration', () => {
 });
 
 test('wordCount counts whitespace-separated words', () => {
-  assert.equal(wordCount([{ text: 'uno dos' }, { text: ' tres ' }]), 3);
+  assert.equal(wordCount(/** @type {import('./youtube-transcript.mjs').TranscriptLine[]} */ ([{ text: 'uno dos' }, { text: ' tres ' }])), 3);
 });
 
 test('parseArgs reads the flags with defaults and rejects bad input', () => {

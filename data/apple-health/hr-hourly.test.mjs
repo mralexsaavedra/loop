@@ -3,16 +3,16 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import * as H from '../../lib/health/hr-hourly.mjs';
 
-const s = (hm, value, day = '2030-01-02', off = '+0100') => ({ start: `${day} ${hm}:00 ${off}`, value });
-const cols = line => line.split(',');
+const s = (/** @type {string} */ hm, /** @type {number} */ value, day = '2030-01-02', off = '+0100') => ({ start: `${day} ${hm}:00 ${off}`, value });
+const cols = (/** @type {string} */ line) => line.split(',');
 
 test('parseSample: "ISO;bpm" -> {start, value}; out of 25-240 bpm, malformed or decimal-comma lines', () => {
   assert.deepEqual(H.parseSample('2030-01-02T09:07:12+01:00;72'), { start: '2030-01-02 09:07:12 +0100', value: 72 });
   assert.deepEqual(H.parseSample('2030-01-02T09:07:12+01:00;72,5'), { start: '2030-01-02 09:07:12 +0100', value: 72.5 });
   assert.equal(H.parseSample('2030-01-02T09:07:12+01:00;24'), null);
   assert.equal(H.parseSample('2030-01-02T09:07:12+01:00;241'), null);
-  assert.deepEqual(H.parseSample('2030-01-02T09:07:12+01:00;25').value, 25);
-  assert.deepEqual(H.parseSample('2030-01-02T09:07:12+01:00;240').value, 240);
+  assert.deepEqual(/** @type {NonNullable<ReturnType<typeof H.parseSample>>} */ (H.parseSample('2030-01-02T09:07:12+01:00;25')).value, 25);
+  assert.deepEqual(/** @type {NonNullable<ReturnType<typeof H.parseSample>>} */ (H.parseSample('2030-01-02T09:07:12+01:00;240')).value, 240);
   assert.equal(H.parseSample('garbage;72'), null);
   assert.equal(H.parseSample('2030-01-02T09:07:12+01:00;'), null);
 });

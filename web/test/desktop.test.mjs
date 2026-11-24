@@ -14,9 +14,9 @@ const WEB_ROOT = path.dirname(here);
 const htmlPath = path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.html');
 const css = () => [...fs.readFileSync(htmlPath, 'utf8').matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
 const WIDE = '(min-width:900px)';
-const norm = (v) => String(v).replace(/\s+/g, '');
+const norm = (/** @type {unknown} */ v) => String(v).replace(/\s+/g, '');
 const rules = () => parseCssRules(css());
-const decl = (list, sel, prop) => {
+const decl = (/** @type {import('./css-scan.mjs').CssRule[]} */ list, /** @type {string} */ sel, /** @type {string} */ prop) => {
   const d = list.filter((x) => x.selector.split(',').map((s) => s.trim()).includes(sel)).flatMap((x) => x.decls).filter(([p]) => p === prop).pop();
   return d ? norm(d[1]) : null;
 };

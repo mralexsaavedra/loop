@@ -13,23 +13,32 @@ import { clientScriptSource } from '../client-bundle.mjs';
 const source = clientScriptSource('timeline.ts');
 const ASOF = '2026-09-29';
 
+/** @param {string} date @param {string} type @param {number} dur @param {number | null} [re] */
 const w = (date, type, dur, re = null) => ({ date, type, dur, hrAvg: null, re, kj: null });
 const TL = timelineFromInputs(
   [w('2026-09-28', 'TraditionalStrengthTraining', 55, 40), w('2026-09-29', 'Running', 45.4, 94), w('2026-09-29', 'Cycling', 30, null)],
   [{ date: '2026-09-28', value: 7.1 }, { date: '2026-09-29', value: 6.86 }],
 );
 
+/**
+ * @param {unknown} timeline
+ * @param {{locale?: string, now?: string, at?: string, healthNav?: boolean, entrenoNav?: boolean, T?: unknown, noLocale?: boolean,
+ *   detail?: boolean | object, program?: unknown, day?: unknown}} [opts]
+ */
 function render(timeline, { locale = 'en', now = ASOF, at, healthNav = false, entrenoNav = false, T, noLocale = false, detail = false, program = null, day = null } = {}) {
   const host = { innerHTML: '' };
   const RealDate = Date;
   const stamp = at || now + 'T12:00:00';
   class FakeDate extends RealDate {
-    constructor(...a) { super(...(a.length ? a : [stamp])); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { super(.../** @type {ConstructorParameters<DateConstructor>} */ (a.length ? a : [stamp])); }
     static now() { return new RealDate(stamp).getTime(); }
   }
+  /** @type {Record<string, unknown>} */
   const byId = { timeline: host, 't-health': healthNav ? {} : null, 't-entreno': entrenoNav ? {} : null };
+  /** @type {import('node:vm').Context} */
   const ctx = {
-    document: { getElementById: (id) => byId[id] || null },
+    document: { getElementById: (/** @type {string} */ id) => byId[id] || null },
     SCORES: timeline === undefined ? undefined : { timeline }, I18N_SCORE: T || (locale === 'es' ? esT : enT), ...(noLocale ? {} : { LOCALE: locale }),
     Date: FakeDate, Math, String, Number, Array, Object, JSON,
   };
@@ -42,6 +51,7 @@ function render(timeline, { locale = 'en', now = ASOF, at, healthNav = false, en
   return host.innerHTML;
 }
 // the visible text of each row (its screen-reader-only words left out: asserted on their own)
+/** @param {string} html */
 const rows = (html) => [...html.matchAll(/<li><div class="tl-row ([^"]+)"[^>]*>([\s\S]*?)<\/div><\/li>/g)].map((m) => ({ cls: m[1], text: m[2].replace(/<span class="sr-only">[^<]*<\/span>/g, '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim() }));
 
 test('viewer today: "Today\'s activities" heading, last night\'s sleep first, then each workout: a coloured chip (icon + RE, else minutes), the name, the minutes stacked on the right', () => {
@@ -53,7 +63,7 @@ test('viewer today: "Today\'s activities" heading, last night\'s sleep first, th
     { cls: 'tl-run', text: '94 Run 0:45' },
     { cls: 'tl-bike', text: '0:30 Bike' },
   ]);
-  const sleep = html.match(/<li><div class="tl-row tl-sleep"[\s\S]*?<\/li>/)[0];
+  const sleep = /** @type {RegExpMatchArray} */ (html.match(/<li><div class="tl-row tl-sleep"[\s\S]*?<\/li>/))[0];
   assert.match(sleep, /<span class="tl-chip"><svg class="tl-ico"[^>]*aria-hidden="true">[\s\S]*?<\/svg><b>6:52<\/b><\/span><span class="tl-name">Sleep<\/span>/);
   // named by its content (no aria-label): the chip hidden from the name and read in words after it, "Run RE 94 0:45"
   assert.match(html, /<li><div class="tl-row tl-run"><span class="tl-chip" aria-hidden="true">[\s\S]*?<b>94<\/b><\/span><span class="tl-name">Run<\/span><span class="sr-only">RE 94<\/span><span class="tl-side tl-times"><span>0:45<\/span><\/span><\/div><\/li>/);
@@ -131,9 +141,10 @@ test('rows open the detail sheet on that day: sleep -> the sleep view, a scored 
 });
 
 test('resilience: a missing LOCALE global renders the card fallback inside the try, never throws', () => {
+  /** @type {string | undefined} */
   let html;
   assert.doesNotThrow(() => { html = render(TL, { noLocale: true }); });
-  assert.match(html, /sc-card-error/);
+  assert.match(/** @type {string} */ (html), /sc-card-error/);
 });
 
 test('resilience: a broken baked day renders the card fallback, never throws', () => {
@@ -167,7 +178,7 @@ test('programmed session (window.HCProgram, client/training-today.ts): a "progra
 });
 
 test('S3 a programmed indoor session draws the bike icon, a hybrid one the hybrid icon (never the "other" fallback)', () => {
-  const ico = (kind) => {
+  const ico = (/** @type {string} */ kind) => {
     const html = render(TL, { program: { date: ASOF, kind, focus: 'x' } });
     const m = html.match(/tl-prog-[a-z]+"[^>]*><span class="tl-chip"[^>]*><svg class="tl-ico" viewBox="0 0 24 24" aria-hidden="true">(.*?)<\/svg>/);
     return m && m[1];
@@ -190,7 +201,7 @@ test('text diet: the same-day merge note lives in the card\'s ⓘ block (hidden,
 test('the programmed row keeps its long focus whole for assistive tech (named by its content, the whole text) while the name ellipsises', () => {
   const focus = 'Lower body strength + threshold intervals on the bike, then core';
   const html = render(TL, { program: { date: ASOF, kind: 'gym', focus }, detail: true });
-  const row = html.match(/<li><div class="tl-row tl-prog[\s\S]*?<\/li>/)[0];
+  const row = /** @type {RegExpMatchArray} */ (html.match(/<li><div class="tl-row tl-prog[\s\S]*?<\/li>/))[0];
   assert.doesNotMatch(row, /aria-label/);
   assert.ok(row.includes(`<span class="tl-name">${focus}</span>`), row);
   assert.equal(rows(row)[0].text, `${enT.timeline.programmedChip} ${focus} ${enT.timeline.programmed}`);
@@ -206,11 +217,13 @@ const WO = [
   w('2026-09-28', 'TraditionalStrengthTraining', 30, 25), w('2026-09-28', 'TraditionalStrengthTraining', 25, 15),
   w('2026-09-28', 'Running', 40, 60), w('2026-09-29', 'Running', 45.4, 94),
 ].map((r) => ({ ...r, source: 'Strava API' }));
-const DET = detailFromInputs({ sleep: SL, workouts: WO });
+const DET = detailFromInputs(/** @type {import('../../../lib/detail/detail.mjs').DetailInputs} */ ({ sleep: SL, workouts: WO })); // partial rows: what the timeline reads
 const TL2 = timelineFromInputs(WO, SL);
+/** @param {string | null} sel */
 function stepper(sel) {
+  /** @type {((x: string | null) => void)[]} */
   const subs = [];
-  return { sel: () => sel, on: (fn) => subs.push(fn), go: (x) => { sel = x; subs.forEach((fn) => fn(x)); } };
+  return { sel: () => sel, on: (/** @type {(x: string | null) => void} */ fn) => subs.push(fn), go: (/** @type {string | null} */ x) => { sel = x; subs.forEach((fn) => fn(x)); } };
 }
 
 test('day stepping: today selected renders byte-identically', () => {

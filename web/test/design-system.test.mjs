@@ -36,7 +36,9 @@ const RULES = FILES.flatMap((file) =>
     decl: Object.fromEntries(r.decls),
   })),
 );
-const where = (r) => `${r.file}${r.media ? ` @media ${r.media}` : ''} \`${r.selector}\``;
+/** One parsed rule of web/src/styles/*.css, its declarations by property.
+ * @typedef {(typeof RULES)[number]} Rule */
+const where = (/** @type {Rule} */ r) => `${r.file}${r.media ? ` @media ${r.media}` : ''} \`${r.selector}\``;
 
 // the :root custom properties of tokens.css (top level, not the desktop overrides)
 const TOKENS = Object.fromEntries(
@@ -45,6 +47,7 @@ const TOKENS = Object.fromEntries(
     .filter(([k]) => k.startsWith('--')),
 );
 // a length in px: `12px`, or a token chain that ends in one; anything else (clamp, calc, em) = null
+/** @param {string | null | undefined} value @param {number} [depth] @returns {number | null} */
 function px(value, depth = 0) {
   if (value == null || depth > 8) return null;
   const raw = /^(-?\d+(?:\.\d+)?)px$/.exec(value);
@@ -69,10 +72,12 @@ const ROLES = {
 // 1. cards ---------------------------------------------------------------------------------------
 const CARD_FILL = new Set(['var(--card-bg)', 'var(--surface)']);
 // a card-fill rule allowed another radius: `${file} ${selector}` → reason
+/** @type {Record<string, string>} */
 const CARD_RADIUS_ALLOW = {
   'detail.css .dd-contrib:before': 'a 3px marker bar, not a card',
 };
 // a raw px radius >= 8px allowed: `${file} ${selector}` → reason
+/** @type {Record<string, string>} */
 const RAW_RADIUS_ALLOW = {
   'base.css .tabnav': 'the floating dock bar (app shell, not a card)',
   'base.css .tabnav button': 'a dock button inside the 24px bar (inner radius = 24 - 5px padding)',
@@ -88,14 +93,15 @@ const HERO_WEIGHTS = new Set(['700', 'var(--num-weight)']);
 // later `.b { font-size: 24px }` without its own font-family is still a number (R3-002)
 // keyed by file + media + selector: a `.x` in the --num face in one stylesheet (or one media query)
 // says nothing about a `.x` elsewhere; a top-level rule still applies inside its own file's media rules
-const numKey = (file, media, sel) => `${file}|${media || ''}|${sel}`;
+const numKey = (/** @type {string} */ file, /** @type {string | null} */ media, /** @type {string} */ sel) => `${file}|${media || ''}|${sel}`;
 const NUM_SELECTORS = new Set(
   RULES.filter((r) => (r.decl['font-family'] ?? '').includes('var(--num)')).flatMap((r) => r.selector.split(', ').map((s) => numKey(r.file, r.media, s))),
 );
-const inNumFace = (r) => (r.decl['font-family'] ?? '').includes('var(--num)') ||
+const inNumFace = (/** @type {Rule} */ r) => (r.decl['font-family'] ?? '').includes('var(--num)') ||
   r.selector.split(', ').some((s) => NUM_SELECTORS.has(numKey(r.file, r.media, s)) || NUM_SELECTORS.has(numKey(r.file, '', s)));
-const isDialClamp = (v) => /^clamp\(.*var\(--fs-dial\)\)$/.test(v);
+const isDialClamp = (/** @type {string} */ v) => /^clamp\(.*var\(--fs-dial\)\)$/.test(v);
 // dial centres are sized to their ring (the dial step), plus the one sheet-header value
+/** @type {Record<string, string>} */
 const HERO_ALLOW = {
   'score.css @media (min-width:900px) .dial-num': "Inicio's dials at >= 900px (168px ring)",
   'nutri.css .nt-kcal': "Nutrición's kcal dial",
@@ -104,6 +110,7 @@ const HERO_ALLOW = {
   'detail.css .dt-num': 'the trend sheet header value (sheet scale, audited in DS4)',
 };
 // raw px font sizes in the hero band that are not numbers
+/** @type {Record<string, string>} */
 const RAW_SIZE_ALLOW = {
   'detail.css .sh-back': 'the sheet back-arrow glyph',
   'layout.css .wordmark': 'the header logo on the phone, 19px (header stays as is)',
@@ -114,12 +121,13 @@ const RAW_SIZE_ALLOW = {
 const CAPS_SIZES = new Set(['var(--fs-label)', 'var(--fs-title)', 'var(--fs-title-lg)']);
 // the sheets' own caps title, one step up — only in the sheet stylesheet (detail.css)
 const SHEET_CAPS = { size: 'var(--fs-title-sheet)', file: 'detail.css' };
+/** @type {Record<string, string>} */
 const CAPS_ALLOW = {
   'layout.css .date-pill-lbl': 'the header date pill, wide 0.14em tracking (header stays as is)',
 };
 
 // the allowlist key names the media query too, so an exception at >= 900px never excuses the phone rule
-const key = (r) => `${r.file}${r.media ? ` @media ${r.media}` : ''} ${r.selector}`;
+const key = (/** @type {Rule} */ r) => `${r.file}${r.media ? ` @media ${r.media}` : ''} ${r.selector}`;
 
 test('role tokens exist and point at primitive tokens in their documented range', () => {
   for (const [name, [lo, hi]] of Object.entries(ROLES)) {
@@ -166,6 +174,7 @@ test("Inicio's sibling cards share the card padding token", () => {
 // a card-fill rule that pads itself uses var(--card-pad); the sheets' own stylesheets sit on the sheet's
 // 16px inset and are audited as sheets (docs/design-system.md → Exceptions)
 const PAD_SHEET_FILES = new Set(['detail.css', 'profile.css']);
+/** @type {Record<string, string>} */
 const CARD_PAD_ALLOW = {
   'score.css .db-row, .db-erow': 'a list row (8 x 12px), not a card: rows stack into a list',
   'layout.css details.sec-fold>summary': 'a fold row: its height is a min-height, only side padding',
@@ -199,7 +208,7 @@ test('hero numbers use the hero scale (row / card / dial) in one weight', () => 
       seen.add(key(r));
       continue;
     }
-    if (raw && n >= HERO_MIN && !inNumFace(r)) {
+    if (raw && /** @type {number} */ (n) >= HERO_MIN && !inNumFace(r)) {
       if (RAW_SIZE_ALLOW[key(r)]) seen.add(key(r));
       else bad.push(`${where(r)} raw font-size \`${size}\` in the hero band (use a role token)`);
     }
@@ -240,6 +249,7 @@ test('caps labels use the caps role sizes and the one label tracking', () => {
 // caps labels are white or grey; colour goes on numbers and glyphs (the reference app's rule). A caps
 // rule — or a rule of the same stylesheet for the same selector — paints only a label colour.
 const LABEL_COLORS = new Set(['var(--ink)', 'var(--muted)', 'var(--faint)', 'var(--accent)', 'var(--accent-ink)', 'inherit', 'currentColor']);
+/** @type {Record<string, string>} */
 const CAPS_COLOR_ALLOW = {
   'base.css .cta': 'THE CTA link (--link blue): a link, not a label',
   'base.css .save-btn': 'button text on the white-filled save pill (--on-accent)',
@@ -308,7 +318,7 @@ test('content cards: no 1px outline', () => {
 
 // THE stale marker is a bare <details>: it undoes tablas.css's global details / summary card look
 test('stale marker: no card chrome from the global details / summary rules', () => {
-  const own = (sel) => Object.assign({}, ...RULES.filter((r) => !r.media && key(r) === `base.css ${sel}`).map((r) => r.decl));
+  const own = (/** @type {string} */ sel) => Object.assign({}, ...RULES.filter((r) => !r.media && key(r) === `base.css ${sel}`).map((r) => r.decl));
   const d = own('.stale-mk'), s = own('.stale-mk>summary');
   assert.deepEqual([d.background, d.border, d['border-radius'], d['margin-bottom'], d['box-shadow']], ['none', '0', '0', '0', 'none'], 'details: no fill, outline, radius, gap or shadow');
   assert.equal(own('.stale-mk[open]')['box-shadow'], 'none', 'open: no ring (details[open] outranks a class)');
@@ -334,6 +344,7 @@ test('chevron: one glyph size and colour; no rule styles a chevron of its own', 
 
 // a ‹ / › glyph in markup sits in a .chev span; the one exception is the sheet header's back button
 // sheetHead's .sh-back "‹" (a 44px header control, docs) and the onboarding's own header back (a `bare` view, the same .sh-back)
+/** @type {Record<string, number>} */
 const GLYPH_ALLOW = { 'web/src/client/util.ts': 1, 'web/src/client/onboarding.ts': 1 };
 test('chevron: every ‹ / › written in markup is a .chev span', () => {
   const bad = [];
@@ -350,6 +361,7 @@ test('chevron: every ‹ / › written in markup is a .chev span', () => {
 
 // a "picked" state that fills or outlines: the chip and the segmented control own it; every other
 // pressed / checked fill is listed with its reason
+/** @type {Record<string, string>} */
 const PICKED_ALLOW = {
   'base.css .chip[aria-pressed=true], :checked+.chip': 'THE selected chip (white fill)',
   'base.css .sw[aria-checked=true]:before': 'THE switch, on (show / hide one item: a track, not a pick)',
@@ -364,7 +376,7 @@ test('selected chip and segmented control: one picked style each; other picked f
   const picked = RULES.filter((r) => /\[aria-(pressed|checked|selected)=true\]|:checked/.test(r.selector) && (r.decl.background || r.decl['background-color'] || r.decl['border-color']));
   assert.deepEqual(picked.map(key).filter((k) => !PICKED_ALLOW[k]), [], 'a new picked style: reuse .chip or .dt-range');
   assert.deepEqual(Object.keys(PICKED_ALLOW).filter((k) => !picked.some((r) => key(r) === k)), [], 'stale allowlist entries');
-  const chip = picked.find((r) => key(r).startsWith('base.css .chip'));
+  const chip = /** @type {Rule} */ (picked.find((r) => key(r).startsWith('base.css .chip')));
   assert.deepEqual([chip.decl.background, chip.decl.color], ['var(--accent)', 'var(--on-accent)'], 'the picked chip is white-filled');
 });
 
@@ -374,7 +386,7 @@ test('section heading: Inicio\'s .home-h spacing out-specifies .hs-lbl (no load-
   const lbl = RULES.filter((r) => !r.media && r.decl.margin != null && r.selector.split(/,\s*/).includes('.hs-lbl'));
   const home = RULES.filter((r) => !r.media && r.decl.margin != null && r.selector.split(/,\s*/).some((s) => /\.home-h\b/.test(s)));
   assert.equal(home.length, 1, 'one rule spaces the Inicio heading');
-  const hs = home[0].selector.split(/,\s*/).find((s) => /\.home-h\b/.test(s));
+  const hs = /** @type {string} */ (home[0].selector.split(/,\s*/).find((s) => /\.home-h\b/.test(s)));
   assert.match(hs, /\.hs-lbl/, 'it names the heading it spaces (.hs-lbl.home-h)');
   for (const r of lbl) assert.ok(cmpSpec(specificity(hs), specificity('.hs-lbl')) > 0, `${hs} must beat ${where(r)}`);
 });
@@ -382,13 +394,13 @@ test('section heading: Inicio\'s .home-h spacing out-specifies .hs-lbl (no load-
 // every segmented-control button is a 44 × 44 target (the ::after hit area), the visual square stays
 // 28px tall, and two neighbours' hit areas never overlap (the gap covers both overhangs)
 test('segmented control: a 44 x 44px hit area on every .dt-range button, without overlap', () => {
-  const one = (sel) => RULES.find((r) => r.file === 'detail.css' && !r.media && r.selector === sel);
+  const one = (/** @type {string} */ sel) => /** @type {Rule} */ (RULES.find((r) => r.file === 'detail.css' && !r.media && r.selector === sel));
   const btn = one('.dt-range button').decl, hit = one('.dt-range button:after').decl, bar = one('.dt-range').decl;
-  const [v, h = v] = hit.inset.split(/\s+/).map((x) => -px(x));
+  const [v, h = v] = hit.inset.split(/\s+/).map((x) => -/** @type {number} */ (px(x)));
   assert.equal(px(btn['min-height']), 28, 'the visual square keeps its 28px');
-  assert.ok(px(btn['min-height']) + 2 * v >= 44, `hit height ${px(btn['min-height']) + 2 * v}px`);
-  assert.ok(px(btn['min-width']) + 2 * h >= 44, `hit width ${px(btn['min-width']) + 2 * h}px`);
-  assert.ok(px(bar.gap) >= 2 * h, `gap ${px(bar.gap)}px < the two overhangs ${2 * h}px`);
+  assert.ok(/** @type {number} */ (px(btn['min-height'])) + 2 * v >= 44, `hit height ${/** @type {number} */ (px(btn['min-height'])) + 2 * v}px`);
+  assert.ok(/** @type {number} */ (px(btn['min-width'])) + 2 * h >= 44, `hit width ${/** @type {number} */ (px(btn['min-width'])) + 2 * h}px`);
+  assert.ok(/** @type {number} */ (px(bar.gap)) >= 2 * h, `gap ${px(bar.gap)}px < the two overhangs ${2 * h}px`);
 });
 
 // the select: ONE look (base.css .sel, a --rail pill); its owners only size it, never a card fill,
@@ -425,14 +437,14 @@ test('save button: one shared component; every primary save uses it and nobody r
 // the select's owners that need a 44px target (.gd-pick, .fuel-select) set min-height on a selector
 // that out-specifies base.css .sel's 36px, so the hit area never depends on stylesheet load order
 test('select: an owner 44px min-height beats .sel by specificity (no load-order tie)', () => {
-  const base = RULES.find((r) => r.file === 'base.css' && !r.media && r.selector === '.sel');
+  const base = /** @type {Rule} */ (RULES.find((r) => r.file === 'base.css' && !r.media && r.selector === '.sel'));
   assert.equal(base.decl['min-height'], '36px');
   for (const owner of ['gd-pick', 'fuel-select']) {
     const rs = RULES.filter((r) => !r.media && r.decl['min-height'] != null && new RegExp(`\\.${owner}\\b`).test(r.selector));
     assert.equal(rs.length, 1, `one rule sizes .${owner}`);
     assert.equal(rs[0].decl['min-height'], '44px', `.${owner} is a 44px target`);
     const s = rs[0].selector.split(/,\s*/).find((x) => x.includes(`.${owner}`));
-    assert.ok(cmpSpec(specificity(s), specificity('.sel')) > 0, `${where(rs[0])} must beat .sel by specificity`);
+    assert.ok(cmpSpec(specificity(/** @type {string} */ (s)), specificity('.sel')) > 0, `${where(rs[0])} must beat .sel by specificity`);
   }
 });
 
@@ -440,12 +452,12 @@ test('select: an owner 44px min-height beats .sel by specificity (no load-order 
 // nutri-day.ts) but never more than the row, and its chevron adds no width (12px box, margins summing to
 // minus the row gap), so a long amount wraps under the select and a lone select never passes the card
 test('food example row: the select is sized by --pick, capped at the row; the chevron adds no width', () => {
-  const one = (sel) => RULES.find((r) => r.file === 'nutri.css' && !r.media && r.selector === sel)?.decl;
+  const one = (/** @type {string} */ sel) => /** @type {Record<string, string>} */ (RULES.find((r) => r.file === 'nutri.css' && !r.media && r.selector === sel)?.decl);
   const pick = one('.sel.gd-pick'), row = one('.gd-ex'), chev = one('.gd-ex .sel-chev');
   assert.match(pick.flex, /^1 1 min\(100%, calc\(var\(--pick, \d+\) \* [\d.]+em \+ 52px\)\)$/);
   assert.equal(row['flex-wrap'], 'wrap');
   assert.equal(chev['margin-left'], `calc(-28px - ${row.gap})`, 'pulled back over the pill and the row gap');
-  assert.equal(px(chev.width) + px(chev['margin-right']), 28, 'width + right margin give back the 28px pull');
+  assert.equal(/** @type {number} */ (px(chev.width)) + /** @type {number} */ (px(chev['margin-right'])), 28, 'width + right margin give back the 28px pull');
 });
 
 // the trend glyph's colours live in ONE block (base.css): arrows are coloured, only the typical /
@@ -463,12 +475,13 @@ test('trend glyph: one colour block; grey only for the typical dot', () => {
 });
 
 // a selector's specificity [ids, classes / attributes / pseudo-classes, elements] (no :is / :not args)
+/** @param {string} sel @returns {number[]} */
 function specificity(sel) {
   const s = sel.replace(/::?(before|after)\b/g, '');
   return [(s.match(/#[\w-]+/g) || []).length, (s.match(/\.[\w-]+|\[[^\]]+\]|:[\w-]+/g) || []).length,
     (s.replace(/\.[\w-]+|\[[^\]]+\]|:[\w-]+|#[\w-]+/g, ' ').match(/[a-z][\w-]*/gi) || []).length];
 }
-const cmpSpec = (a, b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
+const cmpSpec = (/** @type {number[]} */ a, /** @type {number[]} */ b) => a[0] - b[0] || a[1] - b[1] || a[2] - b[2];
 // the elements that carry a tone class, as the client writes them (host class + tone class)
 const TONED_HOSTS = [
   ['db-arr', 'db-good'], ['db-arr', 'db-flat'], ['dd-mk', 'dd-worse'], ['dd-mk', 'dd-typical'], ['dt-pill', 'dt-pill-neutral'],

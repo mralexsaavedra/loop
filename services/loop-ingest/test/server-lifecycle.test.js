@@ -7,7 +7,7 @@ test('databaseConfig: the compose variables give the password verbatim (URL-spec
   const password = 'p@ss:w/rd?#%41 x'
   assert.deepEqual(databaseConfig({ DB_HOST: 'loop-db', POSTGRES_USER: 'health', POSTGRES_PASSWORD: password, POSTGRES_DB: 'health' }),
     { host: 'loop-db', port: 5432, user: 'health', password, database: 'health' })
-  assert.equal(databaseConfig({ DB_HOST: 'db', DB_PORT: '6543', POSTGRES_USER: 'u', POSTGRES_PASSWORD: 'p', POSTGRES_DB: 'd' }).port, 6543)
+  assert.equal(/** @type {{ port?: number }} */ (databaseConfig({ DB_HOST: 'db', DB_PORT: '6543', POSTGRES_USER: 'u', POSTGRES_PASSWORD: 'p', POSTGRES_DB: 'd' })).port, 6543)
 })
 
 test('databaseConfig: an explicit DATABASE_URL still wins (an install that sets it keeps working)', () => {
@@ -23,9 +23,9 @@ test('databaseConfig: null when neither DATABASE_URL nor the full DB_HOST + POST
 
 /** A listening server whose handler holds each request until `release()` (or answers at once when `hold` is false). */
 async function holdingServer () {
-  let releaseAll
+  let releaseAll = /** @type {(value?: unknown) => void} */ (/** @type {unknown} */ (undefined)) // set by the promise executor
   const held = new Promise((resolve) => { releaseAll = resolve })
-  let arrived
+  let arrived = /** @type {(value?: unknown) => void} */ (/** @type {unknown} */ (undefined)) // set by the promise executor
   const firstArrived = new Promise((resolve) => { arrived = resolve })
   const server = http.createServer(async (req, res) => {
     arrived()
@@ -33,9 +33,10 @@ async function holdingServer () {
     res.writeHead(200, { 'content-type': 'text/plain' })
     res.end('done')
   })
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
-  return { server, port: server.address().port, release: releaseAll, firstArrived }
+  await /** @type {Promise<void>} */ (new Promise((resolve) => server.listen(0, '127.0.0.1', resolve)))
+  return { server, port: /** @type {import('node:net').AddressInfo} */ (server.address()).port, release: releaseAll, firstArrived }
 }
+/** @param {number} port @param {string} path @returns {Promise<{ status: number | undefined, body: string }>} */
 const get = (port, path) => new Promise((resolve, reject) => {
   http.get({ host: '127.0.0.1', port, path, agent: false }, (res) => {
     let body = ''
@@ -46,6 +47,7 @@ const get = (port, path) => new Promise((resolve, reject) => {
 
 test('graceful shutdown: stop accepting, let the in-flight request finish, then flush, close the pool and exit 0', async () => {
   const h = await holdingServer()
+  /** @type {string[]} */
   const steps = []
   const shutdown = createShutdown({
     server: h.server,
@@ -70,6 +72,7 @@ test('graceful shutdown: stop accepting, let the in-flight request finish, then 
 
 test('graceful shutdown: a request still running at the deadline is cut off and the process exits anyway', async () => {
   const h = await holdingServer()
+  /** @type {string[]} */
   const steps = []
   const shutdown = createShutdown({
     server: h.server,
@@ -113,7 +116,7 @@ test('numericEnv: not a number, not finite, below the minimum, above the maximum
   const { numericEnv } = await import('../src/server.js')
   const spec = { def: 8, min: 1024, max: 1e9, integer: true }
   for (const v of ['abc', '8m', 'NaN', 'Infinity', '-1', '0', '1023', '1e10', '2048.5', '0x10']) {
-    assert.throws(() => numericEnv({ MAX_BODY_BYTES: v }, 'MAX_BODY_BYTES', spec), (err) => {
+    assert.throws(() => numericEnv({ MAX_BODY_BYTES: v }, 'MAX_BODY_BYTES', spec), (/** @type {Error} */ err) => {
       assert.match(err.message, /^invalid MAX_BODY_BYTES=/)
       assert.match(err.message, /an integer from 1024 to 1000000000/)
       return true
@@ -130,7 +133,7 @@ test('envConfig: the defaults, and each variable checked (PORT, MAX_BODY_BYTES, 
   }
   const { databaseConfig } = await import('../src/server.js')
   const base = { DB_HOST: 'db', POSTGRES_USER: 'u', POSTGRES_PASSWORD: 'p', POSTGRES_DB: 'd' }
-  assert.equal(databaseConfig({ ...base, DB_PORT: '' }).port, 5432)
+  assert.equal(/** @type {{ port?: number }} */ (databaseConfig({ ...base, DB_PORT: '' })).port, 5432)
   assert.throws(() => databaseConfig({ ...base, DB_PORT: 'abc' }), /^Error: invalid DB_PORT=/)
 })
 
@@ -145,7 +148,7 @@ test('startup: an invalid numeric variable stops the service with one startup_fa
       timeout: 10_000
     })
     assert.equal(r.status, 1, `${name}=${value}: ${r.stdout}${r.stderr}`)
-    const line = JSON.parse(r.stderr.trim().split('\n').pop())
+    const line = JSON.parse(/** @type {string} */ (r.stderr.trim().split('\n').pop()))
     assert.equal(line.event, 'startup_failed')
     assert.match(line.message, new RegExp(`^invalid ${name}=`))
   }

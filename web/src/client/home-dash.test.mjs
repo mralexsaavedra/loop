@@ -11,22 +11,29 @@ import { clientScriptSource } from '../client-bundle.mjs';
 
 // a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
 const source = clientScriptSource('home-dash.ts');
+/** @param {unknown} x @returns {any} JSON round-trip of a value the vm script built */
 const plain = (x) => JSON.parse(JSON.stringify(x));
 const NOW = '2026-09-30';
 
+/** @typedef {import('node:vm').Context} VmGlobals the script's globals (a vm context: untyped by nature) */
+/** @typedef {{start: string, v: (number | null)[], [k: string]: unknown}} Series */
+/** @param {Record<string, string>} [init] @param {{broken?: boolean}} [opts] */
 function storage(init = {}, { broken = false } = {}) {
+  /** @type {Record<string, string>} */
   const data = { ...init };
   return {
     data,
-    getItem: (k) => { if (broken) throw new Error('denied'); return k in data ? data[k] : null; },
-    setItem: (k, v) => { if (broken) throw new Error('denied'); data[k] = String(v); },
+    getItem: (/** @type {string} */ k) => { if (broken) throw new Error('denied'); return k in data ? data[k] : null; },
+    setItem: (/** @type {string} */ k, /** @type {unknown} */ v) => { if (broken) throw new Error('denied'); data[k] = String(v); },
   };
 }
 // a series of n days ending at `end` (value f(i), i = 0 oldest)
+/** @param {string} end @param {number} n @param {(i: number) => number | null} f @param {Record<string, unknown>} [extra] @returns {Series} */
 function series(end, n, f, extra = {}) {
   const t = new Date(end + 'T00:00:00Z'); t.setUTCDate(t.getUTCDate() - (n - 1));
   return { start: t.toISOString().slice(0, 10), v: Array.from({ length: n }, (_, i) => f(i)), ...extra };
 }
+/** @returns {{asOf: string, metrics: Record<string, Series>, sessions: unknown[]}} */
 function detail() {
   return {
     asOf: NOW,
@@ -51,19 +58,25 @@ function stress() {
     { date: NOW, now: null, hours: [{ t: '09', v: 0.5, hr: 61 }] },
   ] };
 }
+/** @param {{locale?: string, ls?: ReturnType<typeof storage>, DETAIL?: ReturnType<typeof detail>, noStorage?: boolean, SCORES?: unknown}} [opts] */
 function load({ locale = 'en', ls = storage(), DETAIL = detail(), noStorage = false, SCORES } = {}) {
   const RealDate = Date;
   class FakeDate extends RealDate {
-    constructor(...a) { if (a.length) super(...a); else super(new RealDate(NOW + 'T12:00:00').getTime()); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { if (a.length) super(.../** @type {ConstructorParameters<DateConstructor>} */ (a)); else super(new RealDate(NOW + 'T12:00:00').getTime()); }
     static now() { return new RealDate(NOW + 'T12:00:00').getTime(); }
   }
+  /** @type {Record<string, any>} the stub elements the script writes (untyped: any property it sets) */
   const els = { 'my-dash': { hidden: true }, 'home-dash': { innerHTML: '' } };
+  /** @type {Record<string, (e: unknown) => void>} */
   const listeners = {};
+  /** @type {unknown[][]} */
   const opened = [];
+  /** @type {VmGlobals} */
   const ctx = {
-    document: { readyState: 'complete', getElementById: (id) => els[id] || null, addEventListener: (e, f) => { listeners[e] = f; } },
+    document: { readyState: 'complete', getElementById: (/** @type {string} */ id) => els[id] || null, addEventListener: (/** @type {string} */ e, /** @type {(e: unknown) => void} */ f) => { listeners[e] = f; } },
     I18N_SCORE: locale === 'es' ? esT : enT, I18N_DETAIL: locale === 'es' ? esD : enD, LOCALE: locale, DETAIL, SCORES,
-    HCDetail: { open: (k, d, o) => opened.push([k, o && o.focus]) },
+    HCDetail: { open: (/** @type {string} */ k, /** @type {unknown} */ d, /** @type {{focus?: unknown} | undefined} */ o) => opened.push([k, o && o.focus]) },
     Date: FakeDate, Math, String, Number, Array, Object, JSON,
   };
   if (!noStorage) ctx.localStorage = ls;
@@ -72,7 +85,8 @@ function load({ locale = 'en', ls = storage(), DETAIL = detail(), noStorage = fa
   loadUtil(ctx);
   vm.runInContext(source, ctx);
   ctx.__listeners = listeners;
-  const click = (attrs) => listeners.click({ target: { closest: (s) => (s === '[data-dash-act]' ? { getAttribute: (k) => attrs[k] } : null) } });
+  /** @param {Record<string, string>} attrs */
+  const click = (attrs) => listeners.click({ target: { closest: (/** @type {string} */ s) => (s === '[data-dash-act]' ? { getAttribute: (/** @type {string} */ k) => attrs[k] } : null) } });
   return { ctx, els, ls, click, opened };
 }
 
@@ -110,9 +124,9 @@ test('prefs: stored order + hidden apply; unknown, duplicate or unavailable keys
 test('edit: up / down / toggle return a new list; moves stop at the ends', () => {
   const { ctx } = load();
   const L = [{ key: 'rhr', on: true }, { key: 'hrv', on: true }, { key: 'sleep', on: false }];
-  assert.deepEqual(plain(ctx.HCDash.edit(L, 'hrv', 'up')).map((x) => x.key), ['hrv', 'rhr', 'sleep']);
-  assert.deepEqual(plain(ctx.HCDash.edit(L, 'rhr', 'up')).map((x) => x.key), ['rhr', 'hrv', 'sleep']);
-  assert.deepEqual(plain(ctx.HCDash.edit(L, 'sleep', 'down')).map((x) => x.key), ['rhr', 'hrv', 'sleep']);
+  assert.deepEqual(plain(ctx.HCDash.edit(L, 'hrv', 'up')).map((/** @type {{key: string}} */ x) => x.key), ['hrv', 'rhr', 'sleep']);
+  assert.deepEqual(plain(ctx.HCDash.edit(L, 'rhr', 'up')).map((/** @type {{key: string}} */ x) => x.key), ['rhr', 'hrv', 'sleep']);
+  assert.deepEqual(plain(ctx.HCDash.edit(L, 'sleep', 'down')).map((/** @type {{key: string}} */ x) => x.key), ['rhr', 'hrv', 'sleep']);
   assert.equal(plain(ctx.HCDash.edit(L, 'sleep', 'toggle'))[2].on, true);
   assert.equal(L[2].on, false, 'the input is not mutated');
 });
@@ -121,7 +135,8 @@ test('move: one item from index i to j in a new list; out-of-range or same index
   const { ctx } = load();
   const D = ctx.HCDash;
   const L = [{ key: 'a', on: true }, { key: 'b', on: false }, { key: 'c', on: true }, { key: 'd', on: true }];
-  const keys = (l) => plain(l).map((x) => x.key);
+  /** @param {unknown} l @returns {string[]} */
+  const keys = (l) => plain(l).map((/** @type {{key: string}} */ x) => x.key);
   assert.deepEqual(keys(D.move(L, 0, 2)), ['b', 'c', 'a', 'd']);
   assert.deepEqual(keys(D.move(L, 3, 0)), ['d', 'a', 'b', 'c']);
   assert.deepEqual(keys(D.move(L, 1, 1)), ['a', 'b', 'c', 'd']);
@@ -134,7 +149,17 @@ test('move: one item from index i to j in a new list; out-of-range or same index
 });
 
 // a fake customize list for the pointer drag: rows 60px tall, their box follows their DOM position
+/**
+ * @typedef {{captured: number[], gone: boolean, setPointerCapture: (id: number) => void, releasePointerCapture: () => void,
+ *   getAttribute: (a: string) => string | null, closest: (sel: string) => unknown}} FakeGrip
+ * @typedef {{parentNode: FakeList, classList: {add: (c: string) => unknown, remove: (c: string) => boolean, contains: (c: string) => boolean},
+ *   getAttribute: (a: string) => string | null, getBoundingClientRect: () => {top: number, height: number}, readonly isConnected: boolean,
+ *   grip: FakeGrip}} FakeRow
+ * @typedef {{children: FakeRow[], insertBefore?: (node: FakeRow, ref: FakeRow | null) => void, detached?: boolean}} FakeList
+ */
+/** @param {string[]} keys */
 function fakeSheet(keys) {
+  /** @type {FakeList} */
   const ul = { children: [] };
   ul.insertBefore = (node, ref) => {
     ul.children.splice(ul.children.indexOf(node), 1);
@@ -142,13 +167,17 @@ function fakeSheet(keys) {
     ul.children.splice(at, 0, node);
   };
   const rows = keys.map((k) => {
+    /** @type {Set<string>} */
     const cls = new Set();
-    const li = { parentNode: ul, classList: { add: (c) => cls.add(c), remove: (c) => cls.delete(c), contains: (c) => cls.has(c) },
+    /** @type {FakeRow} */
+    const li = /** @type {FakeRow} */ ({ parentNode: ul, classList: { add: (c) => cls.add(c), remove: (c) => cls.delete(c), contains: (c) => cls.has(c) },
       getAttribute: (a) => (a === 'data-key' ? k : null),
       getBoundingClientRect: () => ({ top: ul.children.indexOf(li) * 60, height: 60 }),
-      get isConnected() { return !ul.detached && ul.children.includes(li); } };
+      get isConnected() { return !ul.detached && ul.children.includes(li); } });
+    /** @type {number[]} */
     const captured = [];
     // gone: the pointer is no longer active (setPointerCapture throws, as in the browser)
+    /** @type {FakeGrip} */
     const grip = { captured, gone: false, setPointerCapture: (id) => { if (grip.gone) throw new Error('NotFoundError'); captured.push(id); }, releasePointerCapture: () => {},
       getAttribute: (a) => (a === 'data-key' ? k : null),
       closest: (sel) => (sel === '[data-dash-grip]' ? grip : sel === 'li' ? li : null) };
@@ -193,6 +222,7 @@ test('drag: pointer down on ≡ captures the pointer, a move reorders the rows l
   // the harness keeps the one listener per event name (ctx.__listeners)
   const sheet = fakeSheet(['rhr', 'hrv', 'sleep', 'weight', 'steps', 'vo2max']);
   const steps = sheet.rows[4];
+  /** @param {string} type @param {unknown} target @param {number} y @param {number} [id] */
   const fire = (type, target, y, id = 7) => {
     const ev = { type, target, pointerId: id, isPrimary: true, pointerType: 'touch', clientY: y, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
     ctx.__listeners[type](ev);
@@ -221,6 +251,7 @@ test('drag: pointer down on ≡ captures the pointer, a move reorders the rows l
 
 test('drag: a drop where it started saves nothing; a cancelled drag (pointercancel) restores the sheet without saving', () => {
   const { ctx, ls, opened } = load();
+  /** @param {string} type @param {unknown} target @param {number} y */
   const fire = (type, target, y) => ctx.__listeners[type]({ type, target, pointerId: 1, isPrimary: true, pointerType: 'mouse', button: 0, clientY: y, preventDefault() {} });
   const a = fakeSheet(['rhr', 'hrv', 'sleep']);
   fire('pointerdown', a.rows[0].grip, 30);
@@ -243,7 +274,7 @@ test('drag: a drop where it started saves nothing; a cancelled drag (pointercanc
 
 test('row value: newest day, 30-day baseline, arrow + tone by the good direction; a daily total skips today', () => {
   const { ctx } = load();
-  const D = detail().metrics, rv = (k) => plain(ctx.HCDash.rowValue(D[k], NOW));
+  const D = detail().metrics, rv = (/** @type {string} */ k) => plain(ctx.HCDash.rowValue(D[k], NOW));
   assert.deepEqual(rv('rhr'), { value: 50, date: NOW, base: 54, arrow: 'down', tone: 'good' }, 'lower RHR is better');
   assert.deepEqual(rv('hrv'), { value: 40, date: NOW, base: 50, arrow: 'down', tone: 'bad' });
   assert.deepEqual(rv('sleep'), { value: 7.5, date: NOW, base: 7.5, arrow: 'flat', tone: 'flat' });
@@ -291,7 +322,7 @@ test('stress monitor card (the reference dashboard\'s chart card): the newest da
   const html = els['home-dash'].innerHTML;
   const keys = [...html.matchAll(/data-detail="([\w-]+)"/g)].map((m) => m[1]);
   assert.deepEqual(keys, ['rhr', 'hrv', 'sleep', 'weight', 'steps', 'stress']);
-  const card = /<li><div class="db-card db-stress ds-high"[^]*?<\/div><\/li>/.exec(html)[0];
+  const card = /** @type {RegExpExecArray} */ (/<li><div class="db-card db-stress ds-high"[^]*?<\/div><\/li>/.exec(html))[0];
   assert.doesNotMatch(html, /<li[^>]*role="button"/, 'no <li> loses its listitem role to a button role');
   assert.match(card, /data-detail="stress" data-date="2026-09-29" role="button"/, 'the day with a latest hour, not the newer one without');
   assert.match(card, new RegExp(`<span class="db-card-t">${enT.home.dash.names.stress}</span></div>`), 'the chevron = the shared opener\'s :after');
@@ -382,6 +413,7 @@ test('fitness age: an optional row (off by default), whole years, lower = better
 test('drag: only the primary pointer, a mouse main button and no drag in progress start one', () => {
   const { ctx, ls } = load();
   const sheet = fakeSheet(['rhr', 'hrv', 'sleep']);
+  /** @param {string} type @param {unknown} target @param {number} y @param {object} [extra] */
   const fire = (type, target, y, extra) => {
     const ev = { type, target, pointerId: 1, isPrimary: true, pointerType: 'mouse', button: 0, clientY: y, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; }, ...extra };
     ctx.__listeners[type](ev);
@@ -413,6 +445,7 @@ test('drag: only the primary pointer, a mouse main button and no drag in progres
 
 test('drag: a lost capture mid-drag (the row moved) is re-taken; once the pointer is gone it cancels like pointercancel', () => {
   const { ctx, ls, opened } = load();
+  /** @param {string} type @param {unknown} target @param {number} y @param {object} [extra] */
   const fire = (type, target, y, extra) => ctx.__listeners[type]({ type, target, pointerId: 1, isPrimary: true, pointerType: 'touch', button: 0, clientY: y, preventDefault() {}, ...extra });
   const a = fakeSheet(['rhr', 'hrv', 'sleep']);
   fire('pointerdown', a.rows[0].grip, 30);
@@ -441,6 +474,7 @@ test('drag: a lost capture mid-drag (the row moved) is re-taken; once the pointe
 
 test('drag: a stale drag (its row left the page) or a re-render never blocks the next drag', () => {
   const { ctx, ls } = load();
+  /** @param {string} type @param {unknown} target @param {number} y @param {object} [extra] */
   const fire = (type, target, y, extra) => ctx.__listeners[type]({ type, target, pointerId: 1, isPrimary: true, pointerType: 'mouse', button: 0, clientY: y, preventDefault() {}, ...extra });
   const a = fakeSheet(['rhr', 'hrv', 'sleep']);
   fire('pointerdown', a.rows[0].grip, 30); // no pointerup ever arrives (e.g. released outside the page)

@@ -43,7 +43,7 @@ test('gen-profile-rules: --help prints the usage, an unknown flag exits 2, --che
   const { statSync } = await import('node:fs');
   const script = fileURLToPath(new URL('./gen-profile-rules.mjs', import.meta.url));
   const before = statSync(PROFILE_RULES_PATH).mtimeMs;
-  const run = (args) => spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' });
+  const run = (/** @type {string[]} */ args) => spawnSync(process.execPath, [script, ...args], { encoding: 'utf8' });
   const help = run(['--help']);
   assert.equal(help.status, 0);
   assert.match(help.stdout, /^Usage: npm run gen:profile-rules/);

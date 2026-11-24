@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { compareCss, updateFixture, buildDeclarationMap, serializeFixture, main } from './update-css-fixture.mjs';
 
-const html = (css) => `<html><head><style>${css}</style></head><body></body></html>`;
+const html = (/** @type {string} */ css) => `<html><head><style>${css}</style></head><body></body></html>`;
 
 test('compareCss reports both directions: fixture keys missing from the CSS and CSS declarations missing from the fixture', () => {
   const output = buildDeclarationMap(html('.a{color:red}.b{margin:0}'));
@@ -42,10 +42,11 @@ test('updateFixture is a no-op on an up-to-date fixture (keeps the legacy key sp
   const fixture = { '|||.a > .b|||color': 'red' };
   const { fixture: next } = updateFixture(fixture, output);
   assert.equal(serializeFixture(next), serializeFixture(fixture));
-  assert.deepEqual(compareCss(next, output), []);
+  assert.deepEqual(compareCss(/** @type {Record<string, string>} */ (next), output), []);
 });
 
 // main() against temp files: the build and the fixture paths are injected, the console is silenced.
+/** @param {import('node:test').TestContext} t @param {{ css?: string, fixture: Record<string, string> }} opts */
 function cli(t, { css, fixture }) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'css-fixture-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
@@ -89,9 +90,10 @@ test('main rewrites a drifted fixture: key order kept, stale keys dropped, new k
 test('main: --help prints the usage (0); a typo such as --chek or a stray argument exits 2 and leaves a drifted fixture untouched', (t) => {
   const fixture = { '|||.a|||color': 'blue' };
   const { buildPath, fixturePath, read } = cli(t, { css: '.a{color:red}', fixture });
+  /** @type {string[]} */
   const logs = [];
-  t.mock.method(console, 'log', (m) => logs.push(m));
-  t.mock.method(console, 'error', (m) => logs.push(m));
+  t.mock.method(console, 'log', (/** @type {string} */ m) => logs.push(m));
+  t.mock.method(console, 'error', (/** @type {string} */ m) => logs.push(m));
   assert.equal(main(['--help'], { buildPath, fixturePath }), 0);
   assert.match(logs[0], /^Usage: npm run test:css:update/);
   assert.equal(main(['--chek'], { buildPath, fixturePath }), 2);

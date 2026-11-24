@@ -21,7 +21,7 @@ const PAGE = path.join(here, '..', '.test-dist', 'en-example', 'index.html');
 const files = CLIENT_SCRIPTS.map((e) => e.file);
 // the bytes the page inlines: a classic script as is, a module script bundled (web/src/client-bundle.mjs)
 const src = Object.fromEntries(files.map((f) => [f, clientScriptSource(f)]));
-const sorted = (a) => [...new Set(a)].sort();
+const sorted = (/** @type {string[]} */ a) => [...new Set(a)].sort();
 const inline = [...fs.readFileSync(PAGE, 'utf8').matchAll(/<script\b[^>]*>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
 const bakes = inline.slice(0, inline.length - files.length);
 const providerAt = new Map();

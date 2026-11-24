@@ -18,18 +18,23 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const source = clientScriptSource('training-today.ts');
 const EXAMPLE = JSON.parse(fs.readFileSync(path.join(here, '..', '..', '..', 'data', 'training', 'training-data.example.json'), 'utf8'));
 
+/** @typedef {import('../../../lib/training/program.mjs').Program} Program */
+/** @typedef {import('node:vm').Context} VmGlobals the script's globals (a vm context: untyped by nature) */
+/** @param {{days: object}} training @param {string} now @param {{locale?: string, host?: boolean, section?: string | null, win?: VmGlobals | null}} [opts] */
 function render(training, now, { locale = 'en', host = true, section = 'shown', win = null } = {}) {
   const doc = new StubDocument();
   if (section) doc.el('sec-hoy', { hidden: section === 'hidden' });
-  const el = host ? doc.el('train-today') : null;
+  const el = host ? /** @type {import('../../test/dom-stub.mjs').StubElement & {innerHTML: string}} */ (doc.el('train-today')) : null;
   const RealDate = Date;
   const stamp = now + 'T12:00:00';
   class FakeDate extends RealDate {
-    constructor(...a) { super(...(a.length ? a : [stamp])); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { super(.../** @type {ConstructorParameters<DateConstructor>} */ (a.length ? a : [stamp])); }
     static now() { return new RealDate(stamp).getTime(); }
   }
+  /** @type {VmGlobals} */
   const ctx = {
-    document: doc, TRAINING: training.days, TRAINING_META: trainingMeta(training), I18N_HOY: locale === 'es' ? esH : enH, LOCALE: locale,
+    document: doc, TRAINING: training.days, TRAINING_META: trainingMeta(/** @type {Program} */ (training)), I18N_HOY: locale === 'es' ? esH : enH, LOCALE: locale,
     Date: FakeDate, Math, String, Number, Array, Object, JSON, RegExp,
   };
   if (win) ctx.window = win;
@@ -44,7 +49,7 @@ test('the example program is valid input', () => {
 });
 
 test('a programmed day (picked from the viewer clock): date, focus, every block with label / title / lines, meta', () => {
-  const html = render(EXAMPLE, '2026-01-05');
+  const html = /** @type {string} */ (render(EXAMPLE, '2026-01-05'));
   assert.ok(html.includes('<div class="train-day">Mon 5 Jan</div>'));
   assert.ok(html.includes('🏋️ Squat + metcon'), 'gym icon + focus');
   assert.equal((html.match(/class="train-block"/g) || []).length, 3);
@@ -56,7 +61,7 @@ test('a programmed day (picked from the viewer clock): date, focus, every block 
 });
 
 test('a run day: run icon, a block without label renders no label span', () => {
-  const html = render(EXAMPLE, '2026-01-08');
+  const html = /** @type {string} */ (render(EXAMPLE, '2026-01-08'));
   assert.ok(html.includes('🏃 Track'));
   assert.ok(!html.includes('blabel'));
   assert.ok(html.includes('<h3>Warm-up</h3>'));
@@ -64,17 +69,18 @@ test('a run day: run icon, a block without label renders no label span', () => {
 
 test('a bike day uses the bike icon', () => {
   const t = { days: { '2026-03-02': { kind: 'bike', durationMin: 120, focus: 'Z2 ride', blocks: [{ title: 'Ride', lines: ['2 h Z2'] }] } } };
-  assert.ok(render(t, '2026-03-02').includes('🚴 Z2 ride'));
+  assert.ok(/** @type {string} */ (render(t, '2026-03-02')).includes('🚴 Z2 ride'));
 });
 
 test('S3 an indoor (trainer) day uses the bike icon; a hybrid day the strength icon', () => {
+  /** @param {string} kind @param {string} focus */
   const day = (kind, focus) => ({ days: { '2026-03-02': { kind, focus, blocks: [{ title: 'A', lines: ['a'] }] } } });
-  assert.ok(render(day('indoor', 'Sweet spot'), '2026-03-02').includes('🚴 Sweet spot'));
-  assert.ok(render(day('hybrid', 'Hyrox sim'), '2026-03-02').includes('🏋️ Hyrox sim'));
+  assert.ok(/** @type {string} */ (render(day('indoor', 'Sweet spot'), '2026-03-02')).includes('🚴 Sweet spot'));
+  assert.ok(/** @type {string} */ (render(day('hybrid', 'Hyrox sim'), '2026-03-02')).includes('🏋️ Hyrox sim'));
 });
 
 test('an unprogrammed day inside the program range is a rest day', () => {
-  const html = render(EXAMPLE, '2026-01-06');
+  const html = /** @type {string} */ (render(EXAMPLE, '2026-01-06'));
   assert.ok(html.includes('<div class="train-day">Tue 6 Jan</div>'));
   assert.ok(html.includes(`<div class="train-empty">${enH.restDayMsg}</div>`));
   assert.ok(!html.includes('train-block'));
@@ -82,27 +88,27 @@ test('an unprogrammed day inside the program range is a rest day', () => {
 });
 
 test('after the last programmed day: names the last day; before the first: the sample-data message', () => {
-  const after = render(EXAMPLE, '2026-02-01');
+  const after = /** @type {string} */ (render(EXAMPLE, '2026-02-01'));
   assert.ok(after.includes(enH.afterLastMsg.replace('{last}', 'Sat 10 Jan')));
-  const before = render(EXAMPLE, '2025-12-31');
+  const before = /** @type {string} */ (render(EXAMPLE, '2025-12-31'));
   assert.ok(before.includes(enH.beforeFirstMsg));
 });
 
 test('no program at all (absent training-data.json -> {days:{}}): rest-day empty state, no meta line', () => {
-  const html = render({ days: {} }, '2026-10-07');
+  const html = /** @type {string} */ (render({ days: {} }, '2026-10-07'));
   assert.equal(html, `<div class="train-head"><div class="train-day">Wed 7 Oct</div></div><div class="train-empty">${enH.restDayMsg}</div>`);
 });
 
 test('untrusted training text is escaped', () => {
   const t = { program: 'P<b>', days: { '2026-03-02': { kind: 'gym', focus: '<img src=x>', blocks: [{ label: '<i>', title: 'A & B', lines: ['<script>x</script>'] }] } } };
-  const html = render(t, '2026-03-02');
+  const html = /** @type {string} */ (render(t, '2026-03-02'));
   assert.doesNotMatch(html, /<img|<script|<i>|P<b>/);
   assert.ok(html.includes('&lt;img src=x&gt;') && html.includes('A &amp; B'));
 });
 
 test('es locale: Spanish date and goal regex ("Objetivo")', () => {
   const t = { days: { '2026-09-29': { kind: 'gym', focus: 'Fuerza', blocks: [{ title: 'A', lines: ['Objetivo: RPE 8', 'Sentadilla'] }] } } };
-  const html = render(t, '2026-09-29', { locale: 'es' });
+  const html = /** @type {string} */ (render(t, '2026-09-29', { locale: 'es' }));
   assert.ok(html.includes('<div class="train-day">mar 29 sept</div>'));
   assert.ok(html.includes('<li class="goal">Objetivo: RPE 8</li>'));
   assert.ok(html.includes('<li>Sentadilla</li>'));
@@ -115,8 +121,9 @@ test('no host element: renders nothing and does not throw', () => {
 /* Inicio "Actividades de hoy": the programmed session is a row there (client/timeline.ts reads
  * window.HCProgram) and its blocks open as a registered view (window.HCViews['hoy-session']) */
 test('a programmed day exposes {date, kind, focus} for the activities card and registers the session view', () => {
+  /** @type {VmGlobals} */
   const win = {};
-  const html = render(EXAMPLE, '2026-01-05', { win });
+  const html = /** @type {string} */ (render(EXAMPLE, '2026-01-05', { win }));
   assert.deepEqual(JSON.parse(JSON.stringify(win.HCProgram)), { date: '2026-01-05', kind: 'gym', focus: 'Squat + metcon' });
   const view = win.HCViews['hoy-session'];
   assert.equal(view.title(), enH.viewTitle);
@@ -126,9 +133,11 @@ test('a programmed day exposes {date, kind, focus} for the activities card and r
 });
 
 test('no session today, or the section hidden by page.hideTabs ["hoy"]: no programmed row and no view', () => {
+  /** @type {VmGlobals} */
   const rest = {};
   render(EXAMPLE, '2026-01-06', { win: rest });
   assert.equal(rest.HCProgram, null);
+  /** @type {VmGlobals} */
   const hidden = {};
   render(EXAMPLE, '2026-01-05', { win: hidden, section: 'hidden' });
   assert.equal(hidden.HCProgram, null);
@@ -137,6 +146,7 @@ test('no session today, or the section hidden by page.hideTabs ["hoy"]: no progr
 });
 
 test('es: the session view title is Spanish', () => {
+  /** @type {VmGlobals} */
   const win = {};
   render({ days: { '2026-09-29': { kind: 'run', focus: 'Rodaje', blocks: [{ title: 'A', lines: ['30 min'] }] } } }, '2026-09-29', { locale: 'es', win });
   assert.equal(win.HCViews['hoy-session'].title(), esH.viewTitle);

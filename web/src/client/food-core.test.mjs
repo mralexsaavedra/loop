@@ -11,7 +11,7 @@ import { foldName } from '../../../lib/nutrition/names.mjs';
 function loadCore() {
   // the least food-core needs to get past its "no food log on this page" early return; nothing is fetched at load
   const ctx = {
-    window: {}, document: new StubDocument(), fetch: async () => { throw new TypeError('offline'); }, I18N_FOOD, FOOD_CONST: { limits: {} },
+    window: /** @type {import('node:vm').Context} */ ({}), document: new StubDocument(), fetch: async () => { throw new TypeError('offline'); }, I18N_FOOD, FOOD_CONST: { limits: {} },
     FOOD_BASICS: [], LOCALE: 'es', Math, JSON, Number, String, Object, Array, Promise, isFinite,
   };
   vm.createContext(ctx);

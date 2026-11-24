@@ -18,6 +18,9 @@ const {
   unionMinutes, mergeCsv, updateMeta, resolveToken, fetchAllPayloads, planSync,
   foldPayloads, emptyCache, CACHE_FILE, writeAtomic, syncDir, dropPhantomWeights, sleepStageOf,
 } = sync;
+
+/** @typedef {import('./sync-shortcut.mjs').Sample} Sample */
+/** @typedef {import('./sync-shortcut.mjs').MergeStat} MergeStat */
 const S_HDR = 'date,value,source';
 
 test('parseNumber() accepts dot and comma decimals', () => {
@@ -97,14 +100,14 @@ test('buildRows() formats point metrics like extract.mjs, sorted, tagged Shortcu
 });
 
 test('buildRows() sleep: asleep stages only, night = wake-up date, union minutes, bed/wake clock', () => {
-  const rows = buildRows('sleep', [
+  const rows = buildRows('sleep', /** @type {Sample[]} */ (/** @type {unknown} */ ([
     { start: '2030-01-01 23:30:00 +0100', end: '2030-01-02 01:00:00 +0100', stage: 'Core' },
     { start: '2030-01-02 01:00:00 +0100', end: '2030-01-02 01:30:00 +0100', stage: 'Awake' },
     { start: '2030-01-02 01:30:00 +0100', end: '2030-01-02 03:00:00 +0100', stage: 'Deep' },
     { start: '2030-01-02 03:00:00 +0100', end: '2030-01-02 07:15:00 +0100', stage: 'REM' },
     { start: '2030-01-02 22:00:00 +0100', end: '2030-01-02 23:00:00 +0100', stage: 'InBed' },
     { start: '2030-01-02 22:30:00 +0100', end: '2030-01-03 06:30:00 +0100', stage: 'Asleep' },
-  ]);
+  ])));
   assert.deepEqual(rows, [
     // stage columns: rem, deep, core, unspec, awake (inside the window), in bed (window + InBed)
     { date: '2030-01-02', line: `2030-01-02,7.25,${SHORTCUT_SOURCE},23.5,7.25,4.25,1.50,1.50,0.00,0.50,7.75` },
@@ -114,17 +117,17 @@ test('buildRows() sleep: asleep stages only, night = wake-up date, union minutes
 });
 
 test('buildRows() sleep accepts localized stage names and ignores unknown ones', () => {
-  const rows = buildRows('sleep', [
+  const rows = buildRows('sleep', /** @type {Sample[]} */ (/** @type {unknown} */ ([
     { start: '2030-01-02 00:00:00 +0100', end: '2030-01-02 01:00:00 +0100', stage: 'Profundo' },
     { start: '2030-01-02 01:00:00 +0100', end: '2030-01-02 02:00:00 +0100', stage: 'Despierto' },
     { start: '2030-01-02 02:00:00 +0100', end: '2030-01-02 03:00:00 +0100', stage: 'Whatever' },
-  ]);
+  ])));
   assert.equal(rows.length, 1);
   assert.equal(rows[0].line, `2030-01-02,1.00,${SHORTCUT_SOURCE},0,1,0.00,1.00,0.00,0.00,0.00,1.00`);
 });
 
 test('buildRows() sleep maps Spanish stage names to their stage columns', () => {
-  const rows = buildRows('sleep', [
+  const rows = buildRows('sleep', /** @type {Sample[]} */ (/** @type {unknown} */ ([
     { start: '2030-01-01 23:00:00 +0100', end: '2030-01-02 01:00:00 +0100', stage: 'Principal' },
     { start: '2030-01-02 01:00:00 +0100', end: '2030-01-02 01:30:00 +0100', stage: 'Despierto' },
     { start: '2030-01-02 01:30:00 +0100', end: '2030-01-02 02:30:00 +0100', stage: 'Profundo' },
@@ -132,7 +135,7 @@ test('buildRows() sleep maps Spanish stage names to their stage columns', () => 
     { start: '2030-01-02 04:00:00 +0100', end: '2030-01-02 06:00:00 +0100', stage: 'Ligero' },
     { start: '2030-01-02 06:00:00 +0100', end: '2030-01-02 07:00:00 +0100', stage: 'Sueño' },
     { start: '2030-01-01 22:30:00 +0100', end: '2030-01-02 07:30:00 +0100', stage: 'En cama' },
-  ]);
+  ])));
   assert.equal(rows[0].line, `2030-01-02,7.50,${SHORTCUT_SOURCE},23,7,1.50,1.00,4.00,1.00,0.50,9.00`);
 });
 
@@ -190,7 +193,7 @@ test('updateMeta() refreshes row counts + ranges and records the sync, determini
     hrv: { rows: 3, added: 2, dates: ['2030-01-01', '2030-01-03'], addedDates: ['2030-01-02', '2030-01-03'] },
     weight: { rows: 2, added: 1, dates: ['2030-01-01', '2030-01-05'], addedDates: ['2030-01-05'] },
   };
-  const out = updateMeta(meta, stats, { payloads: 4, lastPayloadId: '12' });
+  const out = updateMeta(meta, /** @type {Record<string, MergeStat>} */ (/** @type {unknown} */ (stats)), { payloads: 4, lastPayloadId: '12' });
   assert.equal(out.rows.hrv, 3);
   assert.equal(out.rows.weight, 2);
   assert.equal(out.rows.steps, 9);
@@ -199,8 +202,8 @@ test('updateMeta() refreshes row counts + ranges and records the sync, determini
   assert.deepEqual(out.shortcutSync.added, { hrv: 2, weight: 1 });
   assert.equal(out.shortcutSync.ranges.hrv, '2030-01-02..2030-01-03');
   assert.equal(out.shortcutSync.lastPayloadId, '12');
-  assert.equal(out.notes.filter(n => /Shortcut/.test(n)).length, 1);
-  const again = updateMeta(out, stats, { payloads: 4, lastPayloadId: '12' });
+  assert.equal(out.notes.filter((/** @type {string} */ n) => /Shortcut/.test(n)).length, 1);
+  const again = updateMeta(out, /** @type {Record<string, MergeStat>} */ (/** @type {unknown} */ (stats)), { payloads: 4, lastPayloadId: '12' });
   assert.deepEqual(again, out, 'idempotent: no duplicated note, no timestamps');
   assert.equal(meta.rows.hrv, 1, 'input not mutated');
 });
@@ -211,17 +214,19 @@ test('resolveToken() prefers env, falls back to the .env file text', () => {
   assert.equal(resolveToken({}, null), null);
 });
 
+/** @param {Array<{ id: string }>} pages @param {Array<{ url: string, auth: string }>} calls @returns {typeof fetch} */
 function fakeFetch(pages, calls) {
-  return async (url, opts) => {
+  return /** @type {typeof fetch} */ (/** @type {unknown} */ (async (/** @type {string} */ url, /** @type {{ headers: { authorization: string } }} */ opts) => {
     calls.push({ url: String(url), auth: opts.headers.authorization });
     const since = Number(new URL(url).searchParams.get('since_id'));
     const body = pages.filter(p => Number(p.id) > since).slice(0, 2);
     return { ok: true, status: 200, json: async () => body };
-  };
+  }));
 }
 
 test('fetchAllPayloads() pages by since_id until a short page', async () => {
   const pages = [1, 2, 3].map(id => ({ id: String(id), received_at: 't', payload: { hrv: '' } }));
+  /** @type {Array<{ url: string, auth: string }>} */
   const calls = [];
   const out = await fetchAllPayloads({ baseUrl: 'http://h:1', token: 'tok', automation: 'a', limit: 2, fetchImpl: fakeFetch(pages, calls) });
   assert.deepEqual(out.map(p => p.id), ['1', '2', '3']);
@@ -231,7 +236,7 @@ test('fetchAllPayloads() pages by since_id until a short page', async () => {
 });
 
 test('fetchAllPayloads() throws on a non-OK response', async () => {
-  const fetchImpl = async () => ({ ok: false, status: 401, json: async () => ({}) });
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: false, status: 401, json: async () => ({}) })));
   await assert.rejects(fetchAllPayloads({ baseUrl: 'http://h', token: 't', automation: 'a', fetchImpl }), /401/);
 });
 
@@ -240,6 +245,7 @@ test('planSync() computes every CSV + meta without touching disk', () => {
     { id: '1', payload: { hrv: '2030-01-03T08:00:00+01:00;42', rhr: '2030-01-03T00:05:00+01:00;50' } },
     { id: '2', payload: { hrv: '2030-01-03T08:00:00+01:00;42\n2030-01-01T08:00:00+01:00;30' } },
   ];
+  /** @type {Record<string, string>} */
   const files = {
     'hrv.csv': [HDR, '2030-01-01,40,Watch', ''].join('\n'),
     '_meta.json': JSON.stringify({ rows: {}, ranges: {}, notes: [] }),
@@ -389,6 +395,7 @@ test('hr_t + hr_v (loop-free parallel lists): zipped by index into hr_samples, u
 });
 
 test('hr_t / hr_v of different lengths: the lists are dropped (hr_samples kept) and planSync returns a warning', () => {
+  /** @type {string[]} */
   const warnings = [];
   const out = parsePayload({ hr_samples: '2030-01-02T09:00:00+01:00;60', hr_t: '2030-01-02T09:05:00+01:00\n2030-01-02T09:10:00+01:00', hr_v: '72' }, warnings);
   assert.deepEqual(out.hr_samples.map(x => x.value), [60]);
@@ -411,6 +418,7 @@ test('hr_samples: the old hr_hourly key (hourly SUMS) is ignored', () => {
 test('planSync(): hr-hourly.csv leaves the Strava activity windows (workout-zones.csv) out of the histogram', () => {
   const zones = 'date,activity_id,type,max_hr,max_hr_source,hr_avg,hr_max,z0_s,z1_s,z2_s,z3_s,z4_s,z5_s,source,start,elapsed_s\n' +
     '2030-01-02,1,Running,190,observed,150,170,0,0,0,0,0,0,Strava API,2030-01-02T09:05:00+01:00,300\n';
+  /** @type {Record<string, string>} */
   const files = { 'workout-zones.csv': zones };
   const plan = planSync([{ id: '1', payload: { hr_samples: '2030-01-02T09:00:00+01:00;90\n2030-01-02T09:10:00+01:00;95\n2030-01-02T09:11:00+01:00;96' } }], n => files[n] ?? null);
   const csv = plan.writes['hr-hourly.csv'];
@@ -430,6 +438,7 @@ test('active_energy_hourly: a DST fall-back night keeps both 02:00 hours (keyed 
 });
 
 test('planSync() writes active-energy-hourly.csv and rebuilds it every run (no export rows exist)', () => {
+  /** @type {Record<string, string>} */
   const files = { 'active-energy-hourly.csv': 'date,hour_start,kcal,source\n2030-01-01,2030-01-01T09:00:00+01:00,999.0,Shortcut\n' };
   const plan = planSync([{ id: '1', payload: { active_energy_hourly: '2030-01-02T08:10:00+01:00;1\n2030-01-02T09:10:00+01:00;250' } }],
     name => (name in files ? files[name] : null));
@@ -439,8 +448,8 @@ test('planSync() writes active-energy-hourly.csv and rebuilds it every run (no e
 
 // ---- steps: per-device day totals, max-per-device like extract.mjs ----------------------
 
-const WATCH = METRICS.steps.devices.steps_watch;
-const PHONE = METRICS.steps.devices.steps_phone;
+const WATCH = /** @type {Record<string, string>} */ (METRICS.steps.devices).steps_watch;
+const PHONE = /** @type {Record<string, string>} */ (METRICS.steps.devices).steps_phone;
 
 test('steps = MAX(watch, phone) per day, source = the winning device', () => {
   const s = collectSamples([{
@@ -500,9 +509,10 @@ test('mergeCsv() strips previously owned dates even without a source tag', () =>
 
 test('planSync() updates a growing partial day and stays idempotent via the ledger', () => {
   const H = 'date,kcal';
+  /** @type {Record<string, string>} */
   const files = { 'active-energy-daily.csv': [H, '2030-01-01,500', ''].join('\n'), '_meta.json': '{"rows":{},"ranges":{},"notes":[]}' };
-  const read = name => files[name] ?? null;
-  const apply = plan => Object.assign(files, plan.writes);
+  const read = (/** @type {string} */ name) => files[name] ?? null;
+  const apply = (/** @type {{ writes: Record<string, string> }} */ plan) => Object.assign(files, plan.writes);
   apply(planSync([{ id: '1', payload: { active_energy: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:00:00+01:00;100' } }], read));
   apply(planSync([{ id: '1', payload: { active_energy: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:00:00+01:00;100' } },
     { id: '2', payload: { active_energy: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:00:00+01:00;600' } }], read));
@@ -514,8 +524,9 @@ test('planSync() updates a growing partial day and stays idempotent via the ledg
 
 test('planSync() keeps real-source bodyfat rows replaceable via the ledger', () => {
   const H = 'date,value,source';
+  /** @type {Record<string, string>} */
   const files = { 'bodyfat.csv': [H, '2030-01-01,15,Scale App', ''].join('\n'), '_meta.json': '{"rows":{},"ranges":{},"notes":[]}' };
-  const read = name => files[name] ?? null;
+  const read = (/** @type {string} */ name) => files[name] ?? null;
   Object.assign(files, planSync([{ id: '1', payload: { bodyfat: '2030-01-02T07:00:00+01:00;14.6;Scale App' } }], read).writes);
   Object.assign(files, planSync([{ id: '2', payload: { bodyfat: '2030-01-02T07:00:00+01:00;14.6;Scale App\n2030-01-02T19:00:00+01:00;14.8;Scale App' } }], read).writes);
   assert.equal(files['bodyfat.csv'], [H, '2030-01-01,15,Scale App', '2030-01-02,14.6,Scale App', '2030-01-02,14.8,Scale App', ''].join('\n'));
@@ -523,8 +534,8 @@ test('planSync() keeps real-source bodyfat rows replaceable via the ledger', () 
 
 // ---- daily totals: latest payload wins, except each payload's truncated oldest day -------
 
-const daily = (...pairs) => pairs.map(([d, v]) => `${d}T00:00:00+01:00;${v}`).join('\n');
-const activeRows = cache => buildRows('active_energy', Object.values(cache.samples.active_energy)).map(r => r.line);
+const daily = (/** @type {Array<[string, number]>} */ ...pairs) => pairs.map(([d, v]) => `${d}T00:00:00+01:00;${v}`).join('\n');
+const activeRows = (/** @type {import('./sync-shortcut.mjs').ShortcutCache} */ cache) => buildRows('active_energy', Object.values(cache.samples.active_energy)).map(r => r.line);
 
 test('foldPayloads(): a later lower value corrects an earlier inflated one', () => {
   const c = foldPayloads(emptyCache(), [
@@ -563,8 +574,9 @@ test('foldPayloads(): skips payloads at or below lastPayloadId (re-fold is a no-
 });
 
 test('planSync() reads the cache and only folds new payloads; --full ignores it', () => {
+  /** @type {Record<string, string>} */
   const files = {};
-  const read = name => files[name] ?? null;
+  const read = (/** @type {string} */ name) => files[name] ?? null;
   Object.assign(files, planSync([{ id: '1', payload: { rhr: '2030-01-02T00:05:00+01:00;50' } }], read).writes);
   assert.ok(files[CACHE_FILE]);
   Object.assign(files, planSync([{ id: '2', payload: { rhr: '2030-01-03T00:05:00+01:00;51' } }], read).writes);
@@ -580,15 +592,16 @@ test('planSync() refuses a corrupt cache (suggests --full) instead of guessing',
 // ---- fetch: incremental + timeout ------------------------------------------------------
 
 test('fetchAllPayloads() starts from the given since_id', async () => {
+  /** @type {Array<{ url: string, auth: string }>} */
   const calls = [];
   await fetchAllPayloads({ baseUrl: 'http://h', token: 't', automation: 'a', sinceId: '7', fetchImpl: fakeFetch([], calls) });
   assert.match(calls[0].url, /since_id=7&/);
 });
 
 test('fetchAllPayloads() aborts a hung request with a clear timeout error', async () => {
-  const fetchImpl = (url, { signal }) => new Promise((resolve, reject) => {
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ ((/** @type {unknown} */ url, /** @type {{ signal: AbortSignal }} */ { signal }) => new Promise((resolve, reject) => {
     signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
-  });
+  })));
   await assert.rejects(fetchAllPayloads({ baseUrl: 'http://h', token: 't', automation: 'a', timeoutMs: 20, fetchImpl }), /timed out/);
 });
 
@@ -616,7 +629,7 @@ test('contract: a re-extract drops Shortcut rows + ledger, the next sync restore
   ].join('\n') + '\n');
   const extract = () => execFileSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { stdio: 'ignore', env: { ...process.env, EXTRACT_DIR: dir } });
   const out = path.join(dir, 'extract');
-  const read = f => fs.readFileSync(path.join(out, f), 'utf8');
+  const read = (/** @type {string} */ f) => fs.readFileSync(path.join(out, f), 'utf8');
   const items = [{ id: '1', payload: {
     hrv: '2030-01-01T09:00:00+01:00;99\n2030-01-02T08:00:00+01:00;42',
     active_energy: daily(['2029-12-31', 1], ['2030-01-01', 999], ['2030-01-02', 500]),
@@ -778,6 +791,7 @@ test('dietary: the truncated oldest day is shared by the whole key group, not co
 
 test('dietary: export rows win; Shortcut rows fill only dates the export lacks and stay replaceable via the ledger', () => {
   const payload = { diet_kcal: daily(['2030-01-01', 1], ['2030-01-02', 2000], ['2030-01-03', 2100]), diet_protein: daily(['2030-01-01', 1], ['2030-01-02', 150], ['2030-01-03', 155]) };
+  /** @type {Record<string, string>} */
   const files = { 'dietary-daily.csv': [DIET_H, '2030-01-02,1900,140.0,200.0,60.0', ''].join('\n') };
   const plan = planSync([{ id: '1', payload }], name => files[name] ?? null);
   assert.equal(plan.writes['dietary-daily.csv'], [DIET_H, '2030-01-02,1900,140.0,200.0,60.0', '2030-01-03,2100,155.0,,', ''].join('\n'));
@@ -811,7 +825,8 @@ test('extract.mjs and the Shortcut sync write identical sleep rows (nap excluded
     ['2030-01-02T17:40:00+01:00', '2030-01-02T18:40:00+01:00', 'Core'], // nap across 18:00
     ['2030-01-03T00:00:00+01:00', '2030-01-03T07:30:00+01:00', 'Deep'],
   ];
-  const stamp = t => t.replace('T', ' ').replace(/([+-]\d{2}):(\d{2})$/, ' $1$2');
+  const stamp = (/** @type {string} */ t) => t.replace('T', ' ').replace(/([+-]\d{2}):(\d{2})$/, ' $1$2');
+  /** @type {Record<string, string>} */
   const xmlStage = { Core: 'HKCategoryValueSleepAnalysisAsleepCore', REM: 'HKCategoryValueSleepAnalysisAsleepREM', Deep: 'HKCategoryValueSleepAnalysisAsleepDeep',
     Awake: 'HKCategoryValueSleepAnalysisAwake', InBed: 'HKCategoryValueSleepAnalysisInBed' };
   fs.writeFileSync(path.join(dir, 'export.xml'), [
@@ -823,7 +838,7 @@ test('extract.mjs and the Shortcut sync write identical sleep rows (nap excluded
   execFileSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { stdio: 'ignore', env: { ...process.env, EXTRACT_DIR: dir } });
   const out = path.join(dir, 'extract');
   const sync = collectSamples([{ sleep: iv.map(x => x.join(';')).join('\n'), wrist_temp: '2030-01-01T23:40:00+01:00;36.1' }]);
-  const csvOf = (header, rows) => [header, ...rows.map(r => r.line)].join('\n') + '\n';
+  const csvOf = (/** @type {string} */ header, /** @type {Array<{ line: string }>} */ rows) => [header, ...rows.map(r => r.line)].join('\n') + '\n';
   const exportSleep = fs.readFileSync(path.join(out, 'sleep-daily.csv'), 'utf8');
   assert.equal(exportSleep, csvOf(METRICS.sleep.header, buildRows('sleep', sync.sleep)));
   assert.match(exportSleep, /^2030-01-02,6\.00,/m, 'the nap adds no minutes');
@@ -874,7 +889,7 @@ test('weight: a midnight date-only sample with no body-fat reading within 10 min
 });
 
 test('dropPhantomWeights(): only exact midnight stamps (local or UTC) are candidates; body fat beyond 10 min does not rescue', () => {
-  const w = (start, value = 80) => ({ start, value });
+  const w = (/** @type {string} */ start, value = 80) => ({ start, value });
   const out = dropPhantomWeights([
     w('2030-01-02 00:00:30 +0100'), // not exact -> kept
     w('2030-01-03 00:00:00 +0100'), // body fat 11 min later -> still phantom
@@ -928,6 +943,7 @@ test('distance_watch: km by default; metres (value > 100, or an "m" unit) and mi
 });
 
 test('exercise_watch: latest payload wins a day; export rows win, Shortcut fills only missing dates', () => {
+  /** @type {Record<string, string>} */
   const files = { 'exercise-minutes-daily.csv': 'date,minutes\n2030-01-02,50\n', '_meta.json': '{"rows":{},"ranges":{},"notes":[]}' };
   const plan = planSync([
     { id: '1', payload: { exercise_watch: '2030-01-01T00:00:00+01:00;1\n2030-01-02T00:00:00+01:00;20\n2030-01-03T00:00:00+01:00;10' } },
@@ -943,6 +959,7 @@ test('exercise_watch: latest payload wins a day; export rows win, Shortcut fills
 
 test('planSync(): on the export\'s last date (exportLastDate) a Shortcut day total beats the partial export row', () => {
   const meta = JSON.stringify({ exportLastDate: '2030-01-03', rows: {}, ranges: {}, notes: [] });
+  /** @type {Record<string, string>} */
   const files = {
     '_meta.json': meta,
     'steps-daily.csv': 'date,steps,source\n2030-01-02,9000,Watch\n2030-01-03,971,Watch\n',
@@ -968,6 +985,7 @@ test('planSync(): on the export\'s last date (exportLastDate) a Shortcut day tot
 });
 
 test('planSync(): without exportLastDate in _meta.json, export rows win every date as before', () => {
+  /** @type {Record<string, string>} */
   const files = { '_meta.json': '{"rows":{},"ranges":{},"notes":[]}', 'basal-energy-daily.csv': 'date,kcal\n2030-01-03,918\n' };
   const plan = planSync([{ id: '1', payload: { basal_energy: '2030-01-02T00:00:00+01:00;1\n2030-01-03T00:00:00+01:00;1800' } }], name => files[name] ?? null);
   assert.equal(plan.writes['basal-energy-daily.csv'], undefined);
@@ -1002,17 +1020,18 @@ test('parseNumber() reads thousands separators by the LAST separator; ambiguous 
 
 // ---- main() returns its exit code (runCli sets it): called in-process, the runner is never killed ----
 
+/** @param {string} prefix */
 function mainHarness (prefix) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
-  const out = [], err = [];
+  const out = /** @type {string[]} */ ([]), err = /** @type {string[]} */ ([]);
   const env = { INGEST_ENV_FILE: path.join(dir, 'no-such.env'), INGEST_URL: 'http://127.0.0.1:9' };
   const refused = async () => { throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } }); };
-  const answer = (status, body) => async () => ({ ok: status < 300, status, json: async () => body });
+  const answer = (/** @type {number} */ status, /** @type {unknown} */ body) => /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: status < 300, status, json: async () => body })));
   const blocked = path.join(dir, 'a-file');
   fs.writeFileSync(blocked, 'x');
   return {
     dir, env, refused, answer, out, err,
-    io: { log: (s) => out.push(s), error: (s) => err.push(s) },
+    io: { log: (/** @type {string} */ s) => out.push(s), error: (/** @type {string} */ s) => err.push(s) },
     unwritable: path.join(blocked, 'sub'), // a path under a regular file: every write fails
     cleanup: () => fs.rmSync(dir, { recursive: true, force: true }),
   };
@@ -1023,15 +1042,15 @@ test('main() in-process: missing token / bad cache / unreachable service -> retu
   try {
     const outDir = path.join(h.dir, 'extract');
     assert.equal(await sync.main({ env: h.env, ...h.io, fetchImpl: h.refused, outDir }), 1);
-    assert.match(h.err.pop(), /no ingest token/);
+    assert.match(/** @type {string} */ (h.err.pop()), /no ingest token/);
     const env = { ...h.env, INGEST_TOKEN: 't' };
     assert.equal(await sync.main({ env, ...h.io, fetchImpl: h.refused, outDir }), 1);
-    assert.match(h.err.pop(), /could not read from the ingest service .*ECONNREFUSED/);
+    assert.match(/** @type {string} */ (h.err.pop()), /could not read from the ingest service .*ECONNREFUSED/);
     assert.ok(!fs.existsSync(outDir));
     fs.mkdirSync(outDir);
     fs.writeFileSync(path.join(outDir, sync.CACHE_FILE), '{not json');
     assert.equal(await sync.main({ env, ...h.io, fetchImpl: h.answer(200, []), outDir }), 1);
-    assert.match(h.err.pop(), /unreadable or from another version/);
+    assert.match(/** @type {string} */ (h.err.pop()), /unreadable or from another version/);
     assert.deepEqual(fs.readdirSync(outDir), [sync.CACHE_FILE]);
   } finally { h.cleanup(); }
 });
@@ -1047,6 +1066,7 @@ test('main() in-process: no new payloads -> returns 0', async () => {
 test('syncDir writes _meta.json (the ownership ledger) FIRST; a failure after it leaves the ledger listing the dates', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-order-'));
   const items = [{ id: '1', payload: { hrv: '2030-01-02T08:00:00+01:00;42' } }];
+  /** @type {string[]} */
   const order = [];
   syncDir(dir, items, { writeAtomic: (file) => order.push(path.basename(file)) });
   assert.equal(order[0], '_meta.json');
@@ -1096,15 +1116,16 @@ test('sleep: in-bed estimation is export-only — a Shortcut payload with only I
 
 // ---- heart rate of a band (several records per hour-stamp) + derived resting HR -----------
 
-const pad2 = n => String(n).padStart(2, '0');
-const sha16 = t => crypto.createHash('sha256').update(t).digest('hex').slice(0, 16);
+const pad2 = (/** @type {number} */ n) => String(n).padStart(2, '0');
+const sha16 = (/** @type {string} */ t) => crypto.createHash('sha256').update(t).digest('hex').slice(0, 16);
 
 // Apple Watch-style: ungrouped samples at distinct instants, every 10 min from 00:03:17
+/** @type {(d: string, from?: number, to?: number) => Array<[string, number]>} */
 const watchNight = (d, from = 0, to = 48) => Array.from({ length: to - from }, (_, k) => {
   const i = from + k, min = i * 10 + 3;
   return [`${d}T${pad2(Math.floor(min / 60))}:${pad2(min % 60)}:17+02:00`, 50 + (i * 7) % 13];
 });
-const hrLines = xs => xs.map(([t, v]) => `${t};${v}`).join('\n');
+const hrLines = (/** @type {Array<[string, number]>} */ xs) => xs.map(([t, v]) => `${t};${v}`).join('\n');
 const WATCH_PAYLOADS = [
   { id: '1', payload: { hr_samples: hrLines(watchNight('2030-06-01')), rhr: '2030-06-01T07:12:00+02:00;52' } },
   // overlaps the end of the 1st night (one re-sent instant carries a corrected value), loop-free lists
@@ -1119,9 +1140,10 @@ const WATCH_EXTRACT = {
 };
 
 test('Apple Watch payloads (distinct instants + a measured rhr): every file written is byte-identical to the pre-band sync', () => {
+  /** @type {Record<string, string>} */
   const files = { ...WATCH_EXTRACT };
-  const read = n => (n in files ? files[n] : null);
-  const hashes = w => Object.fromEntries(Object.keys(w).sort().map(k => [k, sha16(w[k])]));
+  const read = (/** @type {string} */ n) => (n in files ? files[n] : null);
+  const hashes = (/** @type {Record<string, string>} */ w) => Object.fromEntries(Object.keys(w).sort().map(k => [k, sha16(w[k])]));
   const a = planSync(WATCH_PAYLOADS.slice(0, 2), read);
   Object.assign(files, a.writes);
   const b = planSync(WATCH_PAYLOADS.slice(2), read);
@@ -1136,9 +1158,10 @@ test('Apple Watch payloads (distinct instants + a measured rhr): every file writ
 });
 
 // a band (Mi Fitness): every record of an hour stamped hh:00:00, five per hour, equal values included
+/** @type {(d: string, base: number) => Array<[string, number]>} */
 const bandNight = (d, base) => Array.from({ length: 7 }, (_, h) =>
-  [0, 0, 2, 4, 6].map(dv => [`${d}T${pad2(h)}:00:00+02:00`, base + Math.abs(h - 3) * 3 + dv])).flat();
-const bandPayload = xs => ({ hr_t: xs.map(x => x[0]).join('\n'), hr_v: xs.map(x => `${x[1]} lpm`).join('\n') });
+  [0, 0, 2, 4, 6].map(dv => /** @type {[string, number]} */ ([`${d}T${pad2(h)}:00:00+02:00`, base + Math.abs(h - 3) * 3 + dv]))).flat();
+const bandPayload = (/** @type {Array<[string, number]>} */ xs) => ({ hr_t: xs.map(x => x[0]).join('\n'), hr_v: xs.map(x => `${x[1]} lpm`).join('\n') });
 
 test('band hr samples: several values at one hour-stamp all survive the fold; an overlapping payload re-sending them adds nothing', () => {
   const n1 = bandNight('2030-06-01', 55);
@@ -1151,14 +1174,15 @@ test('band hr samples: several values at one hour-stamp all survive the fold; an
 
 test('band hr samples, no rhr ever delivered: rhr.csv gets derived rows ("Shortcut (derived)"), the same values as the export path', () => {
   const nights = [...bandNight('2030-06-01', 55), ...bandNight('2030-06-02', 57)];
+  /** @type {Record<string, string>} */
   const files = { 'rhr.csv': 'date,value,source\n2030-06-02,61,Zepp\n' }; // an export row wins its date
   const plan = planSync([{ id: '1', payload: bandPayload(nights) }], n => files[n] ?? null);
-  const exportPath = S.derivedRestingHr(nights.map(([t, v]) => ({ start: S.isoToExportStamp(t), value: v, source: 'Mi Fitness' })));
+  const exportPath = S.derivedRestingHr(nights.map(([t, v]) => ({ start: /** @type {string} */ (S.isoToExportStamp(t)), value: v, source: 'Mi Fitness' })));
   assert.deepEqual(exportPath.map(r => r.date), ['2030-06-01', '2030-06-02']);
   assert.equal(plan.writes['rhr.csv'], `date,value,source\n2030-06-01,${exportPath[0].value},Shortcut (derived)\n2030-06-02,61,Zepp\n`);
   const meta = JSON.parse(plan.writes['_meta.json']);
   assert.deepEqual(meta.shortcutSync.owned['rhr.csv'], ['2030-06-01']);
-  assert.ok(meta.notes.some(n => /Shortcut \(derived\)/.test(n)));
+  assert.ok(meta.notes.some((/** @type {string} */ n) => /Shortcut \(derived\)/.test(n)));
   // without the export row the 2nd night is derived too, and a later run rebuilds the same rows (owned)
   const fresh = planSync([{ id: '1', payload: bandPayload(nights) }], () => null);
   assert.equal(fresh.writes['rhr.csv'], ['date,value,source', ...exportPath.map(r => `${r.date},${r.value},Shortcut (derived)`), ''].join('\n'));
@@ -1171,6 +1195,7 @@ test('band hr samples + ANY measured rhr ever delivered by the Shortcut: no deri
   ], () => null);
   assert.equal(plan.writes['rhr.csv'], 'date,value,source\n2030-06-02,50,Shortcut\n');
   // the measured point may arrive in an EARLIER payload than the heart rate: still no derived rows
+  /** @type {Record<string, string>} */
   const files = {};
   Object.assign(files, planSync([{ id: '1', payload: { rhr: '2030-05-20T06:40:00+02:00;50' } }], n => files[n] ?? null).writes);
   const later = planSync([{ id: '2', payload: bandPayload(nights) }], n => files[n] ?? null);

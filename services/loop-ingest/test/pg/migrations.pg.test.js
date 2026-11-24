@@ -11,26 +11,30 @@ import { CORE_MIGRATIONS, OPTIONAL_MIGRATIONS, checksum, runMigrations } from '.
 import pg from 'pg'
 
 const ALL = [...CORE_MIGRATIONS, ...Object.values(OPTIONAL_MIGRATIONS).flat()]
-const readSql = (f) => readFile(new URL(`../../sql/${f}`, import.meta.url), 'utf8')
+const readSql = (/** @type {string} */ f) => readFile(new URL(`../../sql/${f}`, import.meta.url), 'utf8')
 const quiet = () => {}
 
+/** @typedef {import('../../src/db.js').Pool} Pool @typedef {Awaited<ReturnType<typeof freshDatabase>>} FreshDb */
+/** @param {(pool: Pool, db: FreshDb) => Promise<void>} fn */
 async function withDb (fn) {
   const db = await freshDatabase()
   const pool = createPool(db.url, { log: quiet })
   try { await fn(pool, db) } finally { await pool.end(); await db.drop() }
 }
+/** @param {import('../../src/db.js').Queryable} pool */
 async function ledger (pool) {
   const { rows } = await pool.query('SELECT name, checksum, applied_at FROM schema_migrations ORDER BY name')
   return rows
 }
 
 test('an empty database: every migration runs once, every group is available, the ledger holds each file with its checksum', { skip }, () => withDb(async (pool) => {
+  /** @type {{ file?: string }[]} */
   const events = []
   const available = await migrate(pool, (l) => events.push(JSON.parse(l)))
   assert.deepEqual(available, { food: true, settings: true, profile: true, journal: true, documents: true })
   assert.deepEqual(events.map((e) => e.file).sort(), [...ALL].sort())
   const rows = await ledger(pool)
-  assert.deepEqual(rows.map((r) => r.name), [...ALL].sort())
+  assert.deepEqual(rows.map((/** @type {{ name: string }} */ r) => r.name), [...ALL].sort())
   for (const r of rows) assert.equal(r.checksum, checksum(await readSql(r.name)), r.name)
   for (const t of ['raw_payload', 'strava_activity', 'sync_status', 'strava_athlete', 'food_product', 'food_log', 'app_settings', 'strava_activity_hr', 'journal_day', 'app_profile']) {
     const { rows: [{ ok }] } = await pool.query('SELECT to_regclass($1) IS NOT NULL AS ok', [t])
@@ -42,6 +46,7 @@ test('a second boot runs nothing: 009 no longer re-creates its CHECK on every st
   await migrate(pool, quiet)
   const oid = async () => (await pool.query("SELECT oid FROM pg_constraint WHERE conname = 'strava_activity_hr_status_check'")).rows[0].oid
   const before = await oid()
+  /** @type {string[]} */
   const events = []
   assert.deepEqual(await migrate(pool, (l) => events.push(l)), { food: true, settings: true, profile: true, journal: true, documents: true })
   assert.deepEqual(events, [], 'nothing applied')
@@ -71,13 +76,13 @@ test('an install from before the ledger (every file applied, none recorded, data
 
   assert.deepEqual(await migrate(pool, quiet), { food: true, settings: true, profile: true, journal: true, documents: true })
   assert.deepEqual(await counts(), before, 'every row survives')
-  assert.deepEqual((await ledger(pool)).map((r) => r.name), [...ALL].sort(), 'the ledger is filled')
+  assert.deepEqual((await ledger(pool)).map((/** @type {{ name: string }} */ r) => r.name), [...ALL].sort(), 'the ledger is filled')
 }))
 
 test('an applied migration edited afterwards refuses the start with a clear message', { skip }, () => withDb(async (pool) => {
   await migrate(pool, quiet)
   await pool.query("UPDATE schema_migrations SET checksum = 'edited' WHERE name = '009_strava_hr_retry.sql'")
-  await assert.rejects(migrate(pool, quiet), (err) => {
+  await assert.rejects(migrate(pool, quiet), (/** @type {Error & { code?: string }} */ err) => {
     assert.equal(err.code, 'migration_checksum_mismatch')
     assert.match(err.message, /009_strava_hr_retry\.sql was changed after it was applied/)
     assert.match(err.message, /never edit an applied migration; add a new sql\/ file instead/)
@@ -90,8 +95,9 @@ test('an applied migration edited afterwards refuses the start with a clear mess
 test('two processes booting at once on an empty database: the advisory lock serialises them, each file applied exactly once', { skip }, () => withDb(async (pool, db) => {
   const other = createPool(db.url, { log: quiet })
   try {
+    /** @type {string[]} */
     const applied = []
-    const log = (l) => { const e = JSON.parse(l); if (e.event === 'migration_applied') applied.push(e.file) }
+    const log = (/** @type {string} */ l) => { const e = JSON.parse(l); if (e.event === 'migration_applied') applied.push(e.file) }
     const results = await Promise.all([migrate(pool, log), migrate(other, log), migrate(pool, log)])
     for (const r of results) assert.deepEqual(r, { food: true, settings: true, profile: true, journal: true, documents: true })
     assert.deepEqual([...applied].sort(), [...ALL].sort(), 'no file ran twice')

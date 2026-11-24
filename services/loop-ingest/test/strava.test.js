@@ -2,8 +2,13 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createTokenProvider, fetchActivitiesSince, pullActivitiesSince, upsertActivities, classifyStravaError } from '../src/strava.js'
 
-const okJson = (body) => ({ ok: true, status: 200, json: async () => body })
+/** @typedef {import('../src/strava.js').FetchImpl} FetchImpl @typedef {import('../src/strava.js').StravaError} StravaError */
+/** @typedef {Pick<import('../src/db.js').Pool, 'connect'>} ConnectPool */
 
+/** A fetch answer with only the Response fields the client reads. @param {unknown} body */
+const okJson = (body) => /** @type {Response} */ ({ ok: true, status: 200, json: async () => body })
+
+/** @param {string} token @param {number} secondsFromNow */
 function tokenResponse (token, secondsFromNow) {
   return okJson({ access_token: token, expires_at: Math.floor(Date.now() / 1000) + secondsFromNow })
 }
@@ -41,7 +46,7 @@ test('throws a clear error when the refresh is rejected', async () => {
     clientId: 'id',
     clientSecret: 'secret',
     refreshToken: 'bad',
-    fetchImpl: async () => ({ ok: false, status: 401 })
+    fetchImpl: async () => (/** @type {Response} */ ({ ok: false, status: 401 }))
   })
 
   await assert.rejects(getToken, /token refresh failed: 401/)
@@ -57,7 +62,7 @@ test('pages until a short batch ends the walk', async () => {
 
   const activities = await fetchActivitiesSince(
     async () => 'tok',
-    null,
+    /** @type {any} */ (null), // no cursor: the first pull
     async () => okJson(pages[page++])
   )
 
@@ -69,7 +74,7 @@ test('stops after a single page when the batch is short', async () => {
   let calls = 0
   const activities = await fetchActivitiesSince(
     async () => 'tok',
-    null,
+    /** @type {any} */ (null), // no cursor: the first pull
     async () => { calls += 1; return okJson([{ id: 1 }, { id: 2 }]) }
   )
 
@@ -78,11 +83,11 @@ test('stops after a single page when the batch is short', async () => {
 })
 
 test('passes the after cursor as a unix timestamp', async () => {
-  let seen = null
+  let seen = /** @type {URL} */ (/** @type {unknown} */ (null)) // set by the fake fetch
   await fetchActivitiesSince(
     async () => 'tok',
     1_700_000_000,
-    async (url) => { seen = url; return okJson([]) }
+    async (url) => { seen = /** @type {URL} */ (url); return okJson([]) }
   )
 
   assert.equal(seen.searchParams.get('after'), '1700000000')
@@ -91,23 +96,26 @@ test('passes the after cursor as a unix timestamp', async () => {
 
 test('flags a rate limit distinctly from other failures', async () => {
   await assert.rejects(
-    fetchActivitiesSince(async () => 'tok', null, async () => ({ ok: false, status: 429 })),
-    (err) => err.rateLimited === true && /rate limit/.test(err.message)
+    fetchActivitiesSince(async () => 'tok', /** @type {any} */ (null), async () => (/** @type {Response} */ ({ ok: false, status: 429 }))),
+    (/** @type {StravaError} */ err) => err.rateLimited === true && /rate limit/.test(err.message)
   )
 })
 
 // --- refresh token rotation ------------------------------------------------
 
+/** @param {string | null} [initial] */
 function memoryStore (initial = null) {
+  /** @type {string[]} */
   const saved = []
-  return { saved, load: async () => initial, save: async (token) => { saved.push(token); initial = token } }
+  return { saved, load: async () => initial, save: async (/** @type {string} */ token) => { saved.push(token); initial = token } }
 }
 
+/** @param {string[]} seen @param {{ rotateTo?: ((n: number) => string) | null, failFor?: string[] }} [options] @returns {FetchImpl} */
 function rotatingFetch (seen, { rotateTo = null, failFor = [] } = {}) {
   return async (url, init) => {
-    const body = JSON.parse(init.body)
+    const body = JSON.parse(/** @type {string} */ (/** @type {RequestInit} */ (init).body))
     seen.push(body.refresh_token)
-    if (failFor.includes(body.refresh_token)) return { ok: false, status: 400 }
+    if (failFor.includes(body.refresh_token)) return /** @type {Response} */ ({ ok: false, status: 400 })
     return okJson({
       access_token: `acc-${seen.length}`,
       expires_at: Math.floor(Date.now() / 1000) + 30, // inside the slack: every call refreshes
@@ -117,6 +125,7 @@ function rotatingFetch (seen, { rotateTo = null, failFor = [] } = {}) {
 }
 
 test('persists a rotated refresh token and uses it on the next refresh', async () => {
+  /** @type {string[]} */
   const seen = []
   const store = memoryStore()
   const getToken = createTokenProvider({
@@ -131,6 +140,7 @@ test('persists a rotated refresh token and uses it on the next refresh', async (
 })
 
 test('prefers the stored token over the env value from the first refresh', async () => {
+  /** @type {string[]} */
   const seen = []
   const getToken = createTokenProvider({
     clientId: 'id', clientSecret: 'secret', refreshToken: 'env-token', store: memoryStore('stored-token'),
@@ -151,6 +161,7 @@ test('an unchanged refresh token is not re-saved', async () => {
 })
 
 test('a rejected stored token falls back to the env bootstrap token once', async () => {
+  /** @type {string[]} */
   const seen = []
   const store = memoryStore('revoked')
   const getToken = createTokenProvider({
@@ -164,6 +175,7 @@ test('a rejected stored token falls back to the env bootstrap token once', async
 })
 
 test('a rejected env token is not retried', async () => {
+  /** @type {string[]} */
   const seen = []
   const getToken = createTokenProvider({
     clientId: 'id', clientSecret: 'secret', refreshToken: 'env-token', store: memoryStore(),
@@ -175,6 +187,7 @@ test('a rejected env token is not retried', async () => {
 })
 
 test('a failing token store never blocks the refresh', async () => {
+  /** @type {string[]} */
   const seen = []
   const getToken = createTokenProvider({
     clientId: 'id', clientSecret: 'secret', refreshToken: 'env-token',
@@ -190,7 +203,9 @@ test('a failing token store never blocks the refresh', async () => {
 
 test('token save is retried up to 3 times with backoff; success reports ok', async () => {
   let attempts = 0
+  /** @type {number[]} */
   const waits = []
+  /** @type {boolean[]} */
   const results = []
   const getToken = createTokenProvider({
     clientId: 'id', clientSecret: 'secret', refreshToken: 'env-token',
@@ -209,11 +224,13 @@ test('token save is retried up to 3 times with backoff; success reports ok', asy
 
 test('token save failing 3 times reports the failure and retries the unsaved token on the next refresh', async () => {
   let failing = true
+  /** @type {string[]} */
   const saved = []
+  /** @type {boolean[]} */
   const results = []
   const getToken = createTokenProvider({
     clientId: 'id', clientSecret: 'secret', refreshToken: 'env-token',
-    store: { load: async () => null, save: async (t) => { if (failing) throw new Error('db down'); saved.push(t) } },
+    store: { load: async () => null, save: async (/** @type {string} */ t) => { if (failing) throw new Error('db down'); saved.push(t) } },
     fetchImpl: rotatingFetch([], { rotateTo: () => 'rotated' }),
     sleep: async () => {},
     onSaveResult: (ok) => results.push(ok),
@@ -228,6 +245,7 @@ test('token save failing 3 times reports the failure and retries the unsaved tok
 })
 
 test('a failed store load is retried on the next refresh instead of pinning the env token', async () => {
+  /** @type {string[]} */
   const seen = []
   let loads = 0
   const getToken = createTokenProvider({
@@ -243,25 +261,26 @@ test('a failed store load is retried on the next refresh instead of pinning the 
 })
 
 test('classifyStravaError maps failures to coarse codes', () => {
-  assert.equal(classifyStravaError(new Error('strava token refresh failed: 401')), 'strava_auth')
-  assert.equal(classifyStravaError(new Error('strava token refresh failed: 400')), 'strava_auth')
-  assert.equal(classifyStravaError(new Error('strava activities failed: 403')), 'strava_auth')
-  assert.equal(classifyStravaError(Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNRESET' } })), 'strava_network')
-  assert.equal(classifyStravaError(Object.assign(new Error('x'), { code: 'ETIMEDOUT' })), 'strava_network')
-  assert.equal(classifyStravaError(Object.assign(new Error('aborted'), { name: 'AbortError' })), 'strava_network')
-  assert.equal(classifyStravaError(new Error('strava activities failed: 500')), 'strava_other')
-  assert.equal(classifyStravaError(Object.assign(new Error('strava rate limit reached'), { rateLimited: true })), 'strava_other')
+  assert.equal(classifyStravaError(/** @type {StravaError} */ (new Error('strava token refresh failed: 401'))), 'strava_auth')
+  assert.equal(classifyStravaError(/** @type {StravaError} */ (new Error('strava token refresh failed: 400'))), 'strava_auth')
+  assert.equal(classifyStravaError(/** @type {StravaError} */ (new Error('strava activities failed: 403'))), 'strava_auth')
+  assert.equal(classifyStravaError(/** @type {StravaError} */ (Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNRESET' } }))), 'strava_network')
+  assert.equal(classifyStravaError(/** @type {StravaError} */ (Object.assign(new Error('x'), { code: 'ETIMEDOUT' }))), 'strava_network')
+  assert.equal(classifyStravaError(/** @type {StravaError} */ (Object.assign(new Error('aborted'), { name: 'AbortError' }))), 'strava_network')
+  assert.equal(classifyStravaError(/** @type {StravaError} */ (new Error('strava activities failed: 500'))), 'strava_other')
+  assert.equal(classifyStravaError(/** @type {StravaError} */ (Object.assign(new Error('strava rate limit reached'), { rateLimited: true }))), 'strava_other')
   assert.equal(classifyStravaError(undefined), 'strava_other')
 })
 
 test('every Strava request carries a timeout signal (a hung request never blocks the shared sync)', async () => {
+  /** @type {(AbortSignal | null | undefined)[]} */
   const seen = []
   const getToken = createTokenProvider({
     clientId: 'id', clientSecret: 'secret', refreshToken: 'refresh',
     fetchImpl: async (url, opts) => { seen.push(opts && opts.signal); return tokenResponse('tok', 3600) }
   })
   await getToken()
-  await fetchActivitiesSince(async () => 'tok', null, async (url, opts) => { seen.push(opts && opts.signal); return okJson([]) })
+  await fetchActivitiesSince(async () => 'tok', /** @type {any} */ (null), async (url, opts) => { seen.push(opts && opts.signal); return okJson([]) })
   assert.equal(seen.length, 2)
   for (const s of seen) assert.ok(s instanceof AbortSignal, 'an AbortSignal on every fetch')
 })
@@ -270,7 +289,7 @@ test('every Strava request carries a timeout signal (a hung request never blocks
 test('stops paging after a hard page limit instead of looping forever on full pages', { timeout: 5000 }, async () => {
   let pages = 0
   await assert.rejects(
-    fetchActivitiesSince(async () => 'tok', null, async () => { pages += 1; return okJson(Array.from({ length: 100 }, (_, i) => ({ id: i }))) }),
+    fetchActivitiesSince(async () => 'tok', /** @type {any} */ (null), async () => { pages += 1; return okJson(Array.from({ length: 100 }, (_, i) => ({ id: i }))) }),
     /strava activities: more than 200 pages/
   )
   assert.equal(pages, 200)
@@ -279,12 +298,13 @@ test('stops paging after a hard page limit instead of looping forever on full pa
 // --- incremental pull (C1): ascending pages, each handed over as it arrives ---------------------
 
 test('a first pull (no stored activity) asks for ascending pages from after=0, never an uncursored newest-first walk', async () => {
-  let seen = null
-  await pullActivitiesSince(async () => 'tok', null, async () => {}, async (url) => { seen = url; return okJson([]) })
+  let seen = /** @type {URL} */ (/** @type {unknown} */ (null)) // set by the fake fetch
+  await pullActivitiesSince(async () => 'tok', /** @type {any} */ (null), async () => {}, async (url) => { seen = /** @type {URL} */ (url); return okJson([]) })
   assert.equal(seen.searchParams.get('after'), '0')
 })
 
 test('pullActivitiesSince hands every page to onPage before requesting the next one, and returns the total', async () => {
+  /** @type {string[]} */
   const events = []
   const pages = [
     Array.from({ length: 100 }, (_, i) => ({ id: i })),
@@ -295,22 +315,23 @@ test('pullActivitiesSince hands every page to onPage before requesting the next 
     async () => 'tok',
     1_700_000_000,
     async (batch) => { events.push(`saved ${batch.length}`) },
-    async (url) => { events.push(`page ${url.searchParams.get('page')}`); return okJson(pages[n++]) }
+    async (url) => { events.push(`page ${/** @type {URL} */ (url).searchParams.get('page')}`); return okJson(pages[n++]) }
   )
   assert.equal(total, 102)
   assert.deepEqual(events, ['page 1', 'saved 100', 'page 2', 'saved 2'])
 })
 
 test('a 429 partway keeps the pages already handed over (the next run resumes from them)', async () => {
+  /** @type {unknown[]} */
   const saved = []
   let n = 0
   await assert.rejects(
-    pullActivitiesSince(async () => 'tok', null, async (batch) => { saved.push(...batch) }, async () => {
+    pullActivitiesSince(async () => 'tok', /** @type {any} */ (null), async (batch) => { saved.push(...batch) }, async () => {
       n += 1
-      if (n === 3) return { ok: false, status: 429 }
+      if (n === 3) return /** @type {Response} */ ({ ok: false, status: 429 })
       return okJson(Array.from({ length: 100 }, (_, i) => ({ id: n * 1000 + i })))
     }),
-    (err) => err.rateLimited === true
+    (/** @type {StravaError} */ err) => err.rateLimited === true
   )
   assert.equal(saved.length, 200, 'pages 1 and 2 were handed over before the rate limit')
 })
@@ -318,7 +339,7 @@ test('a 429 partway keeps the pages already handed over (the next run resumes fr
 test('a failing onPage stops the walk (no further page is requested)', async () => {
   let n = 0
   await assert.rejects(
-    pullActivitiesSince(async () => 'tok', null, async () => { throw new Error('db down') }, async () => { n += 1; return okJson(Array.from({ length: 100 }, (_, i) => ({ id: i }))) }),
+    pullActivitiesSince(async () => 'tok', /** @type {any} */ (null), async () => { throw new Error('db down') }, async () => { n += 1; return okJson(Array.from({ length: 100 }, (_, i) => ({ id: i }))) }),
     /db down/
   )
   assert.equal(n, 1)
@@ -328,7 +349,7 @@ test('a failing onPage stops the walk (no further page is requested)', async () 
 
 test('two concurrent callers with no valid token trigger ONE refresh and get the same token', async () => {
   let calls = 0
-  let release
+  let release = /** @type {(value?: unknown) => void} */ (/** @type {unknown} */ (undefined)) // set by the promise executor
   const gate = new Promise((resolve) => { release = resolve })
   const getToken = createTokenProvider({
     clientId: 'id', clientSecret: 'secret', refreshToken: 'refresh',
@@ -345,7 +366,7 @@ test('a failed shared refresh rejects every waiting caller and the next call ref
   let calls = 0
   const getToken = createTokenProvider({
     clientId: 'id', clientSecret: 'secret', refreshToken: 'refresh',
-    fetchImpl: async () => { calls += 1; return calls === 1 ? { ok: false, status: 500 } : tokenResponse('tok', 3600) }
+    fetchImpl: async () => { calls += 1; return calls === 1 ? /** @type {Response} */ ({ ok: false, status: 500 }) : tokenResponse('tok', 3600) }
   })
   const results = await Promise.allSettled([getToken(), getToken()])
   assert.deepEqual(results.map((r) => r.status), ['rejected', 'rejected'])
@@ -357,36 +378,42 @@ test('a failed shared refresh rejects every waiting caller and the next call ref
 // --- upsertActivities on a dead connection (C6) ------------------------------------------------
 
 test('a failing ROLLBACK never hides the original error, and the broken client is released as broken', async () => {
+  /** @type {unknown[]} */
   const released = []
   const client = {
-    query: async (sql) => {
+    query: async (/** @type {string} */ sql) => {
       if (sql === 'ROLLBACK') throw new Error('Connection terminated')
       if (sql.startsWith('INSERT')) throw new Error('insert failed')
       return { rows: [] }
     },
-    release: (err) => { released.push(err) }
+    release: (/** @type {unknown} */ err) => { released.push(err) }
   }
-  await assert.rejects(upsertActivities({ connect: async () => client }, [{ id: 1, start_date_local: '2030-01-01T00:00:00Z' }]), /insert failed/)
+  // a pool stand-in: only connect(), its client only query + release
+  await assert.rejects(upsertActivities(/** @type {ConnectPool} */ (/** @type {unknown} */ ({ connect: async () => client })), [{ id: 1, start_date_local: '2030-01-01T00:00:00Z' }]), /insert failed/)
   assert.equal(released.length, 1)
-  assert.match(released[0]?.message ?? '', /insert failed/, 'release(err) so the pool discards the client')
+  assert.match(/** @type {Error | undefined} */ (released[0])?.message ?? '', /insert failed/, 'release(err) so the pool discards the client')
 })
 
 test('a successful upsert releases the client normally', async () => {
+  /** @type {unknown[]} */
   const released = []
-  const client = { query: async () => ({ rows: [] }), release: (err) => { released.push(err) } }
-  assert.equal(await upsertActivities({ connect: async () => client }, [{ id: 1, start_date_local: '2030-01-01T00:00:00Z' }]), 1)
+  const client = { query: async () => ({ rows: [] }), release: (/** @type {unknown} */ err) => { released.push(err) } }
+  assert.equal(await upsertActivities(/** @type {ConnectPool} */ (/** @type {unknown} */ ({ connect: async () => client })), [{ id: 1, start_date_local: '2030-01-01T00:00:00Z' }]), 1)
   assert.deepEqual(released, [undefined])
 })
 
 // --- 64-bit activity ids (Strava, after 2027-06-01) --------------------------------------------
 
 function capturingPool () {
+  /** @type {(readonly unknown[])[]} */
   const inserts = []
   const client = {
+    /** @param {string} sql @param {readonly unknown[]} params */
     query: async (sql, params) => { if (sql.startsWith('INSERT')) inserts.push(params); return { rows: [] } },
     release: () => {}
   }
-  return { pool: { connect: async () => client }, inserts }
+  // a pool stand-in: only connect(), its client only query + release
+  return { pool: /** @type {ConnectPool} */ (/** @type {unknown} */ ({ connect: async () => client })), inserts }
 }
 
 test('upsert keys an activity by id_str, so an id above 2^53 is stored exactly', async () => {

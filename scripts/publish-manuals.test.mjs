@@ -10,7 +10,8 @@ import { fileURLToPath } from 'node:url';
 import { main } from './publish-manuals.mjs';
 
 const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'publish-manuals.mjs');
-const run = (args) => spawnSync(process.execPath, [SCRIPT, ...args], { encoding: 'utf8' });
+/** @typedef {typeof import('../lib/profile/manuals.mjs').publishManuals} Publish */
+const run = (/** @type {string[]} */ args) => spawnSync(process.execPath, [SCRIPT, ...args], { encoding: 'utf8' });
 
 test('--help prints the usage and exits 0; an unknown flag, a stray argument or --out without a value exits 2', () => {
   const help = run(['--help']);
@@ -24,8 +25,9 @@ test('--help prints the usage and exits 0; an unknown flag, a stray argument or 
 });
 
 test('main: an empty flag value exits 2 and never publishes; flags resolve to the publish folders', () => {
+  /** @type {Array<Parameters<Publish>[0]>} */
   const calls = [];
-  const publish = (o) => { calls.push(o); return { skipped: false, published: [], missing: [], refused: [], removed: [] }; };
+  const publish = /** @type {Publish} */ (/** @type {unknown} */ ((/** @type {Parameters<Publish>[0]} */ o) => { calls.push(o); return { skipped: false, published: [], missing: [], refused: [], removed: [] }; }));
   const io = { log: () => {}, error: () => {} };
   assert.equal(main({ out: '' }, { publish, ...io }), 2);
   assert.equal(main({ profile: ' ' }, { publish, ...io }), 2);
@@ -33,6 +35,7 @@ test('main: an empty flag value exits 2 and never publishes; flags resolve to th
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'manuals-'));
   assert.equal(main({ out: path.join(dir, 'm'), gear: dir, profile: path.join(dir, 'p.json') }, { publish, ...io }), 0);
   assert.deepEqual([calls[0].outDir, calls[0].gearDir, calls[0].profileFile], [path.join(dir, 'm'), dir, path.join(dir, 'p.json')]);
+  /** @type {string[]} */
   const err = [];
   assert.equal(main({ out: dir }, { publish: () => { throw new Error('boom'); }, log: () => {}, error: (m) => err.push(m) }), 1);
   assert.match(err[0], /^ERROR: device manuals not published: boom/);
@@ -40,8 +43,9 @@ test('main: an empty flag value exits 2 and never publishes; flags resolve to th
 });
 
 test('main: without flags the profile and the manuals folder come from lib/paths.mjs (HC_DATA_DIR / HC_FILES_DIR); flags still win', () => {
+  /** @type {Array<Parameters<Publish>[0]>} */
   const calls = [];
-  const publish = (o) => { calls.push(o); return { skipped: true }; };
+  const publish = /** @type {Publish} */ (/** @type {unknown} */ ((/** @type {Parameters<Publish>[0]} */ o) => { calls.push(o); return { skipped: true }; }));
   const io = { log: () => {}, error: () => {} };
   const root = path.join(os.tmpdir(), 'hc-manuals-root');
   assert.equal(main({ out: path.join(root, 'site') }, { publish, ...io, env: { HC_DATA_DIR: root } }), 0);

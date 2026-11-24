@@ -46,19 +46,20 @@ test('syncJournal writes the CSV + meta; main warns and keeps the old files when
     assert.equal(parseJournalCsv(fs.readFileSync(path.join(dir, 'journal-daily.csv'), 'utf8')).length, 2);
     assert.deepEqual(JSON.parse(fs.readFileSync(path.join(dir, META_FILE), 'utf8')), { from: '2030-01-01', to: '2030-01-31', days: 2, fetchedAt: '2030-01-31T10:00:00.000Z' });
     assert.equal(syncJournal(dir, BODY).changed, false);
+    /** @type {string[]} */
     const warned = [];
     const before = fs.readFileSync(path.join(dir, 'journal-daily.csv'), 'utf8');
-    const code = await main({ env: { SYNC_JOURNAL_OUT_DIR: dir }, warn: (l) => warned.push(l), log: () => {}, fetchImpl: async () => ({ ok: false, status: 404, json: async () => ({}) }) });
+    const code = await main({ env: { SYNC_JOURNAL_OUT_DIR: dir }, warn: (l) => warned.push(l), log: () => {}, fetchImpl: /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: false, status: 404, json: async () => ({}) }))) });
     assert.equal(code, 0);
     assert.match(warned[0], /^WARNING: journal export skipped \(ingest service answered HTTP 404\)/);
     assert.equal(fs.readFileSync(path.join(dir, 'journal-daily.csv'), 'utf8'), before);
     // a real answer goes through main, with the journal header
     let seen = null;
     const ok = await main({ env: { SYNC_JOURNAL_OUT_DIR: dir, INGEST_URL: 'http://127.0.0.1:8088/' }, log: () => {}, warn: () => {}, now: new Date(2030, 0, 31),
-      fetchImpl: async (url, init) => { seen = { url, init }; return { ok: true, status: 200, json: async () => BODY }; } });
+      fetchImpl: /** @type {typeof fetch} */ (/** @type {unknown} */ (async (/** @type {string} */ url, /** @type {RequestInit} */ init) => { seen = { url, init }; return { ok: true, status: 200, json: async () => BODY }; })) });
     assert.equal(ok, 0);
-    assert.match(seen.url, /^http:\/\/127\.0\.0\.1:8088\/journal\/summary\?from=2029-01-31&to=2030-01-31$/);
-    assert.equal(seen.init.headers['x-hc-journal'], '1');
+    assert.match(/** @type {{ url: string, init: { headers: Record<string, string> } }} */ (/** @type {unknown} */ (seen)).url, /^http:\/\/127\.0\.0\.1:8088\/journal\/summary\?from=2029-01-31&to=2030-01-31$/);
+    assert.equal(/** @type {{ url: string, init: { headers: Record<string, string> } }} */ (/** @type {unknown} */ (seen)).init.headers['x-hc-journal'], '1');
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
@@ -66,7 +67,8 @@ test('syncJournal writes the CSV + meta; main warns and keeps the old files when
 
 test('main: HC_DATA_DIR redirects the default output to <data root>/extract; SYNC_JOURNAL_OUT_DIR wins over it', async () => {
   const root = tmp();
-  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => BODY });
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: true, status: 200, json: async () => BODY })));
+  /** @type {string[]} */
   const logs = [];
   try {
     assert.equal(await main({ env: { HC_DATA_DIR: root, INGEST_URL: 'http://127.0.0.1:9' }, log: (l) => logs.push(l), warn: () => {}, now: new Date(2030, 0, 31), fetchImpl }), 0);

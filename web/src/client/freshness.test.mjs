@@ -15,53 +15,66 @@ const source = clientScriptSource('freshness.ts');
 const NOW = Date.parse('2030-01-10T12:00:00Z');
 const MIN = 60_000;
 const H = 60 * MIN;
+/** @param {number} ms */
 const iso = (ms) => new Date(ms).toISOString();
 const flush = async () => { for (let i = 0; i < 10; i++) await new Promise((r) => setImmediate(r)); };
+/** @param {string} html */
 const text = (html) => html.replace(/<[^>]+>/g, '');
 
+/** @param {unknown} body @param {number} [status] */
 const json = (body, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => body });
 
-/** routes: { 'GET /api/sync/status': fn|response, ... }; a function gets the call index. */
+/** @typedef {import('../../test/dom-stub.mjs').StubElement & {innerHTML: string, disabled?: boolean}} Host a stub element the script renders into */
+/** routes: { 'GET /api/sync/status': fn|response, ... }; a function gets the call index.
+ * @param {{routes?: Record<string, unknown>, locale?: string, protocol?: string}} [opts] */
 function setup({ routes = {}, locale = 'es', protocol } = {}) {
   const clock = { t: NOW };
   const RealDate = Date;
   class FakeDate extends RealDate {
-    constructor(...a) { if (a.length) super(...a); else super(clock.t); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { if (a.length) super(.../** @type {ConstructorParameters<DateConstructor>} */ (a)); else super(clock.t); }
     static now() { return clock.t; }
   }
+  /** @type {{fn: () => void, at: number}[]} */
   const timers = [];
+  /** @type {string[]} */
   const calls = [];
+  /** @type {Record<string, number>} */
   const counts = {};
+  /** @param {string} url @param {{method?: string}} [init] */
   const fetch = async (url, init = {}) => {
     const key = `${init.method || 'GET'} ${url}`;
     calls.push(key);
     counts[key] = (counts[key] || 0) + 1;
-    const route = routes[key];
+    const route = /** @type {any} */ (routes[key]); // a route answer: a response, an Error or a function of the call index
     if (route === undefined) throw new TypeError('Failed to fetch');
     const res = typeof route === 'function' ? route(counts[key]) : route;
     if (res instanceof Error) throw res;
     return res;
   };
   const doc = new StubDocument();
-  const host = doc.el('freshness', { hidden: true });
-  const line = doc.el('fresh-line');
-  const btn = doc.el('sync-btn', { tag: 'button' });
-  const msg = doc.el('sync-msg');
-  const sum = doc.el('fresh-sum', { tag: 'button', attrs: { 'aria-expanded': 'false' } });
-  const short = doc.el('fresh-short');
-  const pop = doc.el('fresh-pop', { hidden: true });
+  const host = /** @type {Host} */ (doc.el('freshness', { hidden: true }));
+  const line = /** @type {Host} */ (doc.el('fresh-line'));
+  const btn = /** @type {Host} */ (doc.el('sync-btn', { tag: 'button' }));
+  const msg = /** @type {Host} */ (doc.el('sync-msg'));
+  const sum = /** @type {Host} */ (doc.el('fresh-sum', { tag: 'button', attrs: { 'aria-expanded': 'false' } }));
+  const short = /** @type {Host} */ (doc.el('fresh-short'));
+  const pop = /** @type {Host} */ (doc.el('fresh-pop', { hidden: true }));
+  /** @type {number[]} */
   const reloads = [];
   const window = { location: { reload: () => reloads.push(clock.t), ...(protocol ? { protocol } : {}) } };
+  /** @type {import('node:vm').Context} */
   const ctx = {
     document: doc, window, fetch, I18N_SYNC: locale === 'es' ? esSync : enSync, LOCALE: locale,
     Math, String, Number, JSON, Promise, Date: FakeDate,
-    setTimeout: (fn, ms) => { timers.push({ fn, at: clock.t + ms }); return timers.length; },
+    setTimeout: (/** @type {() => void} */ fn, /** @type {number} */ ms) => { timers.push({ fn, at: clock.t + ms }); return timers.length; },
   };
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
 
-  /** advance the clock to `ms` later, firing due timers in order */
+  /** advance the clock to `ms` later, firing due timers in order
+   * @param {number} ms */
   async function advance(ms) {
     const end = clock.t + ms;
     for (;;) {
@@ -160,6 +173,7 @@ test('Strava configured but never succeeded -> "nunca" in the low colour; no Sho
   assert.match(s.line.innerHTML, /fresh-low">Strava: nunca/);
 });
 
+/** @param {number} seq @param {boolean} [coalesced] */
 const accepted = (seq, coalesced = false) => json({ ok: true, seq, coalesced }, 202);
 
 test('Sync: POST, "Sincronizando…", polls every 5 s, reloads once status.json processedSeq reaches the click seq', async () => {
@@ -168,7 +182,7 @@ test('Sync: POST, "Sincronizando…", polls every 5 s, reloads once status.json 
   const s = setup({
     routes: {
       'GET /api/sync/status': json(freshStatus),
-      'GET /status.json': (n) => (n === 1 ? json({ publishedAt: iso(NOW - H), processedSeq: 6 }) : json({ publishedAt: iso(NOW - H), ...pages[Math.min(polls++, pages.length - 1)] })),
+      'GET /status.json': (/** @type {number} */ n) => (n === 1 ? json({ publishedAt: iso(NOW - H), processedSeq: 6 }) : json({ publishedAt: iso(NOW - H), ...pages[Math.min(polls++, pages.length - 1)] })),
       'POST /api/sync': accepted(7),
     },
   });
@@ -233,7 +247,7 @@ for (const [code, reason] of [['build', 'falló la generación de la página'], 
     const s = setup({
       routes: {
         'GET /api/sync/status': json(freshStatus),
-        'GET /status.json': (n) => (n === 1 ? json({ processedSeq: 4 }) : json({ processedSeq: 4, error: code, errorSeq: 5 })),
+        'GET /status.json': (/** @type {number} */ n) => (n === 1 ? json({ processedSeq: 4 }) : json({ processedSeq: 4, error: code, errorSeq: 5 })),
         'POST /api/sync': accepted(5),
       },
     });
@@ -277,7 +291,7 @@ test('Sync: an unknown error code still fails fast, with a generic reason (never
 test('Sync: the ingest trigger write failing for this seq fails fast (lastTriggerError)', async () => {
   const s = setup({
     routes: {
-      'GET /api/sync/status': (n) => json(n === 1 ? freshStatus : { ...freshStatus, lastTriggerError: 'trigger_write', lastTriggerErrorSeq: 2 }),
+      'GET /api/sync/status': (/** @type {number} */ n) => json(n === 1 ? freshStatus : { ...freshStatus, lastTriggerError: 'trigger_write', lastTriggerErrorSeq: 2 }),
       'GET /status.json': json({ processedSeq: 1 }),
       'POST /api/sync': accepted(2),
     },
@@ -323,7 +337,7 @@ test('Sync: a request that never answers (the POST, or the status poll) times ou
   assert.equal(s.msg.textContent, 'No se pudo actualizar, reintenta');
   assert.equal(s.btn.disabled, false);
   // the poll's status.json hangs: the poll keeps going and the 5-minute window still ends it
-  s = setup({ routes: { 'GET /api/sync/status': json(freshStatus), 'GET /status.json': (n) => (n === 1 ? json({ processedSeq: 0 }) : hang()), 'POST /api/sync': accepted(1) } });
+  s = setup({ routes: { 'GET /api/sync/status': json(freshStatus), 'GET /status.json': (/** @type {number} */ n) => (n === 1 ? json({ processedSeq: 0 }) : hang()), 'POST /api/sync': accepted(1) } });
   await s.advance(0);
   s.btn.dispatch('click');
   await s.advance(6 * 60_000);

@@ -4,9 +4,16 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { createJournalStore } from '../src/journal-db.js'
 
+/** @typedef {import('../src/db.js').QueryResult} QueryResult */
+/** @param {(sql: string, values?: readonly unknown[]) => { rows: unknown[] }} [handler] */
 function fakePool (handler = () => ({ rows: [] })) {
+  /** @type {{ sql: string, values?: readonly unknown[] }[]} */
   const calls = []
-  return { calls, query: async (sql, values) => { calls.push({ sql, values }); return handler(sql, values) } }
+  return {
+    calls,
+    /** @param {string} sql @param {readonly unknown[]} [values] @returns {Promise<QueryResult>} */
+    query: async (sql, values) => { calls.push({ sql, values }); return /** @type {QueryResult} */ (handler(sql, values)) }
+  }
 }
 
 test('migration 010_journal.sql is its own optional group and is idempotent', async () => {

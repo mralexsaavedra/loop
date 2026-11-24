@@ -8,6 +8,9 @@ import {
 import { createHandler } from '../src/server.js'
 import { createBearerCheck } from '../src/auth.js'
 
+/** @typedef {import('../src/http.js').HttpError} HttpError @typedef {import('../src/strava-annotate.js').AnnotateRequest} AnnotateRequest */
+/** @typedef {import('../src/server.js').HandlerDeps} HandlerDeps */
+
 const TOKEN = 'y'.repeat(40)
 const silent = () => {}
 
@@ -37,7 +40,7 @@ test('parseAnnotateBody: valid bodies', () => {
 })
 
 test('parseAnnotateBody: refuses bad bodies with a coarse code', () => {
-  const code = (body) => { try { parseAnnotateBody(body); return null } catch (err) { return [err.status, err.code, err.field] } }
+  const code = (/** @type {unknown} */ body) => { try { parseAnnotateBody(body); return null } catch (err) { return [/** @type {HttpError} */ (err).status, /** @type {HttpError} */ (err).code, /** @type {HttpError} */ (err).field] } }
   assert.deepEqual(code(null), [400, 'bad_body', undefined])
   assert.deepEqual(code([]), [400, 'bad_body', undefined])
   assert.deepEqual(code({}), [400, 'nothing_to_write', undefined])
@@ -70,24 +73,30 @@ test('decideAnnotation: never overwrites what the owner wrote', () => {
   assert.deepEqual(decideAnnotation({ name: 'Morning Run', description: '' }, { description: 'D' }).fields, { description: 'D' })
 })
 
-/** A fake Strava: GET returns `activity`, PUT answers `putStatus` and records the body. */
+/** A fake Strava: GET returns `activity`, PUT answers `putStatus` and records the body.
+ * @param {{ activity?: { name: string, description: string | null }, getStatus?: number, putStatus?: number, throwOn?: string | null }} [options] */
 function fakeStrava ({ activity = { name: 'Morning Run', description: null }, getStatus = 200, putStatus = 200, throwOn = null } = {}) {
+  /** @type {{ url: string, method: string, auth: string, body: any }[]} */
   const calls = []
+  /** @param {string | URL} url @param {{ method: string, headers: Record<string, string>, body?: string }} opts */
   const fetchImpl = async (url, opts) => {
     calls.push({ url: String(url), method: opts.method, auth: opts.headers.authorization, body: opts.body ? JSON.parse(opts.body) : undefined })
     if (throwOn === opts.method) throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNRESET' } })
     const status = opts.method === 'GET' ? getStatus : putStatus
-    return new Response(status === 200 ? JSON.stringify(opts.method === 'GET' ? activity : { ...activity, ...JSON.parse(opts.body) }) : '{}', { status })
+    return new Response(status === 200 ? JSON.stringify(opts.method === 'GET' ? activity : { ...activity, ...JSON.parse(/** @type {string} */ (opts.body)) }) : '{}', { status })
   }
-  return { calls, fetchImpl }
+  // the fake reads only the method, headers and body fetch gets
+  return { calls, fetchImpl: /** @type {import('../src/strava.js').FetchImpl} */ (/** @type {unknown} */ (fetchImpl)) }
 }
 
 test('annotator: writes the default name and the missing description with one PUT', async () => {
   const strava = fakeStrava()
+  /** @type {unknown[]} */
   const queries = []
-  const pool = { query: async (sql, params) => { queries.push(params) } }
+  // a pool stand-in: the annotator ignores what query() resolves
+  const pool = /** @type {import('../src/db.js').Queryable} */ (/** @type {unknown} */ ({ query: async (/** @type {string} */ sql, /** @type {unknown[]} */ params) => { queries.push(params) } }))
   const annotate = createActivityAnnotator({ getAccessToken: async () => 'tok', pool, fetchImpl: strava.fetchImpl, log: silent })
-  const out = await annotate('123', { dryRun: false, name: 'HP S5D1', description: 'A · Tempo' })
+  const out = await annotate('123', /** @type {AnnotateRequest} */ ({ dryRun: false, name: 'HP S5D1', description: 'A · Tempo' }))
   assert.equal(out.updated, true)
   assert.equal(out.name_changed, true)
   assert.equal(out.description_changed, true)
@@ -103,7 +112,7 @@ test('annotator: writes the default name and the missing description with one PU
 test('annotator: nothing safe to write → no PUT, updated false', async () => {
   const strava = fakeStrava({ activity: { name: 'Rodaje con Ana', description: 'mine' } })
   const annotate = createActivityAnnotator({ getAccessToken: async () => 'tok', fetchImpl: strava.fetchImpl, log: silent })
-  const out = await annotate('5', { dryRun: false, name: 'HP', description: 'D' })
+  const out = await annotate('5', /** @type {AnnotateRequest} */ ({ dryRun: false, name: 'HP', description: 'D' }))
   assert.equal(out.updated, false)
   assert.equal(out.current_name, 'Rodaje con Ana')
   assert.equal(out.name_is_default, false)
@@ -114,7 +123,7 @@ test('annotator: nothing safe to write → no PUT, updated false', async () => {
 test('annotator: dry_run reports the decision and writes nothing', async () => {
   const strava = fakeStrava()
   const annotate = createActivityAnnotator({ getAccessToken: async () => 'tok', fetchImpl: strava.fetchImpl, log: silent })
-  const out = await annotate('5', { dryRun: true, name: 'HP', description: 'D' })
+  const out = await annotate('5', /** @type {AnnotateRequest} */ ({ dryRun: true, name: 'HP', description: 'D' }))
   assert.deepEqual(out, {
     id: '5', current_name: 'Morning Run', current_description: '', name_is_default: true, had_description: false,
     name_changed: true, description_changed: true, dry_run: true, overwrite: false, updated: false
@@ -125,7 +134,7 @@ test('annotator: dry_run reports the decision and writes nothing', async () => {
 test('annotator: overwrite replaces the owner\'s text and reports what was there', async () => {
   const strava = fakeStrava({ activity: { name: 'Rodaje con Ana', description: 'mine' } })
   const annotate = createActivityAnnotator({ getAccessToken: async () => 'tok', fetchImpl: strava.fetchImpl, log: silent })
-  const out = await annotate('5', { dryRun: false, overwrite: true, description: '6 × 1 km @ 4:20' })
+  const out = await annotate('5', /** @type {AnnotateRequest} */ ({ dryRun: false, overwrite: true, description: '6 × 1 km @ 4:20' }))
   assert.equal(out.updated, true)
   assert.equal(out.current_description, 'mine')
   assert.equal(out.name_changed, false)
@@ -133,10 +142,10 @@ test('annotator: overwrite replaces the owner\'s text and reports what was there
 })
 
 test('annotator: Strava failures map to coarse codes', async () => {
-  const run = async (opts) => {
+  const run = async (/** @type {Parameters<typeof fakeStrava>[0]} */ opts) => {
     const strava = fakeStrava(opts)
     const annotate = createActivityAnnotator({ getAccessToken: async () => 'tok', fetchImpl: strava.fetchImpl, log: silent })
-    try { await annotate('5', { dryRun: false, description: 'D' }); return null } catch (err) { return [err.status, err.code] }
+    try { await annotate('5', /** @type {AnnotateRequest} */ ({ dryRun: false, description: 'D' })); return null } catch (err) { return [/** @type {HttpError} */ (err).status, /** @type {HttpError} */ (err).code] }
   }
   assert.deepEqual(await run({ putStatus: 401 }), [409, 'strava_write_scope_missing'])
   assert.deepEqual(await run({ putStatus: 403 }), [409, 'strava_write_scope_missing'])
@@ -146,20 +155,24 @@ test('annotator: Strava failures map to coarse codes', async () => {
   assert.deepEqual(await run({ putStatus: 500 }), [502, 'strava_error'])
   assert.deepEqual(await run({ throwOn: 'GET' }), [502, 'strava_network'])
   const failingToken = createActivityAnnotator({ getAccessToken: async () => { throw new Error('strava token refresh failed: 400') }, fetchImpl: fakeStrava().fetchImpl, log: silent })
-  await assert.rejects(failingToken('5', { dryRun: false, description: 'D' }), (err) => err.status === 502 && err.code === 'strava_auth')
+  await assert.rejects(failingToken('5', /** @type {AnnotateRequest} */ ({ dryRun: false, description: 'D' })), (/** @type {HttpError} */ err) => err.status === 502 && err.code === 'strava_auth')
 })
 
 test('annotator: a failed row update after a successful PUT is logged, not an error', async () => {
   const strava = fakeStrava()
+  /** @type {string[]} */
   const lines = []
-  const pool = { query: async () => { throw new Error('db down') } }
+  const pool = /** @type {import('../src/db.js').Queryable} */ ({ query: async () => { throw new Error('db down') } })
   const annotate = createActivityAnnotator({ getAccessToken: async () => 'tok', pool, fetchImpl: strava.fetchImpl, log: (l) => lines.push(l) })
-  const out = await annotate('5', { dryRun: false, name: 'HP' })
+  const out = await annotate('5', /** @type {AnnotateRequest} */ ({ dryRun: false, name: 'HP' }))
   assert.equal(out.updated, true)
   assert.ok(lines.some((l) => l.includes('strava_annotate_store_failed')))
 })
 
-/** The real createHandler with the annotate routes; every other dependency is an inert stub. */
+/** The real createHandler with the annotate routes; every other dependency is an inert stub.
+ * @param {Parameters<typeof createStravaAnnotateRoutes>[0]['annotate']} annotate
+ * @returns {Promise<{ close: () => Promise<unknown>,
+ *   call: (method: string, path: string, options?: { auth?: boolean, json?: boolean, body?: unknown }) => Promise<{ status: number, body: any }> }>} */
 function serve (annotate) {
   const checkBearer = createBearerCheck(TOKEN, { log: silent })
   const noop = async () => {}
@@ -167,9 +180,9 @@ function serve (annotate) {
     token: TOKEN,
     checkBearer,
     maxBodyBytes: 64,
-    pool: {},
+    pool: /** @type {import('../src/db.js').Queryable} */ ({}),
     ping: noop,
-    insertRawPayload: noop,
+    insertRawPayload: /** @type {HandlerDeps['insertRawPayload']} */ (/** @type {unknown} */ (noop)), // never reached
     syncStatus: { health: () => ({}) },
     stravaEnabled: annotate !== null,
     stravaSync: null,
@@ -182,10 +195,11 @@ function serve (annotate) {
   })
   const server = http.createServer(handler)
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => {
-    const base = `http://127.0.0.1:${server.address().port}`
+    const base = `http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}`
     resolve({
       close: () => new Promise((r) => server.close(r)),
       async call (method, path, { auth = true, json = true, body } = {}) {
+        /** @type {Record<string, string>} */
         const headers = {}
         if (auth) headers.authorization = `Bearer ${TOKEN}`
         if (json) headers['content-type'] = 'application/json'
@@ -197,6 +211,7 @@ function serve (annotate) {
 }
 
 test('route: POST /strava/activities/:id/annotate end to end', async (t) => {
+  /** @type {unknown[]} */
   const seen = []
   const app = await serve(async (id, wanted) => { seen.push([id, wanted]); return { id, updated: true } })
   t.after(app.close)

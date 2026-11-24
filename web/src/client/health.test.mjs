@@ -41,23 +41,23 @@ const full = () => ({
 });
 
 test('Salud answers "how is my body": recovery, fitness, sleep, body, activity, energy in that order; training blocks go to Entreno', () => {
-  const out = {};
+  const out = /** @type {Out} */ ({});
   renderWith(full(), { out });
-  const at = (k) => out.health.indexOf(`id="hl-${k}"`);
+  const at = (/** @type {string} */ k) => out.health.indexOf(`id="hl-${k}"`);
   const order = ['recovery', 'fitness', 'sleep', 'body', 'activity', 'energy'].map(at);
   assert.ok(order.every((v, i) => v !== -1 && (i === 0 || v > order[i - 1])), `Salud order ${order}`);
   for (const k of ['running', 'cycling', 'load']) {
     assert.equal(at(k), -1, `${k} is not in Salud`);
     assert.notEqual(out.train.indexOf(`id="hl-${k}"`), -1, `${k} is in Entreno`);
   }
-  const t = (k) => out.train.indexOf(`id="hl-${k}"`);
+  const t = (/** @type {string} */ k) => out.train.indexOf(`id="hl-${k}"`);
   assert.ok(t('running') < t('cycling') && t('cycling') < t('load'), 'Entreno order: running, cycling, load vs recovery');
   assert.match(out.health, /<section class="hs-sec hs-sec-sleep" id="hl-sleep"/, 'sleep is its own section (monitor + sleep dial land here)');
   assert.equal(out.health.split('id="hl-sleep"').length - 1, 1, 'one hl-sleep id');
 });
 
 test('the recovery detail card host (#score-recovery) sits right under the recovery heading', () => {
-  const out = {};
+  const out = /** @type {Out} */ ({});
   renderWith(full(), { out });
   const head = /id="hl-recovery" aria-labelledby="hs-h-recovery"><div class="hs-head">[\s\S]*?<\/div>(?:<div class="hs-info" id="hs-info-recovery" hidden>[\s\S]*?<\/div>)?<div id="score-recovery"><\/div>/;
   assert.match(out.health, head);
@@ -67,7 +67,7 @@ test('the recovery detail card host (#score-recovery) sits right under the recov
 });
 
 test('isolation: a throw in the Salud half renders its empty state and the Entreno half still renders (and vice versa)', () => {
-  const out = {};
+  const out = /** @type {Out} */ ({});
   const brokenBody = { hasData: true, get weight() { throw new Error('boom'); } };
   assert.doesNotThrow(() => renderWith({ ...full(), body: brokenBody }, { out }));
   assert.match(out.health, /train-empty/, 'Salud falls back to its empty state');
@@ -79,11 +79,11 @@ test('isolation: a throw in the Salud half renders its empty state and the Entre
 });
 
 test('each host has its own empty state', () => {
-  const out = {};
+  const out = /** @type {Out} */ ({});
   renderWith({ body: none, activity: none, energy: none, running: none, cycling: none, recovery: none, loadRecovery: none }, { out });
   assert.match(out.health, /train-empty/);
   assert.match(out.train, /train-empty/);
-  const onlyBody = {};
+  const onlyBody = /** @type {Out} */ ({});
   renderWith({ ...full(), running: none, cycling: none, loadRecovery: none }, { out: onlyBody });
   assert.doesNotMatch(onlyBody.health, /train-empty/);
   assert.match(onlyBody.train, /train-empty/);
@@ -91,12 +91,19 @@ test('each host has its own empty state', () => {
 
 // Salud (#health-body) + Entreno (#health-train) hosts; returns both, Salud first, or each via `out`.
 // `balance: true` adds Nutrición's #nutri-balance host (out.balance, out.balanceHidden).
-function renderWith(HEALTH, { DateCls = Date, SCORES, PROFILE, out = {}, detail = false, balance = false, introSlot = false } = {}) {
+/** @typedef {{health: string, train: string, balance: string, balanceHidden: boolean, intro: string}} Out what renderWith wrote into its hosts */
+/** @typedef {import('../../test/dom-stub.mjs').StubElement & {innerHTML: string, hidden: boolean}} Host a stub host the script renders into */
+/**
+ * @param {unknown} HEALTH
+ * @param {{DateCls?: unknown, SCORES?: unknown, PROFILE?: unknown, out?: Out, detail?: boolean | object, balance?: boolean, introSlot?: boolean}} [opts]
+ */
+function renderWith(HEALTH, { DateCls = Date, SCORES, PROFILE, out = /** @type {Out} */ ({}), detail = false, balance = false, introSlot = false } = {}) {
   const doc = new StubDocument();
-  const slot = introSlot ? doc.el('hs-intro-i', { attrs: { 'data-label': 'About Health' } }) : null;
-  const host = doc.el('health-body');
-  const train = doc.el('health-train');
-  const bal = balance ? doc.el('nutri-balance') : null;
+  const slot = introSlot ? /** @type {Host} */ (doc.el('hs-intro-i', { attrs: { 'data-label': 'About Health' } })) : null;
+  const host = /** @type {Host} */ (doc.el('health-body'));
+  const train = /** @type {Host} */ (doc.el('health-train'));
+  const bal = balance ? /** @type {Host} */ (doc.el('nutri-balance')) : null;
+  /** @type {import('node:vm').Context} */
   const ctx = { document: doc, window: {}, HEALTH, SCORES, PROFILE, I18N_HEALTH: enHealth, LOCALE: 'en', Math, String, Number, Date: DateCls, JSON };
   if (detail) ctx.DETAIL = detail === true ? { metrics: {} } : detail;
   vm.createContext(ctx);
@@ -110,7 +117,7 @@ function renderWith(HEALTH, { DateCls = Date, SCORES, PROFILE, out = {}, detail 
 }
 
 test('the Salud title\'s ⓘ is the shared HC.infoBtn markup, written into its slot (no hand-copied button in Salud.astro)', () => {
-  const out = {};
+  const out = /** @type {Out} */ ({});
   renderWith({ body: none, activity: none, energy: none, running: none, cycling: none, recovery: none, loadRecovery: none }, { out, introSlot: true });
   const ctx = vm.createContext({});
   loadUtil(ctx);
@@ -179,7 +186,7 @@ test('cycling section: one list row per ride (newest first): icon · date with H
   assert.match(html, /<b>40.25<\/b><small>km<\/small><\/span><span class="sr-only">1:30 · ↑412 m · 141 bpm · Effort 96 · 1,310 kJ<\/span>/, 'and in the screen-reader words after the value');
   assert.doesNotMatch(html.slice(html.indexOf('Thu 4 Jun')).split('</li>')[0], /class="db-base">[^<]*<\/span>(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>/, 'nothing recorded: no empty second line');
   assert.deepEqual(rows[1], ['Thu 4 Jun', undefined, '—', undefined, '1:00'], 'missing fields are left out, never 0; no distance = a dash, no unit');
-  const info = html.match(/<div class="hs-info" id="hs-info-cycling" hidden>([\s\S]*?)<\/div>/)[1];
+  const info = /** @type {RegExpMatchArray} */ (html.match(/<div class="hs-info" id="hs-info-cycling" hidden>([\s\S]*?)<\/div>/))[1];
   assert.match(info, /<b>12<\/b> rides/);
   assert.ok(html.indexOf('hl-running') < html.indexOf('hl-cycling'), 'cycling follows running');
 });
@@ -200,7 +207,7 @@ test('running rows (text diet): date, distance, time + pace only; HR, effort, cl
   assert.match(html, /<span class="db-name">Sat 20 Jun<\/span><span class="db-vals"><span class="db-val"><b>—<\/b><\/span><span class="sr-only">0:30 · 240 W · GCT 250 ms · Osc\. 10 cm · Stride 1.1 m<\/span>/);
   assert.doesNotMatch(html, /db-row[^>]*aria-label/, 'no label replaces what the row shows');
   assert.equal((html.match(/<path d="M6 21l3.5-5/g) || []).length, 2, 'the run icon on every run row');
-  assert.match(html.match(/<div class="hs-info" id="hs-info-running" hidden>([\s\S]*?)<\/div>/)[1], /<b>5<\/b> runs/);
+  assert.match(/** @type {RegExpMatchArray} */ (html.match(/<div class="hs-info" id="hs-info-running" hidden>([\s\S]*?)<\/div>/))[1], /<b>5<\/b> runs/);
 });
 
 test('load vs recovery: weekly bars (strain blue) in a card, HRV and resting HR of the higher-load weeks as two metric rows (▲▼ vs the easy weeks, coloured by the good direction), the explanation behind ⓘ', () => {
@@ -209,7 +216,7 @@ test('load vs recovery: weekly bars (strain blue) in a card, HRV and resting HR 
     loadRecovery: { hasData: true, weeks: 2, series: [{ w: '2026-06-01', load: 10 }, { w: '2026-06-08', load: 0 }], split: { hrvHigh: 50.8, hrvLow: 55.5, rhrHigh: 54.4, rhrLow: 54.4 } },
   });
   assert.match(html, /<section class="hs-sec hs-sec-load" id="hl-load" aria-labelledby="hs-h-load"><div class="hs-head"><h3 class="hs-lbl" id="hs-h-load">Load vs recovery<\/h3><button type="button" class="hs-i" data-hs-info="hs-info-load"/);
-  const info = html.match(/<div class="hs-info" id="hs-info-load" hidden>([\s\S]*?)<\/div>/)[1];
+  const info = /** @type {RegExpMatchArray} */ (html.match(/<div class="hs-info" id="hs-info-load" hidden>([\s\S]*?)<\/div>/))[1];
   assert.ok(info.includes(enHealth.loadSec.hint.replace('{weeks}', '2')) && info.includes(enHealth.loadNoteHtml), 'hint + explanation behind ⓘ');
   assert.match(html, /<div class="lvr-card"><span class="dt-trend-lbl">Weekly cardiovascular load<\/span><div class="wbars">/);
   assert.equal((html.match(/class="wbar[ "]/g) || []).length, 2);
@@ -239,10 +246,12 @@ test('run and bike sections render symmetric empty states when the other has dat
 });
 
 /* ---- today first: latest value + its date lead, the 30-day mean and delta are the context line ---- */
+/** @param {unknown} HEALTH @param {string} now @param {Parameters<typeof renderWith>[1]} [opts] */
 function renderAt(HEALTH, now, opts = {}) {
   const RealDate = Date;
   class FakeDate extends RealDate {
-    constructor(...a) { super(...(a.length ? a : [now + 'T12:00:00'])); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { super(.../** @type {ConstructorParameters<DateConstructor>} */ (a.length ? a : [now + 'T12:00:00'])); }
     static now() { return new RealDate(now + 'T12:00:00').getTime(); }
   }
   return renderWith(HEALTH, { DateCls: FakeDate, ...opts });
@@ -250,7 +259,7 @@ function renderAt(HEALTH, now, opts = {}) {
 const sp = { v: [1, 2], from: '2026-06-01', to: '2026-06-30' };
 
 test('every Salud trend card opens its detail view; run / ride rows open that day in the load view (the row is the keyboard opener)', () => {
-  const tr = (latest) => ({ latest, latestDate: '2026-06-30', avg30: latest, d30: 0, spark: sp });
+  const tr = (/** @type {number} */ latest) => ({ latest, latestDate: '2026-06-30', avg30: latest, d30: 0, spark: sp });
   const H = {
     body: { hasData: true, weight: { ...tr(80), source: 's', sources: 1 }, bodyfat: { ...tr(18), delta: 0, source: 's' }, lean: { ...tr(60), delta: 0, source: 's' },
       waist: { latest: 85, latestDate: '2026-06-01', firstDate: '2026-03-01', points: 2, delta: -1, spark: sp } },
@@ -313,7 +322,7 @@ test('recovery: resting HR / HRV / sleep lead with the newest value, the 30-day 
 });
 
 test('recovery: a signal the health monitor already lists is not repeated under Recovery; one it lacks stays', () => {
-  const tr = (latest) => ({ latest, latestDate: '2026-06-30', avg30: latest, d30: 0, spark: sp });
+  const tr = (/** @type {number} */ latest) => ({ latest, latestDate: '2026-06-30', avg30: latest, d30: 0, spark: sp });
   const H = {
     body: none, activity: none, energy: none, running: none, loadRecovery: none,
     recovery: { hasData: true, rhr: tr(52), hrv: tr(60), respiratory: tr(14.5), wristTemp: tr(36) },
@@ -354,7 +363,7 @@ test('resilience: a non-finite avg30 / d30 never prints NaN or Infinity; one bro
 });
 
 test('body composition: body fat and lean mass say how many readings their window holds', () => {
-  const bc = (latest) => ({ latest, latestDate: '2026-06-01', source: 'Scale', points: 30, windowPoints: 4, windowDays: 150, delta: -0.8, spark: null });
+  const bc = (/** @type {number} */ latest) => ({ latest, latestDate: '2026-06-01', source: 'Scale', points: 30, windowPoints: 4, windowDays: 150, delta: -0.8, spark: null });
   const html = renderWith({
     body: { hasData: true, bodyfat: bc(18.2), lean: bc(62.1) },
     activity: none, energy: none, running: none, recovery: none, loadRecovery: none,
@@ -364,7 +373,7 @@ test('body composition: body fat and lean mass say how many readings their windo
 
 /* ---- stale cards: a trend card whose newest value is > STALE_DAYS old is greyed with a note ---- */
 test('a Salud row whose newest value is more than 3 days old is greyed with "no recent data" and no arrow; a fresh one is not', () => {
-  const tr = (latestDate) => ({ latest: 52, latestDate, avg30: 50, d30: 0, spark: sp });
+  const tr = (/** @type {string} */ latestDate) => ({ latest: 52, latestDate, avg30: 50, d30: 0, spark: sp });
   const H = {
     body: { hasData: true, weight: { ...tr('2026-06-25'), source: 's', sources: 1 },
       waist: { latest: 85, latestDate: '2026-03-01', firstDate: '2026-01-01', points: 2, delta: -1, spark: sp } },
@@ -372,9 +381,9 @@ test('a Salud row whose newest value is more than 3 days old is greyed with "no 
     energy: none, running: none, loadRecovery: none,
     recovery: { hasData: true, rhr: tr('2026-06-28'), hrv: tr('2026-06-27') },
   };
-  const out = {};
+  const out = /** @type {Out} */ ({});
   renderAt(H, '2026-07-01', { out });
-  const row = (name) => {
+  const row = (/** @type {string} */ name) => {
     const at = out.health.indexOf(`<span class="db-name">${name}</span>`);
     const i = out.health.lastIndexOf('<li class="db-row', at);
     return out.health.slice(i, out.health.indexOf('</li>', i));
@@ -401,9 +410,9 @@ test('Fitness groups VO₂max (Δ since the first reading) and walking HR, moved
     recovery: { hasData: true, rhr: { latest: 52, latestDate: '2026-06-30', avg30: 50, d30: 0, spark: sp },
       vo2max: { latest: 45.2, latestDate: '2026-06-30', first: 44, spark: sp }, walkingHr: { latest: 96, latestDate: '2026-06-30', avg30: 100, d30: -2, spark: sp } },
   };
-  const out = {};
+  const out = /** @type {Out} */ ({});
   renderAt(H, '2026-07-01', { out, detail: true });
-  const sec = (k) => { const i = out.health.indexOf(`id="hl-${k}"`); return i === -1 ? '' : out.health.slice(i, out.health.indexOf('</section>', i)); };
+  const sec = (/** @type {string} */ k) => { const i = out.health.indexOf(`id="hl-${k}"`); return i === -1 ? '' : out.health.slice(i, out.health.indexOf('</section>', i)); };
   assert.match(sec('fitness'), /<h3 class="hs-lbl" id="hs-h-fitness">Fitness<\/h3>/);
   assert.match(sec('fitness'), /data-detail="vo2max"[\s\S]*45.2<\/b><small>ml\/kg\/min<\/small><span class="db-arr db-good" aria-hidden="true">▲<\/span><\/span>(?:<span class="sr-only">[^<]*<\/span>)?<span class="db-base"(?: aria-hidden="true")?>Δ \+1.2<\/span>/);
   assert.match(sec('fitness'), /data-detail="walkingHr"[\s\S]*96<\/b><small>bpm<\/small><span class="db-arr db-good" aria-hidden="true">▼<\/span>/, 'walking HR down is the good way');
@@ -413,7 +422,7 @@ test('Fitness groups VO₂max (Δ since the first reading) and walking HR, moved
 
 test('text diet: rows carry number + label + arrow + baseline only; every former intro / caveat is reachable behind an ⓘ toggle', () => {
   const E = { hasData: true, tdeeLatest: 4400, tdeeLatestDate: '2026-06-29', tdeeAvg: 2600, tdeeDays: 30, spark: sp, balance: null, lastIntake: null, latestCorrected: true, correctedDays: 2 };
-  const out = {};
+  const out = /** @type {Out} */ ({});
   renderAt({ ...full(), energy: E }, '2026-07-01', { out });
   const h = out.health;
   assert.doesNotMatch(h, /mtrend|class="spark|dash-note|dash-as/, 'no trend cards, sparklines or loose notes left in Salud');
@@ -421,7 +430,7 @@ test('text diet: rows carry number + label + arrow + baseline only; every former
     assert.match(h, new RegExp(`<button type="button" class="hs-i" data-hs-info="hs-info-${key}" aria-expanded="false" aria-controls="hs-info-${key}" aria-label="About [^"]+">`), key);
     assert.match(h, new RegExp(`<div class="hs-info" id="hs-info-${key}" hidden>`), key);
   }
-  const info = (k) => { const i = h.indexOf(`<div class="hs-info" id="hs-info-${k}" hidden>`); return h.slice(i, h.indexOf('</div>', i)); };
+  const info = (/** @type {string} */ k) => { const i = h.indexOf(`<div class="hs-info" id="hs-info-${k}" hidden>`); return h.slice(i, h.indexOf('</div>', i)); };
   assert.ok(info('recovery').includes(enHealth.recoveryNoteHtml));
   assert.ok(info('fitness').includes(enHealth.fitnessNoteHtml));
   assert.ok(info('sleep').includes(enHealth.sleepNoteHtml));
@@ -450,9 +459,9 @@ test('sleep consistency: % nights on target, ±spread, bedtime / wake as rows th
 test('sleep stages: REM / deep / core / awake rows (hours, % of asleep, vs the staged-night mean) + efficiency, with their ⓘ note; none without stages', () => {
   const base = { latest: 7.1, avg: 7.2, nights: 30, latestDate: '2026-06-30', spark: sp, target: 7.5, pctTarget: 40, sd: 0.6 };
   const stages = { date: '2026-06-30', rem: 1.6, deep: 1, core: 4.6, awake: 0.3, eff: 93, shares: { rem: 23, deep: 14, core: 66 }, avg: { rem: 1.4, deep: 1.1, core: 4.6, awake: 0.4, eff: 92 }, nights: 10 };
-  const H = (sl) => ({ body: none, activity: none, energy: none, running: none, loadRecovery: none, recovery: { hasData: true, sleep: sl } });
+  const H = (/** @type {object} */ sl) => ({ body: none, activity: none, energy: none, running: none, loadRecovery: none, recovery: { hasData: true, sleep: sl } });
   const html = renderAt(H({ ...base, stages }), '2026-07-01', { detail: true });
-  for (const k of ['rem', 'deep', 'core', 'awake', 'eff']) assert.ok(html.includes(`<span class="db-name">${enHealth.sleepCards.stages[k]}</span>`), k);
+  for (const k of /** @type {const} */ (['rem', 'deep', 'core', 'awake', 'eff'])) assert.ok(html.includes(`<span class="db-name">${enHealth.sleepCards.stages[k]}</span>`), k);
   assert.match(html, /REM sleep<\/span><span class="db-vals"><span class="db-val"><b>1:36<\/b><span class="db-arr/);
   assert.ok(html.includes('23% · 1:24'), 'share of asleep, then the mean (h:mm)');
   assert.match(html, /sleep efficiency<\/span><span class="db-vals"><span class="db-val"><b>93<\/b><small>%<\/small>/);
@@ -463,7 +472,7 @@ test('sleep stages: REM / deep / core / awake rows (hours, % of asleep, vs the s
 
 test('sleep: an estimated (in-bed-only) newest night is labelled next to its value, and the ⓘ counts the estimated nights; a Watch night has neither', () => {
   const base = { latest: 8.2, avg: 7.9, nights: 9, latestDate: '2026-06-30', spark: sp, target: 7.5, pctTarget: 60, sd: 0.6 };
-  const H = (sl) => ({ body: none, activity: none, energy: none, running: none, loadRecovery: none, recovery: { hasData: true, sleep: sl } });
+  const H = (/** @type {object} */ sl) => ({ body: none, activity: none, energy: none, running: none, loadRecovery: none, recovery: { hasData: true, sleep: sl } });
   const html = renderAt(H({ ...base, latestEstimated: true, estimatedNights: 9 }), '2026-07-01', { detail: true });
   assert.ok(html.includes(enHealth.sleepCards.estimated + ' · '), 'the label before the 30-night mean');
   assert.ok(html.includes('<b>Estimated nights</b> (9 of the last 30)'));
@@ -479,7 +488,7 @@ const BAL = {
   macros: { days: 28, p: 140, c: 250, g: 70, pPct: 26, cPct: 46, gPct: 29 },
 };
 test('Balance moved: Salud\'s Energy keeps the expenditure row only — no intake average, deficit, macro cards or balance note', () => {
-  const out = {};
+  const out = /** @type {Out} */ ({});
   renderAt({ ...full(), energy: BAL }, '2026-07-01', { out, balance: true });
   const h = out.health;
   const energy = h.slice(h.indexOf('id="hl-energy"'));
@@ -490,7 +499,7 @@ test('Balance moved: Salud\'s Energy keeps the expenditure row only — no intak
 });
 
 test('Nutrición Balance: window caption, avg intake / avg burn / deficit per day as metric rows, a stacked macro split bar, the balance note behind ⓘ', () => {
-  const out = {};
+  const out = /** @type {Out} */ ({});
   renderAt({ ...full(), energy: BAL }, '2026-07-01', { out, balance: true, detail: true });
   const b = out.balance;
   assert.equal(out.balanceHidden, false);
@@ -502,7 +511,7 @@ test('Nutrición Balance: window caption, avg intake / avg burn / deficit per da
   assert.match(b, /<li><div class="db-row" data-detail="energy"[^>]*>[\s\S]*?Avg burn<\/span>[\s\S]*?<\/div><\/li>/, 'the burn row opens the expenditure sheet; its button role sits inside the <li>');
   assert.match(b, /<li class="db-row"[^>]*>[\s\S]*?Avg intake/, 'a row that opens nothing stays a plain <li class="db-row">');
   assert.match(b, /<div class="nutri-card nb-split"><span class="dt-trend-lbl">Macro split<\/span><svg class="act-bar" viewBox="0 0 100 8" preserveAspectRatio="none" role="img" aria-label="Macro split: Protein 140 g, 26%, Carbs 250 g, 46%, Fat 70 g, 29%">/);
-  const segs = [...b.matchAll(/<rect class="nb-m-(\w)" x="([\d.]+)" y="0" width="([\d.]+)" height="8"\/>/g)].map((m) => [m[1], +m[2], +m[3]]);
+  const segs = [...b.matchAll(/<rect class="nb-m-(\w)" x="([\d.]+)" y="0" width="([\d.]+)" height="8"\/>/g)].map((m) => /** @type {[string, number, number]} */ ([m[1], +m[2], +m[3]]));
   assert.deepEqual(segs.map((x) => x[0]), ['p', 'c', 'f']);
   assert.ok(Math.abs(segs.reduce((t, x) => t + x[2], 0) - 100) < 0.05, 'the segments fill the bar');
   assert.equal(segs[1][1], segs[0][2], 'stacked');
@@ -510,7 +519,7 @@ test('Nutrición Balance: window caption, avg intake / avg burn / deficit per da
 });
 
 test('Nutrición Balance: a surplus is labelled as such; no macros -> no split bar', () => {
-  const out = {};
+  const out = /** @type {Out} */ ({});
   renderAt({ ...full(), energy: { ...BAL, balance: { ...BAL.balance, intakeAvg: 2900, net: 183 }, macros: undefined } }, '2026-07-01', { out, balance: true });
   assert.match(out.balance, /<span class="db-name">Surplus \/ day<\/span><span class="db-vals"><span class="db-val"><b>\+183<\/b>/);
   assert.doesNotMatch(out.balance, /nb-split|act-bar/);
@@ -518,12 +527,12 @@ test('Nutrición Balance: a surplus is labelled as such; no macros -> no split b
 });
 
 test('Nutrición Balance without enough logged intake: a short empty line, the "intake can\'t be scored" note behind ⓘ; no expenditure -> no section', () => {
-  const out = {};
+  const out = /** @type {Out} */ ({});
   renderAt({ ...full(), energy: { ...BAL, balance: null, macros: undefined, lastIntake: '2026-06-01' } }, '2026-07-01', { out, balance: true });
   assert.match(out.balance, /<p class="nb-empty">Not enough intake logged yet for a balance\.<\/p>/);
   assert.match(out.balance, /<div class="hs-info" id="nb-info" hidden><p><b>Intake can’t be scored:<\/b> it was logged on too few recent days \(last on 1 Jun, 31 days ago\)/);
   assert.doesNotMatch(out.balance, /db-row|act-bar/);
-  const none = {};
+  const none = /** @type {Out} */ ({});
   renderAt({ ...full(), energy: { hasData: false } }, '2026-07-01', { out: none, balance: true });
   assert.equal(none.balance, '');
   assert.equal(none.balanceHidden, true, 'the empty host is hidden');
@@ -536,11 +545,11 @@ const fitH = () => ({
 });
 const fa = (over = {}) => ({ ok: true, age: 31.4, bound: null, sex: 'male', vo2: { value: 47.2, date: '2026-06-28', source: 'Demo <Watch>' },
   trend: { d30: { date: '2026-05-29', vo2: 46, age: 32.1, bound: null }, d90: { date: '2026-03-30', vo2: 45, age: 33.6, bound: null } }, ref: 'loe2013', ...over });
-const fitSec = (html) => { const i = html.indexOf('id="hl-fitness"'); return i === -1 ? '' : html.slice(i, html.indexOf('</section>', i)); };
+const fitSec = (/** @type {string} */ html) => { const i = html.indexOf('id="hl-fitness"'); return i === -1 ? '' : html.slice(i, html.indexOf('</section>', i)); };
 const P36 = { birthdate: '1990-06-15', sex: 'male' }; // 36 on 2026-07-01
 
 test('fitness age: a ring with the fitness age, the years younger than the chronological age, and the VO₂max it comes from', () => {
-  const out = {};
+  const out = /** @type {Out} */ ({});
   renderAt(fitH(), '2026-07-01', { out, detail: true, SCORES: { fitnessAge: fa() }, PROFILE: P36 });
   const sec = fitSec(out.health);
   const T = enHealth.fitnessAge;
@@ -556,7 +565,7 @@ test('fitness age: a ring with the fitness age, the years younger than the chron
 });
 
 test('fitness age: older, bounds ("< 25", "> 75") and the singular year', () => {
-  const at = (score, profile) => { const out = {}; renderAt(fitH(), '2026-07-01', { out, detail: true, SCORES: { fitnessAge: score }, PROFILE: profile }); return fitSec(out.health); };
+  const at = (/** @type {unknown} */ score, /** @type {unknown} */ profile) => { const out = /** @type {Out} */ ({}); renderAt(fitH(), '2026-07-01', { out, detail: true, SCORES: { fitnessAge: score }, PROFILE: profile }); return fitSec(out.health); };
   let s = at(fa({ age: 41.2 }), P36);
   assert.match(s, /class="dial fa fa-bad"/);
   assert.ok(s.includes('5 years older'));
@@ -576,7 +585,7 @@ test('fitness age: older, bounds ("< 25", "> 75") and the singular year', () => 
 
 test('fitness age: no number without sex, birthdate or VO₂max — the reason instead', () => {
   const T = enHealth.fitnessAge;
-  const at = (score, profile) => { const out = {}; renderAt(fitH(), '2026-07-01', { out, detail: true, SCORES: { fitnessAge: score }, PROFILE: profile }); return fitSec(out.health); };
+  const at = (/** @type {unknown} */ score, /** @type {unknown} */ profile) => { const out = /** @type {Out} */ ({}); renderAt(fitH(), '2026-07-01', { out, detail: true, SCORES: { fitnessAge: score }, PROFILE: profile }); return fitSec(out.health); };
   let s = at({ ok: false, reason: 'no-sex' }, { birthdate: '1990-06-15', sex: null });
   assert.ok(s.includes(T.noSex));
   assert.doesNotMatch(s, /class="dial fa/);
@@ -586,7 +595,7 @@ test('fitness age: no number without sex, birthdate or VO₂max — the reason i
   s = at({ ok: false, reason: 'no-vo2max' }, P36);
   assert.ok(s.includes(T.noVo2));
   // no SCORES / PROFILE at all (an old bake): the section renders as before, no block, no throw
-  const out = {};
+  const out = /** @type {Out} */ ({});
   renderAt(fitH(), '2026-07-01', { out, detail: true });
   assert.match(fitSec(out.health), /data-detail="vo2max"/);
   assert.doesNotMatch(fitSec(out.health), /class="dial fa|NaN|undefined/);
@@ -612,15 +621,17 @@ test('page copy for missing data names no developer step: no export jargon in th
   }
 });
 
-const format = (tpl, vars) => tpl.replace(/\{(\w+)\}/g, (_, k) => (vars[k] != null ? vars[k] : ''));
+/** @param {string} tpl @param {Record<string, string | number>} vars */
+const format = (tpl, vars) => tpl.replace(/\{(\w+)\}/g, (_, /** @type {string} */ k) => /** @type {string} */ (vars[k] != null ? vars[k] : ''));
 // Salud "Healthspan habits" (lib/score/healthspan.mjs habits on DETAIL + the fitness age): one row per habit
 // against its cited reference or the own baseline, a met / not met summary, never an age
 const habits = (over = {}) => ({ from: '2026-06-03', to: '2026-06-30', ref: HABIT_REF,
   sleep: { mean: 7.25, n: 28 }, activity: { mod: 70, vig: 21, eq: 112, n: 20 }, strength: { days: 3, perWeek: 0.75 },
   steps: { mean: 9000, n: 28 }, rhr: { now: 50, base: 54, n: 28 }, cons: { now: 20, base: 30, n: 28 }, ...over });
-const habSec = (html) => { const i = html.indexOf('id="hl-habits"'); return i === -1 ? '' : html.slice(i, html.indexOf('</section>', i)); };
-const habAt = (H, { profile = P36, score = fa(), locale } = {}) => {
-  const out = {};
+const habSec = (/** @type {string} */ html) => { const i = html.indexOf('id="hl-habits"'); return i === -1 ? '' : html.slice(i, html.indexOf('</section>', i)); };
+/** @param {unknown} H @param {{profile?: unknown, score?: unknown, locale?: string}} [opts] */
+const habAt = (H, { profile = /** @type {unknown} */ (P36), score = /** @type {unknown} */ (fa()), locale } = {}) => {
+  const out = /** @type {Out} */ ({});
   renderAt(fitH(), '2026-07-01', { out, detail: { metrics: {}, habits: H }, SCORES: { fitnessAge: score }, PROFILE: profile });
   return habSec(out.health);
 };
@@ -631,7 +642,7 @@ test('healthspan habits: first on Salud, one row per habit vs its reference (met
   assert.ok(sec, 'the section renders');
   const order = [...sec.matchAll(/data-habit="(\w+)"/g)].map((m) => m[1]);
   assert.deepEqual(order, ['sleep', 'activity', 'strength', 'steps', 'fitness', 'rhr', 'cons']);
-  const row = (k) => sec.split(`data-habit="${k}"`)[1].split('</li>')[0];
+  const row = (/** @type {string} */ k) => sec.split(`data-habit="${k}"`)[1].split('</li>')[0];
   assert.match(row('sleep'), /<b class="hb-ok">7:15<\/b>/);
   assert.ok(row('sleep').includes(T.ref.sleep));
   assert.match(row('activity'), /<b class="hb-off">112<\/b><small>min\/wk<\/small>/);

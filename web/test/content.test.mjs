@@ -34,6 +34,7 @@ const examplePath = path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.html'
  * the inlined <style> block also contains `[data-tab="..."] .foo {...}`
  * attribute-selector CSS earlier in the document, which a bare substring
  * search would match first. */
+/** @param {string} html @param {string} key */
 function sliceTabPanel(html, key) {
   const marker = `class="tab-panel" data-tab="${key}"`;
   const markerIdx = html.indexOf(marker);
@@ -46,6 +47,7 @@ function sliceTabPanel(html, key) {
 
 /** Slices one section (a former tab: dia/tablas/hoy/dash) out of its tab panel — from its
  * `class="tab-section" data-section="..."` opening tag to the next section or tab panel. */
+/** @param {string} html @param {string} key */
 function sliceSection(html, key) {
   const m = new RegExp(`<(section|details) class="tab-section[^"]*" data-section="${key}"`).exec(html);
   assert.ok(m, `section data-section="${key}" not found in built HTML`);
@@ -55,6 +57,7 @@ function sliceSection(html, key) {
 }
 
 /** The top-level tab panel that hosts a section (the section must sit INSIDE it). */
+/** @param {string} html @param {string} key @param {string} tab */
 function assertSectionInPanel(html, key, tab) {
   const panel = sliceTabPanel(html, tab);
   assert.match(panel, new RegExp(`data-section="${key}"`), `section "${key}" must live inside the "${tab}" tab panel`);
@@ -110,7 +113,7 @@ test('example build: Balance (intake vs expenditure + macro split) lives in Nutr
   const html = fs.readFileSync(examplePath, 'utf8');
   const dia = sliceSection(html, 'dia');
   assert.match(dia, /<div class="nutri-block" id="nutri-balance" hidden><\/div>/, 'client-rendered by health.ts, hidden until it has something');
-  const at = (id) => dia.indexOf(`id="${id}"`);
+  const at = (/** @type {string} */ id) => dia.indexOf(`id="${id}"`);
   assert.ok(at('nutri-fuel-block') < at('nutri-balance') && at('nutri-balance') < at('nutri-progress-block'), 'order: fuelling, Balance, Progreso');
   assert.equal(sliceTabPanel(html, 'health').indexOf('nutri-balance'), -1);
   assert.match(html, /"balance":\{"from":"\d{4}-\d{2}-\d{2}"/, 'the demo extract carries a balance window');
@@ -139,7 +142,7 @@ test('example build: Tablas reference headers align with their cells (text colum
   // the Reference header carries the same class as its (left-aligned, sans) cells; kcal / P / C / F stay numeric
   assert.match(tablasHtml, /<thead><tr><th>Food<\/th><th class="ref-unit">Reference<\/th><th>kcal<\/th><th>P<\/th><th>C<\/th><th>F<\/th><\/tr><\/thead>/);
   const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
-  const rule = (sel) => { const m = css.match(new RegExp('(?:^|[}\\s,])' + sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[,{][^}]*}')); return m ? m[0] : ''; };
+  const rule = (/** @type {string} */ sel) => { const m = css.match(new RegExp('(?:^|[}\\s,])' + sel.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\s*[,{][^}]*}')); return m ? m[0] : ''; };
   assert.match(rule('th.ref-unit'), /text-align:\s*left/, 'the Reference header is left-aligned like its cells');
   assert.match(rule('th:first-child'), /text-align:\s*left/, 'the first column (food) header stays left-aligned');
   assert.match(rule('th'), /text-align:\s*right/, 'numeric headers stay right-aligned with their cells');
@@ -160,7 +163,7 @@ test('example build: the day builder (Constructor de día, section registro) is 
 
 test('example build: t-home is the first nav button and current; the Home panel is visible, Nutrición hidden', () => {
   const html = fs.readFileSync(examplePath, 'utf8');
-  const firstBtn = html.match(/<button type="button" id="(t-[a-z]+)"[^>]*>/);
+  const firstBtn = /** @type {RegExpMatchArray} */ (html.match(/<button type="button" id="(t-[a-z]+)"[^>]*>/));
   assert.equal(firstBtn[1], 't-home');
   assert.match(firstBtn[0], /aria-current="page"/);
   assert.match(html, /<div class="tab-panel" data-tab="home" role="region" aria-labelledby="t-home">/);
@@ -180,7 +183,7 @@ test('example build (synthetic demo extract): SCORES, dials and every Salud sect
   assert.match(html, /var SCORES = \{"hasData":true/);
   assert.match(html, /var I18N_SCORE = /);
   assert.match(html, /var DIALS = \{"track":"M[^"]+","sleep":\{"state":"ok"[\s\S]*"recovery":\{"state":"ok"[\s\S]*"load":\{"state":"ok"/, 'dials baked and ungated from demo data');
-  const health = JSON.parse(html.match(/var HEALTH = (\{.*?\});\n/)[1]);
+  const health = JSON.parse(/** @type {RegExpMatchArray} */ (html.match(/var HEALTH = (\{.*?\});\n/))[1]);
   for (const k of ['body', 'activity', 'energy', 'running', 'cycling', 'recovery', 'loadRecovery']) assert.equal(health[k].hasData, true, `HEALTH.${k}`);
   assert.match(html, /Demo Scale/, 'the page names the synthetic source');
   assert.match(html, /var INTAKE = \{"latest":\{"date":"\d{4}-\d{2}-\d{2}"/);
@@ -211,8 +214,8 @@ test('example build: glance on Inicio, detail behind it — Entreno holds the lo
   assert.match(entreno, /<div class="hs-top tr-top">\s*<h2 class="hs-title">Training<\/h2>\s*<button type="button" class="hs-i" data-hs-info="tr-intro" aria-expanded="false" aria-controls="tr-intro" aria-label="About Training">/);
   assert.match(entreno, /<div class="hs-info" id="tr-intro" hidden><p>[^<]+<\/p><p>[^<]+<\/p><p>[^<]*not medical advice\.<\/p><\/div>/);
   assert.ok(entreno.indexOf('id="tr-intro"') < entreno.indexOf('id="score-load"'), 'the header leads the tab');
-  assert.doesNotMatch(html.match(/var I18N_ACTIVITY = (\{.*?\});\n/)[1], /"head"/, 'the header copy is built, not baked for the client');
-  const at = (id) => entreno.indexOf(`id="${id}"`);
+  assert.doesNotMatch(/** @type {RegExpMatchArray} */ (html.match(/var I18N_ACTIVITY = (\{.*?\});\n/))[1], /"head"/, 'the header copy is built, not baked for the client');
+  const at = (/** @type {string} */ id) => entreno.indexOf(`id="${id}"`);
   assert.ok(at('score-load') !== -1 && at('score-load') < at('train-activity') && at('train-activity') < at('health-train') && at('health-train') < at('sec-dash'), 'Entreno order: load summary, Activity card, run/bike/load vs recovery, intensity');
   assert.match(html, /var ACTIVITY = \{"hasData":true,"asOf":"\d{4}-\d{2}-\d{2}","first":"\d{4}-\d{2}-\d{2}","days":\[/, 'demo data fills the Activity card');
   assert.match(html, /var I18N_ACTIVITY = /);
@@ -239,7 +242,7 @@ test('example build: Inicio reads today top to bottom — dials, monitor tiles, 
   // home-week.ts + home-dash.ts run in the end-of-body list, after their globals and before
   // deepdive.ts / detail.ts, so their views (tonight, dash-edit) exist when detail.ts runs
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((x) => x[1]);
-  const idx = (re) => scripts.findIndex((x) => re.test(x));
+  const idx = (/** @type {RegExp} */ re) => scripts.findIndex((x) => re.test(x));
   const week = idx(/window\.HCWeekPlan\s*=/), dash = idx(/window\.HCDash\s*=/), deep = idx(/window\.HCDeep\s*=/), detail = idx(/window\.HCDetailState\s*=/);
   const adherence = idx(/window\.HCAdherence\s*=/), util = idx(/var HC\s*=\s*\(function/);
   assert.ok(util !== -1 && adherence !== -1 && week > adherence && week > util, 'after util.ts and adherence.ts');
@@ -325,7 +328,7 @@ test('example build: sheet calendar state tiles are a soft tint + a 40 % ring of
   const html = fs.readFileSync(examplePath, 'utf8');
   const css = [...html.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/g)].map((m) => m[1]).join('\n');
   const map = ruleDeclarationMap(parseCssRules(css));
-  const get = (sel, p) => { const k = [...map.keys()].find((x) => x.startsWith('|||') && x.endsWith('|||' + p) && x.split('|||')[1].split(',').map((s) => s.trim()).includes(sel)); return k ? String(map.get(k)).replace(/\s+/g, '') : null; };
+  const get = (/** @type {string} */ sel, /** @type {string} */ p) => { const k = [...map.keys()].find((x) => x.startsWith('|||') && x.endsWith('|||' + p) && x.split('|||')[1].split(',').map((s) => s.trim()).includes(sel)); return k ? String(map.get(k)).replace(/\s+/g, '') : null; };
   for (const [st, rgb] of [['good', 'good'], ['mid', 'mid'], ['watch', 'mid'], ['bad', 'low']]) {
     assert.equal(get('.dt-day.dt-s-' + st, 'background'), `rgba(var(--${rgb}-rgb),0.16)`, st);
     assert.equal(get('.dt-day.dt-s-' + st, 'box-shadow'), `inset0001pxrgba(var(--${rgb}-rgb),0.4)`, st);
@@ -419,13 +422,15 @@ test('example build: the freshness line + Sync button ship HIDDEN (shown only wh
   assert.match(html, /<div class="fresh-pop" id="fresh-pop" hidden><p class="fresh-line" id="fresh-line"><\/p><\/div>/, 'per-source detail in a popover');
   assert.match(html, /var I18N_SYNC = \{"ariaLabel":"Data freshness"/);
   const scripts = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]);
-  assert.match(scripts.at(-1), /\/api\/sync\/status/, 'freshness.ts is the last script');
+  assert.match(/** @type {string} */ (scripts.at(-1)), /\/api\/sync\/status/, 'freshness.ts is the last script');
   assert.doesNotMatch(html, /\/export\/|\/ingest\//, 'the page never names a data endpoint');
 });
 
 // Tablas renders a list section only when it has rows: a plan whose list holds only the "none" option
 // (or nothing) gets no empty accordion. Checked on both builds: the example has rows everywhere; the
 // personal build (only when present, gitignored inputs) may have emptied lists.
+/** The Tablas list sections (every buildReference key but the tiered `proteina`) and their element ids.
+ * @type {[Exclude<keyof ReturnType<typeof buildReference>, 'proteina'>, string][]} */
 const TABLAS_SECTIONS = [['desayunos', 'acc-desayunos'], ['carboComida', 'acc-carbo-comida'], ['carboCena', 'acc-carbo-cena'], ['anclaje', 'acc-anclaje'], ['postentreno', 'acc-postentreno'], ['fruta', 'acc-fruta'], ['postre', 'acc-postre'], ['verduras', 'acc-verduras'], ['quesos', 'acc-quesos']];
 for (const [mode, dir, lang] of [['example', 'en-example', 'en'], ['personal', 'es-personal', 'es']]) {
   const file = path.join(WEB_ROOT, '.test-dist', dir, 'index.html');
@@ -438,7 +443,7 @@ for (const [mode, dir, lang] of [['example', 'en-example', 'en'], ['personal', '
       assert.equal(tablasHtml.includes(`<details id="${id}">`), ref[key].length > 0, `${id}: rendered iff it has rows (${ref[key].length})`);
       if (mode === 'example') assert.ok(ref[key].length > 0, `the example plan keeps ${key} populated`);
     }
-    const protRows = ['lean', 'mod', 'fat'].some((t) => ref.proteina[t].length > 0);
+    const protRows = /** @type {const} */ (['lean', 'mod', 'fat']).some((t) => ref.proteina[t].length > 0);
     assert.equal(tablasHtml.includes('<details id="acc-proteina">'), protRows);
   });
 }

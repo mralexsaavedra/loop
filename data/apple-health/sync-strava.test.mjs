@@ -20,6 +20,9 @@ const {
   RIDES_CSV, RIDES_HEADER, rideRow, buildRides, stalePowerWarning, staleTrainerWarning,
 } = strava;
 
+/** @typedef {NonNullable<ReturnType<typeof toRow>>} Row */
+/** @typedef {{ status: number, stderr: Buffer }} ExecError */
+
 // ---- rides.csv: ride windows + real power for the active-energy correction ----------------
 
 const RIDE = {
@@ -36,16 +39,16 @@ test('rides.csv header and file name match lib/health/ride-energy.mjs (the reade
 test('rideRow: local date, ISO start WITH the offset (start_local - start_utc), elapsed s, kJ, device_watts', () => {
   assert.equal(rideRow(RIDE), '2026-09-26,2026-09-26T09:02:00+02:00,20811,2310.7,true,Strava API');
   // winter offset, west of UTC, and a half-hour zone
-  assert.equal(rideRow({ ...RIDE, start_local: '2026-12-05T10:00:00Z', start_utc: '2026-12-05T09:00:00Z' }).split(',')[1], '2026-12-05T10:00:00+01:00');
-  assert.equal(rideRow({ ...RIDE, start_local: '2026-09-26T06:00:00Z', start_utc: '2026-09-26T10:00:00Z' }).split(',')[1], '2026-09-26T06:00:00-04:00');
-  assert.equal(rideRow({ ...RIDE, start_local: '2026-09-26T12:30:00Z', start_utc: '2026-09-26T07:00:00Z' }).split(',')[1], '2026-09-26T12:30:00+05:30');
+  assert.equal(/** @type {string} */ (rideRow({ ...RIDE, start_local: '2026-12-05T10:00:00Z', start_utc: '2026-12-05T09:00:00Z' })).split(',')[1], '2026-12-05T10:00:00+01:00');
+  assert.equal(/** @type {string} */ (rideRow({ ...RIDE, start_local: '2026-09-26T06:00:00Z', start_utc: '2026-09-26T10:00:00Z' })).split(',')[1], '2026-09-26T06:00:00-04:00');
+  assert.equal(/** @type {string} */ (rideRow({ ...RIDE, start_local: '2026-09-26T12:30:00Z', start_utc: '2026-09-26T07:00:00Z' })).split(',')[1], '2026-09-26T12:30:00+05:30');
 });
 
 test('rideRow: an old ingest image (no start_utc / device_watts) keeps the row with blanks -> no correction', () => {
   const { start_utc: _u, device_watts: _d, ...old } = RIDE;
   assert.equal(rideRow(old), '2026-09-26,,20811,2310.7,,Strava API');
   assert.equal(rideRow({ ...RIDE, device_watts: false, kilojoules: null }), '2026-09-26,2026-09-26T09:02:00+02:00,20811,,false,Strava API');
-  assert.equal(rideRow({ ...RIDE, start_utc: 'garbage' }).split(',')[1], '');
+  assert.equal(/** @type {string} */ (rideRow({ ...RIDE, start_utc: 'garbage' })).split(',')[1], '');
 });
 
 test('rideRow: only cycling-family activities with a start and an elapsed time', () => {
@@ -54,7 +57,7 @@ test('rideRow: only cycling-family activities with a start and an elapsed time',
   assert.equal(rideRow({ ...RIDE, elapsed_time: 0, moving_time: 0 }), null);
   assert.equal(rideRow({ ...RIDE, start_local: null }), null);
   // no elapsed time -> the moving time is the best window we have
-  assert.equal(rideRow({ ...RIDE, elapsed_time: null }).split(',')[2], '19000');
+  assert.equal(/** @type {string} */ (rideRow({ ...RIDE, elapsed_time: null })).split(',')[2], '19000');
 });
 
 test('buildRides: sorted by start, header first', () => {
@@ -65,7 +68,7 @@ test('buildRides: sorted by start, header first', () => {
 });
 
 test('planSync writes rides.csv (full rebuild); never creates an empty one', () => {
-  const files = {};
+  const files = /** @type {Record<string, string>} */ ({});
   const plan = planSync([RIDE], (n) => (n in files ? files[n] : null));
   assert.equal(plan.writes[RIDES_CSV], buildRides([RIDE]));
   const none = planSync([{ ...RIDE, sport_type: 'Run' }], () => null);
@@ -81,7 +84,7 @@ test('planSync records rides.csv in _meta.json (rows.rides + stravaSync.rides: t
   const meta = JSON.parse(plan.writes['_meta.json']);
   assert.equal(meta.rows.rides, 3);
   assert.deepEqual(meta.stravaSync.rides, { rows: 3, power: 2, withStart: 2 });
-  assert.ok(meta.notes.some((n) => /rides\.csv/.test(n)));
+  assert.ok(meta.notes.some((/** @type {string} */ n) => /rides\.csv/.test(n)));
 });
 
 test('stalePowerWarning: rides with kJ but none carrying device_watts / start_utc -> rebuild hint', () => {
@@ -90,7 +93,7 @@ test('stalePowerWarning: rides with kJ but none carrying device_watts / start_ut
   assert.equal(stalePowerWarning([RIDE]), null);
   assert.equal(stalePowerWarning([{ ...RIDE, device_watts: false }]), null, 'false is a real value');
   assert.equal(stalePowerWarning([{ ...old, sport_type: 'Run' }]), null, 'only rides with kJ count');
-  assert.match(stalePowerWarning([old]), /docker compose up -d --build loop-ingest/);
+  assert.match(/** @type {string} */ (stalePowerWarning([old])), /docker compose up -d --build loop-ingest/);
 });
 
 // ---- sport_type -> type mapping table ----------------------------------------------------
@@ -144,6 +147,7 @@ test('Strava "Workout" (its generic type, where a Watch "Other" workout lands) k
 
 test('every mapped type lands where its name says: no racket/outdoor sport is ever gym, run or bike by accident', async () => {
   const { scoreModality } = await import('../../lib/training/modality.mjs');
+  /** @type {Record<string, string>} */
   const GYM = { WeightTraining: 'strength', HighIntensityIntervalTraining: 'hybrid', Crossfit: 'hybrid', Workout: 'hybrid' };
   for (const [sport, t] of Object.entries(SPORT_TYPE_MAP)) {
     const m = scoreModality(t);
@@ -158,7 +162,7 @@ test('a Watch Tennis row and a Strava Tennis row on the same day merge into ONE 
   const { parseWorkouts } = await import('../../lib/training/dashboard.mjs');
   const { byModality, byPhysical } = await import('../../lib/training/modality.mjs');
   const { mergeSameDay, DISPLAY_RULE } = await import('../../lib/training/sessions.mjs');
-  const strava = toRow({ id: '9', start_local: '2026-08-22T18:00:00', sport_type: 'Tennis', moving_time: 3600, average_heartrate: 140, suffer_score: 30 });
+  const strava = /** @type {Row} */ (toRow({ id: '9', start_local: '2026-08-22T18:00:00', sport_type: 'Tennis', moving_time: 3600, average_heartrate: 140, suffer_score: 30 }));
   const watch = '2026-08-22,Tennis,62,,138,90,170,Apple\u00a0Watch de Demo,,,,';
   const rows = parseWorkouts([WORKOUTS_HEADER, watch, strava.line].join('\n'));
   const groups = mergeSameDay(rows, byModality, { ...DISPLAY_RULE, dedupeKey: byPhysical });
@@ -170,12 +174,12 @@ test('a Watch Tennis row and a Strava Tennis row on the same day merge into ONE 
 
 test('toRow writes IndoorCycling for a trainer ride or a VirtualRide, Cycling for an outdoor ride', () => {
   const base = { id: '1', start_local: '2026-11-24T18:00:00', moving_time: 3600 };
-  assert.match(toRow({ ...base, sport_type: 'Ride', trainer: true }).line, /^2026-11-24,IndoorCycling,60,/);
-  assert.match(toRow({ ...base, sport_type: 'VirtualRide', trainer: false }).line, /^2026-11-24,IndoorCycling,60,/);
-  assert.match(toRow({ ...base, sport_type: 'VirtualRide' }).line, /^2026-11-24,IndoorCycling,60,/);
-  assert.match(toRow({ ...base, sport_type: 'Ride', trainer: false }).line, /^2026-11-24,Cycling,60,/);
-  assert.match(toRow({ ...base, sport_type: 'Ride' }).line, /^2026-11-24,Cycling,60,/, 'no flag (stale image) stays outdoor');
-  assert.match(toRow({ ...base, sport_type: 'Run', trainer: true }).line, /^2026-11-24,Running,60,/, 'a treadmill run keeps its type');
+  assert.match(/** @type {Row} */ (toRow({ ...base, sport_type: 'Ride', trainer: true })).line, /^2026-11-24,IndoorCycling,60,/);
+  assert.match(/** @type {Row} */ (toRow({ ...base, sport_type: 'VirtualRide', trainer: false })).line, /^2026-11-24,IndoorCycling,60,/);
+  assert.match(/** @type {Row} */ (toRow({ ...base, sport_type: 'VirtualRide' })).line, /^2026-11-24,IndoorCycling,60,/);
+  assert.match(/** @type {Row} */ (toRow({ ...base, sport_type: 'Ride', trainer: false })).line, /^2026-11-24,Cycling,60,/);
+  assert.match(/** @type {Row} */ (toRow({ ...base, sport_type: 'Ride' })).line, /^2026-11-24,Cycling,60,/, 'no flag (stale image) stays outdoor');
+  assert.match(/** @type {Row} */ (toRow({ ...base, sport_type: 'Run', trainer: true })).line, /^2026-11-24,Running,60,/, 'a treadmill run keeps its type');
 });
 
 test('an indoor ride still lands in rides.csv (the power-meter energy correction)', () => {
@@ -188,36 +192,36 @@ test('staleTrainerWarning: rides but none carrying the trainer flag -> stale ing
   assert.equal(staleTrainerWarning([]), null);
   assert.equal(staleTrainerWarning([{ ...ride, sport_type: 'Run' }]), null, 'only rides count');
   assert.equal(staleTrainerWarning([{ ...ride, trainer: false }]), null);
-  assert.match(staleTrainerWarning([ride]), /trainer.*docker compose up -d --build loop-ingest/s);
+  assert.match(/** @type {string} */ (staleTrainerWarning([ride])), /trainer.*docker compose up -d --build loop-ingest/s);
 });
 
 // ---- toRow: moving vs elapsed, blanks, 9-column shape, invalid input -> null -------------
 
 test('toRow prefers moving_time over elapsed_time, converts to minutes (2 decimals)', () => {
-  const r = toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 1830, elapsed_time: 2000 });
+  const r = /** @type {Row} */ (toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 1830, elapsed_time: 2000 }));
   assert.equal(r.date, '2026-08-20');
   assert.match(r.line, /^2026-08-20,Running,30\.5,,,,,Strava API,,,,$/);
 });
 
 test('toRow falls back to elapsed_time when moving_time is missing or zero', () => {
-  const missing = toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', elapsed_time: 1200 });
+  const missing = /** @type {Row} */ (toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', elapsed_time: 1200 }));
   assert.match(missing.line, /^2026-08-20,Running,20,/);
-  const zero = toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 0, elapsed_time: 600 });
+  const zero = /** @type {Row} */ (toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 0, elapsed_time: 600 }));
   assert.match(zero.line, /^2026-08-20,Running,10,/);
 });
 
 test('toRow blanks HR/distance when absent, fills them (rounded/2dp) when present', () => {
-  const noHr = toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 3600 });
+  const noHr = /** @type {Row} */ (toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 3600 }));
   assert.equal(noHr.line, '2026-08-20,Cycling,60,,,,,Strava API,,,,');
-  const withHrDist = toRow({
+  const withHrDist = /** @type {Row} */ (toRow({
     id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 3600,
     average_heartrate: 142.6, max_heartrate: 171.2, distance: 25123.456,
-  });
+  }));
   assert.equal(withHrDist.line, '2026-08-20,Cycling,60,,143,,171,Strava API,25.12,,,');
 });
 
 test('toRow produces a 12-column CSV row matching WORKOUTS_HEADER', () => {
-  const r = toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 600, average_heartrate: 140, max_heartrate: 160, distance: 2000 });
+  const r = /** @type {Row} */ (toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 600, average_heartrate: 140, max_heartrate: 160, distance: 2000 }));
   assert.equal(r.line.split(',').length, 12);
   assert.equal(WORKOUTS_HEADER.split(',').length, 12);
   assert.equal(WORKOUTS_HEADER, samples.WORKOUTS_HEADER, 'one shared header constant');
@@ -226,22 +230,22 @@ test('toRow produces a 12-column CSV row matching WORKOUTS_HEADER', () => {
 
 test('toRow writes relative_effort (suffer_score) and kilojoules; blank when absent; 0 is kept', () => {
   const base = { id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 1800 };
-  assert.equal(toRow({ ...base, suffer_score: 87 }).line, '2026-08-20,Running,30,,,,,Strava API,,87,,');
-  assert.equal(toRow({ ...base, suffer_score: 0, kilojoules: 0 }).line, '2026-08-20,Running,30,,,,,Strava API,,0,0,');
-  assert.equal(toRow({ ...base, suffer_score: 87.4, kilojoules: 640.55 }).line, '2026-08-20,Running,30,,,,,Strava API,,87,640.55,');
-  assert.equal(toRow({ ...base, suffer_score: null, kilojoules: null }).line, '2026-08-20,Running,30,,,,,Strava API,,,,');
+  assert.equal(/** @type {Row} */ (toRow({ ...base, suffer_score: 87 })).line, '2026-08-20,Running,30,,,,,Strava API,,87,,');
+  assert.equal(/** @type {Row} */ (toRow({ ...base, suffer_score: 0, kilojoules: 0 })).line, '2026-08-20,Running,30,,,,,Strava API,,0,0,');
+  assert.equal(/** @type {Row} */ (toRow({ ...base, suffer_score: 87.4, kilojoules: 640.55 })).line, '2026-08-20,Running,30,,,,,Strava API,,87,640.55,');
+  assert.equal(/** @type {Row} */ (toRow({ ...base, suffer_score: null, kilojoules: null })).line, '2026-08-20,Running,30,,,,,Strava API,,,,');
 });
 
 test('toRow writes total_elevation_gain as elevation_m (1 decimal); blank when absent; 0 is kept', () => {
   const base = { start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 3600 };
-  assert.equal(toRow({ ...base, total_elevation_gain: 412.37 }).line, '2026-08-20,Cycling,60,,,,,Strava API,,,,412.4');
-  assert.equal(toRow({ ...base, total_elevation_gain: 0 }).line, '2026-08-20,Cycling,60,,,,,Strava API,,,,0');
-  assert.equal(toRow({ ...base, total_elevation_gain: null }).line, '2026-08-20,Cycling,60,,,,,Strava API,,,,');
+  assert.equal(/** @type {Row} */ (toRow({ ...base, total_elevation_gain: 412.37 })).line, '2026-08-20,Cycling,60,,,,,Strava API,,,,412.4');
+  assert.equal(/** @type {Row} */ (toRow({ ...base, total_elevation_gain: 0 })).line, '2026-08-20,Cycling,60,,,,,Strava API,,,,0');
+  assert.equal(/** @type {Row} */ (toRow({ ...base, total_elevation_gain: null })).line, '2026-08-20,Cycling,60,,,,,Strava API,,,,');
 });
 
 test('planSync: a 9-column CSV merges under the 12-col header; old rows are kept verbatim (mixed width)', () => {
   const oldHeader = 'date,type,duration_min,energy_kcal,hr_avg,hr_min,hr_max,source,distance_km';
-  const files = { [WORKOUTS_CSV]: [oldHeader, '2026-08-20,Running,30,,140,,165,Watch,5'].join('\n') + '\n' };
+  const files = /** @type {Record<string, string>} */ ({ [WORKOUTS_CSV]: [oldHeader, '2026-08-20,Running,30,,140,,165,Watch,5'].join('\n') + '\n' });
   const plan = planSync([{ id: '2', start_local: '2026-08-21T07:00:00', sport_type: 'Run', moving_time: 1800, suffer_score: 55 }], (n) => files[n] ?? null);
   const lines = plan.writes[WORKOUTS_CSV].trim().split('\n');
   assert.equal(lines[0], WORKOUTS_HEADER);
@@ -256,8 +260,8 @@ test('toRow returns null when there is no usable duration (skip the activity, no
 });
 
 test('toRow slices start_local as plain text regardless of trailing Z or a UTC offset', () => {
-  const withZ = toRow({ id: '1', start_local: '2026-08-20T07:00:00Z', sport_type: 'Run', moving_time: 600 });
-  const withOffset = toRow({ id: '2', start_local: '2026-08-20T07:00:00+02:00', sport_type: 'Run', moving_time: 600 });
+  const withZ = /** @type {Row} */ (toRow({ id: '1', start_local: '2026-08-20T07:00:00Z', sport_type: 'Run', moving_time: 600 }));
+  const withOffset = /** @type {Row} */ (toRow({ id: '2', start_local: '2026-08-20T07:00:00+02:00', sport_type: 'Run', moving_time: 600 }));
   assert.equal(withZ.date, '2026-08-20');
   assert.equal(withOffset.date, '2026-08-20');
 });
@@ -293,8 +297,8 @@ test('buildRows falls back to a "null" unmapped key when sport_type is missing',
 // survive, same-day kept, idempotent, orphan ----
 
 test('planSync: a date the export covers keeps BOTH the export row and the Strava row', () => {
-  const files = { [WORKOUTS_CSV]: [WORKOUTS_HEADER, '2026-08-20,Cycling,62,,140,,165,Watch,20'].join('\n') + '\n' };
-  const read = (name) => files[name] ?? null;
+  const files = /** @type {Record<string, string>} */ ({ [WORKOUTS_CSV]: [WORKOUTS_HEADER, '2026-08-20,Cycling,62,,140,,165,Watch,20'].join('\n') + '\n' });
+  const read = (/** @type {string} */ name) => files[name] ?? null;
   const activities = [
     { id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 3600, suffer_score: 40 },
     { id: '2', start_local: '2026-08-21T07:00:00', sport_type: 'Ride', moving_time: 1800 }
@@ -309,8 +313,8 @@ test('planSync: a date the export covers keeps BOTH the export row and the Strav
 
 test('planSync: a later export rewrite followed by a sync restores every Strava row, whatever the export covers', () => {
   const activities = [{ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'HighIntensityIntervalTraining', moving_time: 3000, suffer_score: 55 }];
-  const files = {};
-  const read = (name) => files[name] ?? null;
+  const files = /** @type {Record<string, string>} */ ({});
+  const read = (/** @type {string} */ name) => files[name] ?? null;
   Object.assign(files, planSync(activities, read).writes);
   // extract.mjs rewrites workouts.csv from a fresh export that now has a Watch row on the same date
   files[WORKOUTS_CSV] = [WORKOUTS_HEADER, '2026-08-20,HighIntensityIntervalTraining,52,,130,,170,Watch,,,,'].join('\n') + '\n';
@@ -320,8 +324,8 @@ test('planSync: a later export rewrite followed by a sync restores every Strava 
 });
 
 test('planSync: historical source=Strava rows (not Strava API) survive untouched', () => {
-  const files = { [WORKOUTS_CSV]: [WORKOUTS_HEADER, '2026-08-15,Running,25,,,,,Strava,4'].join('\n') + '\n' };
-  const read = (name) => files[name] ?? null;
+  const files = /** @type {Record<string, string>} */ ({ [WORKOUTS_CSV]: [WORKOUTS_HEADER, '2026-08-15,Running,25,,,,,Strava,4'].join('\n') + '\n' });
+  const read = (/** @type {string} */ name) => files[name] ?? null;
   const plan = planSync([], read);
   assert.ok(!plan.writes[WORKOUTS_CSV] || plan.writes[WORKOUTS_CSV].includes('2026-08-15,Running,25,,,,,Strava,4'));
 });
@@ -332,24 +336,24 @@ test('planSync: historical source=Strava rows (not Strava API) survive untouched
 // reporting metadata. ----
 
 test('planSync: a ledger claiming a date must not delete a non-Strava row on that date', () => {
-  const files = {
+  const files = /** @type {Record<string, string>} */ ({
     [WORKOUTS_CSV]: [WORKOUTS_HEADER, '2026-08-20,Running,30,,140,,165,Watch,5'].join('\n') + '\n',
     '_meta.json': JSON.stringify({ rows: {}, ranges: {}, notes: [], stravaSync: { owned: { [WORKOUTS_CSV]: ['2026-08-20'] } } })
-  };
-  const read = (name) => files[name] ?? null;
+  });
+  const read = (/** @type {string} */ name) => files[name] ?? null;
   // force a write so the merged text is actually inspectable
   const plan = planSync([{ id: '1', start_local: '2026-08-21T07:00:00', sport_type: 'Ride', moving_time: 1800 }], read);
   assert.match(plan.writes[WORKOUTS_CSV], /2026-08-20,Running,30,,140,,165,Watch,5/, 'the ledgered-but-non-Strava row must survive');
 });
 
 test('planSync: simulated crash (fresh export CSV, stale pre-crash ledger in _meta.json) never drops the fresh export row', () => {
-  const files = {
+  const files = /** @type {Record<string, string>} */ ({
     // extract.mjs already rewrote workouts.csv with a fresh export row on 08-20...
     [WORKOUTS_CSV]: [WORKOUTS_HEADER, '2026-08-20,Running,28,,138,,162,W,5.1'].join('\n') + '\n',
     // ...but _meta.json still carries the OLD ledger from BEFORE the crash (claims 08-20 + 08-21 as Strava-owned)
     '_meta.json': JSON.stringify({ rows: {}, ranges: {}, notes: [], stravaSync: { owned: { [WORKOUTS_CSV]: ['2026-08-20', '2026-08-21'] } } })
-  };
-  const read = (name) => files[name] ?? null;
+  });
+  const read = (/** @type {string} */ name) => files[name] ?? null;
   const plan = planSync([{ id: '1', start_local: '2026-08-21T07:00:00', sport_type: 'Ride', moving_time: 1800 }], read);
   assert.match(plan.writes[WORKOUTS_CSV], /2026-08-20,Running,28,,138,,162,W,5\.1/, 'the fresh export row must survive the stale ledger');
 });
@@ -366,8 +370,8 @@ test('planSync: same-day activities (no export coverage) are all kept as separat
 
 test('planSync: a second run with unchanged activities is byte-identical', () => {
   const activities = [{ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 1800 }];
-  const files = {};
-  const read = (name) => files[name] ?? null;
+  const files = /** @type {Record<string, string>} */ ({});
+  const read = (/** @type {string} */ name) => files[name] ?? null;
   Object.assign(files, planSync(activities, read).writes);
   const again = planSync(activities, read);
   assert.deepEqual(again.writes, {}, 'no changes on a second identical run');
@@ -375,8 +379,8 @@ test('planSync: a second run with unchanged activities is byte-identical', () =>
 
 test('planSync: a simulated re-export (activities fetched again) creates no duplicate rows', () => {
   const activities = [{ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 1800 }];
-  const files = {};
-  const read = (name) => files[name] ?? null;
+  const files = /** @type {Record<string, string>} */ ({});
+  const read = (/** @type {string} */ name) => files[name] ?? null;
   Object.assign(files, planSync(activities, read).writes);
   Object.assign(files, planSync(activities, read).writes);
   const count = (files[WORKOUTS_CSV].match(/2026-08-20/g) || []).length;
@@ -384,8 +388,8 @@ test('planSync: a simulated re-export (activities fetched again) creates no dupl
 });
 
 test('planSync: an edited activity type is updated on the next run', () => {
-  const files = {};
-  const read = (name) => files[name] ?? null;
+  const files = /** @type {Record<string, string>} */ ({});
+  const read = (/** @type {string} */ name) => files[name] ?? null;
   Object.assign(files, planSync([{ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 1800 }], read).writes);
   Object.assign(files, planSync([{ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 1800 }], read).writes);
   assert.match(files[WORKOUTS_CSV], /2026-08-20,Cycling,/);
@@ -393,8 +397,8 @@ test('planSync: an edited activity type is updated on the next run', () => {
 });
 
 test('planSync: an existing shortcutSync ledger in _meta.json is preserved', () => {
-  const files = { '_meta.json': JSON.stringify({ rows: {}, ranges: {}, notes: [], shortcutSync: { payloads: 3, added: {} } }) };
-  const read = (name) => files[name] ?? null;
+  const files = /** @type {Record<string, string>} */ ({ '_meta.json': JSON.stringify({ rows: {}, ranges: {}, notes: [], shortcutSync: { payloads: 3, added: {} } }) });
+  const read = (/** @type {string} */ name) => files[name] ?? null;
   const plan = planSync([{ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 1800 }], read);
   const meta = JSON.parse(plan.writes['_meta.json']);
   assert.deepEqual(meta.shortcutSync, { payloads: 3, added: {} });
@@ -407,11 +411,11 @@ test('planSync writes nothing at all when there is no data and no existing files
 });
 
 test('orphan safety: a CSV with a Strava API row on D2 but a ledger without D2 is rebuilt (not silently kept)', () => {
-  const files = {
+  const files = /** @type {Record<string, string>} */ ({
     [WORKOUTS_CSV]: [WORKOUTS_HEADER, '2026-08-22,Running,15,,,,,Strava API,2'].join('\n') + '\n',
     '_meta.json': JSON.stringify({ rows: {}, ranges: {}, notes: [], stravaSync: { owned: { [WORKOUTS_CSV]: [] } } }),
-  };
-  const read = (name) => files[name] ?? null;
+  });
+  const read = (/** @type {string} */ name) => files[name] ?? null;
   // the current stored activity for D2 has a DIFFERENT duration than the stale CSV row
   const plan = planSync([{ id: '9', start_local: '2026-08-22T07:00:00', sport_type: 'Run', moving_time: 3000 }], read);
   assert.match(plan.writes[WORKOUTS_CSV], /2026-08-22,Running,50,/, 'rebuilt from the current activity, not kept stale');
@@ -430,8 +434,8 @@ test('unmapped and noHr counts land in _meta.json stravaSync', () => {
 });
 
 test('noHr in _meta.json counts every written HR-less row, never an activity dropped for lacking a duration', () => {
-  const files = { [WORKOUTS_CSV]: [WORKOUTS_HEADER, '2026-08-20,Running,30,,140,,165,Watch,5'].join('\n') + '\n' };
-  const read = (name) => files[name] ?? null;
+  const files = /** @type {Record<string, string>} */ ({ [WORKOUTS_CSV]: [WORKOUTS_HEADER, '2026-08-20,Running,30,,140,,165,Watch,5'].join('\n') + '\n' });
+  const read = (/** @type {string} */ name) => files[name] ?? null;
   const plan = planSync([
     { id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 1800 }, // export-covered date, still WRITTEN, no HR -> counts
     { id: '2', start_local: '2026-08-21T07:00:00', sport_type: 'Ride', moving_time: 1800, average_heartrate: 140 }, // has HR -> not counted
@@ -444,17 +448,19 @@ test('noHr in _meta.json counts every written HR-less row, never an activity dro
 
 // ---- fetchActivities: paging, timeout, non-array, 404 message ---------------------------
 
+/** @param {Array<{ id: string }>} pages @param {Array<{ url: string, auth: string }>} calls @returns {typeof fetch} */
 function fakeFetch(pages, calls) {
-  return async (url, opts) => {
+  return /** @type {typeof fetch} */ (/** @type {unknown} */ (async (/** @type {string} */ url, /** @type {{ headers: { authorization: string } }} */ opts) => {
     calls.push({ url: String(url), auth: opts.headers.authorization });
     const since = Number(new URL(url).searchParams.get('since_id'));
     const body = pages.filter((p) => Number(p.id) > since).slice(0, 2);
     return { ok: true, status: 200, json: async () => body };
-  };
+  }));
 }
 
 test('fetchActivities pages by since_id until a short page, hitting /export/strava', async () => {
   const pages = [1, 2, 3].map((id) => ({ id: String(id), start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 60 }));
+  /** @type {Array<{ url: string, auth: string }>} */
   const calls = [];
   const out = await fetchActivities({ baseUrl: 'http://h:1', token: 'tok', limit: 2, fetchImpl: fakeFetch(pages, calls) });
   assert.equal(out.length, 3);
@@ -464,20 +470,20 @@ test('fetchActivities pages by since_id until a short page, hitting /export/stra
 });
 
 test('fetchActivities rejects a non-array response', async () => {
-  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({}) });
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: true, status: 200, json: async () => ({}) })));
   await assert.rejects(fetchActivities({ baseUrl: 'http://h', token: 't', fetchImpl }), /expected an array/);
 });
 
 test('fetchActivities times out a hung request with a clear error', async () => {
-  const fetchImpl = (url, { signal }) => new Promise((resolve, reject) => {
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ ((/** @type {unknown} */ url, /** @type {{ signal: AbortSignal }} */ { signal }) => new Promise((resolve, reject) => {
     signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
-  });
+  })));
   await assert.rejects(fetchActivities({ baseUrl: 'http://h', token: 't', timeoutMs: 20, fetchImpl }), /timed out/);
 });
 
 test('fetchActivities surfaces a 404 distinctly (old ingest image) via err.status', async () => {
-  const fetchImpl = async () => ({ ok: false, status: 404, json: async () => ({}) });
-  await assert.rejects(fetchActivities({ baseUrl: 'http://h', token: 't', fetchImpl }), (err) => err.status === 404);
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: false, status: 404, json: async () => ({}) })));
+  await assert.rejects(fetchActivities({ baseUrl: 'http://h', token: 't', fetchImpl }), (/** @type {{ status?: number }} */ err) => err.status === 404);
 });
 
 // ---- disk: writes nothing when unreachable/no token; atomic writes; extract.mjs contract -
@@ -492,6 +498,7 @@ test('syncDir writes _meta.json and workouts.csv atomically (temp+rename, no lef
 
 test('syncDir writes _meta.json before workouts.csv (belt and braces against a crash mid-write)', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'strava-order-'));
+  /** @type {string[]} */
   const order = [];
   syncDir(dir, [{ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 1800 }], {
     writeAtomic: (file) => order.push(path.basename(file)),
@@ -506,7 +513,7 @@ test('contract: an extract.mjs rewrite drops the CSV/ledger; the next Strava syn
     '<Workout workoutActivityType="HKWorkoutActivityTypeRunning" startDate="2026-08-18 08:00:00 +0100" duration="20" sourceName="W"></Workout>\n</HealthData>\n');
   const extract = () => execFileSync(process.execPath, [path.join(__dirname, 'extract.mjs')], { stdio: 'ignore', env: { ...process.env, EXTRACT_DIR: dir } });
   const out = path.join(dir, 'extract');
-  const read = (f) => fs.readFileSync(path.join(out, f), 'utf8');
+  const read = (/** @type {string} */ f) => fs.readFileSync(path.join(out, f), 'utf8');
 
   const activities = [{ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 1800 }];
 
@@ -528,9 +535,9 @@ test('contract: an extract.mjs rewrite drops the CSV/ledger; the next Strava syn
 
 test('end-to-end: an unmapped sport_type lands in the dashboard other bucket, never in gym', async () => {
   const { parseWorkouts, aggregateDashboard } = await import('../../lib/training/dashboard.mjs');
-  const row = toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Curling', moving_time: 1800 });
+  const row = /** @type {Row} */ (toRow({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Curling', moving_time: 1800 }));
   assert.match(row.line, /^2026-08-20,Unmapped,/);
-  const dash = aggregateDashboard(parseWorkouts([WORKOUTS_HEADER, row.line].join('\n')));
+  const dash = /** @type {Extract<import('../../lib/training/dashboard.mjs').Dashboard, { hasData: true }>} */ (aggregateDashboard(parseWorkouts([WORKOUTS_HEADER, row.line].join('\n'))));
   const other = dash.modality.find((m) => m.key === 'other');
   assert.ok(other, 'the unmapped-type row must show up in the other bucket');
   assert.equal(other.min, 30);
@@ -544,6 +551,7 @@ test('end-to-end: an unmapped sport_type lands in the dashboard other bucket, ne
 const SCRIPT = path.join(__dirname, 'sync-strava.mjs');
 const SCRIPT_URL = pathToFileURL(SCRIPT).href;
 
+/** @param {NodeJS.ProcessEnv} env */
 function runScript (env) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-strava-main-'));
   const outDir = path.join(dir, 'extract'); // deliberately not pre-created
@@ -555,14 +563,14 @@ function runScript (env) {
     });
     return { status: 0, outDir };
   } catch (err) {
-    return { status: err.status, stderr: err.stderr.toString(), outDir };
+    return { status: /** @type {ExecError} */ (err).status, stderr: /** @type {ExecError} */ (err).stderr.toString(), outDir };
   }
 }
 
 test('main(): missing token -> exit 1, no files written', () => {
   const { status, stderr, outDir } = runScript({});
   assert.equal(status, 1);
-  assert.match(stderr, /no ingest token/);
+  assert.match(/** @type {string} */ (stderr), /no ingest token/);
   assert.ok(!fs.existsSync(outDir), 'the out dir must never be created when there is no token');
 });
 
@@ -571,8 +579,8 @@ test('main(): unreachable ingest service (no listener on the port) -> exit 1, no
   // connect gets refused; this does NOT depend on reaching a server hosted by another process.
   const { status, stderr, outDir } = runScript({ INGEST_TOKEN: 'a'.repeat(64), INGEST_URL: 'http://127.0.0.1:48231' });
   assert.equal(status, 1);
-  assert.doesNotMatch(stderr, /\(fetch failed\)/, 'must not surface the bare undici message');
-  assert.match(stderr, /ECONNREFUSED|ECONNRESET|EHOSTUNREACH|refused/i);
+  assert.doesNotMatch(/** @type {string} */ (stderr), /\(fetch failed\)/, 'must not surface the bare undici message');
+  assert.match(/** @type {string} */ (stderr), /ECONNREFUSED|ECONNRESET|EHOSTUNREACH|refused/i);
   assert.ok(!fs.existsSync(outDir), 'no file must be written when the service is unreachable');
 });
 
@@ -602,10 +610,10 @@ test('main(): 404 from an old ingest image -> exit 1, no files written, clear re
     });
     result = { status: 0 };
   } catch (err) {
-    result = { status: err.status, stderr: err.stderr.toString() };
+    result = { status: /** @type {ExecError} */ (err).status, stderr: /** @type {ExecError} */ (err).stderr.toString() };
   }
   assert.equal(result.status, 1);
-  assert.match(result.stderr, /rebuild\/restart the loop-ingest container/);
+  assert.match(/** @type {string} */ (result.stderr), /rebuild\/restart the loop-ingest container/);
   assert.ok(!fs.existsSync(outDir), 'no file must be written on a 404');
   fs.rmSync(dir, { recursive: true });
 });
@@ -613,11 +621,11 @@ test('main(): 404 from an old ingest image -> exit 1, no files written, clear re
 // ---- stale ingest image: activities come back but none carries total_elevation_gain ------
 
 test('staleImageWarning(): warns only when activities exist and NONE carries total_elevation_gain', () => {
-  const act = (extra) => ({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 60, ...extra });
+  const act = (/** @type {object} */ extra) => ({ id: '1', start_local: '2026-08-20T07:00:00', sport_type: 'Ride', moving_time: 60, ...extra });
   assert.equal(staleImageWarning([]), null, 'nothing fetched -> nothing to judge');
   assert.equal(staleImageWarning([act({ total_elevation_gain: 0 })]), null, '0 m (indoor ride) is a real value');
   assert.equal(staleImageWarning([act({}), act({ total_elevation_gain: 120 })]), null, 'one activity with the field is enough');
-  assert.match(staleImageWarning([act({}), act({})]), /docker compose up -d --build loop-ingest/);
+  assert.match(/** @type {string} */ (staleImageWarning([act({}), act({})])), /docker compose up -d --build loop-ingest/);
 });
 
 test('main(): activities without elevation -> exit 0, rows written, stale-image warning on stderr', () => {
@@ -680,24 +688,25 @@ test('planSync back-compat: no hr_hist (older ingest image) -> no workout-zones.
 test('staleZonesWarning: only when NO activity carries the hr_hist key (null = not fetched yet is fine)', () => {
   const { staleZonesWarning } = strava;
   const { hr_hist: _h, ...old } = ZRUN;
-  assert.match(staleZonesWarning([old]), /hr_hist/);
+  assert.match(/** @type {string} */ (staleZonesWarning([old])), /hr_hist/);
   assert.equal(staleZonesWarning([{ ...ZRUN, hr_hist: null }]), null);
   assert.equal(staleZonesWarning([]), null);
 });
 
 // ---- main() returns its exit code (runCli sets it): called in-process, the runner is never killed ----
 
+/** @param {string} prefix */
 function mainHarness (prefix) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
-  const out = [], err = [];
+  const out = /** @type {string[]} */ ([]), err = /** @type {string[]} */ ([]);
   const env = { INGEST_ENV_FILE: path.join(dir, 'no-such.env'), INGEST_URL: 'http://127.0.0.1:9' };
   const refused = async () => { throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } }); };
-  const answer = (status, body) => async () => ({ ok: status < 300, status, json: async () => body });
+  const answer = (/** @type {number} */ status, /** @type {unknown} */ body) => /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: status < 300, status, json: async () => body })));
   const blocked = path.join(dir, 'a-file');
   fs.writeFileSync(blocked, 'x');
   return {
     dir, env, refused, answer, out, err,
-    io: { log: (s) => out.push(s), error: (s) => err.push(s) },
+    io: { log: (/** @type {string} */ s) => out.push(s), error: (/** @type {string} */ s) => err.push(s) },
     unwritable: path.join(blocked, 'sub'), // a path under a regular file: every write fails
     cleanup: () => fs.rmSync(dir, { recursive: true, force: true }),
   };
@@ -709,12 +718,12 @@ test('main() in-process: missing token / unreachable / 404 -> returns 1, nothing
     const outDir = path.join(h.dir, 'extract');
     const profileJson = path.join(h.dir, 'profile.json');
     assert.equal(await strava.main({ env: h.env, ...h.io, fetchImpl: h.refused, outDir, profileJson }), 1);
-    assert.match(h.err.pop(), /no ingest token/);
+    assert.match(/** @type {string} */ (h.err.pop()), /no ingest token/);
     const env = { ...h.env, INGEST_TOKEN: 't' };
     assert.equal(await strava.main({ env, ...h.io, fetchImpl: h.refused, outDir, profileJson }), 1);
-    assert.match(h.err.pop(), /ECONNREFUSED/);
+    assert.match(/** @type {string} */ (h.err.pop()), /ECONNREFUSED/);
     assert.equal(await strava.main({ env, ...h.io, fetchImpl: h.answer(404, {}), outDir, profileJson }), 1);
-    assert.match(h.err.pop(), /rebuild\/restart the loop-ingest container/);
+    assert.match(/** @type {string} */ (h.err.pop()), /rebuild\/restart the loop-ingest container/);
     assert.ok(!fs.existsSync(outDir));
   } finally { h.cleanup(); }
 });
@@ -723,9 +732,9 @@ test('main() in-process: missing token / unreachable / 404 -> returns 1, nothing
 
 test('main() in-process: HC_DATA_DIR redirects the extract and the profile read; SYNC_STRAVA_OUT_DIR / SYNC_STRAVA_PROFILE win over it', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'sync-strava-root-'));
-  const fetchImpl = async () => ({ ok: true, status: 200, headers: new Headers(), json: async () => [ZRUN] });
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: true, status: 200, headers: new Headers(), json: async () => [ZRUN] })));
   const io = { log: () => {}, error: () => {} };
-  const env = (extra) => ({ INGEST_URL: 'http://127.0.0.1:9', INGEST_TOKEN: 't', INGEST_ENV_FILE: path.join(root, 'no.env'), ...extra });
+  const env = (/** @type {NodeJS.ProcessEnv} */ extra) => ({ INGEST_URL: 'http://127.0.0.1:9', INGEST_TOKEN: 't', INGEST_ENV_FILE: path.join(root, 'no.env'), ...extra });
   try {
     const paths = dataPaths({ repoRoot: '/repo', env: { HC_DATA_DIR: root } });
     fs.mkdirSync(path.dirname(paths.documents.profile), { recursive: true });

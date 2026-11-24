@@ -10,16 +10,20 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { StubDocument, StubElement } from './dom-stub.mjs';
 
+/** StubElement defines innerHTML with Object.defineProperty in its constructor (so a test can redefine it),
+ * which its class type does not declare; `_forced` is the flag the override below sets.
+ * @typedef {StubElement & {innerHTML: string, _forced?: boolean}} StubEl */
+
 test('createElement + textContent then reading innerHTML escapes &, < and > (matches real DOM esc() idiom)', () => {
   const doc = new StubDocument();
-  const el = doc.createElement('div');
+  const el = /** @type {StubEl} */ (doc.createElement('div'));
   el.textContent = '<script>alert("x")</script> & stuff';
   assert.equal(el.innerHTML, '&lt;script&gt;alert("x")&lt;/script&gt; &amp; stuff');
 });
 
 test('createElement + textContent does NOT escape quotes (real textContent->innerHTML never touches quotes)', () => {
   const doc = new StubDocument();
-  const el = doc.createElement('div');
+  const el = /** @type {StubEl} */ (doc.createElement('div'));
   el.textContent = 'a "quoted" value';
   assert.equal(el.innerHTML, 'a "quoted" value');
 });
@@ -35,20 +39,20 @@ test('registerCustom makes a caller-supplied node findable via getElementById an
 
 test('textContent getter returns the raw (unescaped) value that was set', () => {
   const doc = new StubDocument();
-  const el = doc.createElement('div');
+  const el = /** @type {StubEl} */ (doc.createElement('div'));
   el.textContent = '<b>raw</b>';
   assert.equal(el.textContent, '<b>raw</b>');
 });
 
 test('setting innerHTML directly stores it verbatim (no escaping) and does not touch textContent', () => {
-  const el = new StubElement('div');
+  const el = /** @type {StubEl} */ (new StubElement('div'));
   el.innerHTML = '<b>trusted</b>';
   assert.equal(el.innerHTML, '<b>trusted</b>');
   assert.equal(el.textContent, '', 'innerHTML setter must not retroactively populate textContent');
 });
 
 test('innerHTML remains configurable — Object.defineProperty can still override it per-element (parity.test.mjs pattern for <select>)', () => {
-  const el = new StubElement('select');
+  const el = /** @type {StubEl} */ (new StubElement('select'));
   assert.doesNotThrow(() => {
     Object.defineProperty(el, 'innerHTML', { set(v) { this._forced = v === ''; }, get() { return 'stub'; } });
   });

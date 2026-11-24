@@ -13,16 +13,18 @@ import os from 'node:os';
 import { spawnSync } from 'node:child_process';
 
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
-const read = (...p) => fs.readFileSync(path.join(ROOT, ...p), 'utf8');
+const read = (/** @type {string[]} */ ...p) => fs.readFileSync(path.join(ROOT, ...p), 'utf8');
 const LOOP_WEB = path.join('services', 'loop-web');
 const nginx = read(LOOP_WEB, 'nginx.conf.template');
+/** @typedef {{ spec: string, body: string }} Location an nginx `location` block */
 const planCompose = read(LOOP_WEB, 'docker-compose.yml');
 const pathUnit = read(LOOP_WEB, 'systemd', 'loop-web-refresh.path');
 const serviceUnit = read(LOOP_WEB, 'systemd', 'loop-web-refresh.service');
 const ingestCompose = read('services', 'loop-ingest', 'docker-compose.yml');
 
 /** `location <spec> { body }` blocks (bodies may hold one nested level, e.g. limit_except; a quoted
- * regex spec may hold braces). */
+ * regex spec may hold braces).
+ * @param {string} conf @returns {Location[]} */
 function locations(conf) {
   return [...conf.matchAll(/location\s+((?:"[^"]*"|[^{"])+?)\s*\{((?:[^{}]|\{[^{}]*\})*)\}/g)].map((m) => ({ spec: m[1].trim(), body: m[2] }));
 }
@@ -30,11 +32,11 @@ function locations(conf) {
 test('nginx proxies ONLY /api/sync, /api/sync/status, /ingest/health-auto-export (exact) and the /api/food/ + /api/journal/ prefixes, to the loop-ingest service over loop-net', () => {
   const proxied = locations(nginx).filter((l) => /proxy_pass\s/.test(l.body));
   assert.deepEqual(proxied.map((l) => l.spec).sort(), ['/api/food/', '/api/journal/', '= /api/sync', '= /api/sync/status', '= /ingest/health-auto-export']);
-  const target = (spec) => /proxy_pass\s+([^;]+);/.exec(proxied.find((l) => l.spec === spec).body)[1];
+  const target = (/** @type {string} */ spec) => /** @type {RegExpExecArray} */ (/proxy_pass\s+([^;]+);/.exec(/** @type {Location} */ (proxied.find((l) => l.spec === spec)).body))[1];
   assert.equal(target('= /api/sync'), 'http://loop-ingest/sync');
   assert.equal(target('= /api/sync/status'), 'http://loop-ingest/sync/status');
-  assert.match(proxied.find((l) => l.spec === '= /api/sync').body, /limit_except POST/);
-  assert.match(proxied.find((l) => l.spec === '= /api/sync/status').body, /limit_except GET/);
+  assert.match(/** @type {Location} */ (proxied.find((l) => l.spec === '= /api/sync')).body, /limit_except POST/);
+  assert.match(/** @type {Location} */ (proxied.find((l) => l.spec === '= /api/sync/status')).body, /limit_except GET/);
   assert.equal((nginx.match(/proxy_pass\s/g) || []).length, 5, 'no other proxy_pass anywhere');
 });
 
@@ -66,7 +68,7 @@ test('nginx /api/journal/: ingest /journal/ only, GET/PUT, 16 KB cap, the X-HC-J
 test('nginx /api/food/ + /api/journal/ forward the Host the browser asked for as X-Forwarded-Host (ingest binds the write Origin to it)', () => {
   for (const spec of ['/api/food/', '/api/journal/']) {
     const l = locations(nginx).find((x) => x.spec === spec);
-    assert.match(l.body, /proxy_set_header X-Forwarded-Host \$http_host;/, spec);
+    assert.match(/** @type {Location} */ (l).body, /proxy_set_header X-Forwarded-Host \$http_host;/, spec);
   }
 });
 
@@ -96,7 +98,7 @@ test('nginx = /ingest/health-auto-export: exact, POST only, the body passed with
   const def = /DEFAULT_MAX_BODY_BYTES = ([\d\s*]+)$/m.exec(server);
   assert.ok(def, 'the ingest default MAX_BODY_BYTES is readable');
   const ingestMax = def[1].split('*').reduce((a, n) => a * Number(n.trim()), 1);
-  const capMb = Number(/client_max_body_size (\d+)m;/.exec(ingest.body)[1]);
+  const capMb = Number(/** @type {RegExpExecArray} */ (/client_max_body_size (\d+)m;/.exec(ingest.body))[1]);
   assert.ok(capMb * 1024 * 1024 <= ingestMax, 'the nginx cap never exceeds the ingest default');
   assert.match(ingest.body, /proxy_set_header Authorization \$http_authorization;/);
   assert.match(ingest.body, /proxy_set_header Automation-Name \$http_automation_name;/);
@@ -109,9 +111,9 @@ test('nginx = /ingest/health-auto-export: exact, POST only, the body passed with
 });
 
 test('nginx = /ingest/health-auto-export: a request without a Bearer token is refused (401) before the body is read', () => {
-  const ingest = locations(nginx).find((l) => l.spec === '= /ingest/health-auto-export');
+  const ingest = /** @type {Location} */ (locations(nginx).find((l) => l.spec === '= /ingest/health-auto-export'));
   assert.match(ingest.body, /if \(\$http_authorization !~\* "\^Bearer\\s\+\\S\+"\) \{ return 401; \}/);
-  const re = new RegExp(/!~\* "([^"]+)"/.exec(ingest.body)[1], 'i');
+  const re = new RegExp(/** @type {RegExpExecArray} */ (/!~\* "([^"]+)"/.exec(ingest.body))[1], 'i');
   for (const ok of ['Bearer abc123', 'bearer  x']) assert.ok(re.test(ok), ok);
   for (const bad of ['', 'Bearer', 'Bearer ', 'Basic abc', 'abc']) assert.ok(!re.test(bad), bad);
 });
@@ -150,7 +152,7 @@ test('loop-web compose: nginx template mount, no host-gateway alias and no inges
 // stack's named network by service name, never through the host-published port (host.docker.internal is the
 // Docker bridge gateway, which a 127.0.0.1 / LAN-IP publish does not cover).
 test('loop-net: the ingest stack names its network, loop-web joins it as external, both with the same HC_INSTANCE-suffixed name', () => {
-  const net = (compose) => /^networks:\n {2}default:\n(?:\s+#.*\n)*((?:\s{4}\S.*\n?)+)/m.exec(compose)?.[1] ?? '';
+  const net = (/** @type {string} */ compose) => /^networks:\n {2}default:\n(?:\s+#.*\n)*((?:\s{4}\S.*\n?)+)/m.exec(compose)?.[1] ?? '';
   const NAME = /^\s+name: loop-net\$\{HC_INSTANCE:\+-\$\{HC_INSTANCE\}\}$/m;
   assert.match(net(ingestCompose), NAME, 'loop-ingest names its default network');
   assert.doesNotMatch(net(ingestCompose), /external/, 'loop-ingest creates it');
@@ -170,13 +172,13 @@ test('nginx: no host.docker.internal / host port left; one upstream loop-ingest:
 });
 
 test('loop-net rendered by docker compose: plain name by default, the instance suffix for a second install', { skip: spawnSync('docker', ['compose', 'version']).status === 0 ? false : 'docker compose not installed' }, () => {
-  const render = (dir, env) => {
+  const render = (/** @type {string} */ dir, /** @type {Record<string, string>} */ env) => {
     const r = spawnSync('docker', ['compose', '-f', path.join(ROOT, dir, 'docker-compose.yml'), '--project-directory', fs.mkdtempSync(path.join(os.tmpdir(), 'hc-compose-')), 'config', '--format', 'json'],
       { env: { PATH: process.env.PATH, HOME: os.tmpdir(), POSTGRES_USER: 'u', POSTGRES_PASSWORD: 'p', POSTGRES_DB: 'd', INGEST_TOKEN: 't', INGEST_PORT: '8088', ...env }, encoding: 'utf8' });
     assert.equal(r.status, 0, r.stderr);
     return JSON.parse(r.stdout).networks.default;
   };
-  for (const [env, name] of [[{}, 'loop-net'], [{ HC_INSTANCE: 'second' }, 'loop-net-second']]) {
+  for (const [env, name] of /** @type {Array<[Record<string, string>, string]>} */ ([[{}, 'loop-net'], [{ HC_INSTANCE: 'second' }, 'loop-net-second']])) {
     const ingest = render(path.join('services', 'loop-ingest'), env);
     const web = render(LOOP_WEB, env);
     assert.equal(ingest.name, name);
@@ -210,7 +212,7 @@ test('systemd service: oneshot running refresh.sh from the repo as the repo OWNE
   assert.match(serviceUnit, /^WorkingDirectory=\/path\/to\/loop$/m);
   assert.match(serviceUnit, /^ExecStart=\/path\/to\/loop\/services\/loop-web\/refresh\.sh$/m);
   assert.match(serviceUnit, /^Environment=PLAN_WEB_WAIT_LOCK=1$/m);
-  const timeout = Number(/^TimeoutStartSec=(\d+)$/m.exec(serviceUnit)[1]);
+  const timeout = Number(/** @type {RegExpExecArray} */ (/^TimeoutStartSec=(\d+)$/m.exec(serviceUnit))[1]);
   assert.ok(timeout >= 900 + 3 * (300 + 900 + 300), 'covers the lock wait + 3 passes of sync/npm ci/generate');
 });
 
@@ -243,7 +245,7 @@ test('every error code refresh.sh can write has a human reason in the page copy 
   const codes = [...read(LOOP_WEB, 'refresh.sh').matchAll(/^\s*fail ([a-z_]+) /gm)].map((m) => m[1]);
   assert.deepEqual([...new Set(codes)].sort(), ['branch', 'build', 'install', 'lock', 'sanity']);
   for (const code of [...codes, 'trigger_write']) {
-    assert.ok(es.errors[code] && en.errors[code], code);
+    assert.ok(/** @type {Record<string, string>} */ (es.errors)[code] && /** @type {Record<string, string>} */ (en.errors)[code], code);
   }
 });
 
@@ -263,7 +265,7 @@ function hostMap() {
   const regexes = [...m[1].matchAll(/"~([^"]+)"\s+1;/g)].map((x) => new RegExp(x[1]));
   return { body: m[1], regexes };
 }
-const allowedByMap = (host) => {
+const allowedByMap = (/** @type {string} */ host) => {
   const { body, regexes } = hostMap();
   const literal = [...body.matchAll(/^\s*([a-z0-9.-]+)\s+1;/gm)].map((x) => x[1]);
   return literal.includes(host) || regexes.some((r) => r.test(host));
@@ -293,6 +295,7 @@ test('loop-web compose: PLAN_WEB_EXTRA_HOSTS (empty by default) and the entrypoi
   assert.ok(fs.statSync(hostsScript).mode & 0o111, 'executable (the nginx entrypoint skips non-executable scripts)');
 });
 
+/** @param {string} [value] */
 function renderHosts(value) {
   const out = path.join(fs.mkdtempSync(path.join(os.tmpdir(), 'hc-hosts-')), 'hosts.map');
   const r = spawnSync('sh', [hostsScript], { env: { PATH: process.env.PATH, HC_HOSTS_MAP: out, ...(value === undefined ? {} : { PLAN_WEB_EXTRA_HOSTS: value }) }, encoding: 'utf8' });
@@ -369,7 +372,7 @@ test('nginx /manuales/ sits behind the server-level Host and raw-path guards (bo
   const first = server.indexOf('location ');
   assert.ok(server.indexOf('if ($hc_host_ok = 0) { return 421; }') < first);
   assert.ok(server.indexOf('if ($request_uri ~*') < first);
-  const re = new RegExp(/if \(\$request_uri ~\* "([^"]+)"\)/.exec(server)[1], 'i');
+  const re = new RegExp(/** @type {RegExpExecArray} */ (/if \(\$request_uri ~\* "([^"]+)"\)/.exec(server))[1], 'i');
   for (const bad of ['/manuales/../status.json', '/manuales/%2e%2e/index.html', '/manuales//x.pdf', '/manuales/a%2fb.pdf']) assert.ok(re.test(bad), bad);
 });
 
@@ -423,12 +426,14 @@ test('nginx limit_req: every proxied /api/* and /ingest/* location is rate-limit
 });
 
 // ---- Container hardening (both compose files) ----------------------------------------------------
-/** The block of one service in a compose file (its indented lines up to the next service or top-level key). */
+/** The block of one service in a compose file (its indented lines up to the next service or top-level key).
+ * @param {string} compose @param {string} name */
 function serviceBlock(compose, name) {
   const m = new RegExp(`^  ${name}:\\n((?: {4,}.*\\n|\\s*\\n)+)`, 'm').exec(compose);
   assert.ok(m, `service ${name}`);
   return m[1];
 }
+/** @type {Array<[string, string, string[], string[]]>} */
 const HARDENING = [
   ['loop-web', planCompose, ['/etc/nginx/conf.d', '/var/cache/nginx', '/run', '/tmp'], ['CHOWN', 'SETGID', 'SETUID']],
   ['loop-db', ingestCompose, ['/var/run/postgresql', '/tmp'], ['CHOWN', 'DAC_READ_SEARCH', 'SETGID', 'SETUID']],
@@ -474,9 +479,9 @@ test('compose ports: an optional bind address (INGEST_BIND / PLAN_WEB_BIND); uns
 });
 
 test('compose ports: rendered by docker compose, unset = the plain port, a bind address = that address only, no INGEST_PORT = an error', { skip: spawnSync('docker', ['compose', 'version']).status === 0 ? false : 'docker compose not installed' }, () => {
-  const render = (dir, env) => spawnSync('docker', ['compose', '-f', path.join(ROOT, dir, 'docker-compose.yml'), '--project-directory', fs.mkdtempSync(path.join(os.tmpdir(), 'hc-compose-')), 'config', '--format', 'json'],
+  const render = (/** @type {string} */ dir, /** @type {Record<string, string>} */ env) => spawnSync('docker', ['compose', '-f', path.join(ROOT, dir, 'docker-compose.yml'), '--project-directory', fs.mkdtempSync(path.join(os.tmpdir(), 'hc-compose-')), 'config', '--format', 'json'],
     { env: { PATH: process.env.PATH, HOME: os.tmpdir(), POSTGRES_USER: 'u', POSTGRES_PASSWORD: 'p', POSTGRES_DB: 'd', INGEST_TOKEN: 't', ...env }, encoding: 'utf8' });
-  const port = (dir, service, env) => {
+  const port = (/** @type {string} */ dir, /** @type {string} */ service, /** @type {Record<string, string>} */ env) => {
     const r = render(dir, env);
     assert.equal(r.status, 0, r.stderr);
     const p = JSON.parse(r.stdout).services[service].ports[0];
@@ -513,7 +518,7 @@ test('systemd service: clock, hostname, devices, address families and capabiliti
 test('loop-ingest accepts at least what loop-web forwards on /ingest/health-auto-export, and its default is 8 MB', () => {
   const server = read('services', 'loop-ingest', 'src', 'server.js');
   assert.match(server, /DEFAULT_MAX_BODY_BYTES = 8 \* 1024 \* 1024/);
-  const ingest = locations(nginx).find((l) => l.spec === '= /ingest/health-auto-export');
+  const ingest = /** @type {Location} */ (locations(nginx).find((l) => l.spec === '= /ingest/health-auto-export'));
   assert.match(ingest.body, /client_max_body_size 8m;/);
   assert.match(serviceBlock(ingestCompose, 'loop-ingest'), /MAX_BODY_BYTES \(8 MB\)/);
 });

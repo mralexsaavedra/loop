@@ -15,40 +15,56 @@ import { clientScriptSource } from '../client-bundle.mjs';
 const source = clientScriptSource('adherence.ts');
 const TODAY = '2030-01-28';
 const flush = async () => { for (let i = 0; i < 10; i++) await new Promise((r) => setImmediate(r)); };
+/** @param {unknown} html */
 const text = (html) => String(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 const G3 = { breakfast: 1, lunch: 1, dinner: 1, addon: 0 };
+/** @param {string} date @param {number | null} k @param {number | null} p @param {Record<string, number>} [groups] @param {boolean} [minP] */
 const day = (date, k, p, groups = G3, minP = false) => ({ date, k, p, c: 100, f: 50, n: 3, missing: { p: minP, c: false, f: false }, groups });
 
+/** @param {string} iso */
 function fixedDate(iso) {
   const RealDate = Date;
   return class extends RealDate {
-    constructor(...a) { if (a.length) super(...a); else super(iso + 'T12:00:00'); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { if (a.length) super(.../** @type {ConstructorParameters<DateConstructor>} */ (a)); else super(iso + 'T12:00:00'); }
     static now() { return new RealDate(iso + 'T12:00:00').getTime(); }
   };
 }
+/** @typedef {import('../../test/dom-stub.mjs').StubElement} StubElement */
+/** @typedef {StubElement & {innerHTML: string, checked?: boolean}} Host a stub element the script renders into */
+/** @typedef {{fn: (() => void) | null, ms: number}} Timer */
+/** @param {{days?: unknown[] | (() => unknown[]), fail?: boolean, locale?: string, targetFor?: (d: string) => unknown, food?: boolean}} [opts] */
 function setup({ days = [], fail = false, locale = 'en', targetFor, food = true } = {}) {
-  const doc = new StubDocument();
+  const doc = /** @type {StubDocument & {addEventListener?: (t: string, fn: (e: unknown) => void) => void, hidden?: boolean}} */ (new StubDocument());
+  /** @type {Record<string, ((e: unknown) => void)[]>} */
   const docListeners = {};
   doc.addEventListener = (t, fn) => { (docListeners[t] = docListeners[t] || []).push(fn); };
   doc.hidden = false;
   // a controllable clock for the debounced reload: tick() runs what is due
+  /** @type {Timer[]} */
   const timers = [];
+  /** @param {() => void} fn @param {number} ms */
   const setTimeout = (fn, ms) => { timers.push({ fn, ms }); return timers.length; };
-  const clearTimeout = (id) => { if (timers[id - 1]) timers[id - 1].fn = null; };
+  const clearTimeout = (/** @type {number} */ id) => { if (timers[id - 1]) timers[id - 1].fn = null; };
   const tick = () => { const due = timers.splice(0); due.forEach((x) => x.fn && x.fn()); return due.filter((x) => x.fn).map((x) => x.ms); };
-  const els = { block: doc.el('food-adherence-block', { hidden: true }), host: doc.el('food-adherence'), win: doc.el('adh-window') };
-  const radios = ADHERENCE.windows.map((w) => doc.el(null, { tag: 'input', attrs: { name: 'adh-win', value: String(w) } }));
+  /** @type {Record<string, Host>} */
+  const els = { block: /** @type {Host} */ (doc.el('food-adherence-block', { hidden: true })), host: /** @type {Host} */ (doc.el('food-adherence')), win: /** @type {Host} */ (doc.el('adh-window')) };
+  const radios = ADHERENCE.windows.map((w) => /** @type {Host} */ (doc.el(null, { tag: 'input', attrs: { name: 'adh-win', value: String(w) } })));
+  /** @type {string[]} */
   const calls = [];
+  /** @type {string[]} */
   const shown = [];
+  /** @type {import('node:vm').Context} the script's window (a vm global: untyped by nature) */
   const window = {
-    HCNutri: { state: () => ({ goal: 'cut' }), targetFor: targetFor || ((d) => (d === '2030-01-20' ? null : { k: 2500, p: 150 })) },
+    HCNutri: { state: () => ({ goal: 'cut' }), targetFor: targetFor || ((/** @type {string} */ d) => (d === '2030-01-20' ? null : { k: 2500, p: 150 })) },
   };
   if (food) {
     window.HCFood = {
-      api: (method, p) => { calls.push(method + ' ' + p); return fail ? Promise.reject({ code: 'offline' }) : Promise.resolve({ from: 'x', to: 'y', days: typeof days === 'function' ? days() : days }); },
-      showDay: (d) => { shown.push(d); return true; },
+      api: (/** @type {string} */ method, /** @type {string} */ p) => { calls.push(method + ' ' + p); return fail ? Promise.reject({ code: 'offline' }) : Promise.resolve({ from: 'x', to: 'y', days: typeof days === 'function' ? days() : days }); },
+      showDay: (/** @type {string} */ d) => { shown.push(d); return true; },
     };
   }
+  /** @type {import('node:vm').Context} */
   const ctx = {
     document: doc, window, LOCALE: locale, NUTRI: { goal: 'maintain', adherence: ADHERENCE }, I18N_NUTRI: locale === 'es' ? esN : enN,
     Date: fixedDate(TODAY), Math, JSON, Number, String, Object, Array, Promise, isFinite, setTimeout, clearTimeout,
@@ -56,11 +72,13 @@ function setup({ days = [], fail = false, locale = 'en', targetFor, food = true 
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
+  /** @param {StubElement} el @param {string} evt @param {unknown} target */
   const fire = (el, evt, target) => (el._listeners[evt] || []).forEach((fn) => fn({ target }));
   const visible = () => (docListeners.visibilitychange || []).forEach((fn) => fn({}));
   return { els, radios, calls, shown, window, fire, tick, visible, A: window.HCAdherence, ctx };
 }
-const cellTarget = (date) => ({ closest: (sel) => (sel === '[data-adh-day]' ? { getAttribute: () => date } : null) });
+/** @param {string} date */
+const cellTarget = (date) => ({ closest: (/** @type {string} */ sel) => (sel === '[data-adh-day]' ? { getAttribute: () => date } : null) });
 
 test('parity: the page (HC_ADH via window.HCAdherence) computes exactly what lib/nutrition/adherence.mjs computes', () => {
   const { A } = setup({ food: false });
@@ -170,7 +188,7 @@ test('es: Spanish copy and thousands with a dot', async () => {
 test('an ASSUMED rest day (sleep only, no session) is labelled in the strip and left out of the means, counted apart', async () => {
   const t = setup({
     days: [day('2030-01-27', 1500, 80), day('2030-01-28', 2500, 150)],
-    targetFor: (d) => (d === '2030-01-27' ? { k: 2500, p: 150, inferred: true } : { k: 2500, p: 150 }),
+    targetFor: (/** @type {string} */ d) => (d === '2030-01-27' ? { k: 2500, p: 150, inferred: true } : { k: 2500, p: 150 }),
   });
   await flush();
   const h = text(t.els.host.innerHTML);

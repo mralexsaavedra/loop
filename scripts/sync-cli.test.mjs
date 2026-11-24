@@ -12,7 +12,7 @@ import { SCRIPTS } from './sync-all.mjs';
 const ROOT = path.dirname(path.dirname(fileURLToPath(import.meta.url)));
 const ALL = [...SCRIPTS, path.join(ROOT, 'scripts', 'sync-all.mjs')];
 const ENV = { PATH: process.env.PATH, INGEST_URL: 'http://127.0.0.1:9', INGEST_ENV_FILE: path.join(ROOT, 'no-such.env') };
-const run = (script, args) => spawnSync(process.execPath, [script, ...args], { encoding: 'utf8', env: ENV, timeout: 20000 });
+const run = (/** @type {string} */ script, /** @type {string[]} */ args) => spawnSync(process.execPath, [script, ...args], { encoding: 'utf8', env: ENV, timeout: 20000 });
 
 for (const script of ALL) {
   const name = path.relative(ROOT, script);

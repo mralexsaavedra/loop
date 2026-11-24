@@ -12,32 +12,51 @@ import { clientScriptSource } from '../client-bundle.mjs';
 // a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
 const source = clientScriptSource('intake.ts');
 
+/** A stub element as the page script sees it: StubElement defines innerHTML / textContent in its constructor.
+ * @typedef {import('../../test/dom-stub.mjs').StubElement & { innerHTML: string, textContent: string }} El */
+/** The vm window the script reads and writes: a bag of page globals (untyped boundary).
+ * @typedef {Record<string, any>} Win */
+/** A day's macros (Apple Health or the food log), or a target; fields a test leaves out are absent.
+ * @typedef {{ date?: string, k: number, p: number | null, c: number | null, g: number | null, [key: string]: unknown }} Day */
+/** The food API stub (window.HCFood).
+ * @typedef {{ ready: () => boolean, pending?: () => boolean, groupTotals?: () => unknown, recentDay: (n: number) => unknown }} FoodStub */
+/** @typedef {{ fn: () => void, ms: number }} Timer */
+/** run() options.
+ * @typedef {{ latest: Day | null, today: string, locale?: string, nutriTarget?: (() => unknown) | null,
+ *   targetFor?: ((d: string) => unknown) | false, foodTotals?: (() => unknown) | null, hcFood?: FoodStub | null,
+ *   nutriRefresh?: ((w: Win) => void) | null }} RunOpts */
+
 const TARGET = { train: { k: 2400, p: 170, c: 260, g: 70 }, rest: { k: 2000, p: 160, c: 180, g: 70 } };
 
+/** @param {string} iso */
 function fixedDate(iso) {
   const RealDate = Date;
   return class extends RealDate {
-    constructor(...a) { if (a.length) super(...a); else super(iso + 'T12:00:00'); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { if (a.length) super(.../** @type {ConstructorParameters<DateConstructor>} */ (a)); else super(iso + 'T12:00:00'); }
     static now() { return new RealDate(iso + 'T12:00:00').getTime(); }
   };
 }
 
 // nutriTarget = today's target (client/nutri-day.ts); with it the page also has HCNutri.targetFor
 // (that date's target), here by default the same target unless the test passes its own.
+/** @param {RunOpts} opts @returns {{ host: El, window: Win, doc: StubDocument, timers: Timer[] }} */
 function run({ latest, today, locale = 'en', nutriTarget = null, targetFor, foodTotals = null, hcFood = null, nutriRefresh = null }) {
   const doc = new StubDocument();
-  const host = doc.el('intake');
+  const host = /** @type {El} */ (doc.el('intake'));
+  /** @type {Win} */
   const window = nutriTarget ? { nutriTarget } : {};
-  if (targetFor !== false && (nutriTarget || targetFor)) window.HCNutri = { targetFor: targetFor || (() => nutriTarget()) };
+  if (targetFor !== false && (nutriTarget || targetFor)) window.HCNutri = { targetFor: targetFor || (() => /** @type {() => unknown} */ (nutriTarget)()) };
   if (nutriRefresh) window.HCNutri = { ...(window.HCNutri || {}), refresh: () => nutriRefresh(window) };
   if (foodTotals) window.foodTotals = foodTotals;
   if (hcFood) window.HCFood = hcFood;
   // fake timers: the boot grace period is scheduled, never waited for
+  /** @type {Timer[]} */
   const timers = [];
   const ctx = {
     document: doc, window, INTAKE: { latest, target: TARGET, freshDays: INTAKE_FRESH_DAYS, bootGraceMs: INTAKE_BOOT_GRACE_MS }, I18N_INTAKE: locale === 'es' ? esIntake : enIntake, LOCALE: locale,
     Math, String, Number, JSON, Date: fixedDate(today),
-    setTimeout: (fn, ms) => { timers.push({ fn, ms }); return timers.length; },
+    setTimeout: (/** @type {() => void} */ fn, /** @type {number} */ ms) => { timers.push({ fn, ms }); return timers.length; },
   };
   vm.createContext(ctx);
   loadUtil(ctx);
@@ -100,7 +119,7 @@ test('no intake ever logged -> the block renders nothing (the user may not log f
 
 // the ring circumference the fill arc is measured against (r = 18 in a 44-unit viewBox)
 const C = 2 * Math.PI * 18;
-const ringOf = (html, key) => html.match(new RegExp('<figure class="ring ring-' + key + '[^"]*"[\\s\\S]*?</figure>'))[0];
+const ringOf = (/** @type {string} */ html, /** @type {string} */ key) => /** @type {RegExpMatchArray} */ (html.match(new RegExp('<figure class="ring ring-' + key + '[^"]*"[\\s\\S]*?</figure>')))[0];
 
 test('over target: the percentage keeps the real number, the arc is capped at a full circle, >110% is flagged', () => {
   const { host } = run({ latest: { date: '2030-01-09', k: 2800, p: 180, c: 100, g: 70 }, today: '2030-01-10' });
@@ -156,10 +175,11 @@ test('with Nutrición today (window.nutriTarget), the rings measure against that
 });
 
 test('a PAST logged day is measured against THAT day\'s target (HCNutri.targetFor(date)), never today\'s', () => {
+  /** @type {string[]} */
   const asked = [];
   let todayCalls = 0;
   const nutriTarget = () => { todayCalls += 1; return { k: 2500, p: 150, c: 340, g: 60, fuelK: 0, label: "Today's target · Rest · Maintain" }; };
-  const targetFor = (d) => { asked.push(d); return { k: 3070, p: 150, c: 437, g: 60, fuelK: 480, dayType: 'bike', label: "That day's meals · Ride ~2 h · Maintain" }; };
+  const targetFor = (/** @type {string} */ d) => { asked.push(d); return { k: 3070, p: 150, c: 437, g: 60, fuelK: 480, dayType: 'bike', label: "That day's meals · Ride ~2 h · Maintain" }; };
   const html = run({ latest: { date: '2030-01-09', k: 1535, p: 75, c: 200, g: 30 }, today: '2030-01-10', nutriTarget, targetFor }).host.innerHTML;
   assert.deepEqual(asked, ['2030-01-09']);
   assert.equal(todayCalls, 0, 'today\'s target is not read for a past day');
@@ -215,14 +235,17 @@ test('rings from the food log: a macro no entry states is a dash (never 0%); one
 
 /* LAN page (the food API answered: HCFood.ready()): the food log is the ONE intake source — a past day
  * comes from HCFood.recentDay(freshDays), never from the Apple Health CSV. */
-const lanFood = (day, calls = []) => ({ ready: () => true, pending: () => false, groupTotals: () => ({ meals: {}, addon: {} }), recentDay: (n) => { calls.push(n); return typeof day === 'function' ? day() : day; } });
+/** @param {unknown} day a day, or a function returning (or throwing) one @param {number[]} [calls] @returns {FoodStub} */
+const lanFood = (day, calls = []) => ({ ready: () => true, pending: () => false, groupTotals: () => ({ meals: {}, addon: {} }), recentDay: (/** @type {number} */ n) => { calls.push(n); return typeof day === 'function' ? day() : day; } });
 
 test('LAN page, today empty, yesterday logged: rings for yesterday from the food log, labelled by its date, against its own target', () => {
+  /** @type {number[]} */
   const calls = [];
+  /** @type {string[]} */
   const seen = [];
   const day = { date: '2030-01-09', k: 1200, p: 85, c: 130, g: 40, n: 3, missing: { protein: false, carbs: false, fat: false }, src: 'log' };
   const nutriTarget = () => ({ k: 3050, p: 150, c: 424, g: 60, label: 'today' });
-  const targetFor = (d) => { seen.push(d); return { k: 2400, p: 170, c: 260, g: 70, fuelK: 0, label: 'Meals that day' }; };
+  const targetFor = (/** @type {string} */ d) => { seen.push(d); return { k: 2400, p: 170, c: 260, g: 70, fuelK: 0, label: 'Meals that day' }; };
   const { host } = run({ latest: { date: '2030-01-10', k: 999, p: 1, c: 1, g: 1 }, today: '2030-01-10', nutriTarget, targetFor, foodTotals: () => null, hcFood: lanFood(day, calls) });
   assert.equal(host.hidden, false);
   const html = host.innerHTML;
@@ -247,6 +270,7 @@ test('LAN page, nothing logged in the window: no rings, even with a fresh Apple 
 });
 
 test('LAN page, today logged: today\'s food log wins (unchanged), recentDay is not asked', () => {
+  /** @type {number[]} */
   const calls = [];
   const food = () => ({ date: '2030-01-10', k: 1200, p: 85, c: 130, g: 40, n: 2, missing: { protein: false, carbs: false, fat: false }, src: 'log' });
   const nutriTarget = () => ({ k: 2400, p: 170, c: 260, g: 70, label: 'x' });
@@ -279,6 +303,7 @@ test('no food API (HCFood absent or not ready): the Apple Health day as before',
 const AH = { date: '2030-01-09', k: 1200, p: 170, c: 130, g: 35 };
 const LOG_DAY = { date: '2030-01-09', k: 777, p: 50, c: 90, g: 20, n: 2, missing: { protein: false, carbs: false, fat: false }, src: 'log' };
 // a mutable food API stub: boot 'pending' | 'ok' | 'fail'; log = today's log loaded
+/** @param {{ boot: string, log?: boolean }} state @returns {FoodStub} */
 function bootFood(state) {
   return {
     pending: () => state.boot === 'pending',
@@ -297,7 +322,7 @@ test('food API boot in flight: no rings at all (host hidden), one grace timer sc
 });
 
 test('food API answers (today\'s log loaded): the rings come from the food log, never the Apple Health day', () => {
-  const st = { boot: 'pending' };
+  const st = /** @type {{ boot: string, log?: boolean }} */ ({ boot: 'pending' });
   const { host, window } = run({ latest: AH, today: '2030-01-10', foodTotals: () => null, hcFood: bootFood(st) });
   st.boot = 'ok'; st.log = true;
   window.intakeRefresh();
@@ -307,7 +332,7 @@ test('food API answers (today\'s log loaded): the rings come from the food log, 
 });
 
 test('food API fails (unreachable): the Apple Health day as before', () => {
-  const st = { boot: 'pending' };
+  const st = /** @type {{ boot: string, log?: boolean }} */ ({ boot: 'pending' });
   const { host, window } = run({ latest: AH, today: '2030-01-10', foodTotals: () => null, hcFood: bootFood(st) });
   st.boot = 'fail';
   window.intakeRefresh();
@@ -316,7 +341,7 @@ test('food API fails (unreachable): the Apple Health day as before', () => {
 });
 
 test('no answer within the grace period: the Apple Health day; a late answer still switches to the food log', () => {
-  const st = { boot: 'pending' };
+  const st = /** @type {{ boot: string, log?: boolean }} */ ({ boot: 'pending' });
   const { host, window, timers } = run({ latest: AH, today: '2030-01-10', foodTotals: () => null, hcFood: bootFood(st) });
   assert.equal(host.hidden, true);
   timers[0].fn();
@@ -329,6 +354,7 @@ test('no answer within the grace period: the Apple Health day; a late answer sti
 });
 
 test('LAN page, products answered but today\'s log read failed (or not back yet): no rings, never the Apple Health day', () => {
+  /** @type {number[]} */
   const asked = [];
   const food = { ...bootFood({ boot: 'ok', log: false }), recentDay: () => { asked.push(1); return LOG_DAY; } };
   const { host } = run({ latest: AH, today: '2030-01-10', foodTotals: () => null, hcFood: food });
@@ -338,10 +364,11 @@ test('LAN page, products answered but today\'s log read failed (or not back yet)
 });
 
 test('one shared boot wait: window.intakeWaiting() follows the rings; at load and when the grace ends Resumen de hoy re-renders too', () => {
-  const st = { boot: 'pending' };
+  const st = /** @type {{ boot: string, log?: boolean }} */ ({ boot: 'pending' });
+  /** @type {boolean[]} */
   const refreshed = [];
   // HCNutri.refresh re-renders Resumen de hoy, which re-renders the rings itself (refreshDependents)
-  const nutriRefresh = (w) => { refreshed.push(w.intakeWaiting()); w.intakeRefresh(); };
+  const nutriRefresh = (/** @type {Win} */ w) => { refreshed.push(w.intakeWaiting()); w.intakeRefresh(); };
   const { host, window, timers } = run({ latest: AH, today: '2030-01-10', foodTotals: () => null, hcFood: bootFood(st), nutriTarget: () => TARGET.train, nutriRefresh });
   assert.deepEqual(refreshed, [true], 'at load, so the dial drops the Apple Health day before the first paint');
   assert.equal(host.hidden, true);

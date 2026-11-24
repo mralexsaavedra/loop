@@ -23,7 +23,10 @@ import { es as esDetail, en as enDetail } from '../src/i18n/detail-templates.mjs
 import { DETAIL_KEYS } from '../../lib/detail/detail.mjs';
 import { ADVICE_COPY } from '../../lib/score/advice-copy.mjs';
 
+/** Every leaf path of a nested dictionary, sorted.
+ * @param {object} obj @param {string} [prefix] @returns {string[]} */
 function keyTree(obj, prefix = '') {
+  /** @type {string[]} */
   const keys = [];
   for (const [k, v] of Object.entries(obj)) {
     const path = prefix ? `${prefix}.${k}` : k;
@@ -36,7 +39,10 @@ function keyTree(obj, prefix = '') {
   return keys.sort();
 }
 
+/** Every [path, value] leaf of a nested dictionary.
+ * @param {object} obj @param {string} [prefix] @returns {[string, unknown][]} */
 function leaves(obj, prefix = '') {
+  /** @type {[string, unknown][]} */
   const out = [];
   for (const [k, v] of Object.entries(obj)) {
     const path = prefix ? `${prefix}.${k}` : k;
@@ -55,13 +61,13 @@ test('es and en `strings` dictionaries have identical key trees', () => {
 
 test('no day-builder copy is left: no strings.registro, no verdict dictionary', () => {
   for (const dict of [es, en]) {
-    assert.equal(dict.strings.registro, undefined);
-    assert.equal(dict.verdict, undefined);
+    assert.equal(/** @type {Record<string, unknown>} */ (dict.strings).registro, undefined);
+    assert.equal(/** @type {Record<string, unknown>} */ (dict).verdict, undefined);
   }
 });
 
 test('no empty string leaves in either strings dictionary', () => {
-  for (const [locale, dict] of [['es', es], ['en', en]]) {
+  for (const [locale, dict] of /** @type {[string, typeof es][]} */ ([['es', es], ['en', en]])) {
     for (const [path, value] of leaves(dict.strings)) {
       if (typeof value === 'string') assert.notEqual(value.trim(), '', `${locale}.strings.${path} must not be empty`);
     }
@@ -70,7 +76,7 @@ test('no empty string leaves in either strings dictionary', () => {
 
 test('hoy-templates.mjs (Hoy tab client format strings) has identical keys in es/en, all non-empty', () => {
   assert.deepEqual(Object.keys(esHoy).sort(), Object.keys(enHoy).sort());
-  for (const [locale, tpl] of [['es', esHoy], ['en', enHoy]]) {
+  for (const [locale, tpl] of /** @type {[string, typeof esHoy][]} */ ([['es', esHoy], ['en', enHoy]])) {
     for (const [key, str] of Object.entries(tpl)) {
       assert.equal(typeof str, 'string');
       assert.notEqual(str.trim(), '', `${locale} hoy-templates.${key} must not be empty`);
@@ -86,11 +92,11 @@ test('hoy-templates.mjs goalLineRe is a valid, locale-specific regex source (com
 
 test('dash-templates.mjs (Entrenos tab client format strings) has identical keys in es/en, all non-empty (nested modalityLabels checked separately)', () => {
   assert.deepEqual(Object.keys(esDash).sort(), Object.keys(enDash).sort());
-  for (const [locale, tpl] of [['es', esDash], ['en', enDash]]) {
+  for (const [locale, tpl] of /** @type {[string, typeof esDash][]} */ ([['es', esDash], ['en', enDash]])) {
     for (const [key, val] of Object.entries(tpl)) {
       if (key === 'modalityLabels') continue;
       assert.equal(typeof val, 'string');
-      assert.notEqual(val.trim(), '', `${locale} dash-templates.${key} must not be empty`);
+      assert.notEqual(/** @type {string} */ (val).trim(), '', `${locale} dash-templates.${key} must not be empty`);
     }
   }
 });
@@ -98,7 +104,7 @@ test('dash-templates.mjs (Entrenos tab client format strings) has identical keys
 test('dash-templates.mjs modalityLabels covers the same modality keys (strength/hybrid/run/bike/other) in es/en, all non-empty', () => {
   assert.deepEqual(Object.keys(esDash.modalityLabels).sort(), ['bike', 'hybrid', 'other', 'run', 'strength']);
   assert.deepEqual(Object.keys(esDash.modalityLabels).sort(), Object.keys(enDash.modalityLabels).sort());
-  for (const [locale, labels] of [['es', esDash.modalityLabels], ['en', enDash.modalityLabels]]) {
+  for (const [locale, labels] of /** @type {[string, typeof esDash.modalityLabels][]} */ ([['es', esDash.modalityLabels], ['en', enDash.modalityLabels]])) {
     for (const [key, str] of Object.entries(labels)) assert.notEqual(str.trim(), '', `${locale} dash-templates.modalityLabels.${key} must not be empty`);
   }
 });
@@ -112,7 +118,7 @@ test('dash-templates.mjs asOfLine credits both Apple Health and Strava as data s
 
 test('health-templates.mjs (Salud tab client format strings) has identical key trees in es/en, all string leaves non-empty (deltaUnit legitimately empty for unit-less deltas, matches legacy delta(d,\'\',goodDir) call sites)', () => {
   assert.deepEqual(keyTree(esHealth), keyTree(enHealth));
-  for (const [locale, dict] of [['es', esHealth], ['en', enHealth]]) {
+  for (const [locale, dict] of /** @type {[string, typeof esHealth][]} */ ([['es', esHealth], ['en', enHealth]])) {
     for (const [path, value] of leaves(dict)) {
       if (path.endsWith('.deltaUnit')) continue;
       if (typeof value === 'string') assert.notEqual(value.trim(), '', `${locale} health-templates.${path} must not be empty`);
@@ -121,7 +127,7 @@ test('health-templates.mjs (Salud tab client format strings) has identical key t
 });
 
 test('health-templates.mjs note/card sub-dictionaries have the placeholders health.ts relies on', () => {
-  for (const [locale, dict] of [['es', esHealth], ['en', enHealth]]) {
+  for (const [locale, dict] of /** @type {[string, typeof esHealth][]} */ ([['es', esHealth], ['en', enHealth]])) {
     assert.match(dict.bodyNote.main, /\{sourcesClause\}/, `${locale} bodyNote.main must contain {sourcesClause}`);
     assert.match(dict.bodyNote.main, /\{sourceClause\}/, `${locale} bodyNote.main must contain {sourceClause}`);
     assert.match(dict.bodyNote.main, /\{bfSourceClause\}/, `${locale} bodyNote.main must contain {bfSourceClause}`);
@@ -143,10 +149,10 @@ test('health-templates.mjs note/card sub-dictionaries have the placeholders heal
 
 test('score-templates.mjs (Home tab) has identical key trees in es/en and no empty leaves', () => {
   assert.deepEqual(keyTree(esScore), keyTree(enScore));
-  for (const [locale, dict] of [['es', esScore], ['en', enScore]]) {
+  for (const [locale, dict] of /** @type {[string, typeof esScore][]} */ ([['es', esScore], ['en', enScore]])) {
     for (const [p, v] of leaves(dict)) {
       assert.equal(typeof v, 'string', `${locale}.${p} must be a string`);
-      assert.notEqual(v.trim(), '', `${locale}.${p} must not be empty`);
+      assert.notEqual(/** @type {string} */ (v).trim(), '', `${locale}.${p} must not be empty`);
     }
   }
 });
@@ -157,9 +163,9 @@ test('score-templates.mjs reuses the advice copy from lib/score/advice-copy.mjs 
 });
 
 test('score-templates.mjs carries the four accurate caveats, SDNN and the not-medical note; never the false strength claim', () => {
-  for (const [locale, dict] of [['es', esScore], ['en', enScore]]) {
+  for (const [locale, dict] of /** @type {[string, typeof esScore][]} */ ([['es', esScore], ['en', enScore]])) {
     for (const k of ['re', 'notComparable', 'modLabel', 'noEpoch', 'residual', 'sdnn', 'notMedical']) {
-      assert.ok(dict.caveats[k], `${locale}.caveats.${k}`);
+      assert.ok(/** @type {Record<string, string>} */ (dict.caveats)[k], `${locale}.caveats.${k}`);
     }
     assert.match(dict.caveats.sdnn, /SDNN/);
     const all = JSON.stringify(dict);
@@ -184,7 +190,7 @@ test('score-templates.mjs placeholders that score.ts fills are present', () => {
 });
 
 test('Salud copy no longer claims HR under-reads/under-represents strength, and says the index counts only sessions with heart rate', () => {
-  for (const [locale, dict] of [['es', esHealth], ['en', enHealth]]) {
+  for (const [locale, dict] of /** @type {[string, typeof esHealth][]} */ ([['es', esHealth], ['en', enHealth]])) {
     assert.doesNotMatch(dict.loadNoteHtml, /under-reads strength|infrarrepresenta/i, locale);
   }
   assert.match(esHealth.loadSec.hint, /solo sesiones con pulso/);
@@ -208,19 +214,19 @@ test('Entreno labels strength and hybrid by name (the same buckets as Inicio); n
 
 test('intake-templates.mjs (Mi día intake rings) has identical key trees in es/en, no empty leaves, and the placeholders intake.ts relies on', () => {
   assert.deepEqual(keyTree(esIntake), keyTree(enIntake));
-  for (const [locale, dict] of [['es', esIntake], ['en', enIntake]]) {
+  for (const [locale, dict] of /** @type {[string, typeof esIntake][]} */ ([['es', esIntake], ['en', enIntake]])) {
     for (const [p, value] of leaves(dict)) {
       if (typeof value === 'string') assert.notEqual(value.trim(), '', `${locale} intake-templates.${p} must not be empty`);
     }
     assert.match(dict.ofTpl, /\{target\}/);
     assert.match(dict.ofTpl, /\{unit\}/);
-    assert.equal(dict.emptyHtml, undefined, `${locale}: no stale-intake help text (the block renders nothing)`);
+    assert.equal(/** @type {Record<string, unknown>} */ (dict).emptyHtml, undefined, `${locale}: no stale-intake help text (the block renders nothing)`);
   }
 });
 
 test('nutri-templates.mjs (Resumen de hoy / Plan de hoy / Avituallamiento) has identical key trees in es/en, every goal / day type / meal slot, and the placeholders nutri-day.ts relies on', () => {
   assert.deepEqual(keyTree(esNutri), keyTree(enNutri));
-  for (const [locale, dict] of [['es', esNutri], ['en', enNutri]]) {
+  for (const [locale, dict] of /** @type {[string, typeof esNutri][]} */ ([['es', esNutri], ['en', enNutri]])) {
     for (const [p, value] of leaves(dict)) {
       if (typeof value === 'string') assert.notEqual(value.trim(), '', `${locale} nutri-templates.${p} must not be empty`);
     }
@@ -230,7 +236,7 @@ test('nutri-templates.mjs (Resumen de hoy / Plan de hoy / Avituallamiento) has i
     // S7: a detected type above the picked one names itself; every type but rest can be the detected one
     assert.deepEqual(Object.keys(dict.autoRaised), DAY_TYPES.filter((d) => d !== 'rest'));
     for (const v of Object.values(dict.autoRaised)) assert.match(v, /\{type\}/);
-    assert.equal(dict.dayIcons, undefined, 'no emoji: the segments draw inline SVG icons');
+    assert.equal(/** @type {Record<string, unknown>} */ (dict).dayIcons, undefined, 'no emoji: the segments draw inline SVG icons');
     for (const v of Object.values(dict.dayShort)) assert.ok(v.length <= 10, `${locale} short day label "${v}" fits a quarter of 360 px`);
     assert.deepEqual(Object.keys(dict.plan.meals), MEAL_SLOTS);
     assert.match(dict.backToAuto, /\{type\}/);
@@ -242,8 +248,8 @@ test('nutri-templates.mjs (Resumen de hoy / Plan de hoy / Avituallamiento) has i
     assert.match(G.addAria, /\{amount\}[\s\S]*\{food\}[\s\S]*\{meal\}/);
     assert.match(G.pickAria, /\{role\}[\s\S]*\{meal\}/);
     assert.match(G.extrasLeft, /\{k\}[\s\S]*\{total\}/);
-    for (const k of ['done', 'partial', 'extrasBudget']) assert.match(G[k], /\{k\}/);
-    for (const gone of ['remShort', 'macroOff', 'planLine']) assert.equal(dict[gone], undefined, `${gone}: the guide's Extras absorbs the remainder`);
+    for (const k of /** @type {const} */ (['done', 'partial', 'extrasBudget'])) assert.match(G[k], /\{k\}/);
+    for (const gone of ['remShort', 'macroOff', 'planLine']) assert.equal(/** @type {Record<string, unknown>} */ (dict)[gone], undefined, `${gone}: the guide's Extras absorbs the remainder`);
     assert.match(dict.fuel.duringCarbs, /\{rate\}[\s\S]*\{total\}/);
     assert.match(dict.fuel.disclaimer, locale === 'es' ? /no es consejo médico/i : /not medical advice/i);
   }
@@ -251,7 +257,7 @@ test('nutri-templates.mjs (Resumen de hoy / Plan de hoy / Avituallamiento) has i
 
 test('activity-templates.mjs (Entreno header + Activity card) has identical key trees in es/en, no empty strings, 5 levels and 7 weekdays, a label per W / M / 6M window', () => {
   assert.deepEqual(keyTree(esAct), keyTree(enAct));
-  for (const [locale, dict] of [['es', esAct], ['en', enAct]]) {
+  for (const [locale, dict] of /** @type {[string, typeof esAct][]} */ ([['es', esAct], ['en', enAct]])) {
     for (const [path, value] of leaves(dict)) {
       if (typeof value === 'string') assert.notEqual(value.trim(), '', `${locale} activity-templates.${path} must not be empty`);
     }
@@ -260,7 +266,7 @@ test('activity-templates.mjs (Entreno header + Activity card) has identical key 
     assert.match(dict.calHint, /\{days\}/);
     assert.match(dict.calHintOne, /^1 /);
     assert.match(dict.staleNote, /\{days\}/);
-    for (const k of ['w', 'm', 'm6']) for (const g of ['ranges', 'rangesLong', 'vs', 'prevNone']) assert.ok(dict[g][k], `${locale} ${g}.${k}`);
+    for (const k of /** @type {const} */ (['w', 'm', 'm6'])) for (const g of /** @type {const} */ (['ranges', 'rangesLong', 'vs', 'prevNone'])) assert.ok(dict[g][k], `${locale} ${g}.${k}`);
   }
 });
 
@@ -274,18 +280,18 @@ test('score-templates.mjs timeline copy has the placeholders timeline.ts relies 
 
 test('sync-templates.mjs (freshness line + Sync button) has identical key trees in es/en, no empty leaves, {n} where freshness.ts substitutes it', () => {
   assert.deepEqual(keyTree(esSync), keyTree(enSync));
-  for (const [locale, dict] of [['es', esSync], ['en', enSync]]) {
+  for (const [locale, dict] of /** @type {[string, typeof esSync][]} */ ([['es', esSync], ['en', enSync]])) {
     for (const [path, value] of leaves(dict)) {
       assert.equal(typeof value, 'string', `${locale} sync-templates.${path}`);
-      assert.notEqual(value.trim(), '', `${locale} sync-templates.${path} must not be empty`);
+      assert.notEqual(/** @type {string} */ (value).trim(), '', `${locale} sync-templates.${path} must not be empty`);
     }
-    for (const k of ['minAgo', 'hAgo', 'dAgo']) assert.match(dict[k], /\{n\}/, `${locale}.${k}`);
+    for (const k of /** @type {const} */ (['minAgo', 'hAgo', 'dAgo'])) assert.match(dict[k], /\{n\}/, `${locale}.${k}`);
     assert.deepEqual(Object.keys(dict.labels), ['shortcut', 'strava', 'page']);
     assert.deepEqual(Object.keys(dict.hints), ['shortcut', 'strava', 'page']);
     assert.match(dict.failedCode, /\{reason\}/, `${locale}.failedCode`);
     // every coarse code refresh.sh (status.json error) or ingest (lastTriggerError) can report, + a fallback
     assert.deepEqual(Object.keys(dict.errors), ['branch', 'install', 'build', 'sanity', 'lock', 'trigger_write', 'unknown']);
-    assert.equal(dict.wait, undefined, 'no 429 copy: POST /sync never refuses, it coalesces');
+    assert.equal(/** @type {Record<string, unknown>} */ (dict).wait, undefined, 'no 429 copy: POST /sync never refuses, it coalesces');
   }
   assert.equal(esSync.button, 'Sincronizar');
   assert.equal(enSync.button, 'Sync');
@@ -293,14 +299,14 @@ test('sync-templates.mjs (freshness line + Sync button) has identical key trees 
 
 test('detail-templates.mjs (detail sheet) has identical key trees in es/en, no empty leaves, a title + unit for every DETAIL key (+ stress, energy-bank)', () => {
   assert.deepEqual(keyTree(esDetail), keyTree(enDetail));
-  for (const [locale, dict] of [['es', esDetail], ['en', enDetail]]) {
+  for (const [locale, dict] of /** @type {[string, typeof esDetail][]} */ ([['es', esDetail], ['en', enDetail]])) {
     for (const [path, value] of leaves(dict)) assert.notEqual(String(value).trim(), '', `${locale} detail-templates.${path} must not be empty`);
     // + 'stress' / 'energy': their series are baked in SCORES.stress / SCORES.energy (lib/score), not DETAIL
     assert.deepEqual(Object.keys(dict.metrics), [...DETAIL_KEYS, 'stress', 'energy-bank', 'nutrition'], `${locale}: one entry per DETAIL key, in order, then stress, energy-bank, nutrition`);
-    for (const k of [...DETAIL_KEYS, 'stress', 'energy-bank', 'nutrition']) assert.ok(dict.metrics[k].title && dict.metrics[k].unit, `${locale}.metrics.${k}`);
+    for (const k of [...DETAIL_KEYS, 'stress', 'energy-bank', 'nutrition']) assert.ok(/** @type {Record<string, {title: string, unit: string}>} */ (dict.metrics)[k].title && /** @type {Record<string, {title: string, unit: string}>} */ (dict.metrics)[k].unit, `${locale}.metrics.${k}`);
     assert.deepEqual(Object.keys(dict.modalities), ['strength', 'hybrid', 'run', 'bike', 'other']);
-    for (const [k, ph] of [['latestLbl', 'date'], ['staleNote', 'date'], ['chartAria', 'from'], ['calAria', 'month']]) assert.match(dict[k], new RegExp(`\\{${ph}\\}`), `${locale}.${k}`);
-    for (const k of ['monitor', 'iqr']) for (const ph of ['lo', 'hi', 'median', 'unit']) assert.match(dict.bands[k], new RegExp(`\\{${ph}\\}`), `${locale}.bands.${k}`);
+    for (const [k, ph] of /** @type {const} */ ([['latestLbl', 'date'], ['staleNote', 'date'], ['chartAria', 'from'], ['calAria', 'month']])) assert.match(dict[k], new RegExp(`\\{${ph}\\}`), `${locale}.${k}`);
+    for (const k of /** @type {const} */ (['monitor', 'iqr'])) for (const ph of ['lo', 'hi', 'median', 'unit']) assert.match(dict.bands[k], new RegExp(`\\{${ph}\\}`), `${locale}.bands.${k}`);
   }
   assert.deepEqual(Object.keys(enDetail.ranges), ['w', 'm', 'm6', 'y'], 'the W / M / 6M / 1Y trend toggle');
   assert.equal(esDetail.ranges.w, 'S');
@@ -310,10 +316,10 @@ test('detail-templates.mjs (detail sheet) has identical key trees in es/en, no e
 
 test('date-templates.mjs (HC.fmtDate names) has identical key trees in es/en, 7 Monday-first weekdays and 12 months', () => {
   assert.deepEqual(keyTree(esDate), keyTree(enDate));
-  for (const [locale, dict] of [['es', esDate], ['en', enDate]]) {
+  for (const [locale, dict] of /** @type {[string, typeof esDate][]} */ ([['es', esDate], ['en', enDate]])) {
     for (const [path, value] of leaves(dict)) assert.notEqual(String(value).trim(), '', `${locale} date-templates.${path} must not be empty`);
-    for (const k of ['weekdays', 'weekdaysMin']) assert.equal(dict[k].length, 7, `${locale}.${k}`);
-    for (const k of ['months', 'monthsLong']) assert.equal(dict[k].length, 12, `${locale}.${k}`);
+    for (const k of /** @type {const} */ (['weekdays', 'weekdaysMin'])) assert.equal(dict[k].length, 7, `${locale}.${k}`);
+    for (const k of /** @type {const} */ (['months', 'monthsLong'])) assert.equal(dict[k].length, 12, `${locale}.${k}`);
     assert.match(dict.dayTpl, /\{weekday\}.*\{day\}.*\{month\}/);
     assert.match(dict.monthTpl, /\{month\}.*\{year\}/);
   }
@@ -323,23 +329,23 @@ test('date-templates.mjs (HC.fmtDate names) has identical key trees in es/en, 7 
 
 test('food-templates.mjs (Registrar / add sheet / Mis productos / Mis recetas) has identical key trees in es/en, every meal slot, store and unit, a line per server error code, and the placeholders food-*.js relies on', () => {
   assert.deepEqual(keyTree(esFood), keyTree(enFood));
-  for (const [locale, dict] of [['es', esFood], ['en', enFood]]) {
+  for (const [locale, dict] of /** @type {[string, typeof esFood][]} */ ([['es', esFood], ['en', enFood]])) {
     for (const [p, value] of leaves(dict)) {
       if (typeof value === 'string') assert.notEqual(value.trim(), '', `${locale} food-templates.${p} must not be empty`);
     }
     assert.deepEqual(Object.keys(dict.meals), [...FOOD_MEALS]);
     assert.deepEqual(Object.keys(dict.stores), [...FOOD_STORES]);
-    for (const u of [...FOOD_UNITS, 'serving', 'servings']) assert.ok(dict.units[u], `${locale} unit ${u}`);
+    for (const u of [...FOOD_UNITS, 'serving', 'servings']) assert.ok(/** @type {Record<string, string>} */ (dict.units)[u], `${locale} unit ${u}`);
     for (const code of ['invalid', 'atwater', 'barcode_exists', 'unknown_product', 'unknown_recipe', 'recipe_incomplete', 'unit', 'not_found',
       'rate_limited', 'off_not_found', 'off_rate_limited', 'off_unavailable', 'payload_too_large', 'offline', 'generic']) {
-      assert.ok(dict.errors[code], `${locale} errors.${code}`);
+      assert.ok(/** @type {Record<string, string>} */ (dict.errors)[code], `${locale} errors.${code}`);
     }
     assert.match(dict.errors.invalid, /\{field\}/);
     assert.match(dict.addAria, /\{meal\}/);
     assert.match(dict.delAria, /\{label\}/);
     assert.match(dict.added, /\{label\}[\s\S]*\{k\}/);
     assert.match(dict.sheet.per100, /\{unit\}/);
-    for (const k of ['editAria', 'archiveAria', 'confirmAria']) {
+    for (const k of /** @type {const} */ (['editAria', 'archiveAria', 'confirmAria'])) {
       assert.match(dict.products[k], /\{name\}/);
       assert.match(dict.recipes[k], /\{name\}/);
     }
@@ -350,7 +356,8 @@ test('food-templates.mjs (Registrar / add sheet / Mis productos / Mis recetas) h
 
 test('one label per meal slot across food / nutri / profile copy (es: snack = "Tentempié")', async () => {
   const { es: esProfile, en: enProfile } = await import('../src/i18n/profile-templates.mjs');
-  for (const [lang, dicts] of [['es', [esFood, esNutri, esProfile]], ['en', [enFood, enNutri, enProfile]]]) {
+  // three differently shaped template modules, read through one duck-typed lookup
+  for (const [lang, dicts] of /** @type {[string, any[]][]} */ ([['es', [esFood, esNutri, esProfile]], ['en', [enFood, enNutri, enProfile]]])) {
     const meals = dicts.map((d) => d.meals || (d.plan && d.plan.meals) || d.supplements.meals);
     for (const slot of MEAL_SLOTS) assert.equal(new Set(meals.map((m) => m[slot])).size, 1, `${lang}/${slot}: ${meals.map((m) => m[slot]).join(' | ')}`);
   }
@@ -368,12 +375,12 @@ test('S1 day-type names: gym is the strength day; hybrid / indoor / run named in
 });
 
 test('onboarding-templates.mjs (the in-page onboarding) has identical key trees in es/en, all non-empty', () => {
-  const tree = (o) => leaves(o).map(([p]) => p).sort();
+  const tree = (/** @type {object} */ o) => leaves(o).map(([p]) => p).sort();
   assert.deepEqual(tree(esOnb), tree(enOnb));
-  for (const [locale, dict] of [['es', esOnb], ['en', enOnb]]) {
+  for (const [locale, dict] of /** @type {[string, typeof esOnb][]} */ ([['es', esOnb], ['en', enOnb]])) {
     for (const [p, v] of leaves(dict)) {
       assert.equal(typeof v, 'string', `${locale}.${p}`);
-      assert.notEqual(v.trim(), '', `${locale} onboarding-templates.${p} must not be empty`);
+      assert.notEqual(/** @type {string} */ (v).trim(), '', `${locale} onboarding-templates.${p} must not be empty`);
     }
   }
 });
@@ -393,8 +400,8 @@ test('every journal behaviour has its question and short name in both languages'
   const S = await import('../src/i18n/score-templates.mjs');
   for (const T of [S.en, S.es]) {
     for (const b of JOURNAL_BEHAVIORS) {
-      assert.equal(typeof T.home.journal.q[b.key], 'string', `q.${b.key}`);
-      assert.equal(typeof T.home.journal.names[b.key], 'string', `names.${b.key}`);
+      assert.equal(typeof /** @type {Record<string, string>} */ (T.home.journal.q)[b.key], 'string', `q.${b.key}`);
+      assert.equal(typeof /** @type {Record<string, string>} */ (T.home.journal.names)[b.key], 'string', `names.${b.key}`);
     }
   }
 });

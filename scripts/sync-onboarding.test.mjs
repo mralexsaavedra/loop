@@ -6,25 +6,26 @@ import path from 'node:path';
 import { main } from './sync-onboarding.mjs';
 import { dataPaths } from '../lib/paths.mjs';
 
-const cells = (kcal, p, f) => ({
+const cells = (/** @type {number} */ kcal, /** @type {number} */ p, /** @type {number} */ f) => ({
   rest: { kcal, p, f }, gym: { kcal: kcal + 350, p, f }, hybrid: { kcal: kcal + 500, p, f }, indoor: { kcal: kcal + 550, p, f },
   run: { kcal: kcal + 600, p, f }, bike: { kcal: kcal + 850, p, f }, bikeLong: { kcal: kcal + 1450, p, f },
 });
 // a profile the service stored before the hybrid / indoor / run day types: four cells per goal
-const oldCells = (kcal, p, f) => ({ rest: { kcal, p, f }, gym: { kcal: kcal + 350, p, f }, bike: { kcal: kcal + 850, p, f }, bikeLong: { kcal: kcal + 1450, p, f } });
+const oldCells = (/** @type {number} */ kcal, /** @type {number} */ p, /** @type {number} */ f) => ({ rest: { kcal, p, f }, gym: { kcal: kcal + 350, p, f }, bike: { kcal: kcal + 850, p, f }, bikeLong: { kcal: kcal + 1450, p, f } });
 const DOC = {
   sex: 'female', birthdate: '1997-05-20', heightCm: 165, weightKg: 60, activity: 'light', goals: ['maintain'],
   targets: { maintain: cells(1800, 108, 48), cut: cells(1550, 120, 48), bulk: cells(1950, 108, 48) },
   updatedAt: '2030-01-10T10:00:00.000Z',
 };
 
+/** @param {unknown} body @param {{ status?: number, dir?: string }} [opts] */
 function run(body, { status = 200, dir } = {}) {
   const out = dir || fs.mkdtempSync(path.join(os.tmpdir(), 'hc-onboarding-'));
-  const logs = []; const warns = []; const urls = [];
-  const fetchImpl = async (url, init) => {
+  const logs = /** @type {string[]} */ ([]); const warns = /** @type {string[]} */ ([]); const urls = /** @type {Array<[string, string | undefined]>} */ ([]);
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async (/** @type {string} */ url, /** @type {{ headers: Record<string, string | undefined> }} */ init) => {
     urls.push([url, init.headers['x-hc-food']]);
     return { ok: status === 200, status, json: async () => body };
-  };
+  }));
   const env = { SYNC_PROFILE_OUT_DIR: out, INGEST_URL: 'http://localhost:8089' };
   return main({ env, log: (l) => logs.push(l), warn: (w) => warns.push(w), fetchImpl }).then((code) => ({ code, out, logs, warns, urls }));
 }
@@ -45,7 +46,7 @@ test('S6 an OLD 4-cell stored profile is written with its hybrid / indoor / run 
   assert.equal(r.code, 0);
   assert.deepEqual(r.warns, []);
   const written = JSON.parse(fs.readFileSync(path.join(r.out, 'onboarding.json'), 'utf8'));
-  for (const g of ['maintain', 'cut', 'bulk']) {
+  for (const g of /** @type {const} */ (['maintain', 'cut', 'bulk'])) {
     for (const d of ['hybrid', 'indoor', 'run']) assert.deepEqual(written.targets[g][d], old.targets[g].gym, `${g}.${d}`);
     assert.deepEqual(written.targets[g].bikeLong, old.targets[g].bikeLong);
   }
@@ -80,7 +81,8 @@ test('a write failure is an ERROR and exit 1 (the previous file is only ever rep
 
 test('HC_DATA_DIR redirects the default output to <data root>/profile; SYNC_PROFILE_OUT_DIR wins over it', async () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'hc-onboarding-root-'));
-  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => ({ profile: DOC }) });
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: true, status: 200, json: async () => ({ profile: DOC }) })));
+  /** @type {string[]} */
   const logs = [];
   try {
     assert.equal(await main({ env: { HC_DATA_DIR: root, INGEST_URL: 'http://127.0.0.1:9' }, log: (l) => logs.push(l), warn: () => {}, fetchImpl }), 0);

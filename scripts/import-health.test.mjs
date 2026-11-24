@@ -16,6 +16,9 @@ import { listZip, extractEntry } from './lib/zip.mjs';
 import { exportEntry, newestCandidate, main } from './import-health.mjs';
 import { syncDir } from '../data/apple-health/sync-shortcut.mjs';
 
+/** @typedef {import('./lib/zip.mjs').ZipEntry} ZipEntry */
+/** @typedef {NonNullable<ReturnType<typeof newestCandidate>>} Candidate */
+
 const HERE = path.dirname(fileURLToPath(import.meta.url));
 const SCRIPT = path.join(HERE, 'import-health.mjs');
 const EXTRACT = path.join(HERE, '..', 'data', 'apple-health', 'extract.mjs');
@@ -23,7 +26,7 @@ const Q = 'HKQuantityTypeIdentifier';
 // the iPhone's name bytes: UTF-8 in NFD (o + U+0301), and the zip does NOT set the UTF-8 flag
 const ACCENTED = Buffer.from('apple_health_export/exportacio\u0301n.xml', 'utf8');
 
-const rec = (type, src, start, value) =>
+const rec = (/** @type {string} */ type, /** @type {string} */ src, /** @type {string} */ start, /** @type {number} */ value) =>
   `<Record type="${Q}${type}" sourceName="${src}" unit="count" startDate="${start}" endDate="${start}" value="${value}"/>`;
 function exportXml({ days = ['2030-01-01', '2030-01-02', '2030-01-03'], closed = true } = {}) {
   const lines = ['<?xml version="1.0" encoding="UTF-8"?>', '<HealthData locale="es_ES">', '<ExportDate value="2030-01-03 08:00:00 +0100"/>'];
@@ -36,17 +39,20 @@ function exportXml({ days = ['2030-01-01', '2030-01-02', '2030-01-03'], closed =
   return lines.join('\n') + '\n';
 }
 
-const u16 = (n) => { const b = Buffer.alloc(2); b.writeUInt16LE(n); return b; };
-const u32 = (n) => { const b = Buffer.alloc(4); b.writeUInt32LE(n >>> 0); return b; };
-const u64 = (n) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(n)); return b; };
+const u16 = (/** @type {number} */ n) => { const b = Buffer.alloc(2); b.writeUInt16LE(n); return b; };
+const u32 = (/** @type {number} */ n) => { const b = Buffer.alloc(4); b.writeUInt32LE(n >>> 0); return b; };
+const u64 = (/** @type {number} */ n) => { const b = Buffer.alloc(8); b.writeBigUInt64LE(BigInt(n)); return b; };
 
 /** A zip in a Buffer. entries: { name: string | Buffer, data: string | Buffer, method = 8, descriptor = true,
- * utf8Flag = false, crc? (override) }; zip64 = sizes and offsets only in the zip64 extra + a zip64 end record. */
+ * utf8Flag = false, crc? (override) }; zip64 = sizes and offsets only in the zip64 extra + a zip64 end record.
+ * @param {Array<{ name: string | Buffer, data?: string | Buffer, method?: number, descriptor?: boolean, utf8Flag?: boolean, crc?: number }>} entries
+ * @param {{ zip64?: boolean }} [opts] */
 function zipBuffer(entries, { zip64 = false } = {}) {
+  /** @type {Buffer[]} */
   const parts = [];
   const central = [];
   let offset = 0;
-  const push = (b) => { parts.push(b); offset += b.length; };
+  const push = (/** @type {Buffer} */ b) => { parts.push(b); offset += b.length; };
   for (const e of entries) {
     const name = Buffer.isBuffer(e.name) ? e.name : Buffer.from(e.name, 'utf8');
     const data = Buffer.isBuffer(e.data) ? e.data : Buffer.from(e.data ?? '', 'utf8');
@@ -93,19 +99,21 @@ const iphoneZip = (xml = exportXml(), opts = {}) => zipBuffer([
   { name: 'apple_health_export/workout-routes/route_2030-01-02_7.00am.gpx', data: '<gpx></gpx>\n' },
 ], opts);
 
-const sha = (buf) => createHash('sha256').update(buf).digest('hex');
+const sha = (/** @type {import('node:crypto').BinaryLike} */ buf) => createHash('sha256').update(buf).digest('hex');
 
 function setup() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'import-health-'));
   const data = path.join(root, 'data');
   const importDir = path.join(data, 'files', 'import');
   fs.mkdirSync(importDir, { recursive: true });
+  /** @type {NodeJS.ProcessEnv} */
   const env = { ...process.env, HC_DATA_DIR: data };
   delete env.EXTRACT_DIR;
   delete env.HC_FILES_DIR;
   const out = path.join(data, 'extract');
   return {
     root, data, importDir, env, out,
+    /** @param {string} name @param {string | Buffer} buf @param {Date} [mtime] */
     put(name, buf, mtime) {
       const f = path.join(importDir, name);
       fs.writeFileSync(f, buf);
@@ -115,12 +123,13 @@ function setup() {
     state: () => JSON.parse(fs.readFileSync(path.join(data, 'import-state.json'), 'utf8')),
     snapshot: () => Object.fromEntries(fs.readdirSync(out).sort().map((f) => [f, fs.readFileSync(path.join(out, f), 'utf8')])),
     work: () => (fs.existsSync(path.join(data, 'import-work')) ? fs.readdirSync(path.join(data, 'import-work')) : []),
-    run: (...args) => spawnSync(process.execPath, [SCRIPT, ...args], { encoding: 'utf8', env }),
+    run: (/** @type {string[]} */ ...args) => spawnSync(process.execPath, [SCRIPT, ...args], { encoding: 'utf8', env }),
     cleanup: () => fs.rmSync(root, { recursive: true, force: true }),
   };
 }
 
 /** The manual flow: the export as a plain file, then extract.mjs on it (EXTRACT_DIR: <dir>/export.xml -> <dir>/extract). */
+/** @param {string} xml */
 function manualExtract(xml) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'import-manual-'));
   fs.writeFileSync(path.join(dir, 'export.xml'), xml);
@@ -172,12 +181,12 @@ test('zip: not a zip, a cut-off zip and a CRC mismatch are refused (code corrupt
 });
 
 test('exportEntry: the export accent- and case-insensitively, never export_cda.xml or a route; one other-language xml is taken; none -> null', () => {
-  const e = (...names) => names.map((name) => ({ name }));
-  assert.equal(exportEntry(e('apple_health_export/', 'apple_health_export/exportacio\u0301n.xml', 'apple_health_export/export_cda.xml')).name, 'apple_health_export/exportacio\u0301n.xml');
-  assert.equal(exportEntry(e('apple_health_export/export_cda.xml', 'apple_health_export/Export.xml')).name, 'apple_health_export/Export.xml');
-  assert.equal(exportEntry(e('apple_health_export/exportación.xml')).name, 'apple_health_export/exportación.xml');
-  assert.equal(exportEntry(e('export.xml')).name, 'export.xml');
-  assert.equal(exportEntry(e('apple_health_export/Exportieren.xml', 'apple_health_export/export_cda.xml', 'apple_health_export/workout-routes/a.xml')).name, 'apple_health_export/Exportieren.xml');
+  const e = (/** @type {string[]} */ ...names) => /** @type {ZipEntry[]} */ (names.map((name) => ({ name })));
+  assert.equal(/** @type {ZipEntry} */ (exportEntry(e('apple_health_export/', 'apple_health_export/exportacio\u0301n.xml', 'apple_health_export/export_cda.xml'))).name, 'apple_health_export/exportacio\u0301n.xml');
+  assert.equal(/** @type {ZipEntry} */ (exportEntry(e('apple_health_export/export_cda.xml', 'apple_health_export/Export.xml'))).name, 'apple_health_export/Export.xml');
+  assert.equal(/** @type {ZipEntry} */ (exportEntry(e('apple_health_export/exportación.xml'))).name, 'apple_health_export/exportación.xml');
+  assert.equal(/** @type {ZipEntry} */ (exportEntry(e('export.xml'))).name, 'export.xml');
+  assert.equal(/** @type {ZipEntry} */ (exportEntry(e('apple_health_export/Exportieren.xml', 'apple_health_export/export_cda.xml', 'apple_health_export/workout-routes/a.xml'))).name, 'apple_health_export/Exportieren.xml');
   assert.equal(exportEntry(e('apple_health_export/export_cda.xml', 'apple_health_export/workout-routes/route.gpx')), null);
   assert.equal(exportEntry(e('apple_health_export/a.xml', 'apple_health_export/b.xml')), null, 'ambiguous');
 });
@@ -190,11 +199,11 @@ test('newestCandidate: the newest *.zip or export.xml by mtime; dotfiles, folder
     x.put('notes.txt', 'n', new Date('2031-01-01'));
     x.put('.hidden.zip', 'h', new Date('2031-01-01'));
     fs.mkdirSync(path.join(x.importDir, 'dir.zip'));
-    assert.equal(path.basename(newestCandidate(x.importDir).file), 'old.zip');
+    assert.equal(path.basename(/** @type {Candidate} */ (newestCandidate(x.importDir)).file), 'old.zip');
     x.put('export.xml', 'b', new Date('2030-02-01'));
-    assert.deepEqual({ ...newestCandidate(x.importDir), file: path.basename(newestCandidate(x.importDir).file) }, { file: 'export.xml', kind: 'xml', size: 1, mtimeMs: new Date('2030-02-01').getTime() });
+    assert.deepEqual({ ...newestCandidate(x.importDir), file: path.basename(/** @type {Candidate} */ (newestCandidate(x.importDir)).file) }, { file: 'export.xml', kind: 'xml', size: 1, mtimeMs: new Date('2030-02-01').getTime() });
     x.put('Exportar.ZIP', 'cc', new Date('2030-03-01'));
-    assert.equal(newestCandidate(x.importDir).kind, 'zip');
+    assert.equal(/** @type {Candidate} */ (newestCandidate(x.importDir)).kind, 'zip');
   } finally { x.cleanup(); }
 });
 
@@ -285,6 +294,7 @@ test('import errors: corrupt zip, no export entry, truncated export -> exit 1, p
     assert.equal(x.run().status, 0);
     const good = x.snapshot();
     const ok = x.state();
+    /** @type {Array<[string, string, Buffer]>} */
     const cases = [
       ['corrupt', 'bad.zip', Buffer.from('PK\x03\x04 this is not really a zip')],
       ['no-export', 'cda.zip', zipBuffer([{ name: 'apple_health_export/export_cda.xml', data: '<x/>' }])],
@@ -337,6 +347,7 @@ test('CLI: --help exits 0 with the usage, an unknown flag exits 2 before anythin
     assert.equal(bad.status, 2);
     assert.deepEqual(fs.readdirSync(x.data), ['files']);
     // main() is importable and injectable (refresh.mjs runs the CLI as a child; the tests may call it directly)
+    /** @type {string[]} */
     const lines = [];
     assert.equal(await main({}, { env: x.env, log: (m) => lines.push(m), error: (m) => lines.push(m) }), 0);
     assert.match(lines.join('\n'), /nothing to import/);
@@ -353,11 +364,11 @@ test('layering: import -> Shortcut sync gives the same extract as the manual flo
     x.put('exportar.zip', iphoneZip(xml));
     assert.equal(x.run().status, 0);
     // a Shortcut payload: the export's partial last day (01-03) plus a newer day (01-04)
-    const daily = (...pairs) => pairs.map(([d, v]) => `${d}T00:00:00+01:00;${v}`).join('\n');
+    const daily = (/** @type {Array<[string, number]>} */ ...pairs) => pairs.map(([d, v]) => `${d}T00:00:00+01:00;${v}`).join('\n');
     const items = [{ id: '1', payload: { hrv: '2030-01-04T07:00:00+01:00;45', steps_phone: daily(['2030-01-03', 5000], ['2030-01-04', 6000]) } }];
     syncDir(x.out, items);
     syncDir(manual.out, items);
-    const strip = (snap) => Object.fromEntries(Object.entries(snap).map(([f, t]) => [f, f === '_meta.json' || f === '.shortcut-cache.json' ? JSON.parse(t) : t]));
+    const strip = (/** @type {Record<string, string>} */ snap) => Object.fromEntries(Object.entries(snap).map(([f, t]) => [f, f === '_meta.json' || f === '.shortcut-cache.json' ? JSON.parse(t) : t]));
     assert.deepEqual(strip(x.snapshot()), strip(manual.snapshot()));
     assert.ok(x.snapshot()['hrv.csv'].includes('2030-01-04,45,Shortcut'), 'the Shortcut rows layer on the imported extract');
   } finally { x.cleanup(); manual.cleanup(); }
@@ -404,7 +415,7 @@ test('A1 import: an export over HC_IMPORT_MAX_BYTES -> exit 1, lastError too-lar
 });
 
 test('A2: two entries that both match the export name are ambiguous (null / no-export), never first-wins', () => {
-  const e = (...names) => names.map((name) => ({ name }));
+  const e = (/** @type {string[]} */ ...names) => /** @type {ZipEntry[]} */ (names.map((name) => ({ name })));
   assert.equal(exportEntry(e('apple_health_export/export.xml', 'apple_health_export/exportación.xml')), null);
   assert.equal(exportEntry(e('apple_health_export/export.xml', 'apple_health_export/export.xml')), null);
   assert.equal(exportEntry(e('export.xml', 'apple_health_export/Export.xml')), null);
@@ -425,7 +436,7 @@ test('A3: an export without any <Record (zip or plain export.xml) is refused as 
     const good = x.snapshot();
     const empty = '<?xml version="1.0" encoding="UTF-8"?>\n<HealthData locale="es_ES">\n<ExportDate value="2030-01-03 08:00:00 +0100"/>\n</HealthData>\n';
     let t = Date.parse('2030-02-01T00:00:00Z');
-    for (const [name, buf] of [['empty.zip', iphoneZip(empty)], ['export.xml', Buffer.from(empty)]]) {
+    for (const [name, buf] of /** @type {Array<[string, Buffer]>} */ ([['empty.zip', iphoneZip(empty)], ['export.xml', Buffer.from(empty)]])) {
       t += 86_400_000;
       x.put(name, buf, new Date(t));
       const r = x.run();

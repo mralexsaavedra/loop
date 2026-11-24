@@ -34,10 +34,13 @@ test('refuses to authorize when no token is configured', () => {
 
 // C8: a failed bearer check is logged as a counted event, never with the token
 test('checkBearer logs every failure as a counted `unauthorized` event without the presented token', () => {
+  /** @type {unknown[]} */
   const lines = []
-  const log = (l) => lines.push(JSON.parse(l))
+  const log = (/** @type {string} */ l) => lines.push(JSON.parse(l))
   const guard = createBearerCheck(TOKEN, { log })
-  const req = (authorization, url = '/export/raw?since=2030-01-01') => ({ url, headers: authorization === undefined ? {} : { authorization }, socket: { remoteAddress: '192.168.1.20' } })
+  /** A fake request: only the url, headers and socket the check reads.
+   * @param {string | undefined} authorization @returns {import('node:http').IncomingMessage} */
+  const req = (authorization, url = '/export/raw?since=2030-01-01') => /** @type {import('node:http').IncomingMessage} */ (/** @type {unknown} */ ({ url, headers: authorization === undefined ? {} : { authorization }, socket: { remoteAddress: '192.168.1.20' } }))
 
   assert.equal(guard(req(`Bearer ${TOKEN}`)), true)
   assert.equal(lines.length, 0, 'a good token logs nothing')

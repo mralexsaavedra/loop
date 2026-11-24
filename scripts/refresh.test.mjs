@@ -15,6 +15,7 @@ import {
 const SCRIPT = path.join(path.dirname(fileURLToPath(import.meta.url)), 'refresh.mjs');
 const GOOD = '<!doctype html><html><body>fresh</body></html>\n';
 const AT = new Date('2026-10-16T10:00:00.123Z');
+/** @typedef {Parameters<typeof realSteps>[0]} StepsOpts */
 
 function setup() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), 'refresh-mjs-'));
@@ -27,8 +28,11 @@ function setup() {
   };
 }
 
-/** Stub steps: `page` is what generate writes (null = nothing), each step's result is configurable, calls are logged. */
+/** Stub steps: `page` is what generate writes (null = nothing), each step's result is configurable, calls are logged.
+ * @param {{ buildDir: string }} env
+ * @param {{ importOk?: boolean, sync?: boolean, generate?: boolean, manuals?: boolean, page?: string | null, onManuals?: () => void, onImport?: () => Promise<void> }} [opts] */
 function stubSteps(env, { importOk = true, sync = true, generate = true, manuals = true, page = GOOD, onManuals = () => {}, onImport = async () => {} } = {}) {
+  /** @type {string[]} */
   const calls = [];
   return {
     calls,
@@ -45,8 +49,8 @@ function stubSteps(env, { importOk = true, sync = true, generate = true, manuals
   };
 }
 
-const status = (env) => JSON.parse(fs.readFileSync(path.join(env.siteDir, 'status.json'), 'utf8'));
-const run = (env, steps, opts = {}) => refresh({ siteDir: env.siteDir, buildDir: env.buildDir, lockFile: env.lockFile, steps, version: '1.2.3', now: () => AT, log: () => {}, ...opts });
+const status = (/** @type {{ siteDir: string }} */ env) => JSON.parse(fs.readFileSync(path.join(env.siteDir, 'status.json'), 'utf8'));
+const run = (/** @type {ReturnType<typeof setup>} */ env, /** @type {import('./refresh.mjs').RefreshSteps} */ steps, /** @type {Partial<Parameters<typeof refresh>[0]>} */ opts = {}) => refresh({ siteDir: env.siteDir, buildDir: env.buildDir, lockFile: env.lockFile, steps, version: '1.2.3', now: () => AT, log: () => {}, ...opts });
 
 test('a pass publishes the page and status.json {publishedAt, commit: <version>, processedSeq}, then the manuals', async () => {
   const env = setup();
@@ -127,6 +131,7 @@ test('a later success clears the error; processedSeq never goes backwards', asyn
 test('a failed manuals step is logged only: the publish stands, no error code', async () => {
   const env = setup();
   try {
+    /** @type {string[]} */
     const logs = [];
     const r = await run(env, stubSteps(env, { manuals: false }).steps, { seq: 2, log: (m) => logs.push(m) });
     assert.equal(r.ok, true);
@@ -217,19 +222,20 @@ test('runNode: exit 0 -> true, non-zero -> false, a step over its timeout is kil
 test('CLI: HC_SITE_DIR is required, --seq must be a number, bad timeouts are refused, a good run exits 0', async () => {
   const env = setup();
   try {
+    /** @type {string[]} */
     const errors = [];
-    const error = (m) => errors.push(m);
+    const error = (/** @type {string} */ m) => errors.push(m);
     assert.equal(await main({}, { env: {}, error }), 2);
-    assert.match(errors.pop(), /HC_SITE_DIR is not set/);
+    assert.match(/** @type {string} */ (errors.pop()), /HC_SITE_DIR is not set/);
     assert.equal(await main({ seq: '1x' }, { env: { HC_SITE_DIR: env.siteDir }, error }), 2);
-    assert.match(errors.pop(), /--seq must be a whole number/);
+    assert.match(/** @type {string} */ (errors.pop()), /--seq must be a whole number/);
     assert.throws(() => secondsEnv({ X: '5m' }, 'X', 1), /invalid X="5m"/);
-    let got = null;
-    const stepsFor = (o) => { got = o; return stubSteps({ buildDir: o.buildDir }).steps; };
+    let got = /** @type {StepsOpts | null} */ (null);
+    const stepsFor = (/** @type {StepsOpts} */ o) => { got = o; return stubSteps({ buildDir: o.buildDir }).steps; };
     const cliEnv = { HC_SITE_DIR: env.siteDir, HC_BUILD_DIR: env.buildDir, HC_VERSION: '2.0.0', HC_REFRESH_STEP_TIMEOUT: '12' };
     assert.equal(await main({ seq: '5', 'wait-lock': true }, { env: cliEnv, stepsFor, error }), 0);
-    assert.equal(got.stepTimeoutMs, 12_000);
-    assert.equal(got.manualsTimeoutMs, 30_000);
+    assert.equal(/** @type {StepsOpts} */ (got).stepTimeoutMs, 12_000);
+    assert.equal(/** @type {StepsOpts} */ (got).manualsTimeoutMs, 30_000);
     assert.equal(status(env).commit, '2.0.0');
     assert.equal(status(env).processedSeq, 5);
     assert.equal(await main({ seq: '6' }, { env: cliEnv, stepsFor: (o) => stubSteps({ buildDir: o.buildDir }, { generate: false }).steps, error }), 1);
@@ -246,12 +252,13 @@ test('CLI: --help prints the usage, an unknown flag exits 2 before anything runs
 
 test('every error code refresh.mjs writes, and the ingest build code, has a human reason in the page copy (es + en)', async () => {
   const { es, en } = await import('../web/src/i18n/sync-templates.mjs');
-  for (const code of [...ERROR_CODES, 'build']) assert.ok(es.errors[code] && en.errors[code], code);
+  for (const code of [...ERROR_CODES, 'build']) assert.ok(/** @type {Record<string, string>} */ (es.errors)[code] && /** @type {Record<string, string>} */ (en.errors)[code], code);
 });
 
 test('the Health import runs before the sync; a failed import is logged only: the page is published, status.json has no error', async () => {
   const env = setup();
   try {
+    /** @type {string[]} */
     const logs = [];
     const { steps, calls } = stubSteps(env, { importOk: false });
     const r = await run(env, steps, { seq: 4, log: (m) => logs.push(m) });
@@ -265,7 +272,7 @@ test('the Health import runs before the sync; a failed import is logged only: th
 test('the lock stays fresh while a long import runs (a refresh older than LOCK_STALE_MS would be taken over)', async () => {
   const env = setup();
   try {
-    let fresh = null;
+    let fresh = /** @type {number | null} */ (null);
     let takenOver = null;
     const { steps } = stubSteps(env, {
       onImport: async () => {
@@ -275,7 +282,7 @@ test('the lock stays fresh while a long import runs (a refresh older than LOCK_S
       },
     });
     assert.equal((await run(env, steps, { seq: 1, lockTouchMs: 50 })).ok, true);
-    assert.ok(fresh < 200, `lock touched while the import ran (age ${fresh} ms)`);
+    assert.ok(/** @type {number} */ (fresh) < 200, `lock touched while the import ran (age ${fresh} ms)`);
     assert.equal(takenOver, null, 'a second refresh cannot take the lock over during the import');
   } finally { env.cleanup(); }
 });
@@ -284,14 +291,14 @@ test('CLI: HC_IMPORT_TIMEOUT (default 1800 s) is the import step\'s own timeout;
   const env = setup();
   try {
     assert.equal(DEFAULTS.importTimeoutS, 1800);
-    let got = null;
-    const stepsFor = (o) => { got = o; return stubSteps({ buildDir: o.buildDir }).steps; };
+    let got = /** @type {StepsOpts | null} */ (null);
+    const stepsFor = (/** @type {StepsOpts} */ o) => { got = o; return stubSteps({ buildDir: o.buildDir }).steps; };
     const cliEnv = { HC_SITE_DIR: env.siteDir, HC_BUILD_DIR: env.buildDir };
     assert.equal(await main({}, { env: cliEnv, stepsFor }), 0);
-    assert.equal(got.importTimeoutMs, 1_800_000);
-    assert.equal(got.stepTimeoutMs, 300_000);
+    assert.equal(/** @type {StepsOpts} */ (got).importTimeoutMs, 1_800_000);
+    assert.equal(/** @type {StepsOpts} */ (got).stepTimeoutMs, 300_000);
     assert.equal(await main({}, { env: { ...cliEnv, HC_IMPORT_TIMEOUT: '60' }, stepsFor }), 0);
-    assert.equal(got.importTimeoutMs, 60_000);
+    assert.equal(/** @type {StepsOpts} */ (got).importTimeoutMs, 60_000);
     await assert.rejects(main({}, { env: { ...cliEnv, HC_IMPORT_TIMEOUT: '30m' }, stepsFor }), /invalid HC_IMPORT_TIMEOUT="30m"/);
   } finally { env.cleanup(); }
 });
@@ -300,10 +307,11 @@ test('realSteps: the import step runs scripts/import-health.mjs (no import folde
   const env = setup();
   try {
     const data = path.join(env.root, 'data');
+    /** @type {NodeJS.ProcessEnv} */
     const e = { ...process.env, HC_DATA_DIR: data };
     delete e.HC_FILES_DIR;
     const steps = realSteps({ buildDir: env.buildDir, siteDir: env.siteDir, stepTimeoutMs: 5000, manualsTimeoutMs: 5000, importTimeoutMs: 20_000, env: e });
-    assert.equal(await steps.import(), true);
+    assert.equal(await /** @type {() => Promise<boolean>} */ (steps.import)(), true);
     assert.equal(fs.existsSync(data), false);
   } finally { env.cleanup(); }
 });

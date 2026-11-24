@@ -55,6 +55,7 @@ const FIXTURE_FILES = [
   'loop-data/files/documents/report.pdf',
 ];
 
+/** The temporary fixture repo (set in before()). @type {string} */
 let repo;
 
 before(() => {
@@ -73,6 +74,9 @@ after(() => {
   if (repo) fs.rmSync(repo, { recursive: true, force: true });
 });
 
+/** @typedef {import('node:child_process').SpawnSyncReturns<string>} HookRun */
+
+/** @param {string} command @param {{cwd?: string, env?: NodeJS.ProcessEnv}} [opts] @returns {HookRun} */
 function runHook(command, { cwd = repo, env } = {}) {
   const payload = JSON.stringify({ tool_name: 'Bash', tool_input: { command }, cwd });
   return spawnSync(process.execPath, [HOOK], { input: payload, encoding: 'utf8', env: env || process.env });
@@ -80,20 +84,24 @@ function runHook(command, { cwd = repo, env } = {}) {
 
 // Commands are built from word arrays so this file never holds a literal
 // force-add command string (the live hook also guards the assistant's shell).
-const forceAdd = (...paths) => ['git', 'add', '-f', ...paths].join(' ');
+const forceAdd = (/** @type {string[]} */ ...paths) => ['git', 'add', '-f', ...paths].join(' ');
 
+/** @param {HookRun} res @param {string} label */
 function assertBlocked(res, label) {
   assert.equal(res.status, 2, `${label}: expected block (exit 2), got ${res.status}; stderr: ${res.stderr}`);
 }
+/** @param {HookRun} res @param {string} label */
 function assertAllowed(res, label) {
   assert.equal(res.status, 0, `${label}: expected allow (exit 0), got ${res.status}; stderr: ${res.stderr}`);
 }
 
 // Allow-path preconditions, so an allow test can never pass vacuously (a target
 // that is missing, or already ignored, or an edit whose old_string does not apply).
+/** @param {string} rel @param {string} [cwd] */
 function isIgnored(rel, cwd = repo) {
   return spawnSync('git', ['-C', cwd, 'check-ignore', '-q', '--no-index', '--', rel]).status === 0;
 }
+/** @param {string} rel @param {string} [cwd] */
 function assertRealNonIgnored(rel, cwd = repo) {
   assert.ok(fs.existsSync(path.join(cwd, rel)), `precondition: ${rel} must exist in the fixture`);
   assert.equal(isIgnored(rel, cwd), false, `precondition: ${rel} must not be ignored in the fixture`);
@@ -340,6 +348,7 @@ test('reading a .gitignore from the shell stays allowed', () => {
 
 // --- Edit / Write / MultiEdit on .gitignore -------------------------------------
 
+/** @param {string} tool_name @param {Record<string, unknown>} tool_input @param {{env?: NodeJS.ProcessEnv}} [opts] @returns {HookRun} */
 function runTool(tool_name, tool_input, { env } = {}) {
   const payload = JSON.stringify({ tool_name, tool_input, cwd: repo });
   return spawnSync(process.execPath, [HOOK], { input: payload, encoding: 'utf8', env: env || process.env });
@@ -348,6 +357,7 @@ const gitignorePath = () => path.join(repo, '.gitignore');
 const currentGitignore = () => fs.readFileSync(gitignorePath(), 'utf8');
 // Precondition for allow tests: the edit really applies to the fixture .gitignore
 // (an old_string that is missing makes the tool fail and the hook allow vacuously).
+/** @param {string} oldString */
 function assertEditApplies(oldString) {
   assert.ok(currentGitignore().includes(oldString), `precondition: .gitignore must contain ${JSON.stringify(oldString)}`);
 }
@@ -466,7 +476,7 @@ test('malformed hook payload fails open (never blocks)', () => {
 
 // --- review follow-ups: fail closed, wrappers, subshell scope, eval / stdin shells ---
 
-const W = (...words) => words.join(' ');
+const W = (/** @type {string[]} */ ...words) => words.join(' ');
 const PERSONAL_FILE = 'data/weight/weight-log.md';
 
 test('an unexpected exception while judging a force-add blocks (fails closed)', () => {

@@ -21,8 +21,19 @@ import { saveAthlete, loadAthlete, listDevices } from '../../src/athlete.js'
 import { createSyncStatus } from '../../src/status.js'
 import { createHandler, databaseConfig } from '../../src/server.js'
 
+/** @typedef {import('../../src/food-db.js').FoodStore} FoodStore @typedef {import('../../src/food-db.js').ProductInput} ProductInput */
+/** @typedef {import('../../src/food-db.js').RecipeInput} RecipeInput @typedef {import('../../src/food-db.js').LogInsert} LogInsert */
+/** @typedef {import('../../src/food-db.js').Product} Product @typedef {import('../../src/food-db.js').Recipe} Recipe */
+/** @typedef {import('../../src/food-db.js').LogEntry} LogEntry @typedef {import('../../src/documents.js').DocumentRow} DocumentRow */
+/** @typedef {NonNullable<Awaited<ReturnType<FoodStore['updateSettings']>>>} Settings */
+/** @typedef {import('../../src/server.js').HandlerDeps} HandlerDeps @typedef {import('../../src/strava.js').StravaError} StravaError */
+/** A fetched JSON answer (`body` is the parsed JSON). @typedef {{ status: number, body: any }} Answer */
+
 const quiet = () => {}
-let db, pool
+/** @type {Awaited<ReturnType<typeof freshDatabase>>} */
+let db
+/** @type {import('../../src/db.js').Pool} */
+let pool
 test.before(async () => {
   if (skip) return
   db = await freshDatabase()
@@ -47,14 +58,14 @@ test('ingest: a payload is stored and paged back by the export query', { skip },
 
 test('food store: products (barcode unique among active ones), recipes, entries (request id makes a retry idempotent), settings, profile', { skip }, async () => {
   const store = createFoodStore(pool)
-  const yog = { name: 'Yogur', brand: 'Hacendado', store: 'mercadona', barcode: '8480000123456', unit: 'g', per100: { kcal: 60, protein: 10, carbs: 4, fat: 0.2 }, servingSize: 125, source: 'label' }
+  const yog = /** @type {ProductInput} */ ({ name: 'Yogur', brand: 'Hacendado', store: 'mercadona', barcode: '8480000123456', unit: 'g', per100: { kcal: 60, protein: 10, carbs: 4, fat: 0.2 }, servingSize: 125, source: 'label' })
   const p = await store.insertProduct(yog)
   assert.equal(p.name, 'Yogur')
   assert.deepEqual(p.per100, { kcal: 60, protein: 10, carbs: 4, fat: 0.2 }, 'NUMERIC comes back as numbers')
-  await assert.rejects(store.insertProduct(yog), (e) => e.status === 409 && e.code === 'barcode_exists')
-  assert.equal((await store.updateProduct(p.id, { ...yog, name: 'Yogur natural' })).name, 'Yogur natural')
+  await assert.rejects(store.insertProduct(yog), (/** @type {import('../../src/http.js').HttpError} */ e) => e.status === 409 && e.code === 'barcode_exists')
+  assert.equal(/** @type {Product} */ (await store.updateProduct(p.id, { ...yog, name: 'Yogur natural' })).name, 'Yogur natural')
   assert.equal(p.servingDefault, false, 'serving_default defaults to false')
-  assert.equal((await store.updateProduct(p.id, { ...yog, name: 'Yogur natural', servingDefault: true })).servingDefault, true)
+  assert.equal(/** @type {Product} */ (await store.updateProduct(p.id, { ...yog, name: 'Yogur natural', servingDefault: true })).servingDefault, true)
   assert.equal((await store.getProducts([p.id]))[0].servingDefault, true, 'serving_default round-trips')
   assert.equal(await store.archiveProduct(p.id), true)
   assert.equal(await store.archiveProduct(p.id), false)
@@ -62,16 +73,17 @@ test('food store: products (barcode unique among active ones), recipes, entries 
   assert.deepEqual((await store.listProducts()).map((x) => x.id), [again.id])
   assert.equal((await store.getProducts([p.id, again.id])).length, 2, 'archived ones are still readable')
 
-  const r = await store.insertRecipe({ name: 'Bowl', kind: 'serving', servings: 2, ingredients: [{ productId: again.id, amount: 250 }] })
+  const r = await store.insertRecipe(/** @type {RecipeInput} */ ({ name: 'Bowl', kind: 'serving', servings: 2, ingredients: [{ productId: again.id, amount: 250 }] }))
   assert.deepEqual(r.ingredients, [{ productId: again.id, amount: 250 }])
-  assert.equal((await store.updateRecipe(r.id, { name: 'Bowl 2', kind: 'batch', cookedWeightG: 500, ingredients: [] })).cookedWeightG, 500)
+  assert.equal(/** @type {Recipe} */ (await store.updateRecipe(r.id, /** @type {RecipeInput} */ (/** @type {unknown} */ ({ name: 'Bowl 2', kind: 'batch', cookedWeightG: 500, ingredients: [] })))).cookedWeightG, 500)
   assert.equal(await store.archiveRecipe(r.id), true)
   assert.deepEqual(await store.listRecipes(), [])
 
+  /** @type {LogInsert} */
   const entry = { date: '2030-01-10', meal: 'breakfast', refType: 'product', refId: again.id, label: 'Yogur', amount: 125, unit: 'g', kcal: 75, protein: 12.5, carbs: 5, fat: 0.3, requestId: 'req-00000001' }
-  const e1 = await store.insertLog(entry)
+  const e1 = /** @type {LogEntry & { id: number }} */ (await store.insertLog(entry))
   assert.equal(await store.insertLog(entry), null, 'the same request id is not inserted twice')
-  assert.equal((await store.getLogByRequest('req-00000001')).id, e1.id)
+  assert.equal(/** @type {LogEntry} */ (await store.getLogByRequest('req-00000001')).id, e1.id)
   await store.insertLog({ ...entry, refType: 'quick', refId: null, requestId: null, protein: null, carbs: null, fat: null, date: '2030-01-11' })
   assert.deepEqual((await store.listLog('2030-01-10')).map((x) => x.id), [e1.id])
   assert.deepEqual((await store.listLogRange('2030-01-01', '2030-01-31')).map((x) => x.date), ['2030-01-10', '2030-01-11'])
@@ -80,21 +92,23 @@ test('food store: products (barcode unique among active ones), recipes, entries 
   await assert.rejects(store.insertLog({ ...entry, requestId: null, meal: 'brunch' }), /food_log_meal_check/, 'the CHECK constraints hold')
 
   assert.deepEqual(await store.getSettings(), { goal: null, targetWeightKg: null, locale: null, updatedAt: null }, 'no row yet = nothing set')
-  const first = await store.updateSettings({ goal: 'cut' })
+  const first = /** @type {Settings} */ (await store.updateSettings({ goal: 'cut' }))
   assert.deepEqual([first.goal, first.targetWeightKg, typeof first.updatedAt], ['cut', null, 'string'])
-  const s = await store.updateSettings({ targetWeightKg: 70.5 })
+  const s = /** @type {Settings} */ (await store.updateSettings({ targetWeightKg: 70.5 }))
   assert.deepEqual([s.goal, s.targetWeightKg], ['cut', 70.5], 'a partial update keeps the other key')
-  assert.equal((await store.updateSettings({ targetWeightKg: null })).targetWeightKg, null)
-  const l = await store.updateSettings({ locale: 'es' })
+  assert.equal(/** @type {Settings} */ (await store.updateSettings({ targetWeightKg: null })).targetWeightKg, null)
+  const l = /** @type {Settings} */ (await store.updateSettings({ locale: 'es' }))
   assert.deepEqual([l.goal, l.locale], ['cut', 'es'], 'the locale column (013) round-trips, the goal kept')
   assert.equal((await store.getSettings()).locale, 'es')
   await assert.rejects(store.updateSettings({ locale: 'fr' }), /app_settings_locale_check|check constraint/, 'the CHECK holds')
-  assert.equal((await store.updateSettings({ locale: null })).locale, null, 'null clears it')
+  assert.equal(/** @type {Settings} */ (await store.updateSettings({ locale: null })).locale, null, 'null clears it')
 
   assert.equal(await store.getProfile(), null)
-  const { updatedAt, ...doc } = await store.putProfile({ sex: 'f', heightCm: 165, weightKg: 60, activity: 'light' })
+  // partial onboarding rows on purpose: the store keeps whatever it is given (the route validates)
+  /** @typedef {import('../../../../lib/profile/onboarding.mjs').OnboardingProfile} OnboardingProfile */
+  const { updatedAt, ...doc } = await store.putProfile(/** @type {OnboardingProfile} */ (/** @type {unknown} */ ({ sex: 'f', heightCm: 165, weightKg: 60, activity: 'light' })))
   assert.deepEqual([doc, typeof updatedAt], [{ sex: 'f', heightCm: 165, weightKg: 60, activity: 'light' }, 'string'])
-  const { updatedAt: _u, ...replaced } = await store.putProfile({ sex: 'm', weightKg: 61 })
+  const { updatedAt: _u, ...replaced } = await store.putProfile(/** @type {OnboardingProfile} */ (/** @type {unknown} */ ({ sex: 'm', weightKg: 61 })))
   // the onboarding's own fields are replaced as a whole; the identity merges into the profile document (profile.pg.test.js)
   assert.deepEqual(replaced, { sex: 'm', heightCm: 165, weightKg: 61 })
 })
@@ -119,18 +133,18 @@ test('document store: compare-and-set on the revision, key order kept, one winne
   assert.equal(await store.get('plan'), null)
   // keys deliberately out of sorted order: JSONB would reorder them, the JSON column must not
   const doc = { zeta: 1, data: { postre: [1], desayuno: [2], a: 3 }, targets: {}, dayPlan: {} }
-  const first = await store.put('plan', doc, 0)
+  const first = /** @type {DocumentRow} */ (await store.put('plan', doc, 0))
   assert.equal(first.revision, 1)
-  assert.match(first.updatedAt, /^\d{4}-\d{2}-\d{2}T/)
-  const got = await store.get('plan')
+  assert.match(/** @type {string} */ (first.updatedAt), /^\d{4}-\d{2}-\d{2}T/)
+  const got = /** @type {DocumentRow} */ (await store.get('plan'))
   assert.equal(JSON.stringify(got.data), JSON.stringify(doc))
   assert.equal(got.revision, 1)
   assert.equal(await store.put('plan', doc, 0), null, 'a second first-save loses')
   assert.equal(await store.put('plan', doc, 5), null, 'a wrong revision loses')
-  assert.equal((await store.get('plan')).revision, 1)
+  assert.equal(/** @type {DocumentRow} */ (await store.get('plan')).revision, 1)
   const results = await Promise.all([store.put('plan', { ...doc, n: 1 }, 1), store.put('plan', { ...doc, n: 2 }, 1)])
   assert.equal(results.filter(Boolean).length, 1, 'exactly one concurrent save wins')
-  assert.equal((await store.get('plan')).revision, 2)
+  assert.equal(/** @type {DocumentRow} */ (await store.get('plan')).revision, 2)
   // kinds are independent and the CHECK refuses others
   assert.equal(await store.get('training'), null)
   await assert.rejects(store.put('settings', {}, 0))
@@ -141,7 +155,8 @@ test('strava: activities upsert (an edit replaces the payload), the token rotate
   const run = { id: 102, start_date_local: '2030-01-11T08:00:00Z', type: 'Run', name: 'Run', has_heartrate: true }
   assert.equal(await upsertActivities(pool, [ride, run]), 2)
   assert.equal(await upsertActivities(pool, [{ ...ride, name: 'Edited', distance: 31000 }]), 1)
-  const rows = await listStravaActivities(pool, { sinceId: 0, limit: 10 })
+  // ids as numbers: pg binds them as the text the columns compare to
+  const rows = await listStravaActivities(pool, { sinceId: /** @type {string} */ (/** @type {unknown} */ (0)), limit: 10 })
   assert.deepEqual(rows.map((r) => [r.id, r.sport_type, r.distance]), [['101', 'Ride', 31000], ['102', 'Run', null]])
   const { rows: [{ synced }] } = await pool.query('SELECT last_synced_at IS NOT NULL AS synced FROM strava_sync_state')
   assert.equal(synced, true)
@@ -154,14 +169,14 @@ test('strava: activities upsert (an edit replaces the payload), the token rotate
   assert.equal(await tokens.load(), 'rt-2')
 
   assert.deepEqual((await pendingHrActivities(pool, 10)).map((x) => x.id), ['102', '101'])
-  await saveHr(pool, 101, { status: 'ok', hist: { 120: 60 }, seconds: 60 })
-  assert.equal(await saveFailure(pool, 102, 1), 'retry')
+  await saveHr(pool, /** @type {string} */ (/** @type {unknown} */ (101)), { status: 'ok', hist: { 120: 60 }, seconds: 60 })
+  assert.equal(await saveFailure(pool, /** @type {string} */ (/** @type {unknown} */ (102)), 1), 'retry')
   assert.deepEqual((await pendingHrActivities(pool, 10)).map((x) => x.id), [], 'a fresh retry waits for its back-off')
-  assert.equal(await saveFailure(pool, 102, 5), 'failed')
-  assert.deepEqual((await listStravaActivities(pool, { sinceId: 0, limit: 1 }))[0].hr_hist, { 120: 60 })
+  assert.equal(await saveFailure(pool, /** @type {string} */ (/** @type {unknown} */ (102)), 5), 'failed')
+  assert.deepEqual((await listStravaActivities(pool, { sinceId: /** @type {string} */ (/** @type {unknown} */ (0)), limit: 1 }))[0].hr_hist, { 120: 60 })
 
   await saveAthlete(pool, { athlete: { id: 9 }, gear: { bikes: [{ id: 'b1' }], shoes: [] }, gearScopeMissing: false })
-  const a = await loadAthlete(pool)
+  const a = /** @type {NonNullable<Awaited<ReturnType<typeof loadAthlete>>>} */ (await loadAthlete(pool))
   assert.deepEqual([a.athlete, a.gear.bikes.length, a.gear_scope_missing], [{ id: 9 }, 1, false])
   assert.deepEqual((await listDevices(pool)).map((d) => d.name), ['Edge 840'])
 })
@@ -174,16 +189,17 @@ test('sync status: the row persists and a fresh status loads it back', { skip },
   const t = createSyncStatus({ pool, stravaConfigured: true, log: quiet })
   await t.load()
   assert.equal(t.currentSeq(), 1)
-  assert.ok(t.lastTriggerAtMs() > 0)
+  assert.ok(/** @type {number} */ (t.lastTriggerAtMs()) > 0)
 })
 
 test('HTTP: the food and journal routes write through to Postgres', { skip }, async () => {
-  const foodRoutes = createFoodRoutes({ store: createFoodStore(pool), off: {}, available: () => true, settingsAvailable: () => true, profileAvailable: () => true, allowedHosts: [] })
+  const foodRoutes = createFoodRoutes({ store: createFoodStore(pool), off: /** @type {Parameters<typeof createFoodRoutes>[0]['off']} */ ({}), available: () => true, settingsAvailable: () => true, profileAvailable: () => true, allowedHosts: [] })
   const journalRoutes = createJournalRoutes({ store: createJournalStore(pool), available: () => true, allowedHosts: [] })
-  const server = http.createServer(createHandler({ token: 'x'.repeat(32), maxBodyBytes: 1024, pool, ping, insertRawPayload, syncStatus: { health: () => ({}) }, foodRoutes, journalRoutes }))
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const server = http.createServer(createHandler(/** @type {HandlerDeps} */ (/** @type {unknown} */ ({ token: 'x'.repeat(32), maxBodyBytes: 1024, pool, ping, insertRawPayload, syncStatus: { health: () => ({}) }, foodRoutes, journalRoutes }))))
+  await /** @type {Promise<void>} */ (new Promise((resolve) => server.listen(0, '127.0.0.1', resolve)))
+  /** @param {string} method @param {string} path @param {object} [body] @param {Record<string, string>} [extra] @returns {Promise<Answer>} */
   const call = async (method, path, body, extra = {}) => {
-    const res = await fetch(`http://127.0.0.1:${server.address().port}${path}`, {
+    const res = await fetch(`http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}${path}`, {
       method, headers: { 'x-hc-food': '1', 'x-hc-journal': '1', 'content-type': 'application/json', ...extra }, body: body && JSON.stringify(body)
     })
     return { status: res.status, body: await res.json() }
@@ -204,7 +220,7 @@ test('HTTP: the food and journal routes write through to Postgres', { skip }, as
     assert.deepEqual([edge.status, edge.body.entry.fat], [201, 99500], 'the largest storable amounts still log')
     const j = await call('PUT', '/journal/day', { date: '2030-02-01', answers: { alcohol: 1 } })
     assert.equal(j.status, 200)
-    assert.deepEqual((await createJournalStore(pool).getDay('2030-02-01')).answers, { alcohol: 1 })
+    assert.deepEqual(/** @type {import('../../src/journal.js').StoredJournalDay} */ (await createJournalStore(pool).getDay('2030-02-01')).answers, { alcohol: 1 })
   } finally {
     await new Promise((resolve) => server.close(resolve))
   }
@@ -215,7 +231,7 @@ test('a password with URL-special characters connects through databaseConfig (th
   const role = `loop_pw_${process.pid}`
   await pool.query(`CREATE ROLE ${role} LOGIN PASSWORD '${password}'`)
   const u = new URL(db.url)
-  const other = createPool(databaseConfig({ DB_HOST: u.hostname, DB_PORT: u.port, POSTGRES_USER: role, POSTGRES_PASSWORD: password, POSTGRES_DB: db.name }), { log: quiet })
+  const other = createPool(/** @type {import('../../src/db.js').Connection} */ (databaseConfig({ DB_HOST: u.hostname, DB_PORT: u.port, POSTGRES_USER: role, POSTGRES_PASSWORD: password, POSTGRES_DB: db.name })), { log: quiet })
   try {
     const { rows: [{ who }] } = await other.query('SELECT current_user AS who')
     assert.equal(who, role)
@@ -228,9 +244,11 @@ test('a password with URL-special characters connects through databaseConfig (th
 test('strava (C1): a first pull cut by a 429 keeps the stored pages and the next run resumes from them', { skip }, async () => {
   const { createStravaSync } = await import('../../src/sync.js')
   await pool.query('TRUNCATE strava_activity CASCADE')
-  const day = (i) => new Date(Date.UTC(2021, 0, 1) + i * 86_400_000).toISOString().replace('.000Z', 'Z')
+  const day = (/** @type {number} */ i) => new Date(Date.UTC(2021, 0, 1) + i * 86_400_000).toISOString().replace('.000Z', 'Z')
+  /** @type {number[]} */
   const afters = []
   let calls = 0
+  /** A fetch stand-in answering only the Response fields the client reads. @param {string | URL | Request} url */
   const fetchImpl = async (url) => {
     const u = new URL(String(url))
     if (u.pathname.endsWith('/oauth/token')) return { ok: true, status: 200, json: async () => ({ access_token: 't', expires_at: Math.floor(Date.now() / 1000) + 3600 }) }
@@ -243,8 +261,8 @@ test('strava (C1): a first pull cut by a 429 keeps the stored pages and the next
     }
     return { ok: false, status: 500 }
   }
-  const sync = createStravaSync(pool, { STRAVA_CLIENT_ID: 'i', STRAVA_CLIENT_SECRET: 's', STRAVA_REFRESH_TOKEN: 'r' }, { fetchImpl, log: quiet })
-  await assert.rejects(sync.runOnce(), (err) => err.rateLimited === true)
+  const sync = createStravaSync(pool, { STRAVA_CLIENT_ID: 'i', STRAVA_CLIENT_SECRET: 's', STRAVA_REFRESH_TOKEN: 'r' }, { fetchImpl: /** @type {import('../../src/strava.js').FetchImpl} */ (/** @type {unknown} */ (fetchImpl)), log: quiet })
+  await assert.rejects(sync.runOnce(), (/** @type {StravaError} */ err) => err.rateLimited === true)
   const count = async () => Number((await pool.query('SELECT count(*) AS n FROM strava_activity')).rows[0].n)
   assert.equal(await count(), 100, 'page 1 committed before the 429')
   assert.equal(afters[0], 0)
@@ -266,13 +284,14 @@ test('ingest (C3): Postgres jsonb refuses U+0000, which is why the route answers
 })
 
 test('food / journal / profile text with U+0000: Postgres refuses it (22021), so the routes answer 400 invalid, never 500', { skip }, async () => {
-  await assert.rejects(pool.query('SELECT $1::text', ['a\u0000b']), (err) => err.code === '22021')
-  const foodRoutes = createFoodRoutes({ store: createFoodStore(pool), off: {}, available: () => true, settingsAvailable: () => true, profileAvailable: () => true, allowedHosts: [] })
+  await assert.rejects(pool.query('SELECT $1::text', ['a\u0000b']), (/** @type {Error & { code?: string }} */ err) => err.code === '22021')
+  const foodRoutes = createFoodRoutes({ store: createFoodStore(pool), off: /** @type {Parameters<typeof createFoodRoutes>[0]['off']} */ ({}), available: () => true, settingsAvailable: () => true, profileAvailable: () => true, allowedHosts: [] })
   const journalRoutes = createJournalRoutes({ store: createJournalStore(pool), available: () => true, allowedHosts: [] })
-  const server = http.createServer(createHandler({ token: 'x'.repeat(32), maxBodyBytes: 1024, pool, ping, insertRawPayload, syncStatus: { health: () => ({}) }, foodRoutes, journalRoutes }))
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
+  const server = http.createServer(createHandler(/** @type {HandlerDeps} */ (/** @type {unknown} */ ({ token: 'x'.repeat(32), maxBodyBytes: 1024, pool, ping, insertRawPayload, syncStatus: { health: () => ({}) }, foodRoutes, journalRoutes }))))
+  await /** @type {Promise<void>} */ (new Promise((resolve) => server.listen(0, '127.0.0.1', resolve)))
+  /** @param {string} method @param {string} path @param {object} body @returns {Promise<[number, unknown]>} */
   const call = async (method, path, body) => {
-    const res = await fetch(`http://127.0.0.1:${server.address().port}${path}`, {
+    const res = await fetch(`http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}${path}`, {
       method, headers: { 'x-hc-food': '1', 'x-hc-journal': '1', 'content-type': 'application/json' }, body: JSON.stringify(body)
     })
     return [res.status, await res.json()]

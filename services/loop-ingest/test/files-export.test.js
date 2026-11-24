@@ -10,13 +10,20 @@ import { createBearerCheck } from '../src/auth.js'
 
 const TOKEN = 't'.repeat(40)
 const AUTH = { authorization: `Bearer ${TOKEN}` }
-const sha = (buf) => createHash('sha256').update(buf).digest('hex')
+/** @typedef {import('../src/files-export.js').HashCache} HashCache @typedef {import('../src/files-export.js').BeforeOpen} BeforeOpen */
+/** The manifest GET /export/files answers (the parsed JSON).
+ * @typedef {{ files: { path: string, size: number, sha256: string, mtimeMs: number }[], site: unknown }} Manifest */
+/** One answer of the test server: the raw bytes, and `json()` to read them as the manifest.
+ * @typedef {{ status: number, headers: Headers, buf: Buffer, json: () => Manifest }} GetResult */
+
+const sha = (/** @type {import('node:crypto').BinaryLike} */ buf) => createHash('sha256').update(buf).digest('hex')
 
 /** A data root with every allowlisted dir, a few files the route must never list, and a status.json site. */
 function makeRoot () {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'files-export-'))
   const root = path.join(dir, 'data')
   const site = path.join(dir, 'site')
+  /** @param {string} rel @param {string | Buffer} content */
   const put = (rel, content) => {
     const file = path.join(root, rel)
     fs.mkdirSync(path.dirname(file), { recursive: true })
@@ -45,8 +52,10 @@ function makeRoot () {
   return { dir, root, site, put }
 }
 
+/** @param {{ available?: boolean, hashCache?: HashCache, fdDir?: string, beforeOpen?: BeforeOpen }} [options] */
 async function setup ({ available = true, ...opts } = {}) {
   const r = makeRoot()
+  /** @type {string[]} */
   const logs = []
   const routes = createFilesExportRoutes({
     available: () => available,
@@ -57,19 +66,20 @@ async function setup ({ available = true, ...opts } = {}) {
     ...opts
   })
   const server = http.createServer(async (req, res) => {
-    const url = new URL(req.url, 'http://localhost')
+    const url = new URL(/** @type {string} */ (req.url), 'http://localhost')
     if (!(await routes.handle(req, res, url))) {
       res.writeHead(599)
       res.end()
     }
   })
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
-  const base = `http://127.0.0.1:${server.address().port}`
+  await /** @type {Promise<void>} */ (new Promise((resolve) => server.listen(0, '127.0.0.1', resolve)))
+  const base = `http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}`
   return {
     ...r,
     logs,
     routes,
     close: () => new Promise((resolve) => server.close(resolve)).finally(() => fs.rmSync(r.dir, { recursive: true, force: true })),
+    /** @param {string} p @param {Record<string, string>} [headers] @returns {Promise<GetResult>} */
     async get (p, headers = AUTH, method = 'GET') {
       const res = await fetch(base + p, { method, headers })
       const buf = Buffer.from(await res.arrayBuffer())
@@ -78,7 +88,7 @@ async function setup ({ available = true, ...opts } = {}) {
   }
 }
 
-const filePath = (p) => `/export/file?path=${encodeURIComponent(p)}`
+const filePath = (/** @type {string} */ p) => `/export/file?path=${encodeURIComponent(p)}`
 
 test('GET /export/files lists exactly the allowlisted files, sorted, with size, sha256 and mtimeMs, plus the published seq', async () => {
   const s = await setup()
@@ -92,7 +102,7 @@ test('GET /export/files lists exactly the allowlisted files, sorted, with size, 
       'files/documents/clinical/blood.pdf', 'files/manuals/edge.pdf',
       'foodlog/foodlog-daily.csv', 'profile/settings.json'
     ])
-    const weight = body.files.find((f) => f.path === 'extract/weight.csv')
+    const weight = /** @type {Manifest['files'][number]} */ (body.files.find((f) => f.path === 'extract/weight.csv'))
     const bytes = fs.readFileSync(path.join(s.root, 'extract/weight.csv'))
     assert.equal(weight.size, bytes.length)
     assert.equal(weight.sha256, sha(bytes))
@@ -260,6 +270,7 @@ test('the files folder can live elsewhere (HC_FILES_DIR): files/ paths map onto 
 test('sha256 is cached by (size, mtimeMs): an unchanged file is hashed once, a changed one again', async () => {
   const s = await setup()
   try {
+    /** @type {string[]} */
     let hashed = []
     const cache = createHashCache({ onHash: (p) => hashed.push(p) })
     await listExportFiles({ dataDir: s.root, cache })
@@ -271,13 +282,14 @@ test('sha256 is cached by (size, mtimeMs): an unchanged file is hashed once, a c
     fs.appendFileSync(file, '2026-10-02,79.5,Scale\n')
     const list = await listExportFiles({ dataDir: s.root, cache })
     assert.deepEqual(hashed, [file])
-    assert.equal(list.find((f) => f.path === 'extract/weight.csv').sha256, sha(fs.readFileSync(file)))
+    assert.equal(/** @type {import('../src/files-export.js').ExportFile} */ (list.find((f) => f.path === 'extract/weight.csv')).sha256, sha(fs.readFileSync(file)))
   } finally {
     await s.close()
   }
 })
 
 test('the route reuses its hash cache across manifests', async () => {
+  /** @type {string[]} */
   const hashed = []
   const s = await setup({ hashCache: createHashCache({ onHash: (p) => hashed.push(p) }) })
   try {
@@ -317,7 +329,8 @@ test('EXPORT_DIRS is the design allowlist', () => {
 
 /* ---------- B1: a folder swapped for a symlink between the listing and the open ---------- */
 
-/** extract/sub/deep.csv inside, and an outside folder with the same name a swap would expose. */
+/** extract/sub/deep.csv inside, and an outside folder with the same name a swap would expose.
+ * @param {{ put: (rel: string, content: string | Buffer) => void, dir: string, root: string }} s */
 function swapFixture (s) {
   s.put('extract/sub/deep.csv', 'inside\n')
   const outside = path.join(s.dir, 'outside')
@@ -333,9 +346,9 @@ function swapFixture (s) {
   }
 }
 
-for (const [label, extra] of [['/proc/self/fd', {}], ['the portable fallback (no /proc)', { fdDir: '/nonexistent-proc/self/fd' }]]) {
+for (const [label, extra] of /** @type {[string, { fdDir?: string }][]} */ ([['/proc/self/fd', {}], ['the portable fallback (no /proc)', { fdDir: '/nonexistent-proc/self/fd' }]])) {
   test(`GET /export/file never serves a file outside the folder when an intermediate folder is swapped for a symlink after the listing (${label})`, async () => {
-    let fx
+    let fx = /** @type {ReturnType<typeof swapFixture>} */ (/** @type {unknown} */ (undefined)) // set right after setup
     let swapped = 0
     const s = await setup({ ...extra, beforeOpen: (abs) => { if (abs.endsWith('deep.csv') && !swapped++) fx.swap() } })
     fx = swapFixture(s)
@@ -350,7 +363,7 @@ for (const [label, extra] of [['/proc/self/fd', {}], ['the portable fallback (no
   })
 
   test(`GET /export/files never lists the size or sha256 of an outside file reached through a swapped folder (${label})`, async () => {
-    let fx
+    let fx = /** @type {ReturnType<typeof swapFixture>} */ (/** @type {unknown} */ (undefined)) // set right after setup
     let swapped = 0
     const s = await setup({ ...extra, beforeOpen: (abs) => { if (abs.endsWith('deep.csv') && !swapped++) fx.swap() } })
     fx = swapFixture(s)
@@ -404,15 +417,18 @@ test('a folder that became a symlink loop (a swap mid-walk) is skipped like a va
     fs.mkdirSync(path.join(s.root, 'profile', 'loop'), { recursive: true })
     fs.rmSync(path.join(s.root, 'profile', 'loop'), { recursive: true })
     fs.symlinkSync('loop', path.join(s.root, 'profile', 'loop'))
+    /** @type {string[]} */
     const walked = []
-    const real = fs.promises.readdir
-    fs.promises.readdir = async (p, o) => {
+    // the overloaded readdir, seen as the one call shape the export makes (path, options)
+    /** @typedef {(p: string, o?: object) => Promise<unknown>} Readdir @typedef {typeof fs.promises.readdir} RealReaddir */
+    const real = /** @type {Readdir} */ (/** @type {unknown} */ (fs.promises.readdir))
+    fs.promises.readdir = /** @type {RealReaddir} */ (/** @type {unknown} */ (/** @type {Readdir} */ (async (p, o) => {
       walked.push(p)
       if (p === path.join(s.root, 'foodlog')) return real(path.join(s.root, 'profile', 'loop'), o)
       return real(p, o)
-    }
-    let res
-    try { res = await s.get('/export/files') } finally { fs.promises.readdir = real }
+    })))
+    let res = /** @type {GetResult} */ (/** @type {unknown} */ (undefined)) // set in the try below
+    try { res = await s.get('/export/files') } finally { fs.promises.readdir = /** @type {RealReaddir} */ (/** @type {unknown} */ (real)) }
     assert.equal(res.status, 200)
     const paths = res.json().files.map((f) => f.path)
     assert.ok(!paths.some((p) => p.startsWith('foodlog/')), 'the looping folder lists nothing')

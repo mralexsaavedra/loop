@@ -18,15 +18,18 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const WEB_ROOT = path.dirname(here);
 const REPO_ROOT = path.dirname(WEB_ROOT);
 const exampleHtml = () => fs.readFileSync(path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.html'), 'utf8');
-const topbar = (html) => (html.match(/<header class="topbar"[^>]*>([\s\S]*?)<nav class="tabnav"/) || [])[1] || '';
-const baked = (html) => JSON.parse(html.match(/var PROFILE = (\{[\s\S]*?\});\n/)[1]);
+// html: a build's page, null only when the build wrote none (the callers assert the build passed first)
+const topbar = (/** @type {string | null} */ html) => (/** @type {string} */ (html).match(/<header class="topbar"[^>]*>([\s\S]*?)<nav class="tabnav"/) || [])[1] || '';
+const baked = (/** @type {string | null} */ html) => JSON.parse(/** @type {RegExpMatchArray} */ (/** @type {string} */ (html).match(/var PROFILE = (\{[\s\S]*?\});\n/))[1]);
 const JPEG = Buffer.concat([Buffer.from([0xff, 0xd8, 0xff, 0xe0]), Buffer.alloc(300, 9)]);
 
+/** @param {object} obj @param {string} [prefix] @returns {string[]} */
 function keyTree(obj, prefix = '') {
   return Object.entries(obj).flatMap(([k, v]) => (v && typeof v === 'object' ? keyTree(v, `${prefix}${k}.`) : [`${prefix}${k}`])).sort();
 }
 
 /** Build a throwaway repo root: the tracked nutrition seeds (+ `files`: relative path -> content). */
+/** @param {{mode: string, files?: Record<string, string | Buffer>}} opts */
 function build({ mode, files = {} }) {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'profile-build-'));
   try {
@@ -55,7 +58,7 @@ function build({ mode, files = {} }) {
 
 test('profile-templates.mjs has identical key trees in es/en and no empty strings', () => {
   assert.deepEqual(keyTree(esP), keyTree(enP));
-  for (const dict of [esP, enP]) for (const k of keyTree(dict)) assert.notEqual(String(k.split('.').reduce((o, p) => o[p], dict)).trim(), '', k);
+  for (const dict of [esP, enP]) for (const k of keyTree(dict)) assert.notEqual(String(k.split('.').reduce((/** @type {any} */ o, p) => o[p], dict)).trim(), '', k);
 });
 
 test('example build: ONE avatar button in the top bar (initials, no photo) opening the profile view; PROFILE baked, profile.ts before detail.ts', () => {
@@ -73,8 +76,8 @@ test('example build: ONE avatar button in the top bar (initials, no photo) openi
   assert.ok(p.bikes.length && p.shoes.length && p.devices.length);
   assert.equal('age' in p, false, 'the age is computed client-side');
   assert.equal('hiddenDevices' in p, false, 'hidden names are applied at build time, never baked');
-  assert.ok(!p.devices.some((d) => d.name === 'Demo Phone App'));
-  assert.equal(p.devices.find((d) => d.manual).manual, 'sample-bike-computer-manual.pdf', 'only the manual file name is baked');
+  assert.ok(!p.devices.some((/** @type {{name: string}} */ d) => d.name === 'Demo Phone App'));
+  assert.equal(p.devices.find((/** @type {{manual?: string}} */ d) => d.manual).manual, 'sample-bike-computer-manual.pdf', 'only the manual file name is baked');
   const reg = html.search(/HC\.registerView\(["']profile["']/), viewRe = html.indexOf('var VIEW_HASH_RE');
   assert.ok(reg >= 0 && viewRe >= 0, 'profile.ts registration and detail.ts both inlined');
   assert.ok(reg < viewRe, 'profile.ts registers its view before detail.ts runs');
@@ -99,7 +102,7 @@ test('build-level: a photo is inlined ONCE as a data URI in the button; PROFILE 
   });
   assert.equal(r.status, 0, r.stderr);
   const b64 = JPEG.toString('base64');
-  assert.equal(html.split(b64).length - 1, 1, 'the image bytes appear exactly once');
+  assert.equal(/** @type {string} */ (html).split(b64).length - 1, 1, 'the image bytes appear exactly once');
   assert.match(topbar(html), /<img id="avatar-img" class="avatar-img" src="data:image\/jpeg;base64,/);
   assert.equal(baked(html).photo, true);
   assert.equal(baked(html).name, 'Pat Demo');

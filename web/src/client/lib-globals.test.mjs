@@ -18,6 +18,7 @@ import * as DT from '../../../lib/nutrition/daytype.mjs';
 import * as FU from '../../../lib/nutrition/fuel.mjs';
 import * as EN from '../../../lib/nutrition/energy.mjs';
 
+/** @param {unknown} v @returns {any} JSON round-trip of a value the vm script built */
 const js = (v) => JSON.parse(JSON.stringify(v));
 const SOURCE = clientScriptSource('lib-globals.ts');
 function globals() {
@@ -25,6 +26,7 @@ function globals() {
   vm.runInContext(SOURCE, ctx);
   return ctx;
 }
+/** @param {...{consts?: object, fns?: object}} parts */
 const keysOf = (...parts) => [...new Set([...parts.flatMap((p) => Object.keys(p.consts || {})), ...parts.flatMap((p) => Object.keys(p.fns || {}))])];
 
 test('a classic IIFE: no import / export left, every global published on globalThis', () => {
@@ -51,7 +53,8 @@ test('HC_FMT formats exactly like lib/format/numbers.mjs', () => {
     ['fmtNumber', [1234.56, 1, 'es']], ['fmtPercent', [97, 'es']], ['fmtMinutes', [421]],
     ['fmtHours', [7.999]], ['fmtRaw', [1.25, 'es']], ['fmtPlain', [2500.25, 1, 'es']], ['fmtInt', [null, 'es']],
   ];
-  for (const [fn, args] of cases) assert.equal(C[fn](...args), F[fn](...args), `${fn}(${args})`);
+  const FNS = /** @type {Record<string, (...a: unknown[]) => unknown>} */ (/** @type {unknown} */ (F));
+  for (const [fn, args] of /** @type {[string, unknown[]][]} */ (cases)) assert.equal(C[fn](...args), FNS[fn](...args), `${fn}(${args})`);
   assert.equal(C.DASH, '—');
 });
 
@@ -64,7 +67,7 @@ test('HC_BAND cuts the 0-100 bands where lib/score/recovery.mjs does', () => {
 
 test('HC_ADH counts adherence exactly like lib/nutrition/adherence.mjs', () => {
   const A = globals().HC_ADH;
-  const day = (o) => ({ date: '2030-01-10', k: 2000, p: 140, c: 200, f: 60, n: 3, missing: { p: false, c: false, f: false }, groups: { breakfast: 1, lunch: 1, dinner: 1, addon: 0 }, ...o });
+  const day = (/** @type {object} */ o) => ({ date: '2030-01-10', k: 2000, p: 140, c: 200, f: 60, n: 3, missing: { p: false, c: false, f: false }, groups: { breakfast: 1, lunch: 1, dinner: 1, addon: 0 }, ...o });
   assert.deepEqual(js(A.ADHERENCE), js(ADH.ADHERENCE));
   for (const c of ADHERENCE_CASES) assert.deepEqual(js(A.adherence(c.dates, c.days, c.targets)), c.expect, c.name);
   for (const d of [null, day({}), day({ groups: { breakfast: 1, lunch: 0, dinner: 1, addon: 0 } }), day({ n: 0 }), day({ k: null })]) {
@@ -81,7 +84,7 @@ test('HC_PROG computes the weight progress exactly like lib/nutrition/progress.m
     assert.deepEqual(js(P.rollPoints(c.metric)), PROG.rollPoints(c.metric), 'rollPoints ' + c.name);
     assert.deepEqual(js(P.weeklyRate(PROG.rollPoints(c.metric))), PROG.weeklyRate(PROG.rollPoints(c.metric)), 'weeklyRate ' + c.name);
   }
-  for (const [d, w] of [['2030-02-10', [6, 12]], ['2030-12-20', [1.5, 3]], ['2030-02-10', null], ['x', [1, 2]]]) {
+  for (const [d, w] of /** @type {[string, number[] | null][]} */ ([['2030-02-10', [6, 12]], ['2030-12-20', [1.5, 3]], ['2030-02-10', null], ['x', [1, 2]]])) {
     assert.deepEqual(js(P.etaMonths(d, w)), PROG.etaMonths(d, w), d);
   }
   assert.deepEqual(js(P.rollPoints({ start: 'bad', roll: [1] })), []);

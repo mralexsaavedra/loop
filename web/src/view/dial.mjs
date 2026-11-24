@@ -28,23 +28,61 @@
 import { Z_CLAMP } from '../../../lib/score/recovery.mjs';
 import { sleepPerformance } from '../../../lib/score/sleep.mjs';
 
+/** Ring geometry: centre, radius, stroke width, start angle and sweep (degrees).
+ * @typedef {{c: number, r: number, stroke: number, start: number, sweep: number}} Geometry */
+/** @typedef {{x: number, y: number}} XY */
+/* The input shapes below are the parts of the buildScoresFrom() / healthFrom() bakes this module
+ * reads (lib/score/*.mjs), each field optional: the bakes and the hand-built test fixtures both fit. */
+/** @typedef {{date?: string, value?: number | null, pct?: number | null, pctBand?: string | null, band?: string | null, sleep?: boolean | null}} DialRecoveryNight */
+/** @typedef {{key: string, daily?: {date: string, value: number}[] | null}} DialComponent */
+/** @typedef {{asOf?: string | null, gated?: boolean, trend7?: number | null, band?: string | null, trendDir?: string | null, today?: DialRecoveryNight | null, components?: DialComponent[] | null}} DialRecovery */
+/** @typedef {{recovery?: {hasData?: boolean, sleep?: {target?: number | null} | null} | null} | null | undefined} DialHealth */
+/** @typedef {{last?: {date: string, hours?: number | null} | null} | null | undefined} DialSleepScore */
+/** @typedef {{ok?: boolean, trendPct?: number | null, band?: string | null, reason?: string | null}} DialLoadTrend */
+/** @typedef {{date: string, re?: number | null, unscored?: number | null}} DialLoadDay */
+/** @typedef {{key: string, trend?: DialLoadTrend | null, recent?: DialLoadDay[] | null, typical?: {value?: number | null} | null, last?: unknown, unscoredAcute?: number | null}} DialModality */
+/** @typedef {{asOf?: string | null, modalities?: DialModality[] | null}} DialLoad */
+/** @typedef {{date: string, s?: number | null}} DialStrainDay */
+/** @typedef {{ok?: boolean, reason?: string, asOf?: string | null, days?: (DialStrainDay | null)[] | null}} DialStrain */
+/** @typedef {{date: string, sleep?: number | null, rec?: string | DialRecoveryNight | null}} DialPastDay */
+/** @typedef {{hasData?: boolean, recovery?: DialRecovery | null, load?: DialLoad | null, sleep?: DialSleepScore, strain?: DialStrain | null, days?: {days?: DialPastDay[] | null} | null}} DialScores */
+/* The baked DIALS shapes (one flat shape per dial, every field but `state` absent on a gated / empty dial). */
+/** @typedef {{value?: number | null, band?: string | null, dir: string | null}} DialTrendOut */
+/** @typedef {{state: string, mode?: string, asOf?: string | null, date?: string | null, sleep?: boolean | null, band?: string | null, pct?: number | null, value?: number | null, trend?: DialTrendOut, fill?: string, mid?: XY | null}} DialRecoveryOut */
+/** @typedef {{state: string, date?: string, hours?: number | null, target?: number | null, pct?: number | null, fill?: string}} DialSleepOut */
+/** @typedef {{date: string, re: number, unscored: number, fill?: string}} DialLoadDayOut */
+/** @typedef {{key: string, state: string, reason?: string, days: DialLoadDayOut[], typical?: number, trendPct?: number, band?: string | null, last?: unknown, unscored?: number}} DialModalityOut */
+/** @typedef {{x1: number, y1: number, x2: number, y2: number}} DialTick */
+/** @typedef {{state: string, asOf?: string | null, defaultKey?: string, modalities?: DialModalityOut[], mid?: XY, tick?: DialTick}} DialLoadOut */
+/** @typedef {{date: string, s: number, fill: string}} DialStrainDayOut */
+/** @typedef {{state: string, asOf: string | null, days: DialStrainDayOut[]}} DialStrainOut */
+/** @typedef {{date: string, sleep: DialSleepOut, recovery: DialRecoveryOut}} DialPastDayOut */
+/** @typedef {{track: string, sleep: DialSleepOut, recovery: DialRecoveryOut, load: DialLoadOut, strain: DialStrainOut | null, days: DialPastDayOut[]}} Dials */
+
 // 120-unit viewBox, 54-unit radius, 9.5-unit stroke (~8 % of the 120-unit dial): a full ring that
 // starts at 12 o'clock (-90 degrees) and fills clockwise; the midpoint (0.5) sits at 6 o'clock.
+/** @type {Geometry} */
 export const DIAL = { c: 60, r: 54, stroke: 9.5, start: -90, sweep: 360 };
 // the deep-dive hero ring (client/deepdive.ts, styles/detail.css .dd-track): the same circle with a
 // lighter 7.5-unit stroke, so its typical-day tick crosses THAT stroke
+/** @type {Geometry} */
 export const HERO = { ...DIAL, stroke: 7.5 };
 // Load: the ring midpoint is the typical training day (1x), the end is 2x.
 const LOAD_MAX_RATIO = 2;
 
+/** @param {number} v */
 const r2 = (v) => Math.round(v * 100) / 100;
+/** @param {number} v @param {number} lo @param {number} hi */
 const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+/** @param {unknown} v @returns {v is number} */
 const isNum = (v) => typeof v === 'number' && Number.isFinite(v);
 
+/** @param {number} f @param {Geometry} [g] */
 export function fracToAngle(f, g = DIAL) {
   return g.start + g.sweep * clamp(f, 0, 1);
 }
 
+/** @param {number} angle @param {number} [r] @param {Geometry} [g] @returns {XY} */
 export function polar(angle, r = DIAL.r, g = DIAL) {
   const a = (angle * Math.PI) / 180;
   return { x: r2(g.c + r * Math.cos(a)), y: r2(g.c + r * Math.sin(a)) };
@@ -52,7 +90,8 @@ export function polar(angle, r = DIAL.r, g = DIAL) {
 
 /** SVG path for the arc between two fractions of the sweep (direction preserved). A full ring is
  * two half arcs: one SVG arc cannot start and end on the same point. `g` = the geometry (default the
- * Inicio ring, which Nutrición's kcal ring bakes too: tabs/Dia.astro NUTRI_ARC). */
+ * Inicio ring, which Nutrición's kcal ring bakes too: tabs/Dia.astro NUTRI_ARC).
+ * @param {number} f0 @param {number} f1 @param {Geometry} [g] @returns {string} */
 export function arcPath(f0, f1, g = DIAL) {
   const a0 = fracToAngle(f0, g);
   const a1 = fracToAngle(f1, g);
@@ -70,26 +109,31 @@ export function arcPath(f0, f1, g = DIAL) {
   return `M${p0.x} ${p0.y}A${g.r} ${g.r} 0 ${large} ${sweep} ${p1.x} ${p1.y}`;
 }
 
+/** @param {unknown} v */
 export function recoveryFrac(v) {
   // the recovery z is clamped per signal at +-Z_CLAMP MAD; the dial uses the same range
   return isNum(v) ? (clamp(v, -Z_CLAMP, Z_CLAMP) + Z_CLAMP) / (2 * Z_CLAMP) : null;
 }
 
+/** @param {unknown} hours @param {unknown} target */
 export function sleepFrac(hours, target) {
   return isNum(hours) && isNum(target) && target > 0 ? clamp(hours / target, 0, 1) : null;
 }
 
+/** @param {number} dayOverTypical */
 export function loadFrac(dayOverTypical) {
   return clamp(dayOverTypical / LOAD_MAX_RATIO, 0, 1);
 }
 
-/** The day's RE as a fraction of the arc: typical day = midpoint, 2x typical = end. */
+/** The day's RE as a fraction of the arc: typical day = midpoint, 2x typical = end.
+ * @param {unknown} day @param {unknown} typical */
 export function loadDayFrac(day, typical) {
   return isNum(day) && isNum(typical) && typical > 0 ? loadFrac(day / typical) : null;
 }
 
 /** A radial tick across the ring's stroke at fraction `f` (1 unit past each edge): the load dial's
- * typical-day mark on the detail sheet's hero ring. */
+ * typical-day mark on the detail sheet's hero ring.
+ * @param {number} f @param {Geometry} [g] @returns {DialTick} */
 export function radialTick(f, g = DIAL) {
   const a = fracToAngle(f, g);
   const p0 = polar(a, g.r - g.stroke / 2 - 1, g);
@@ -99,11 +143,13 @@ export function radialTick(f, g = DIAL) {
 
 // filled clockwise from 12 o'clock to pct %, else to the value on the -3..+3 scale with the
 // baseline (0) as the tick at the ring's midpoint (6 o'clock)
+/** @param {number | null | undefined} value @param {number | null} pct */
 function recoveryRing(value, pct) {
   const f = pct != null ? pct / 100 : recoveryFrac(value);
-  return { fill: arcPath(0, f), mid: pct != null ? null : polar(fracToAngle(0.5), DIAL.r - DIAL.stroke) };
+  return { fill: arcPath(0, /** @type {number} */ (f)), mid: pct != null ? null : polar(fracToAngle(0.5), DIAL.r - DIAL.stroke) };
 }
 
+/** @param {DialRecovery | null | undefined} R @returns {DialRecoveryOut} */
 function recoveryDial(R) {
   if (!R) return { state: 'none' };
   if (R.gated || !isNum(R.trend7)) return { state: 'gated', asOf: R.asOf || null };
@@ -116,7 +162,7 @@ function recoveryDial(R) {
     asOf: R.asOf || null,
     date: today ? today.date : null,
     sleep: today ? today.sleep !== false : null,
-    band: pct != null ? today.pctBand : today ? today.band : R.band,
+    band: pct != null ? /** @type {DialRecoveryNight} */ (today).pctBand : today ? today.band : R.band,
     pct,
     value,
     trend: { value: R.trend7, band: R.band, dir: R.trendDir || null },
@@ -124,10 +170,12 @@ function recoveryDial(R) {
   };
 }
 
+/** @param {DialHealth} H */
 function sleepTarget(H) {
   return H && H.recovery && H.recovery.sleep ? H.recovery.sleep.target : null;
 }
 
+/** @param {string} date @param {number | null | undefined} hours @param {number | null | undefined} target @returns {DialSleepOut} */
 function sleepNight(date, hours, target) {
   const f = isNum(hours) ? sleepFrac(hours, target) : null;
   if (f == null) return { state: 'none' };
@@ -136,7 +184,8 @@ function sleepNight(date, hours, target) {
 
 /** The newest night of the recovery sleep-duration component; without that component (recovery gated, or
  * under 14 nights of baseline: a new user, a band worn a few nights) last night's own sleep score
- * (SCORES.sleep, lib/score/sleep.mjs), so a real night never reads "no data". */
+ * (SCORES.sleep, lib/score/sleep.mjs), so a real night never reads "no data".
+ * @param {DialRecovery | null | undefined} R @param {DialHealth} H @param {DialSleepScore} Sl @returns {DialSleepOut} */
 function sleepDial(R, H, Sl) {
   const comp = R && Array.isArray(R.components) ? R.components.find((c) => c.key === 'sleepDur') : null;
   const last = comp && comp.daily && comp.daily.length ? comp.daily[comp.daily.length - 1] : null;
@@ -146,7 +195,8 @@ function sleepDial(R, H, Sl) {
 
 /** A PAST day's sleep + recovery dials (Inicio day stepping) from one SCORES.days entry
  * (lib/score/days.mjs): the same shapes as today's, always mode 'today' for that day's own night
- * (no trend fallback: a day without its night reads "no data"). */
+ * (no trend fallback: a day without its night reads "no data").
+ * @param {DialPastDay} d @param {DialHealth} H @returns {DialPastDayOut} */
 function pastDay(d, H) {
   const n = d.rec && typeof d.rec === 'object' && isNum(d.rec.value) ? d.rec : null;
   const pct = n && isNum(n.pct) ? n.pct : null;
@@ -156,6 +206,7 @@ function pastDay(d, H) {
   return { date: d.date, sleep: sleepNight(d.date, d.sleep, sleepTarget(H)), recovery };
 }
 
+/** @param {DialLoad | null | undefined} L @returns {DialLoadOut} */
 function loadDial(L) {
   if (!L || !Array.isArray(L.modalities) || !L.modalities.length) return { state: 'none' };
   const modalities = L.modalities.map((m) => {
@@ -169,10 +220,11 @@ function loadDial(L) {
     if (typical == null || !(typical > 0)) return { key: m.key, state: 'gated', reason: 'fewDays', days: plainDays() };
     const days = recent.map((d) => {
       const re = isNum(d.re) ? d.re : 0;
+      /** @type {DialLoadDayOut} */
       const out = { date: d.date, re, unscored: d.unscored || 0 };
       if (re > 0) {
         const f = loadDayFrac(re, typical);
-        out.fill = arcPath(0, f);
+        out.fill = arcPath(0, /** @type {number} */ (f));
       }
       return out;
     });
@@ -192,14 +244,16 @@ function loadDial(L) {
 const STRAIN_MAX = 21;
 
 /** SCORES.strain -> null (not calibrated: Inicio keeps the load dial) | {state, asOf, days: [{date, s,
- * fill}]}: the recent days with their strain and its ring arc (strain / 21). */
+ * fill}]}: the recent days with their strain and its ring arc (strain / 21).
+ * @param {DialStrain | null | undefined} St @returns {DialStrainOut | null} */
 export function strainDial(St) {
   if (!St || !St.ok || !Array.isArray(St.days)) return null;
-  const days = St.days.filter((d) => d && isNum(d.s)).map((d) => ({ date: d.date, s: d.s, fill: arcPath(0, clamp(d.s / STRAIN_MAX, 0, 1)) }));
+  const days = /** @type {(DialStrainDay & {s: number})[]} */ (St.days.filter((d) => d && isNum(d.s))).map((d) => ({ date: d.date, s: d.s, fill: arcPath(0, clamp(d.s / STRAIN_MAX, 0, 1)) }));
   return { state: 'ok', asOf: St.asOf || null, days };
 }
 
-/** scores = buildScoresFrom() result, health = healthFrom() result (for the stated sleep target). */
+/** scores = buildScoresFrom() result, health = healthFrom() result (for the stated sleep target).
+ * @param {DialScores | null | undefined} scores @param {DialHealth} health @returns {Dials} */
 export function buildDials(scores, health) {
   const S = scores && scores.hasData ? scores : {};
   return {

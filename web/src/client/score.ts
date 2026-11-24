@@ -537,7 +537,7 @@ type DialParts = { fill?: string | null; mid?: { x: number; y: number } | null }
   function staleLine() {
     if (VIEW) return '';
     var ages = [D.sleep && D.sleep.state === 'ok' ? D.sleep.date : null, D.recovery ? D.recovery.asOf : null, D.strain ? D.strain.asOf : D.load ? D.load.asOf : null]
-      .map(function (iso: string | null) { return isStale(iso) ? daysOld(iso) : null; })
+      .map(function (iso: string | null | undefined) { return isStale(iso) ? daysOld(iso) : null; })
       .filter(function (n: number | null) { return n != null; });
     if (!ages.length) return '';
     var days = { days: Math.min.apply(null, ages) };

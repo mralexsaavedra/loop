@@ -12,22 +12,31 @@ import { clientScriptSource } from '../client-bundle.mjs';
 const source = clientScriptSource('shortcuts.ts');
 const LABELS = { home: 'Inicio', entreno: 'Entreno', health: 'Salud', nutricion: 'Nutrición' };
 
+/** @typedef {import('../../test/dom-stub.mjs').StubElement & {click?: () => void, isContentEditable?: boolean}} El */
+/** @typedef {{type: string, key: string, target: unknown, defaultPrevented: boolean, preventDefault?: () => void}} KeyEvt */
+/** @param {{tabs?: (keyof typeof LABELS)[], actions?: string[], sheetOpen?: boolean, popOpen?: boolean, locale?: string}} [opts] */
 function page({ tabs = ['home', 'entreno', 'health', 'nutricion'], actions = ['food', 'journal'], sheetOpen = false, popOpen = false, locale = 'es' } = {}) {
-  const doc = new StubDocument();
+  const doc = /** @type {StubDocument & {addEventListener?: (t: string, fn: (e: KeyEvt) => void) => void}} */ (new StubDocument());
+  /** @type {Record<string, ((e: KeyEvt) => void)[]>} */
   const listeners = {};
   doc.addEventListener = (t, fn) => { (listeners[t] = listeners[t] || []).push(fn); };
+  /** @type {string[]} */
   const clicks = [];
   for (const k of tabs) {
-    const b = doc.el('t-' + k, { tag: 'button', attrs: { 'data-tab-go': k } });
+    const b = /** @type {El} */ (doc.el('t-' + k, { tag: 'button', attrs: { 'data-tab-go': k } }));
     b.textContent = LABELS[k];
     b.click = () => clicks.push(k);
   }
   doc.el('act-pop', { hidden: !popOpen });
-  const ran = [], opened = [];
+  /** @type {string[]} */
+  const ran = [];
+  /** @type {[string, unknown][]} */
+  const opened = [];
   const window = {
-    HCActions: { run: (name) => { if (!actions.includes(name)) return false; ran.push(name); return true; } },
-    HCDetail: { open: (key, date) => opened.push([key, date]), state: () => (sheetOpen ? { key: 'hrv' } : null) },
+    HCActions: { run: (/** @type {string} */ name) => { if (!actions.includes(name)) return false; ran.push(name); return true; } },
+    HCDetail: { open: (/** @type {string} */ key, /** @type {unknown} */ date) => opened.push([key, date]), state: () => (sheetOpen ? { key: 'hrv' } : null) },
   };
+  /** @type {import('node:vm').Context} */
   const ctx = { document: doc, window, NAV: { tabs: ['home', 'entreno', 'health', 'nutricion'] }, I18N_DETAIL: locale === 'es' ? es : en, LOCALE: locale };
   vm.createContext(ctx);
   loadUtil(ctx);
@@ -35,7 +44,9 @@ function page({ tabs = ['home', 'entreno', 'health', 'nutricion'], actions = ['f
   if (actions.includes('journal')) ctx.HC.registerView('journal', { render: () => ({}) });
   vm.runInContext(source, ctx);
   const body = doc.el(null, { tag: 'body' });
+  /** @param {string} k @param {object} [mods] @param {unknown} [target] */
   const key = (k, mods = {}, target = body) => {
+    /** @type {KeyEvt} */
     const e = { type: 'keydown', key: k, target, defaultPrevented: false, ...mods };
     e.preventDefault = () => { e.defaultPrevented = true; };
     (listeners.keydown || []).forEach((fn) => fn(e));
@@ -74,7 +85,7 @@ test('? opens the help sheet', () => {
 test('ignored while typing, with Ctrl / Cmd / Alt (the browser keeps Cmd+1), with a sheet or the "+" popover open, or when already handled', () => {
   const p = page();
   for (const tag of ['input', 'textarea', 'select']) assert.equal(p.key('1', {}, p.doc.el(null, { tag })).defaultPrevented, false, tag);
-  const editable = p.doc.el(null, { tag: 'div' });
+  const editable = /** @type {El} */ (p.doc.el(null, { tag: 'div' }));
   editable.isContentEditable = true;
   p.key('a', {}, editable);
   p.key('1', { metaKey: true });

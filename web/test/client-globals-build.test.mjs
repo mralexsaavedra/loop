@@ -38,7 +38,7 @@ const PAGES = [
   path.join(WEB_ROOT, '.test-dist', 'en-example', 'index.html'),
   path.join(WEB_ROOT, '.test-dist', 'es-personal', 'index.html'),
 ].filter((p, i) => i === 0 || fs.existsSync(p));
-const js = (v) => JSON.parse(JSON.stringify(v));
+const js = (/** @type {unknown} */ v) => JSON.parse(JSON.stringify(v));
 
 const KEYS = {
   HC_FMT: ['DASH', 'toNum', 'groupDigits', 'localise', 'fmtNumber', 'fmtInt', 'fmtRaw', 'fmtPercent', 'fmtMinutes', 'fmtHours', 'fmtPlain'],
@@ -69,6 +69,7 @@ const KEYS = {
   ],
 };
 
+/** @param {string} htmlPath */
 function globalsOf(htmlPath) {
   const html = fs.readFileSync(htmlPath, 'utf8');
   const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]).find((s) => /\bglobalThis\.HC_FMT\s*=/.test(s));
@@ -78,6 +79,7 @@ function globalsOf(htmlPath) {
   return ctx;
 }
 // the page's own NUTRI bake (Dia.astro: the models planFor re-solves) and its other baked globals (FOOD_BASICS)
+/** @param {string} htmlPath @param {string} name */
 function bakeOf(htmlPath, name) {
   const html = fs.readFileSync(htmlPath, 'utf8');
   const script = [...html.matchAll(/<script>([\s\S]*?)<\/script>/g)].map((m) => m[1]).find((s) => new RegExp('(^|[;\\n])var ' + name + '\\s*=').test(s));
@@ -86,7 +88,7 @@ function bakeOf(htmlPath, name) {
   vm.runInContext(script, ctx);
   return js(ctx[name]);
 }
-const nutriOf = (htmlPath) => bakeOf(htmlPath, 'NUTRI');
+const nutriOf = (/** @type {string} */ htmlPath) => bakeOf(htmlPath, 'NUTRI');
 
 test('at least the example build is present (npm run pretest)', () => {
   assert.ok(PAGES.length > 0, 'no built page: run npm run pretest');
@@ -106,7 +108,7 @@ for (const page of PAGES) {
 
   test(`${rel}: the shipped globals compute what the lib modules compute`, () => {
     const { HC_FMT, HC_BAND, HC_ADH, HC_PROG } = globalsOf(page);
-    for (const [x, dec, loc, signed] of [[1234.5, 1, 'es', false], [-0.04, 1, 'en', true], [12345678, 0, 'es', false], [null, 0, 'en', false]]) {
+    for (const [x, dec, loc, signed] of /** @type {[number | null, number, string, boolean][]} */ ([[1234.5, 1, 'es', false], [-0.04, 1, 'en', true], [12345678, 0, 'es', false], [null, 0, 'en', false]])) {
       assert.equal(HC_FMT.fmtNumber(x, dec, loc, signed), F.fmtNumber(x, dec, loc, signed));
     }
     assert.equal(HC_FMT.fmtMinutes(421), F.fmtMinutes(421));
@@ -163,7 +165,7 @@ for (const page of PAGES) {
       assert.equal(HC_FOODLOG.roundKcal(v), FL.roundKcal(v));
     }
     const long = { k: 'x', n: 'N'.repeat(200), u: 'g', m: [100, 1, 1, 1] };
-    assert.equal(HC_FOODLOG.basicLabel(long, 10, 'g', { dec: '.', g: 'g' }), FL.basicLabel(long, 10, 'g', { dec: '.', g: 'g' }), 'FOOD_LIMITS.nameMax cap');
+    assert.equal(HC_FOODLOG.basicLabel(long, 10, 'g', { dec: '.', g: 'g' }), FL.basicLabel(long, 10, 'g', /** @type {import('../../lib/nutrition/foodlog.mjs').BasicWords} */ (/** @type {unknown} */ ({ dec: '.', g: 'g' }))), 'FOOD_LIMITS.nameMax cap');
   });
 
   test(`${rel}: HC_ENERGY computes the onboarding targets, screen and bounds like lib/nutrition/energy.mjs`, () => {
@@ -224,7 +226,7 @@ for (const page of PAGES) {
     }
     for (const c of FILL_CASES) assert.deepEqual(js(HC_SCALE.waterFill(c.items, c.need, c.opts)), js(waterFill(c.items, c.need, c.opts)), JSON.stringify(c));
     const pc = { a: 120, r: null, o: 'banana', m: 'bananas' };
-    for (const [amt, unit] of [[180, 'g'], [150, 'g'], [60, 'g']]) assert.equal(HC_SCALE.fmtPieces(amt, unit, pc), fmtPieces(amt, unit, pc));
+    for (const [amt, unit] of /** @type {[number, string][]} */ ([[180, 'g'], [150, 'g'], [60, 'g']])) assert.equal(HC_SCALE.fmtPieces(amt, unit, pc), fmtPieces(amt, unit, pc));
     assert.equal(HC_SCALE.fmtAmt(250, 'ud', { ud: 'pc' }, null), AM.fmtAmt(250, 'ud', { ud: 'pc' }, null));
     assert.equal(HC_SCALE.fmtFactor(1.25, ','), SC.fmtFactor(1.25, ','));
     assert.equal(HC_SCALE.floorToStep(0.9, 0.3), AM.floorToStep(0.9, 0.3));
@@ -234,7 +236,7 @@ for (const page of PAGES) {
     const { HC_GUIDE, HC_SCALE } = globalsOf(page);
     const nutri = nutriOf(page);
     const basics = bakeOf(page, 'FOOD_BASICS');
-    for (const k of ['GUIDE_ROLES', 'ROLE_KEYS', 'DONE_SHARE', 'COVERED_SHARE', 'OIL_SLOTS']) assert.deepEqual(js(HC_GUIDE[k]), js(GU[k]), k);
+    for (const k of ['GUIDE_ROLES', 'ROLE_KEYS', 'DONE_SHARE', 'COVERED_SHARE', 'OIL_SLOTS']) assert.deepEqual(js(HC_GUIDE[k]), js(/** @type {Record<string, unknown>} */ (GU)[k]), k);
     assert.deepEqual(js(HC_GUIDE.MACS), ['k', 'p', 'c', 'f']);
     for (const g of nutri.goals) for (const d of nutri.dayTypes) {
       const x = HC_SCALE.planFor(nutri, g, d, 120), b = nutri.base[x.base];
@@ -251,7 +253,8 @@ for (const page of PAGES) {
     assert.equal(HC_GUIDE.isCovered(4, 40), GU.isCovered(4, 40));
     const groups = { meals: { breakfast: logged, lunch: null }, addon: { k: 100, p: 5 } };
     assert.deepEqual(js(HC_GUIDE.dayRemaining({ k: 2400, p: 150, c: 260, f: 70 }, groups, nutri.mainSlots)), js(GU.dayRemaining({ k: 2400, p: 150, c: 260, f: 70 }, groups, nutri.mainSlots)));
-    const products = [{ id: 7, name: 'Ávena', unit: 'g', per100: { kcal: 370, protein: 13, carbs: 60, fat: 7 } }, { id: 3, name: 'avena', unit: 'ml', per100: { kcal: 40, protein: null, carbs: 5, fat: 1 } }];
+    // partial product rows (the fields roleOptions reads); the second states no protein on purpose
+    const products = /** @type {import('../../lib/nutrition/foodlog.mjs').Product[]} */ (/** @type {unknown} */ ([{ id: 7, name: 'Ávena', unit: 'g', per100: { kcal: 370, protein: 13, carbs: 60, fat: 7 } }, { id: 3, name: 'avena', unit: 'ml', per100: { kcal: 40, protein: null, carbs: 5, fat: 1 } }]));
     for (const role of ['p', 'c', 'f']) assert.deepEqual(js(HC_GUIDE.roleOptions(basics, products, role)), js(GU.roleOptions(basics, products, role)), role);
   });
 }

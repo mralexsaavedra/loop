@@ -12,9 +12,9 @@ const HOOKS = path.join(path.dirname(fileURLToPath(import.meta.url)), 'git-hooks
 
 function scratchRepo() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'loop-precommit-'));
-  const git = (...args) => spawnSync('git', args, { cwd: dir, encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@x', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@x' } });
+  const git = (/** @type {string[]} */ ...args) => spawnSync('git', args, { cwd: dir, encoding: 'utf8', env: { ...process.env, GIT_AUTHOR_NAME: 't', GIT_AUTHOR_EMAIL: 't@x', GIT_COMMITTER_NAME: 't', GIT_COMMITTER_EMAIL: 't@x' } });
   git('init', '-q', '-b', 'main');
-  const write = (p, text) => { fs.mkdirSync(path.dirname(path.join(dir, p)), { recursive: true }); fs.writeFileSync(path.join(dir, p), text); };
+  const write = (/** @type {string} */ p, /** @type {string} */ text) => { fs.mkdirSync(path.dirname(path.join(dir, p)), { recursive: true }); fs.writeFileSync(path.join(dir, p), text); };
   write('.gitignore', 'data/profile/\nprofile/about-me.md\n*.bak\n!keep.bak\n');
   write('README.md', 'x\n');
   git('add', '.');

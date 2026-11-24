@@ -9,7 +9,7 @@ import { ringGeometry, ringMarkup, iconSvg, wordmarkSvg, wordmarkLayout, ICONS, 
 
 const ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const ASSETS = path.join(ROOT, 'web', 'src', 'assets');
-const near = (a, b, eps = 1e-9) => assert.ok(Math.abs(a - b) < eps, `${a} ≈ ${b}`);
+const near = (/** @type {number} */ a, /** @type {number} */ b, eps = 1e-9) => assert.ok(Math.abs(a - b) < eps, `${a} ≈ ${b}`);
 
 test('ring geometry: r = 50 − sw/2, three arcs of third − sw − 3 with round caps leave 3-unit gaps', () => {
   const g = ringGeometry(18);
@@ -34,9 +34,9 @@ test('ring markup: the three arcs clockwise from 12 o\'clock are sleep, recovery
     near(Number(a[2]), Number((g.C - g.arc).toFixed(3)), 1e-3);
     assert.match(a[0], /stroke-linecap="round"/);
   }
-  const colours = arcs.map((a) => /stroke="(#[0-9a-f]{6})"/.exec(a[0])[1]);
+  const colours = arcs.map((a) => /** @type {RegExpExecArray} */ (/stroke="(#[0-9a-f]{6})"/.exec(a[0]))[1]);
   assert.deepEqual(colours, [COLORS.sleep, COLORS.recovery, COLORS.strain]);
-  assert.deepEqual(arcs.map((a) => /class="(lw-\w+)"/.exec(a[0])[1]), ['lw-sleep', 'lw-recovery', 'lw-strain']);
+  assert.deepEqual(arcs.map((a) => /** @type {RegExpExecArray} */ (/class="(lw-\w+)"/.exec(a[0]))[1]), ['lw-sleep', 'lw-recovery', 'lw-strain']);
   // the plain ring: one white circle, same stroke width, no dashes
   const plain = ringMarkup(18, 'plain');
   assert.match(plain, /<circle cx="50" cy="50" r="41" fill="none" stroke="currentColor" stroke-width="18"\/>/);
@@ -44,7 +44,7 @@ test('ring markup: the three arcs clockwise from 12 o\'clock are sleep, recovery
 
 test('wordmark layout: rings 0.71em, bottom 0.02em under the baseline, the same 0.14em INK gap between every pair', () => {
   // side bearings differ (P's left one is wide): spacing is measured ink to ink, not advance to advance
-  const glyph = (adv, minX, maxX) => ({ d: 'M0 0Z', advance: adv, minX, maxX });
+  const glyph = (/** @type {number} */ adv, /** @type {number} */ minX, /** @type {number} */ maxX) => ({ d: 'M0 0Z', advance: adv, minX, maxX });
   const lay = wordmarkLayout({ unitsPerEm: 1000, L: glyph(800, 100, 760), P: glyph(900, 105, 850) });
   const inks = [
     [100, 760],
@@ -64,7 +64,7 @@ test('wordmark layout: rings 0.71em, bottom 0.02em under the baseline, the same 
 });
 
 test('wordmark svg: role img + LOOP label, letters and the plain ring in currentColor, token classes on the arcs', () => {
-  const glyph = (adv) => ({ d: 'M0 0L10 10Z', advance: adv, minX: 0, maxX: adv });
+  const glyph = (/** @type {number} */ adv) => ({ d: 'M0 0L10 10Z', advance: adv, minX: 0, maxX: adv });
   const svg = wordmarkSvg({ unitsPerEm: 1000, L: glyph(800), P: glyph(900) });
   assert.match(svg, /^<svg [^>]*role="img"[^>]*aria-label="LOOP"/);
   assert.equal([...svg.matchAll(/<path [^>]*fill="currentColor"/g)].length, 2, 'L and P outlines');

@@ -11,32 +11,43 @@ import { clientScriptSource } from '../client-bundle.mjs';
 // a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
 const source = clientScriptSource('journal.ts');
 const TODAY = '2026-09-30';
+/** @param {unknown} x @returns {any} JSON round-trip of a value the vm script built */
 const plain = (x) => JSON.parse(JSON.stringify(x));
 
+/** @typedef {import('node:vm').Context} VmGlobals the script's globals (a vm context: untyped by nature) */
+/** @typedef {{url: string, init: {method: string, headers?: Record<string, string>, body?: string}}} FetchCall */
+/** @param {string} id */
 function host(id) {
   return { id, innerHTML: '', hidden: true };
 }
 /** routes: {'GET /settings': body | {status, body}} answered by the stub fetch; null = no fetch at all */
-function load({ routes = null, locale = 'en', journal = journalFromInputs(), now = TODAY, protocol } = {}) {
+/** @param {{routes?: Record<string, unknown> | null, locale?: string, journal?: unknown, now?: string, protocol?: string}} [opts] */
+function load({ routes = null, locale = 'en', journal = /** @type {unknown} */ (journalFromInputs()), now = TODAY, protocol } = {}) {
   const RealDate = Date;
   class FakeDate extends RealDate {
-    constructor(...a) { if (a.length) super(...a); else super(new RealDate(now + 'T12:00:00').getTime()); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { if (a.length) super(.../** @type {ConstructorParameters<DateConstructor>} */ (a)); else super(new RealDate(now + 'T12:00:00').getTime()); }
     static now() { return new RealDate(now + 'T12:00:00').getTime(); }
   }
+  /** @type {Record<string, any>} the stub elements the script reads and writes (untyped: any property it sets) */
   const els = { 'my-journal': host('my-journal') };
+  /** @type {FetchCall[]} */
   const calls = [];
+  /** @type {Record<string, (e: unknown) => void>} */
   const listeners = {};
+  /** @type {VmGlobals} */
   const ctx = {
-    document: { getElementById: (id) => els[id] || null, addEventListener: (e, f) => { listeners[e] = f; } },
+    document: { getElementById: (/** @type {string} */ id) => els[id] || null, addEventListener: (/** @type {string} */ e, /** @type {(e: unknown) => void} */ f) => { listeners[e] = f; } },
     I18N_SCORE: locale === 'es' ? esT : enT, LOCALE: locale, SCORES: { journal },
     Date: FakeDate, Math, String, Number, Array, Object, JSON, Promise, setTimeout, clearTimeout,
     location: protocol ? { hash: '', protocol } : { hash: '' },
   };
   if (routes) {
+    /** @param {string} url @param {FetchCall['init']} init */
     ctx.fetch = (url, init) => {
       const key = `${init.method} ${url.replace('/api/journal', '').split('?')[0]}`;
       calls.push({ url, init: { method: init.method, headers: init.headers, body: init.body } });
-      const r = routes[key];
+      const r = /** @type {any} */ (routes[key]); // a route answer: a body, {status, body} or a function of the request
       if (r === undefined) return Promise.reject(new Error('offline'));
       const res = typeof r === 'function' ? r(init) : r;
       const status = res && res.status ? res.status : 200;
@@ -65,6 +76,7 @@ test('pure: the strip is the 7 days ending today; a day is journaled with one an
 
 test('pure: ✕ / ✓ toggle (pressed again = unanswered); the drinks stepper stays within 0..countMax', () => {
   const { ctx } = load();
+  /** @param {Record<string, unknown>} a @param {string} k @param {string} act */
   const p = (a, k, act) => plain(ctx.HCJournal.press(a, k, act));
   assert.deepEqual(p({}, 'nap', 'yes'), { nap: true });
   assert.deepEqual(p({ nap: true }, 'nap', 'yes'), {});
@@ -98,7 +110,7 @@ test('with the API: the card shows 7 day columns, a check on journaled days, and
   } });
   for (let i = 0; i < 5; i++) await tick();
   assert.equal(ctx.HCJournal.ready(), true);
-  assert.equal(calls[0].init.headers['X-HC-Journal'], '1');
+  assert.equal(/** @type {Record<string, string>} */ (calls[0].init.headers)['X-HC-Journal'], '1');
   assert.match(calls[1].url, /\/api\/journal\/summary\?from=2026-09-24&to=2026-09-30$/);
   const h = els['my-journal'];
   assert.equal(h.hidden, false);
@@ -135,13 +147,15 @@ test('save: PUT /day with the draft, then the card shows the day journaled; an e
   const { ctx, els, listeners } = load({ routes: {
     'GET /settings': { behaviors: ALL_ON },
     'GET /summary': { days: [] },
-    'PUT /day': (init) => { put = JSON.parse(init.body); return { day: { date: put.date, answers: put.answers, notes: put.notes } }; },
+    'PUT /day': (/** @type {{body: string}} */ init) => { put = JSON.parse(init.body); return { day: { date: put.date, answers: put.answers, notes: put.notes } }; },
   } });
   for (let i = 0; i < 5; i++) await tick();
   let closed = 0;
   ctx.HCDetail = { state: () => ({ key: 'journal', date: null }), open: () => {}, close: () => { closed++; } };
   ctx.HCViews.journal.render();
-  const btn = (attrs) => ({ getAttribute: (k) => attrs[k] ?? null });
+  /** @param {Record<string, string>} attrs */
+  const btn = (attrs) => ({ getAttribute: (/** @type {string} */ k) => attrs[k] ?? null });
+  /** @param {Record<string, string>} attrs */
   const click = (attrs) => listeners.click({ target: { closest: () => btn(attrs) } });
   click({ 'data-jr': 'inc', 'data-key': 'alcohol' });
   click({ 'data-jr': 'inc', 'data-key': 'alcohol' });
@@ -207,24 +221,28 @@ test('insights view with no behavior scored yet (the user\'s first days): ONE em
 });
 
 // a stand-in for detail.ts: open() renders the registered view like the real modal; close() forgets it
+/** @param {VmGlobals} ctx */
 function fakeDetail(ctx) {
+  /** @type {{st: unknown, opens: number, closes: number, html: any}} html = the vm script's render() output */
   const D = { st: null, opens: 0, closes: 0, html: null };
   ctx.HCDetail = {
     state: () => D.st,
-    open: (key, date) => { D.st = { key, date: date || null }; D.opens++; D.html = ctx.HCViews[key].render(); },
+    open: (/** @type {string} */ key, /** @type {string | null} */ date) => { D.st = { key, date: date || null }; D.opens++; D.html = ctx.HCViews[key].render(); },
     close: () => { D.st = null; D.closes++; },
   };
   return D;
 }
-const press = (listeners, attrs) => listeners.click({ target: { closest: () => ({ getAttribute: (k) => attrs[k] ?? null, parentElement: null }) } });
+/** @param {Record<string, (e: unknown) => void>} listeners @param {Record<string, string>} attrs */
+const press = (listeners, attrs) => listeners.click({ target: { closest: () => ({ getAttribute: (/** @type {string} */ k) => attrs[k] ?? null, parentElement: null }) } });
 
 test('save: one request at a time; edits during the request are refused, never silently dropped', async () => {
   const puts = [];
+  /** @type {((v: unknown) => void) | undefined} */
   let resolvePut;
   const { ctx, listeners } = load({ routes: {
     'GET /settings': { behaviors: ALL_ON },
     'GET /summary': { days: [] },
-    'PUT /day': (init) => { puts.push(JSON.parse(init.body)); return new Promise((r) => { resolvePut = r; }); },
+    'PUT /day': (/** @type {{body: string}} */ init) => { puts.push(JSON.parse(init.body)); return new Promise((r) => { resolvePut = r; }); },
   } });
   for (let i = 0; i < 5; i++) await tick();
   // the stub fetch resolves with a promise for this route: wrap it into a response when settled
@@ -240,7 +258,7 @@ test('save: one request at a time; edits during the request are refused, never s
   assert.equal(puts.length, 1, 'a second save waits for the first');
   assert.deepEqual(plain(ctx.HCJournal.state().draft.answers), { nap: true }, 'no edit slips in under the request');
   assert.equal(ctx.HCJournal.state().draft.notes, '');
-  resolvePut({ day: { date: TODAY, answers: { nap: true }, notes: null } });
+  /** @type {(v: unknown) => void} */ (resolvePut)({ day: { date: TODAY, answers: { nap: true }, notes: null } });
   for (let i = 0; i < 5; i++) await tick();
   assert.equal(D.closes, 1);
   assert.equal(ctx.HCJournal.state().saving, false);
@@ -287,26 +305,34 @@ test('file:// (no LAN): the journal never calls /api/journal and stays hidden as
 
 // a minimal mounted sheet: every element with an id in the rendered head + body becomes a node in
 // `els` (document.getElementById), recreated on every render like the real host.innerHTML
+/** @param {VmGlobals} ctx @param {Record<string, any>} els */
 function mountDetail(ctx, els) {
+  /** @type {{st: unknown, opens: number, focused: string | null, html?: any}} html = the vm script's render() output */
   const D = { st: null, opens: 0, focused: null };
+  /** @param {string} html */
   const mount = (html) => {
     for (const k of Object.keys(els)) if (k !== 'my-journal') delete els[k];
     for (const m of html.matchAll(/<(\w+)((?:\s+[\w-]+(?:="[^"]*")?)*)\s*>([^<]*)/g)) {
       const attrs = Object.fromEntries([...m[2].matchAll(/([\w-]+)(?:="([^"]*)")?/g)].map((a) => [a[1], a[2] ?? '']));
       if (!attrs.id) continue;
+      /** @type {Set<string>} */
       const cls = new Set((attrs.class || '').split(/\s+/).filter(Boolean));
       els[attrs.id] = {
         id: attrs.id, attrs, textContent: m[3], disabled: 'disabled' in attrs, readOnly: 'readonly' in attrs,
         get className() { return [...cls].join(' '); }, set className(v) { cls.clear(); String(v).split(/\s+/).filter(Boolean).forEach((c) => cls.add(c)); },
-        classList: { toggle: (c, on) => (on ? cls.add(c) : cls.delete(c)), contains: (c) => cls.has(c) },
-        setAttribute(k, v) { this.attrs[k] = String(v); }, getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
+        classList: { toggle: (/** @type {string} */ c, /** @type {boolean} */ on) => (on ? cls.add(c) : cls.delete(c)), contains: (/** @type {string} */ c) => cls.has(c) },
+        /** @param {string} k @param {unknown} v */
+        setAttribute(k, v) { this.attrs[k] = String(v); },
+        /** @param {string} k */
+        getAttribute(k) { return k in this.attrs ? this.attrs[k] : null; },
+        /** @param {string} k */
         removeAttribute(k) { delete this.attrs[k]; }, focus() { D.focused = attrs.id; },
       };
     }
   };
   ctx.HCDetail = {
     state: () => D.st,
-    open: (key, date) => { D.st = { key, date: date || null }; D.opens++; const r = ctx.HCViews[key].render(); D.html = r; mount(r.head + r.body); },
+    open: (/** @type {string} */ key, /** @type {string | null} */ date) => { D.st = { key, date: date || null }; D.opens++; const r = ctx.HCViews[key].render(); D.html = r; mount(r.head + r.body); },
     close: () => { D.st = null; },
   };
   return D;

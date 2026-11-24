@@ -22,12 +22,14 @@ const ROOT = path.dirname(path.dirname(here)); // web/test -> web -> repo root
 
 const MIN_LEN = 8;
 
+/** @param {string} p @returns {any} the parsed JSON (untyped), or null */
 function readJsonIfExists(p) {
   if (!fs.existsSync(p)) return null;
   return JSON.parse(fs.readFileSync(p, 'utf8'));
 }
 
-/** Collects every string leaf (recursively) from a JSON-like value. */
+/** Collects every string leaf (recursively) from a JSON-like value.
+ * @param {unknown} value @param {Set<string>} out */
 function collectStrings(value, out) {
   if (typeof value === 'string') {
     if (value.length >= MIN_LEN) out.add(value);

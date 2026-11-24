@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url';
 const here = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(path.dirname(here), '.test-dist');
 
-const policyOf = (html) => {
+const policyOf = (/** @type {string} */ html) => {
   const m = /<meta http-equiv="Content-Security-Policy" content="([^"]+)">/.exec(html);
   assert.ok(m, 'a Content-Security-Policy meta');
   return { at: m.index, map: Object.fromEntries(m[1].split(';').map((d) => d.trim().split(/\s+/)).map(([k, ...v]) => [k, v])) };

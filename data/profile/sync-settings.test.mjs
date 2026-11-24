@@ -11,6 +11,8 @@ import * as ss from './sync-settings.mjs';
 import { fileURLToPath } from 'node:url';
 import { dataPaths } from '../../lib/paths.mjs';
 
+/** @typedef {{ url: string, init: { headers: Record<string, string | undefined> } }} Seen the request fetchSettings sent */
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const { normalizeSettings, fetchSettings, syncSettings, SETTINGS_JSON } = ss;
@@ -18,9 +20,9 @@ const SCRIPT = path.join(__dirname, 'sync-settings.mjs');
 
 const BODY = { settings: { goal: 'cut', targetWeightKg: 72.5, locale: 'es', updatedAt: '2030-01-05T08:00:00.000Z' } };
 const NOW = new Date('2030-01-06T09:00:00.000Z');
-const tmpDir = (tag) => fs.mkdtempSync(path.join(os.tmpdir(), `sync-settings-${tag}-`));
-const readJson = (dir) => JSON.parse(fs.readFileSync(path.join(dir, SETTINGS_JSON), 'utf8'));
-const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+const tmpDir = (/** @type {string} */ tag) => fs.mkdtempSync(path.join(os.tmpdir(), `sync-settings-${tag}-`));
+const readJson = (/** @type {string} */ dir) => JSON.parse(fs.readFileSync(path.join(dir, SETTINGS_JSON), 'utf8'));
+const json = (/** @type {number} */ status, /** @type {unknown} */ body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
 // ---- shape -----------------------------------------------------------------------------
 
@@ -52,15 +54,15 @@ test('normalizeSettings refuses a malformed body (unknown goal, out-of-range tar
 test('fetchSettings sends X-HC-Food: 1 (the food layer guard) and no bearer token', async () => {
   let seen;
   const out = await fetchSettings('http://localhost:8088/', { fetchImpl: async (url, init) => { seen = { url, init }; return json(200, BODY); } });
-  assert.equal(seen.url, 'http://localhost:8088/food/settings');
-  assert.equal(seen.init.headers['x-hc-food'], '1');
-  assert.equal(seen.init.headers.authorization, undefined);
+  assert.equal(/** @type {Seen} */ (/** @type {unknown} */ (seen)).url, 'http://localhost:8088/food/settings');
+  assert.equal(/** @type {Seen} */ (/** @type {unknown} */ (seen)).init.headers['x-hc-food'], '1');
+  assert.equal(/** @type {Seen} */ (/** @type {unknown} */ (seen)).init.headers.authorization, undefined);
   assert.deepEqual(out, BODY);
 });
 
 test('fetchSettings keeps the HTTP status on the error (404 old image, 503 settings unavailable, 421 host)', async () => {
   for (const status of [404, 421, 503]) {
-    await assert.rejects(fetchSettings('http://x', { fetchImpl: async () => json(status, { error: 'x' }) }), (err) => err.status === status);
+    await assert.rejects(fetchSettings('http://x', { fetchImpl: async () => json(status, { error: 'x' }) }), (/** @type {{ status?: number }} */ err) => err.status === status);
   }
 });
 
@@ -117,12 +119,14 @@ test('syncSettings replaces a broken previous file', () => {
 
 // ---- main(): a missing / old / unavailable service is a warning, never a failed sync -------
 
+/** @param {import('node:http').RequestListener} handler @returns {Promise<import('node:http').Server>} */
 function serve(handler) {
   return new Promise((resolve) => {
     const server = http.createServer(handler);
     server.listen(0, '127.0.0.1', () => resolve(server));
   });
 }
+/** @param {NodeJS.ProcessEnv} env @returns {Promise<{ code: unknown, stdout: string, stderr: string }>} */
 function run(env) {
   return new Promise((resolve) => {
     execFile(process.execPath, [SCRIPT], { env: { PATH: process.env.PATH, ...env } }, (err, stdout, stderr) => {
@@ -135,10 +139,10 @@ test('main(): 200 -> writes the snapshot, exit 0', async () => {
   let headers;
   const server = await serve((req, res) => { headers = req.headers; res.writeHead(200, { 'content-type': 'application/json' }); res.end(JSON.stringify(BODY)); });
   const dir = tmpDir('main-ok');
-  const r = await run({ INGEST_URL: `http://localhost:${server.address().port}`, SYNC_PROFILE_OUT_DIR: dir });
+  const r = await run({ INGEST_URL: `http://localhost:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}`, SYNC_PROFILE_OUT_DIR: dir });
   server.close();
   assert.equal(r.code, 0, r.stderr);
-  assert.equal(headers['x-hc-food'], '1');
+  assert.equal(/** @type {import('node:http').IncomingHttpHeaders} */ (/** @type {unknown} */ (headers))['x-hc-food'], '1');
   assert.equal(readJson(dir).goal, 'cut');
   assert.match(r.stdout, /Settings: goal cut, target 72\.5 kg, language es; written/);
   fs.rmSync(dir, { recursive: true });
@@ -150,7 +154,7 @@ test('main(): 503 / 404 / unreachable -> WARNING, the previous file kept byte fo
   fs.writeFileSync(path.join(dir, SETTINGS_JSON), prev);
   for (const status of [503, 404]) {
     const server = await serve((req, res) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end('{"error":"x"}'); });
-    const r = await run({ INGEST_URL: `http://localhost:${server.address().port}`, SYNC_PROFILE_OUT_DIR: dir });
+    const r = await run({ INGEST_URL: `http://localhost:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}`, SYNC_PROFILE_OUT_DIR: dir });
     server.close();
     assert.equal(r.code, 0, r.stderr);
     assert.match(r.stderr, /^WARNING: /m);
@@ -178,17 +182,18 @@ test('the language list is the one the service validates and the build reads', a
 
 // ---- main() returns its exit code (runCli sets it): called in-process, the runner is never killed ----
 
+/** @param {string} prefix */
 function mainHarness (prefix) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
-  const out = [], err = [];
+  const out = /** @type {string[]} */ ([]), err = /** @type {string[]} */ ([]);
   const env = { INGEST_ENV_FILE: path.join(dir, 'no-such.env'), INGEST_URL: 'http://127.0.0.1:9' };
   const refused = async () => { throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } }); };
-  const answer = (status, body) => async () => ({ ok: status < 300, status, json: async () => body });
+  const answer = (/** @type {number} */ status, /** @type {unknown} */ body) => /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: status < 300, status, json: async () => body })));
   const blocked = path.join(dir, 'a-file');
   fs.writeFileSync(blocked, 'x');
   return {
     dir, env, refused, answer, out, err,
-    io: { log: (s) => out.push(s), error: (s) => err.push(s) },
+    io: { log: (/** @type {string} */ s) => out.push(s), error: (/** @type {string} */ s) => err.push(s) },
     unwritable: path.join(blocked, 'sub'), // a path under a regular file: every write fails
     cleanup: () => fs.rmSync(dir, { recursive: true, force: true }),
   };
@@ -198,10 +203,10 @@ test('main() in-process: unreachable -> warning, returns 0; failed write -> retu
   const h = mainHarness('sync-settings-main-');
   try {
     assert.equal(await ss.main({ env: h.env, ...h.io, fetchImpl: h.refused, outDir: path.join(h.dir, 's') }), 0);
-    assert.match(h.err.pop(), /^WARNING: /);
+    assert.match(/** @type {string} */ (h.err.pop()), /^WARNING: /);
     const body = { settings: { goal: 'cut', targetWeightKg: null, updatedAt: null } };
     assert.equal(await ss.main({ env: h.env, ...h.io, fetchImpl: h.answer(200, body), outDir: h.unwritable }), 1);
-    assert.match(h.err.pop(), /^ERROR: settings sync failed/);
+    assert.match(/** @type {string} */ (h.err.pop()), /^ERROR: settings sync failed/);
   } finally { h.cleanup(); }
 });
 
@@ -209,7 +214,7 @@ test('main() in-process: unreachable -> warning, returns 0; failed write -> retu
 
 test('main() in-process: HC_DATA_DIR redirects the default output to <data root>/profile; SYNC_PROFILE_OUT_DIR wins over it', async () => {
   const root = tmpDir('data-root');
-  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => BODY });
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: true, status: 200, json: async () => BODY })));
   const io = { log: () => {}, error: () => {} };
   try {
     assert.equal(await ss.main({ env: { HC_DATA_DIR: root, INGEST_URL: 'http://127.0.0.1:9' }, ...io, fetchImpl }), 0);

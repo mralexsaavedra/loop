@@ -17,6 +17,7 @@ test('strips comments and whitespace, keeps identifiers and top-level globals', 
   assert.doesNotMatch(out, /comment|trailing|inside/);
   assert.match(out, /var answerValue=42;/);
   assert.match(out, /function addOne\(longName\)\{return longName\+1\}/);
+  /** @type {import('node:vm').Context} */
   const ctx = {};
   vm.runInNewContext(out, ctx);
   assert.equal(ctx.answerValue, 42);

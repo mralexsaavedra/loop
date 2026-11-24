@@ -5,7 +5,7 @@ import assert from 'node:assert/strict'
 import { readFileSync, readdirSync } from 'node:fs'
 
 const SRC = new URL('../src/', import.meta.url)
-const source = (file) => readFileSync(new URL(file, SRC), 'utf8')
+const source = (/** @type {string} */ file) => readFileSync(new URL(file, SRC), 'utf8')
 // a SQL call: pool.query(, client.query(, pool.connect(
 const SQL_CALL = /\b(?:pool|client)\.(?:query|connect)\s*\(/
 

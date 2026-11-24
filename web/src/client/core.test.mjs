@@ -16,7 +16,27 @@ import { clientScriptSource } from '../client-bundle.mjs';
 
 const source = clientScriptSource('core.ts');
 
+/** @typedef {import('../../test/dom-stub.mjs').StubElementOpts} StubElementOpts */
+/** A recorded DOM listener: the script calls it with an event object, or with nothing.
+ * @typedef {(e?: unknown) => void} Listener */
+/** scrollIntoView / focus options the script passes.
+ * @typedef {{ behavior?: string, block?: string, preventScroll?: boolean }} ScrollOpts */
+/** A stub element plus the DOM surface these tests stub onto it (innerHTML / textContent are defined in the
+ * StubElement constructor).
+ * @typedef {Omit<import('../../test/dom-stub.mjs').StubElement, 'scrollIntoView'> & { innerHTML: string, textContent: string,
+ *   scrollIntoView: (o?: ScrollOpts) => void, focus?: (o?: ScrollOpts) => void, querySelectorAll?: () => El[],
+ *   querySelector?: (sel: string) => unknown, fields?: number }} El */
+/** The stub document as these tests use it: every id they read exists, and they add the document-level surface core.ts
+ * listens to.
+ * @typedef {Omit<StubDocument, 'el' | 'getElementById'> & { el: (id: string | null | undefined, opts?: StubElementOpts) => El,
+ *   getElementById: (id: string) => El, addEventListener?: (type: string, fn: Listener) => void, hidden?: boolean,
+ *   activeElement?: unknown }} Doc */
+/** The vm window core.ts reads and writes: a bag of page globals (untyped boundary).
+ * @typedef {Record<string, any>} Win */
+
+/** @param {Doc} doc @param {Record<string, unknown>} [extra] @returns {import('node:vm').Context} */
 function makeContext(doc, extra = {}) {
+  /** @type {Win} */
   const window = { scrollTo: () => { window._scrolledTop = true; }, ...extra };
   // the page bakes NAV from lib/nav/tabs.mjs (layouts/Plan.astro) before core.ts runs
   const NAV = { tabs: [...TAB_KEYS], sectionTab: { ...SECTION_TAB } };
@@ -26,15 +46,18 @@ function makeContext(doc, extra = {}) {
   return ctx;
 }
 
+/** @param {Doc} doc */
 function makeTabPage(doc) {
   // four top-level tabs (Inicio / Entreno / Salud / Nutrición) — nav ids t-<key>, aria-current moved by setTab
   const tabs = [...TAB_KEYS];
   const navIds = Object.fromEntries(tabs.map((t) => [t, 't-' + t]));
   tabs.forEach((t) => doc.el(navIds[t], { attrs: t === 'home' ? { 'aria-current': 'page' } : {} }));
   // tab panels — `.tab-panel[data-tab]` contract
+  /** @type {Record<string, El>} */
   const panels = {};
   tabs.forEach((t) => { panels[t] = doc.el(null, { classes: ['tab-panel'], attrs: { 'data-tab': t }, hidden: t !== 'home' }); });
   // former tabs, now sections inside a panel (id sec-<key>); tablas is a <details> fold
+  /** @type {Record<string, El>} */
   const sections = {};
   Object.entries(SECTION_TAB).forEach(([key, tab]) => {
     const fold = key === 'tablas';
@@ -49,7 +72,7 @@ test('core.ts keeps no hand-copied SECTION_TAB: it reads the baked NAV', () => {
 });
 
 test('setTab shows the Entreno tab (t-entreno) and hides the others', () => {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   const { panels, navIds } = makeTabPage(doc);
   const { window } = makeContext(doc);
   window.setTab('entreno');
@@ -60,7 +83,7 @@ test('setTab shows the Entreno tab (t-entreno) and hides the others', () => {
 });
 
 test('setTab shows only the matching .tab-panel[data-tab] and hides the rest (legacy contract)', () => {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   const { panels } = makeTabPage(doc);
   const { window } = makeContext(doc);
 
@@ -72,7 +95,7 @@ test('setTab shows only the matching .tab-panel[data-tab] and hides the rest (le
 });
 
 test('setTab moves aria-current="page" to the nav button of the shown tab (t-home, t-nutricion, t-health)', () => {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   const { navIds } = makeTabPage(doc);
   const { window } = makeContext(doc);
 
@@ -84,7 +107,7 @@ test('setTab moves aria-current="page" to the nav button of the shown tab (t-hom
 });
 
 test('setTab scrolls to top unless called with scrollTop=false (used internally by jump())', () => {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   makeTabPage(doc);
   const { window } = makeContext(doc);
 
@@ -96,7 +119,7 @@ test('setTab scrolls to top unless called with scrollTop=false (used internally 
 });
 
 test('jump() opens the target <details>, switches to its tab (without scrolling the page top), then scrolls it into view', async () => {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   const { panels } = makeTabPage(doc);
   const details = doc.el('acc-proteina', { tag: 'details', open: false, parent: panels.nutricion });
   panels.nutricion.hidden = true;
@@ -112,35 +135,36 @@ test('jump() opens the target <details>, switches to its tab (without scrolling 
 
 test('jump() scrolls smoothly, but instantly when the viewer prefers reduced motion', async () => {
   for (const [reduce, behavior] of [[false, 'smooth'], [true, 'auto']]) {
-    const doc = new StubDocument();
+    const doc = /** @type {Doc} */ (new StubDocument());
     const { panels } = makeTabPage(doc);
     const el = doc.el('acc-fruta', { tag: 'details', parent: panels.nutricion });
-    let args = null;
+    let args = /** @type {ScrollOpts | null | undefined} */ (null);
     el.scrollIntoView = (o) => { args = o; };
-    const { window } = makeContext(doc, { matchMedia: (q) => ({ matches: reduce && q === '(prefers-reduced-motion: reduce)' }) });
+    const { window } = makeContext(doc, { matchMedia: (/** @type {string} */ q) => ({ matches: reduce && q === '(prefers-reduced-motion: reduce)' }) });
     window.jump('acc-fruta');
     await new Promise((r) => setTimeout(r, 40));
     assert.deepEqual({ ...args }, { behavior, block: 'start' }, `reduce=${reduce}`);
   }
   // no matchMedia at all (an old browser, the vm): the smooth default
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   const el = doc.el('x');
-  let args = null;
+  let args = /** @type {ScrollOpts | null | undefined} */ (null);
   el.scrollIntoView = (o) => { args = o; };
   makeContext(doc).window.jump('x');
   await new Promise((r) => setTimeout(r, 40));
-  assert.equal(args.behavior, 'smooth');
+  assert.equal(/** @type {ScrollOpts} */ (args).behavior, 'smooth');
 });
 
 /* Delegated navigation: no inline onclick= (the page's CSP blocks them). One document click listener
  * reads data-tab-go (a tab key; empty = the default tab) and data-jump (an element id). */
 function clickPage() {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   const page = makeTabPage(doc);
+  /** @type {Record<string, Listener[]>} */
   const listeners = {};
   doc.addEventListener = (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); };
   const ctx = makeContext(doc);
-  const click = (target) => {
+  const click = (/** @type {unknown} */ target) => {
     let prevented = false;
     (listeners.click || []).forEach((fn) => fn({ target, preventDefault: () => { prevented = true; } }));
     return prevented;
@@ -162,9 +186,11 @@ test('a click on (or inside) a [data-tab-go] button opens that tab; an empty val
 });
 
 test('a user\'s tab switch moves focus to the new panel\'s first visible heading (tabindex=-1, no scroll); never on load or a hash change', () => {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   const page = makeTabPage(doc);
+  /** @type {{ h: El, o: ScrollOpts | undefined }[]} */
   const focused = [];
+  /** @param {El} panel @param {{ parent?: El, hidden?: boolean }} [opts] */
   const heading = (panel, opts = {}) => {
     const h = doc.el(null, { tag: 'h2', parent: opts.parent || panel, hidden: !!opts.hidden });
     h.parent = opts.parent || panel;
@@ -180,12 +206,14 @@ test('a user\'s tab switch moves focus to the new panel\'s first visible heading
   // Entreno: no heading at all -> the panel itself takes the focus
   page.panels.entreno.querySelectorAll = () => [];
   page.panels.entreno.focus = (o) => focused.push({ h: page.panels.entreno, o });
+  /** @type {Record<string, Listener[]>} */
   const listeners = {};
   doc.addEventListener = (type, fn) => { (listeners[type] = listeners[type] || []).push(fn); };
+  /** @type {Record<string, Listener[]>} */
   const win = {};
-  makeContext(doc, { addEventListener: (t, fn) => { (win[t] = win[t] || []).push(fn); } });
-  assert.deepEqual(focused, [], 'initial load: focus stays where the browser put it');
-  const click = (target) => (listeners.click || []).forEach((fn) => fn({ target, preventDefault() {} }));
+  makeContext(doc, { addEventListener: (/** @type {string} */ t, /** @type {Listener} */ fn) => { (win[t] = win[t] || []).push(fn); } });
+  assert.deepEqual(focused, /** @type {typeof focused} */ ([]), 'initial load: focus stays where the browser put it');
+  const click = (/** @type {unknown} */ target) => (listeners.click || []).forEach((fn) => fn({ target, preventDefault() {} }));
   click(doc.el('t-health', { tag: 'button', attrs: { 'data-tab-go': 'health' } }));
   assert.equal(focused.length, 1);
   assert.equal(focused[0].h, first, 'the first VISIBLE heading');
@@ -212,7 +240,7 @@ test('a click on a [data-jump] link jumps to its target (opens its tab and fold)
 });
 
 test('core.ts keeps its helpers private: only setTab, jump, jumpOr, currentTab and HCNav are page globals', () => {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   makeTabPage(doc);
   const ctx = makeContext(doc);
   for (const name of ['NAV_TABS', 'SECTION_TAB', 'DAY', 'hasOwn', 'tabVisible', 'defaultTab', 'readHash', 'tabHash', 'showTab', 'hashRoute', 'showAnchor']) {
@@ -223,20 +251,20 @@ test('core.ts keeps its helpers private: only setTab, jump, jumpOr, currentTab a
 });
 
 test('jump() is a no-op when the target id does not exist', () => {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   const { window } = makeContext(doc);
   assert.doesNotThrow(() => window.jump('nope'));
 });
 
 test('no bump() any more: the day builder\'s extras steppers are gone', () => {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   const { window } = makeContext(doc);
   assert.equal(typeof window.bump, 'undefined');
   assert.doesNotMatch(source, /bldRecalc/);
 });
 
 test('setTab knows the Home tab: t-home <-> home', () => {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   const { panels, navIds } = makeTabPage(doc);
   const { window } = makeContext(doc);
   window.setTab('nutricion');
@@ -248,7 +276,7 @@ test('setTab knows the Home tab: t-home <-> home', () => {
 });
 
 test('setTab with a legacy tab key opens the tab that now hosts that section and scrolls to it', async () => {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   const { panels, sections, navIds } = makeTabPage(doc);
   const { window } = makeContext(doc);
 
@@ -267,7 +295,7 @@ test('setTab with a legacy tab key opens the tab that now hosts that section and
 });
 
 test('jump() into a table nested in a collapsed section fold opens the fold too', () => {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   const { sections } = makeTabPage(doc);
   const inner = doc.el('acc-anclaje', { tag: 'details', open: false, parent: sections.tablas });
   const { window } = makeContext(doc);
@@ -279,7 +307,7 @@ test('jump() into a table nested in a collapsed section fold opens the fold too'
 });
 
 test('jump() is a no-op for a target inside a section hidden by page.hideTabs', () => {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   const { panels, sections } = makeTabPage(doc);
   sections.hoy.hidden = true;
   panels.home.hidden = true;
@@ -294,7 +322,7 @@ test('jump() is a no-op for a target inside a section hidden by page.hideTabs', 
 });
 
 test('jumpOr() jumps to a reachable target, else falls back to opening the given tab', async () => {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   const { panels, sections } = makeTabPage(doc);
   const target = doc.el('hl-recovery', { parent: panels.health });
   const { window } = makeContext(doc);
@@ -315,7 +343,7 @@ test('jumpOr() jumps to a reachable target, else falls back to opening the given
 });
 
 test('the train/rest toggle is gone: core.ts exposes no setDay (Resumen de hoy picks the day type)', () => {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   makeTabPage(doc);
   const { window } = makeContext(doc);
   assert.equal(window.setDay, undefined);
@@ -323,13 +351,16 @@ test('the train/rest toggle is gone: core.ts exposes no setDay (Resumen de hoy p
 });
 
 /* ---------- midnight rollover: one reload when the viewer's day changes ---------- */
+/** @param {{ at: string, sheetOpen?: boolean, published?: string | null }} opts */
 function rolloverPage({ at, sheetOpen = false, published = null }) {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
+  /** @type {Record<string, Listener[]>} */
   const listeners = {};
   doc.addEventListener = (evt, fn) => { (listeners[evt] = listeners[evt] || []).push(fn); };
   doc.hidden = false;
   const sheet = doc.el('detail', { hidden: !sheetOpen });
   // the inline Mis productos / Mis recetas editors: a field inside the host = an open editor
+  /** @type {Record<string, El>} */
   const editors = {};
   for (const id of ['fp-body', 'fr-body']) {
     const host = doc.el(id);
@@ -341,16 +372,20 @@ function rolloverPage({ at, sheetOpen = false, published = null }) {
   const clock = { now: new Date(at).getTime() };
   const RealDate = Date;
   class FakeDate extends RealDate {
-    constructor(...a) { super(...(a.length ? a : [clock.now])); }
+    /** @param {unknown[]} a the arguments the page scripts pass to `new Date(...)` */
+    constructor(...a) { super(.../** @type {ConstructorParameters<DateConstructor>} */ (a.length ? a : [clock.now])); }
     static now() { return clock.now; }
   }
+  /** @type {{ fn: () => void, ms: number, on: boolean }[]} */
   const timers = [];
+  /** @type {number[]} */
   const reloads = [];
+  /** @type {Record<string, Listener[]>} */
   const winListeners = {};
   const reloadState = { throws: false };
   // /status.json: the server's last publish; null = the service does not answer
   const server = { publishedAt: published, reads: 0 };
-  const fetch = (url) => {
+  const fetch = (/** @type {string} */ url) => {
     server.reads++;
     if (url !== '/status.json' || server.publishedAt == null) return Promise.reject(new Error('down'));
     return Promise.resolve({ ok: true, json: () => Promise.resolve({ publishedAt: server.publishedAt, processedSeq: 1 }) });
@@ -358,20 +393,20 @@ function rolloverPage({ at, sheetOpen = false, published = null }) {
   const window = {
     scrollTo() {},
     location: { reload: () => { reloads.push(clock.now); if (reloadState.throws) throw new Error('sandboxed'); } },
-    addEventListener: (evt, fn) => { (winListeners[evt] = winListeners[evt] || []).push(fn); },
+    addEventListener: (/** @type {string} */ evt, /** @type {Listener} */ fn) => { (winListeners[evt] = winListeners[evt] || []).push(fn); },
   };
   const NAV = { tabs: [...TAB_KEYS], sectionTab: { ...SECTION_TAB } };
   const ctx = {
     document: doc, window, console, Math, Number, String, Array, Object, JSON, NAV, LOCALE: 'en', Date: FakeDate,
-    Promise, fetch, setTimeout, clearTimeout, setInterval: (fn, ms) => { timers.push({ fn, ms, on: true }); return timers.length; },
-    clearInterval: (id) => { if (timers[id - 1]) timers[id - 1].on = false; },
+    Promise, fetch, setTimeout, clearTimeout, setInterval: (/** @type {() => void} */ fn, /** @type {number} */ ms) => { timers.push({ fn, ms, on: true }); return timers.length; },
+    clearInterval: (/** @type {number} */ id) => { if (timers[id - 1]) timers[id - 1].on = false; },
   };
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
   const visible = () => (listeners.visibilitychange || []).forEach((fn) => fn());
   const tick = () => timers.filter((t) => t.on).forEach((t) => t.fn());
-  const pageshow = (persisted) => (winListeners.pageshow || []).forEach((fn) => fn({ persisted }));
+  const pageshow = (/** @type {boolean} */ persisted) => (winListeners.pageshow || []).forEach((fn) => fn({ persisted }));
   const watching = () => timers.filter((t) => t.on).length;
   return { doc, sheet, editors, clock, reloads, timers, visible, tick, pageshow, watching, reloadState, server };
 }
@@ -545,7 +580,7 @@ test('rollover: a deferred reload also happens on the next visibility change wit
 });
 
 test('rollover: without the shared helpers (HC) core.ts wires nothing and never throws', () => {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   const { window } = makeContext(doc);
   assert.equal(typeof window.setTab, 'function');
 });
@@ -553,9 +588,12 @@ test('rollover: without the shared helpers (HC) core.ts wires nothing and never 
 /* ---------- the open tab lives in the URL hash (#home / #entreno / #health / #nutricion) ---------- */
 // hide = top-level tabs removed by page.hideTabs (no nav button; the server shows the first visible
 // tab); hideSections = sections rendered hidden; throws = a frame that refuses history writes
+/** @param {{ hash?: string, hide?: string[], hideSections?: string[], throws?: boolean, sheetOpen?: boolean,
+ *   day?: { sel: string | null } | null }} [opts] */
 function routedPage({ hash = '', hide = [], hideSections = [], throws = false, sheetOpen = false, day = null } = {}) {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   const first = TAB_KEYS.find((t) => !hide.includes(t));
+  /** @type {Record<string, El>} */
   const panels = {};
   for (const t of TAB_KEYS) {
     if (!hide.includes(t)) doc.el('t-' + t, { attrs: t === first ? { 'aria-current': 'page' } : {} });
@@ -566,9 +604,11 @@ function routedPage({ hash = '', hide = [], hideSections = [], throws = false, s
   }
   const sheet = doc.el('detail', { hidden: !sheetOpen });
   const loc = { hash, pathname: '/plan/', search: '?x=1' };
+  /** @type {[string, string][]} */
   const calls = [];
   const history = {
     state: null,
+    /** @param {unknown} state @param {unknown} _t @param {string} url */
     replaceState(state, _t, url) {
       if (throws) throw new Error('SecurityError');
       calls.push(['replace', url]);
@@ -577,8 +617,10 @@ function routedPage({ hash = '', hide = [], hideSections = [], throws = false, s
     },
     pushState() { throw new Error('core.ts never pushes: Back must not walk through tabs'); },
   };
+  /** @type {Record<string, Listener[]>} */
   const winL = {};
-  const window = { scrollTo() {}, addEventListener: (t, fn) => { (winL[t] = winL[t] || []).push(fn); } };
+  /** @type {Win} */
+  const window = { scrollTo() {}, addEventListener: (/** @type {string} */ t, /** @type {Listener} */ fn) => { (winL[t] = winL[t] || []).push(fn); } };
   const monitor = doc.el('monitor', { parent: panels.health });
   const NAV = { tabs: [...TAB_KEYS], sectionTab: { ...SECTION_TAB }, detailTab: { ...DETAIL_TAB }, viewTab: { ...VIEW_TAB }, anchorTab: { ...ANCHOR_TAB }, day: { ...DAY_HASH } };
   // today-date.ts (inlined after core.ts) owns the selected day: a stand-in with the same hash()
@@ -587,7 +629,7 @@ function routedPage({ hash = '', hide = [], hideSections = [], throws = false, s
   vm.createContext(ctx);
   vm.runInContext(source, ctx);
   const shown = () => TAB_KEYS.filter((t) => !panels[t].hidden);
-  const navTo = (h) => { loc.hash = h; ['popstate', 'hashchange'].forEach((t) => (winL[t] || []).forEach((fn) => fn({}))); };
+  const navTo = (/** @type {string} */ h) => { loc.hash = h; ['popstate', 'hashchange'].forEach((t) => (winL[t] || []).forEach((fn) => fn({}))); };
   return { doc, window, loc, calls, panels, sheet, shown, navTo, monitor };
 }
 
@@ -727,7 +769,7 @@ test('a frame that refuses history writes still switches tabs and still falls ba
 });
 
 test('without history / location (old harnesses, odd frames) setTab keeps working', () => {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   const { panels } = makeTabPage(doc);
   const { window } = makeContext(doc);
   window.setTab('health');
@@ -747,6 +789,7 @@ test('#d=YYYY-MM-DD (Inicio day stepping) opens Inicio and keeps the hash, on lo
 });
 
 test('with a past day selected, Inicio\'s hash is the day: setTab back to it and HCNav.hash() keep #d=', () => {
+  /** @type {{ sel: string | null }} */
   const day = { sel: '2026-09-24' };
   const p = routedPage({ hash: '#d=2026-09-24', day });
   p.window.setTab('health');

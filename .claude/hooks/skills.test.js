@@ -25,9 +25,12 @@ function projectSkills() {
     .map((d) => d.name);
 }
 
+/** The `key: value` lines of a leading --- frontmatter --- block, or null without one.
+ * @param {string} text @returns {Record<string, string> | null} */
 function frontmatter(text) {
   const m = /^---\n([\s\S]*?)\n---\n/.exec(text);
   if (!m) return null;
+  /** @type {Record<string, string>} */
   const fields = {};
   for (const line of m[1].split('\n')) {
     const kv = /^([a-z-]+):\s*(.*)$/.exec(line);
@@ -36,6 +39,7 @@ function frontmatter(text) {
   return fields;
 }
 
+/** @param {string} rel */
 function isIgnored(rel) {
   try {
     execFileSync('git', ['check-ignore', '-q', '--no-index', rel], { cwd: ROOT });
@@ -65,7 +69,7 @@ test('every project skill has frontmatter with its folder name and a one-line de
 });
 
 test('the setup skill triggers on install words in English and Spanish', () => {
-  const fm = frontmatter(fs.readFileSync(path.join(SKILLS, 'setup', 'SKILL.md'), 'utf8'));
+  const fm = /** @type {Record<string, string>} */ (frontmatter(fs.readFileSync(path.join(SKILLS, 'setup', 'SKILL.md'), 'utf8')));
   for (const word of ['setup', 'install', 'instalar', 'configurar', 'get started', 'first run']) {
     assert.ok(fm.description.includes(word), `setup: description must mention "${word}"`);
   }
@@ -84,7 +88,7 @@ test('every repo path the setup skill names exists or is a gitignored personal f
 
 test('the food-log skill triggers on logging words in English and Spanish and names only real paths', () => {
   const text = fs.readFileSync(path.join(SKILLS, 'food-log', 'SKILL.md'), 'utf8');
-  const fm = frontmatter(text);
+  const fm = /** @type {Record<string, string>} */ (frontmatter(text));
   for (const word of ['log food', 'registrar', 'he comido', 'product', 'macros']) {
     assert.ok(fm.description.includes(word), `food-log: description must mention "${word}"`);
   }

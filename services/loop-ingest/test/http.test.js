@@ -7,22 +7,30 @@ import {
   hostAllowed, hostOfHeader, hostOfOrigin, parseAllowedHosts
 } from '../src/http.js'
 
-/** A response stand-in that records what writeHead / end received. */
+/** @typedef {import('node:http').IncomingMessage} Req @typedef {import('node:http').ServerResponse} Res */
+/** What the stand-in recorded; `headers` is read only after writeHead set it.
+ * @typedef {{ status: number | null, headers: Record<string, unknown>, body: unknown }} Recorded */
+
+/** A response stand-in that records what writeHead / end received (it has only writeHead and end).
+ * @returns {Res & Recorded} */
 function fakeRes () {
-  return {
+  return /** @type {Res & Recorded} */ (/** @type {unknown} */ ({
     status: null,
     headers: null,
     body: null,
+    /** @this {Recorded} @param {number} status @param {Record<string, unknown>} headers */
     writeHead (status, headers) { this.status = status; this.headers = headers },
+    /** @this {Recorded} @param {unknown} body */
     end (body) { this.body = body }
-  }
+  }))
 }
 
-/** A request stand-in: a readable stream of `chunks` with the given headers. */
+/** A request stand-in: a readable stream of `chunks` with the given headers.
+ * @param {string[]} chunks @param {import('node:http').IncomingHttpHeaders} [headers] @returns {Req} */
 function fakeReq (chunks, headers = {}) {
-  const req = Readable.from(chunks.map((c) => Buffer.from(c)))
+  const req = /** @type {Readable & { headers: import('node:http').IncomingHttpHeaders }} */ (Readable.from(chunks.map((c) => Buffer.from(c))))
   req.headers = headers
-  return req
+  return /** @type {Req} */ (/** @type {unknown} */ (req))
 }
 
 test('httpError: an Error carrying status, code and field', () => {
@@ -65,10 +73,10 @@ test('send: adds no-store and nosniff; extra headers come last and may override'
 })
 
 test('isJson: application/json only, parameters and case ignored', () => {
-  assert.equal(isJson({ headers: { 'content-type': 'application/json' } }), true)
-  assert.equal(isJson({ headers: { 'content-type': 'Application/JSON; charset=utf-8' } }), true)
-  assert.equal(isJson({ headers: { 'content-type': 'text/plain' } }), false)
-  assert.equal(isJson({ headers: {} }), false)
+  assert.equal(isJson(/** @type {Req} */ ({ headers: { 'content-type': 'application/json' } })), true)
+  assert.equal(isJson(/** @type {Req} */ ({ headers: { 'content-type': 'Application/JSON; charset=utf-8' } })), true)
+  assert.equal(isJson(/** @type {Req} */ ({ headers: { 'content-type': 'text/plain' } })), false)
+  assert.equal(isJson(/** @type {Req} */ ({ headers: {} })), false)
 })
 
 test('readJson: parses the body, refuses bad JSON and anything over the 16 KB cap', async () => {
@@ -115,10 +123,11 @@ test('host checks: Host / Origin parsing, literals, local names and the allowlis
   assert.equal(hostAllowed('evil.example'), false)
   assert.equal(hostAllowed('plan.lan', parseAllowedHosts('plan.lan')), true)
   assert.deepEqual(parseAllowedHosts(' Plan.Lan, nas.local  other '), ['plan.lan', 'nas.local', 'other'])
-  assert.deepEqual(parseAllowedHosts(null), [])
+  assert.deepEqual(parseAllowedHosts(/** @type {any} */ (null)), [])
 })
 
 test('writeOriginOk: Sec-Fetch-Site (when sent) must be same-origin; an Origin must be an allowed host and, behind loop-web, exactly the forwarded host', () => {
+  /** @param {import('node:http').IncomingHttpHeaders} headers @param {string[]} [extra] */
   const ok = (headers, extra = []) => writeOriginOk(headers, extra)
   // no browser headers at all (curl, the food-log skill, the Shortcut): allowed, as before
   assert.equal(ok({}), true)

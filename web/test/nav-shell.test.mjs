@@ -17,7 +17,7 @@ const here = path.dirname(fileURLToPath(import.meta.url));
 const html = fs.readFileSync(path.join(path.dirname(here), '.test-dist', 'en-example', 'index.html'), 'utf8');
 const N = en.strings.nav;
 
-const between = (start, end) => {
+const between = (/** @type {string} */ start, /** @type {string} */ end) => {
   const i = html.indexOf(start);
   assert.ok(i !== -1, `missing ${start}`);
   const j = html.indexOf(end, i);
@@ -66,7 +66,7 @@ test('the action root and every action ship hidden; only real actions exist (add
   const acts = [...html.matchAll(/<button type="button" class="act-item" data-act="([a-z]+)" hidden>/g)].map((m) => m[1]);
   assert.deepEqual(acts, ['food', 'journal', 'sync']);
   assert.match(html, /<div class="act-scrim" id="act-scrim" hidden><\/div>/);
-  for (const k of ['addFood', 'journal', 'sync']) assert.ok(html.includes(`<span>${N.actions[k]}</span>`), k);
+  for (const k of ['addFood', 'journal', 'sync']) assert.ok(html.includes(`<span>${/** @type {Record<string, string>} */ (N.actions)[k]}</span>`), k);
 });
 
 test('landmarks: the top bar is the page <header>, the tab panels sit in one <main>, each panel a region named by its nav button', () => {

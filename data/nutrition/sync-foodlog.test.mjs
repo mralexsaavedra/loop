@@ -11,6 +11,8 @@ import * as sf from './sync-foodlog.mjs';
 import { fileURLToPath } from 'node:url';
 import { dataPaths } from '../../lib/paths.mjs';
 
+/** @typedef {{ url: string, init: { headers: Record<string, string | undefined> } }} Seen the request fetchSummary sent */
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const { normalizeSummary, fetchSummary, syncFoodlog, windowFor, toCsv, CSV_FILE, META_FILE, HEADER } = sf;
@@ -20,10 +22,10 @@ const DAY1 = { date: '2030-01-04', k: 2100, p: 140.5, c: 230, f: 60.2, n: 6, mis
 const DAY2 = { date: '2030-01-05', k: 900, p: 40, c: null, f: 30, n: 2, missing: { p: true, c: true, f: false }, groups: { breakfast: 1, lunch: 0, dinner: 0, addon: 1 } };
 const BODY = { from: '2029-09-08', to: '2030-01-05', days: [DAY1, DAY2] };
 const NOW = new Date('2030-01-05T09:00:00.000Z');
-const tmpDir = (tag) => fs.mkdtempSync(path.join(os.tmpdir(), `sync-foodlog-${tag}-`));
-const readCsv = (dir) => fs.readFileSync(path.join(dir, CSV_FILE), 'utf8');
-const readMeta = (dir) => JSON.parse(fs.readFileSync(path.join(dir, META_FILE), 'utf8'));
-const json = (status, body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+const tmpDir = (/** @type {string} */ tag) => fs.mkdtempSync(path.join(os.tmpdir(), `sync-foodlog-${tag}-`));
+const readCsv = (/** @type {string} */ dir) => fs.readFileSync(path.join(dir, CSV_FILE), 'utf8');
+const readMeta = (/** @type {string} */ dir) => JSON.parse(fs.readFileSync(path.join(dir, META_FILE), 'utf8'));
+const json = (/** @type {number} */ status, /** @type {unknown} */ body) => new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
 
 // ---- window ----------------------------------------------------------------------------
 
@@ -71,15 +73,15 @@ test('toCsv writes one row per day; an unknown macro is blank (never 0) and miss
 test('fetchSummary sends X-HC-Food: 1, no bearer token, and the window as from / to', async () => {
   let seen;
   const out = await fetchSummary('http://localhost:8088/', { from: '2029-09-08', to: '2030-01-05' }, { fetchImpl: async (url, init) => { seen = { url, init }; return json(200, BODY); } });
-  assert.equal(seen.url, 'http://localhost:8088/food/log/summary?from=2029-09-08&to=2030-01-05');
-  assert.equal(seen.init.headers['x-hc-food'], '1');
-  assert.equal(seen.init.headers.authorization, undefined);
+  assert.equal(/** @type {Seen} */ (/** @type {unknown} */ (seen)).url, 'http://localhost:8088/food/log/summary?from=2029-09-08&to=2030-01-05');
+  assert.equal(/** @type {Seen} */ (/** @type {unknown} */ (seen)).init.headers['x-hc-food'], '1');
+  assert.equal(/** @type {Seen} */ (/** @type {unknown} */ (seen)).init.headers.authorization, undefined);
   assert.deepEqual(out, BODY);
 });
 
 test('fetchSummary keeps the HTTP status on the error (404 old image, 503 food unavailable, 421 host)', async () => {
   for (const status of [404, 421, 503]) {
-    await assert.rejects(fetchSummary('http://x', { from: 'a', to: 'b' }, { fetchImpl: async () => json(status, { error: 'x' }) }), (err) => err.status === status);
+    await assert.rejects(fetchSummary('http://x', { from: 'a', to: 'b' }, { fetchImpl: async () => json(status, { error: 'x' }) }), (/** @type {{ status?: number }} */ err) => err.status === status);
   }
 });
 
@@ -131,12 +133,14 @@ test('syncFoodlog with no logged day writes a header-only CSV', () => {
 
 // ---- main(): a missing / old / unavailable service is a warning, never a failed sync -------
 
+/** @param {import('node:http').RequestListener} handler @returns {Promise<import('node:http').Server>} */
 function serve(handler) {
   return new Promise((resolve) => {
     const server = http.createServer(handler);
     server.listen(0, '127.0.0.1', () => resolve(server));
   });
 }
+/** @param {NodeJS.ProcessEnv} env @param {string[]} [args] @returns {Promise<{ code: unknown, stdout: string, stderr: string }>} */
 function run(env, args = []) {
   return new Promise((resolve) => {
     execFile(process.execPath, [SCRIPT, ...args], { env: { PATH: process.env.PATH, ...env } }, (err, stdout, stderr) => {
@@ -149,17 +153,17 @@ test('main(): 200 -> writes the CSV, exit 0', async () => {
   let req;
   const server = await serve((r, res) => {
     req = { url: r.url, headers: r.headers };
-    const u = new URL(r.url, 'http://x');
+    const u = new URL(/** @type {string} */ (r.url), 'http://x');
     const body = { from: u.searchParams.get('from'), to: u.searchParams.get('to'), days: [{ ...DAY1, date: u.searchParams.get('to') }] };
     res.writeHead(200, { 'content-type': 'application/json' });
     res.end(JSON.stringify(body));
   });
   const dir = tmpDir('main-ok');
-  const r = await run({ INGEST_URL: `http://localhost:${server.address().port}`, SYNC_FOODLOG_OUT_DIR: dir });
+  const r = await run({ INGEST_URL: `http://localhost:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}`, SYNC_FOODLOG_OUT_DIR: dir });
   server.close();
   assert.equal(r.code, 0, r.stderr);
-  assert.equal(req.headers['x-hc-food'], '1');
-  assert.match(req.url, /^\/food\/log\/summary\?from=\d{4}-\d{2}-\d{2}&to=\d{4}-\d{2}-\d{2}$/);
+  assert.equal(/** @type {{ url: string, headers: import('node:http').IncomingHttpHeaders }} */ (/** @type {unknown} */ (req)).headers['x-hc-food'], '1');
+  assert.match(/** @type {{ url: string, headers: import('node:http').IncomingHttpHeaders }} */ (/** @type {unknown} */ (req)).url, /^\/food\/log\/summary\?from=\d{4}-\d{2}-\d{2}&to=\d{4}-\d{2}-\d{2}$/);
   assert.match(readCsv(dir), /^date,kcal,/);
   assert.match(r.stdout, /Food log: 1 logged day .*; written/);
   fs.rmSync(dir, { recursive: true });
@@ -169,9 +173,9 @@ test('main(): 503 / 404 / 421 / malformed / unreachable -> WARNING, the previous
   const dir = tmpDir('main-warn');
   const prev = toCsv([DAY1]);
   fs.writeFileSync(path.join(dir, CSV_FILE), prev);
-  for (const [status, body] of [[503, '{"error":"x"}'], [404, '{"error":"x"}'], [421, '{"error":"x"}'], [200, '{"days":"nope"}']]) {
+  for (const [status, body] of /** @type {Array<[number, string]>} */ ([[503, '{"error":"x"}'], [404, '{"error":"x"}'], [421, '{"error":"x"}'], [200, '{"days":"nope"}']])) {
     const server = await serve((req, res) => { res.writeHead(status, { 'content-type': 'application/json' }); res.end(body); });
-    const r = await run({ INGEST_URL: `http://localhost:${server.address().port}`, SYNC_FOODLOG_OUT_DIR: dir });
+    const r = await run({ INGEST_URL: `http://localhost:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}`, SYNC_FOODLOG_OUT_DIR: dir });
     server.close();
     assert.equal(r.code, 0, r.stderr);
     assert.match(r.stderr, /^WARNING: /m);
@@ -192,17 +196,18 @@ test('the export files are gitignored (personal data)', () => {
 
 // ---- main() returns its exit code (runCli sets it): called in-process, the runner is never killed ----
 
+/** @param {string} prefix */
 function mainHarness (prefix) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), prefix));
-  const out = [], err = [];
+  const out = /** @type {string[]} */ ([]), err = /** @type {string[]} */ ([]);
   const env = { INGEST_ENV_FILE: path.join(dir, 'no-such.env'), INGEST_URL: 'http://127.0.0.1:9' };
   const refused = async () => { throw Object.assign(new TypeError('fetch failed'), { cause: { code: 'ECONNREFUSED' } }); };
-  const answer = (status, body) => async () => ({ ok: status < 300, status, json: async () => body });
+  const answer = (/** @type {number} */ status, /** @type {unknown} */ body) => /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: status < 300, status, json: async () => body })));
   const blocked = path.join(dir, 'a-file');
   fs.writeFileSync(blocked, 'x');
   return {
     dir, env, refused, answer, out, err,
-    io: { log: (s) => out.push(s), error: (s) => err.push(s) },
+    io: { log: (/** @type {string} */ s) => out.push(s), error: (/** @type {string} */ s) => err.push(s) },
     unwritable: path.join(blocked, 'sub'), // a path under a regular file: every write fails
     cleanup: () => fs.rmSync(dir, { recursive: true, force: true }),
   };
@@ -212,13 +217,13 @@ test('main() in-process: unreachable -> warning, returns 0; failed write -> retu
   const h = mainHarness('sync-foodlog-main-');
   try {
     assert.equal(await sf.main({ env: h.env, ...h.io, fetchImpl: h.refused, outDir: path.join(h.dir, 'f') }), 0);
-    assert.match(h.err.pop(), /^WARNING: could not read the food log .*ECONNREFUSED/);
-    const ok = async (url) => {
+    assert.match(/** @type {string} */ (h.err.pop()), /^WARNING: could not read the food log .*ECONNREFUSED/);
+    const ok = /** @type {typeof fetch} */ (/** @type {unknown} */ (async (/** @type {string} */ url) => {
       const u = new URL(url);
       return { ok: true, status: 200, json: async () => ({ from: u.searchParams.get('from'), to: u.searchParams.get('to'), days: [] }) };
-    };
+    }));
     assert.equal(await sf.main({ env: h.env, ...h.io, fetchImpl: ok, outDir: h.unwritable }), 1);
-    assert.match(h.err.pop(), /^ERROR: food log sync failed/);
+    assert.match(/** @type {string} */ (h.err.pop()), /^ERROR: food log sync failed/);
   } finally { h.cleanup(); }
 });
 
@@ -228,10 +233,10 @@ test('main(): a malformed body warns "unexpected response", never "could not rea
     const outDir = path.join(h.dir, 'f');
     assert.equal(await sf.main({ env: h.env, ...h.io, fetchImpl: h.answer(200, { days: 'nope' }), outDir }), 0);
     const w = h.err.pop();
-    assert.match(w, /^WARNING: unexpected response from the food log at http:\/\/127\.0\.0\.1:9 \(unexpected response shape .*\)\. foodlog-daily\.csv kept\.$/);
-    const notJson = async () => ({ ok: true, status: 200, json: async () => JSON.parse('<html>') });
+    assert.match(/** @type {string} */ (w), /^WARNING: unexpected response from the food log at http:\/\/127\.0\.0\.1:9 \(unexpected response shape .*\)\. foodlog-daily\.csv kept\.$/);
+    const notJson = /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: true, status: 200, json: async () => JSON.parse('<html>') })));
     assert.equal(await sf.main({ env: h.env, ...h.io, fetchImpl: notJson, outDir }), 0);
-    assert.match(h.err.pop(), /^WARNING: unexpected response from the food log/);
+    assert.match(/** @type {string} */ (h.err.pop()), /^WARNING: unexpected response from the food log/);
     assert.ok(!fs.existsSync(outDir));
   } finally { h.cleanup(); }
 });
@@ -239,12 +244,13 @@ test('main(): a malformed body warns "unexpected response", never "could not rea
 test('main(): the window and fetchedAt come from the injected `now` (no clock read inside)', async () => {
   const h = mainHarness('sync-foodlog-now-');
   try {
+    /** @type {string[]} */
     const urls = [];
-    const ok = async (url) => {
+    const ok = /** @type {typeof fetch} */ (/** @type {unknown} */ (async (/** @type {string} */ url) => {
       urls.push(url);
       const u = new URL(url);
       return { ok: true, status: 200, json: async () => ({ from: u.searchParams.get('from'), to: u.searchParams.get('to'), days: [] }) };
-    };
+    }));
     const now = new Date(2030, 0, 15, 12, 0, 0); // local 2030-01-15
     const outDir = path.join(h.dir, 'f');
     assert.equal(await sf.main({ env: h.env, ...h.io, fetchImpl: ok, outDir, now }), 0);
@@ -260,7 +266,7 @@ test('main(): the window and fetchedAt come from the injected `now` (no clock re
 
 test('main() in-process: HC_DATA_DIR redirects the default output to <data root>/foodlog; SYNC_FOODLOG_OUT_DIR wins over it', async () => {
   const root = tmpDir('data-root');
-  const fetchImpl = async () => ({ ok: true, status: 200, json: async () => BODY });
+  const fetchImpl = /** @type {typeof fetch} */ (/** @type {unknown} */ (async () => ({ ok: true, status: 200, json: async () => BODY })));
   const io = { log: () => {}, error: () => {} };
   try {
     assert.equal(await sf.main({ env: { HC_DATA_DIR: root, INGEST_URL: 'http://127.0.0.1:9' }, ...io, fetchImpl, now: NOW }), 0);

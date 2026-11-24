@@ -6,14 +6,19 @@ import { createSyncStatus, STRAVA_STALE_MS, SNAPSHOT_TTL_MS, STATUS_CODES } from
 const T0 = Date.parse('2030-01-02T10:00:00Z')
 const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
 
-/** Fake pg pool: answers the few statements status.js issues, records every call. */
+/** One recorded statement (the writes the tests read all pass values). @typedef {{ sql: string, values: readonly unknown[] }} Call */
+
+/** Fake pg pool: answers the few statements status.js issues, records every call.
+ * @param {{ state?: Record<string, unknown> | null, lastPayload?: Date | null, failWrites?: boolean, failReads?: number }} [options] */
 function fakePool ({ state = null, lastPayload = null, failWrites = false, failReads = 0 } = {}) {
+  /** @type {Call[]} */
   const calls = []
   let readFailures = failReads
-  return {
+  return /** @type {import('../src/db.js').Queryable & { calls: Call[] }} */ (/** @type {unknown} */ ({
     calls,
+    /** @param {string} sql @param {readonly unknown[]} [values] */
     async query (sql, values) {
-      calls.push({ sql, values })
+      calls.push({ sql, values: /** @type {readonly unknown[]} */ (values) })
       if (/FROM sync_status/.test(sql)) {
         if (readFailures > 0) { readFailures -= 1; throw new Error('connect ECONNREFUSED 10.0.0.5:5432') }
         return { rows: state ? [state] : [] }
@@ -25,7 +30,7 @@ function fakePool ({ state = null, lastPayload = null, failWrites = false, failR
       }
       throw new Error(`unexpected sql: ${sql}`)
     }
-  }
+  }))
 }
 
 const KEYS = ['lastShortcutAt', 'lastStravaError', 'lastStravaOkAt', 'lastTriggerAt', 'lastTriggerError', 'lastTriggerErrorSeq', 'stravaConfigured', 'triggerSeq']
@@ -48,8 +53,8 @@ test('snapshot: exact key set, ISO timestamps, coarse codes, the configured flag
     triggerSeq: 12,
     stravaConfigured: true
   })
-  const payloadQuery = pool.calls.find((c) => /FROM raw_payload/.test(c.sql)).sql
-  assert.equal(/SELECT\s+([\s\S]*?)\s+FROM/i.exec(payloadQuery)[1], 'MAX(received_at) AS last', 'selects one timestamp, never payload columns')
+  const payloadQuery = /** @type {Call} */ (pool.calls.find((c) => /FROM raw_payload/.test(c.sql))).sql
+  assert.equal(/** @type {RegExpExecArray} */ (/SELECT\s+([\s\S]*?)\s+FROM/i.exec(payloadQuery))[1], 'MAX(received_at) AS last', 'selects one timestamp, never payload columns')
 })
 
 test('an empty database reports nulls and seq 0, not errors', async () => {
@@ -140,7 +145,7 @@ test('trigger sequence: increments synchronously, persisted monotonically (GREAT
   assert.equal(status.nextTriggerSeq(), 9)
   assert.equal(status.currentSeq(), 9)
   await new Promise((resolve) => setImmediate(resolve))
-  const write = pool.calls.filter((c) => /UPDATE sync_status/.test(c.sql)).at(-1)
+  const write = /** @type {Call} */ (pool.calls.filter((c) => /UPDATE sync_status/.test(c.sql)).at(-1))
   assert.match(write.sql, /trigger_seq\s*=\s*GREATEST\(trigger_seq,/)
   assert.ok(write.values.includes(9))
 })
@@ -152,6 +157,7 @@ test('load takes the max of the DB seq and the trigger file seq (seq never goes 
 })
 
 test('a failed load is logged, never thrown, and retried on the next snapshot', async () => {
+  /** @type {{ event?: string }[]} */
   const logs = []
   const pool = fakePool({ state: { trigger_seq: 5, last_strava_ok_at: new Date(T0) }, failReads: 1 })
   const status = createSyncStatus({ pool, stravaConfigured: true, now: () => T0, log: (l) => logs.push(JSON.parse(l)), readTriggerSeq: async () => 2 })
@@ -196,6 +202,7 @@ test('snapshot is cached for 5 s (bounded DB load); own state changes invalidate
 })
 
 test('a failed persist keeps the in-memory value and never throws', async () => {
+  /** @type {{ event?: string }[]} */
   const logs = []
   const status = createSyncStatus({ pool: fakePool({ failWrites: true }), stravaConfigured: true, now: () => T0, log: (l) => logs.push(JSON.parse(l)) })
   await status.recordStravaOk()
@@ -238,8 +245,8 @@ test('every snapshot value is a timestamp, a code, a number or a boolean', async
     if (value === null) continue
     if (key === 'stravaConfigured') assert.equal(typeof value, 'boolean')
     else if (key === 'triggerSeq' || key === 'lastTriggerErrorSeq') assert.ok(Number.isInteger(value))
-    else if (key === 'lastStravaError' || key === 'lastTriggerError') assert.ok(STATUS_CODES.has(value))
-    else assert.match(value, ISO, key)
+    else if (key === 'lastStravaError' || key === 'lastTriggerError') assert.ok(STATUS_CODES.has(/** @type {string} */ (value)))
+    else assert.match(/** @type {string} */ (value), ISO, key)
   }
 })
 
@@ -268,7 +275,7 @@ test('container mode: recordTriggerError(seq, build) is exposed and persisted, s
   let snap = await status.snapshot()
   assert.equal(snap.lastTriggerError, 'build')
   assert.equal(snap.lastTriggerErrorSeq, 6)
-  const write = pool.calls.filter((c) => /UPDATE sync_status/.test(c.sql)).pop()
+  const write = /** @type {Call} */ (pool.calls.filter((c) => /UPDATE sync_status/.test(c.sql)).pop())
   assert.ok(write.values.includes('build'), 'persisted')
   const fresh = createSyncStatus({ pool: fakePool(), stravaConfigured: false, now: () => T0 + 10_000 })
   await fresh.recordTriggerError(7, 'Error: ENOENT /secret/path')

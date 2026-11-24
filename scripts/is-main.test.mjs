@@ -11,6 +11,7 @@ import { isMain } from './lib/is-main.mjs';
 
 const SCRIPTS = path.dirname(fileURLToPath(import.meta.url));
 
+/** @template T @param {string | undefined} value @param {() => T} fn @returns {T} */
 function withArgv1(value, fn) {
   const saved = process.argv;
   process.argv = value === undefined ? [saved[0]] : [saved[0], value];
@@ -21,12 +22,14 @@ function withArgv1(value, fn) {
   }
 }
 
+/** @param {import('node:test').TestContext} t */
 function tempDir(t) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'is-main-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   return dir;
 }
 
+/** @param {import('node:test').TestContext} t */
 function tempModule(t) {
   const dir = tempDir(t);
   const file = path.join(dir, 'entry.mjs');
