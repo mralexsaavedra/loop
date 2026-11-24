@@ -17,10 +17,10 @@ declare const I18N_HOY: PageGlobals['I18N_HOY'];
 declare const TRAINING: PageGlobals['TRAINING'];
 declare const TRAINING_META: PageGlobals['TRAINING_META'];
 
-/** One block of a programmed session (training-data.json). */
-type Block = { label?: string; title: string; lines: string[] };
+/** One block of a programmed session (lib/training/program.mjs). */
+type Block = import('../../../lib/training/program.mjs').ProgramBlock;
 /** A programmed session (TRAINING[date]). */
-type Session = { kind?: string; focus: string; blocks: Block[] };
+type Session = import('../../../lib/training/program.mjs').ProgramSession;
 
 (function () {
   var goalLineRe = new RegExp(I18N_HOY.goalLineRe, 'i');
