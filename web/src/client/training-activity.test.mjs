@@ -15,26 +15,34 @@ const source = clientScriptSource('training-activity.ts');
 const ASOF = '2026-09-29';
 
 // every 2nd day in the last 30 (60 min run), every 3rd day in the previous 30 (30 min hybrid)
+/** @typedef {import('../../../lib/training/dashboard.mjs').TrainingRow} TrainingRow */
+/** @typedef {import('../../../lib/training/activity.mjs').Activity} Activity */
+/** @typedef {import('node:vm').Context} VmGlobals the script's globals (a vm context: untyped by nature) */
+/** @type {{date: string, type: string, dur: number}[]} partial rows: what the activity bake reads */
 const rows = [];
 for (let i = 0; i < 30; i += 2) rows.push({ date: addDays(ASOF, -i), type: 'Running', dur: 60 });
 for (let i = 30; i < 60; i += 3) rows.push({ date: addDays(ASOF, -i), type: 'HighIntensityIntervalTraining', dur: 30 });
 rows.push({ date: ASOF, type: 'Cycling', dur: 45 });
-const ACT = activityFromRows(rows);
+const ACT = activityFromRows(/** @type {TrainingRow[]} */ (rows));
 // the same plus one old session, so the windows before M and W lie after the first session
-const ACT2 = activityFromRows([...rows, { date: addDays(ASOF, -200), type: 'Running', dur: 30 }]);
+const ACT2 = activityFromRows(/** @type {TrainingRow[]} */ ([...rows, { date: addDays(ASOF, -200), type: 'Running', dur: 30 }]));
 
+/** @param {Activity | null | undefined} activity @param {{locale?: string, now?: string, at?: string, detail?: boolean, stored?: string | null, win?: VmGlobals}} [opts] */
 function render(activity, { locale = 'en', now = ASOF, at, detail = false, stored, win } = {}) {
   const host = { innerHTML: '' };
+  /** @type {VmGlobals} */
   const window = win || {};
   if (stored !== undefined) window.localStorage = { getItem: () => stored, setItem: () => {} };
   const RealDate = Date;
   const stamp = at || now + 'T12:00:00';
   class FakeDate extends RealDate {
-    constructor(...a) { super(...(a.length ? a : [stamp])); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { super(.../** @type {ConstructorParameters<DateConstructor>} */ (a.length ? a : [stamp])); }
     static now() { return new RealDate(stamp).getTime(); }
   }
+  /** @type {VmGlobals} */
   const ctx = {
-    document: { getElementById: (id) => (id === 'train-activity' ? host : null) },
+    document: { getElementById: (/** @type {string} */ id) => (id === 'train-activity' ? host : null) },
     ACTIVITY: activity == null ? activity : activityBake(activity), I18N_ACTIVITY: locale === 'es' ? esT : enT, LOCALE: locale, Date: FakeDate, Math, String, Number, Array, Object, JSON, window,
   };
   if (detail) ctx.DETAIL = { metrics: {} };
@@ -43,6 +51,7 @@ function render(activity, { locale = 'en', now = ASOF, at, detail = false, store
   vm.runInContext(source, ctx);
   return host.innerHTML;
 }
+/** @param {string} html */
 const cells = (html) => [...html.matchAll(/<rect class="cal-cell cal-l(\d)"[^>]*><title>([^<]*)<\/title>/g)].map((m) => ({ level: +m[1], title: m[2] }));
 
 test('ONE Activity card: header + ⓘ, total time with the W / M / 6M switch, stats, split, then the compact calendar', () => {
@@ -53,7 +62,7 @@ test('ONE Activity card: header + ⓘ, total time with the W / M / 6M switch, st
   assert.equal((html.match(/data-act-range="(\d+)"/g) || []).join(','), 'data-act-range="7",data-act-range="30",data-act-range="182"');
   assert.match(html, /data-act-range="30" aria-pressed="true" aria-label="M, Last month">M</, 'M is the default window');
   assert.doesNotMatch(html, /cum-svg|cum-line|act-pair|class="dash-sec/, 'the cumulative chart and the old two-block layout are gone');
-  for (const k of ['help', 'note', 'labelsNote']) assert.ok(html.includes(enT[k].slice(0, 40)), `${k} behind ⓘ`);
+  for (const k of /** @type {const} */ (['help', 'note', 'labelsNote'])) assert.ok(html.includes(enT[k].slice(0, 40)), `${k} behind ⓘ`);
 });
 
 test('openers: the total and the calendar open the training-time sheet; a day cell opens that day; the switch is not inside an opener', () => {
@@ -78,7 +87,7 @@ test('M window: total of the last 30 days vs the 30 before, sessions / days / pe
   assert.deepEqual(stats, [['16', 'Sessions'], ['15', 'Days'], ['3:41', 'Per week']], '16 sessions (15 runs + 1 ride, the run+ride day counts twice) on 15 days');
   const legend = [...html.matchAll(/<li><span class="act-sw act-m-(\w+)" aria-hidden="true"><\/span><b>(\d+)×<\/b> ([^<]+) <small>([^<]+)<\/small><\/li>/g)].map((m) => m.slice(1));
   assert.deepEqual(legend, [['run', '15', 'Run', '95% · 15:00'], ['bike', '1', 'Bike', '5% · 0:45']], 'largest first, sessions ×, share of the minutes');
-  const segs = [...html.matchAll(/<rect class="act-m-(\w+)" x="([\d.]+)" y="0" width="([\d.]+)" height="8"\/>/g)].map((m) => [m[1], +m[2], +m[3]]);
+  const segs = [...html.matchAll(/<rect class="act-m-(\w+)" x="([\d.]+)" y="0" width="([\d.]+)" height="8"\/>/g)].map((m) => /** @type {[string, number, number]} */ ([m[1], +m[2], +m[3]]));
   assert.deepEqual(segs.map((x) => x[0]), ['run', 'bike']);
   assert.equal(segs[1][1], segs[0][2], 'stacked: each segment starts where the last ended');
   assert.ok(Math.abs(segs[0][2] + segs[1][2] - 100) < 0.02, 'the bar is the whole window');
@@ -86,9 +95,10 @@ test('M window: total of the last 30 days vs the 30 before, sessions / days / pe
 });
 
 test('W and 6M windows (HCActivity.summary): totals, sessions and split follow the window; a window before the first session has no comparison', () => {
+  /** @type {VmGlobals} */
   const win = {};
   render(ACT, { win });
-  const byDate = Object.fromEntries(ACT.days.map((d) => [d.date, d]));
+  const byDate = Object.fromEntries(/** @type {NonNullable<Activity['days']>} */ (ACT.days).map((d) => [d.date, d]));
   const w = win.HCActivity.summary(byDate, ASOF, 7);
   // last 7 days: runs on days 0, 2, 4, 6 (4 × 60) + the ride = 285 min; the 7 before: runs on 8, 10, 12 = 180
   assert.deepEqual([w.min, w.sessions, w.days, w.prev], [285, 5, 4, 180]);
@@ -100,7 +110,8 @@ test('W and 6M windows (HCActivity.summary): totals, sessions and split follow t
   assert.deepEqual({ ...m6.mods.hybrid }, { min: 300, n: 10 });
   assert.equal(m6.prev, null, 'the 6M before starts before the first session: no comparison');
   assert.equal(m6.pct, null);
-  const byDate2 = Object.fromEntries(ACT2.days.map((d) => [d.date, d]));
+  const byDate2 = Object.fromEntries(/** @type {NonNullable<Activity['days']>} */ (ACT2.days).map((d) => [d.date, d]));
+  /** @type {VmGlobals} */
   const win2 = {};
   render(ACT2, { win: win2 });
   const w2 = win2.HCActivity.summary(byDate2, addDays(ASOF, -150), 7);
@@ -109,20 +120,25 @@ test('W and 6M windows (HCActivity.summary): totals, sessions and split follow t
 });
 
 test('the switch: 6M re-renders the card (total, pill, split) and keeps focus; the choice is remembered per viewer', () => {
+  /** @type {[string, string][]} */
   const sets = [];
-  const win = { localStorage: { getItem: () => null, setItem: (k, v) => sets.push([k, v]) } };
+  const win = { localStorage: { getItem: () => null, setItem: (/** @type {string} */ k, /** @type {string} */ v) => sets.push([k, v]) } };
+  /** @type {{innerHTML: string, addEventListener?: (type: string, fn: (e: unknown) => void) => void, querySelector?: (sel: string) => unknown}} */
   const host = { innerHTML: '' };
+  /** @type {((e: unknown) => void) | null} */
   let onClick = null;
   host.addEventListener = (type, fn) => { if (type === 'click') onClick = fn; };
+  /** @type {string[]} */
   const focused = [];
   host.querySelector = (sel) => ({ focus: () => focused.push(sel) });
   const RealDate = Date;
   class FakeDate extends RealDate {
-    constructor(...a) { super(...(a.length ? a : [ASOF + 'T12:00:00'])); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { super(.../** @type {ConstructorParameters<DateConstructor>} */ (a.length ? a : [ASOF + 'T12:00:00'])); }
     static now() { return new RealDate(ASOF + 'T12:00:00').getTime(); }
   }
   const ctx = {
-    document: { getElementById: (id) => (id === 'train-activity' ? host : null) },
+    document: { getElementById: (/** @type {string} */ id) => (id === 'train-activity' ? host : null) },
     ACTIVITY: activityBake(ACT), I18N_ACTIVITY: enT, LOCALE: 'en', Math, String, Number, Array, Object, JSON, window: win, Date: FakeDate,
   };
   vm.createContext(ctx);
@@ -130,7 +146,7 @@ test('the switch: 6M re-renders the card (total, pill, split) and keeps focus; t
   vm.runInContext(source, ctx);
   assert.ok(onClick, 'one delegated click listener on the host');
   const btn = { getAttribute: () => '182' };
-  onClick({ target: { closest: (sel) => (sel === '[data-act-range]' ? btn : null) } });
+  /** @type {(e: unknown) => void} */ (onClick)({ target: { closest: (/** @type {string} */ sel) => (sel === '[data-act-range]' ? btn : null) } });
   assert.match(host.innerHTML, /data-act-range="182" aria-pressed="true"/);
   assert.match(host.innerHTML, /<b class="dt-trend-num">20:45<\/b><span class="dt-pill">no prior period<\/span>/);
   assert.match(host.innerHTML, /act-m-hybrid/, 'the hybrid sessions of the previous month are inside 6M');
@@ -156,7 +172,7 @@ test('calendar: 30 day cells ending at the viewer\'s today, level by total minut
 });
 
 test('calendar hint: one active day reads in the singular, in both languages', () => {
-  const one = activityFromRows([{ date: ASOF, type: 'Running', dur: 34 }]);
+  const one = activityFromRows(/** @type {TrainingRow[]} */ ([{ date: ASOF, type: 'Running', dur: 34 }]));
   assert.ok(render(one).includes(enT.calHintOne), 'en: "1 training day out of 30"');
   assert.ok(render(one, { locale: 'es' }).includes('1 día con entreno de 30'));
   assert.doesNotMatch(render(one, { locale: 'es' }), /1 días/);
@@ -195,7 +211,7 @@ test('stale data (> 3 days old): windows end at the data date, the block is grey
 test('empty state and resilience', () => {
   assert.ok(render({ hasData: false }).includes('No workouts yet'));
   assert.doesNotThrow(() => render(undefined));
-  const broken = render({ hasData: true, asOf: ASOF, days: 'broken' });
+  const broken = render(/** @type {any} */ ({ hasData: true, asOf: ASOF, days: 'broken' })); // a malformed bake on purpose
   assert.doesNotMatch(broken, /NaN|undefined/);
 });
 
@@ -208,7 +224,8 @@ test('es: Spanish copy and h:mm durations', () => {
 
 test('wide screens (>= 900 px): the calendar is a full-width HTML grid with the same levels, titles and day openers', () => {
   let query = null, listened = false;
-  const mm = (q) => { query = q; return { matches: true, addEventListener: (ev) => { listened = ev === 'change'; } }; };
+  /** @param {string} q */
+  const mm = (q) => { query = q; return { matches: true, addEventListener: (/** @type {string} */ ev) => { listened = ev === 'change'; } }; };
   const wide = render(ACT, { detail: true, win: { matchMedia: mm } });
   const phone = render(ACT, { detail: true, win: { matchMedia: () => ({ matches: false }) } });
   assert.equal(query, '(min-width: 900px)');

@@ -36,16 +36,38 @@ const SUPPS = [
   { name: 'Demo Creatine', dose: '3 g', meal: 'lunch' },
   { name: 'Demo Electrolytes', dose: null, meal: 'preworkout' },
 ];
+/** @typedef {import('../../test/dom-stub.mjs').StubElementOpts} StubElementOpts */
+/** A stub element plus the DOM surface these tests use or stub onto it (innerHTML / textContent are defined in the
+ * StubElement constructor).
+ * @typedef {import('../../test/dom-stub.mjs').StubElement & { innerHTML: string, textContent: string, checked?: boolean,
+ *   querySelector?: () => unknown }} El */
+/** The stub document as these tests use it (el() hands back the El surface; a test may stub querySelector).
+ * @typedef {Omit<StubDocument, 'el'> & { el: (id: string | null | undefined, opts?: StubElementOpts) => El,
+ *   querySelector?: (sel: string) => unknown }} Doc */
+/** The vm window the script reads and writes: a bag of page globals (untyped boundary).
+ * @typedef {Record<string, any>} Win */
+/** A localStorage stand-in (memStorage, or one whose methods throw).
+ * @typedef {{ getItem: (k: string) => string | null, setItem: (k: string, v: string) => void, removeItem: (k: string) => void }} Store */
+/** @typedef {Store & { data: Record<string, string> }} MemStore */
+/** run() options. nutri is the NUTRI bake (JSON, untyped here), or null.
+ * @typedef {{ nutri?: unknown, items?: object[], programmed?: object | null, locale?: string, storage?: Store, today?: string,
+ *   hooks?: boolean | Record<string, unknown>, extra?: Record<string, unknown>, intake?: unknown,
+ *   query?: (sel: string) => unknown, basics?: unknown }} RunOpts */
+
+/** @param {Record<string, unknown>} [opts] */
 const bake = (opts = {}) => JSON.parse(JSON.stringify(buildNutriToday(buildNutrition(ING, PLAN), PLAN, { supplements: SUPPS, weight: { kg: 70, date: '2030-01-08' }, ...opts })));
 const TODAY = '2030-01-10';
 
+/** @param {string} iso */
 function fixedDate(iso) {
   const RealDate = Date;
   return class extends RealDate {
-    constructor(...a) { if (a.length) super(...a); else super(iso + 'T12:00:00'); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { if (a.length) super(.../** @type {ConstructorParameters<DateConstructor>} */ (a)); else super(iso + 'T12:00:00'); }
     static now() { return new RealDate(iso + 'T12:00:00').getTime(); }
   };
 }
+/** @param {Record<string, string>} [init] @returns {MemStore} */
 function memStorage(init = {}) {
   const m = { ...init };
   return { data: m, getItem: (k) => (k in m ? m[k] : null), setItem: (k, v) => { m[k] = String(v); }, removeItem: (k) => { delete m[k]; } };
@@ -54,9 +76,11 @@ function memStorage(init = {}) {
 // the Inicio full ring (view/dial.mjs arcPath(0, 1)), baked as NUTRI_ARC
 const ARC = 'M60 6A54 54 0 0 1 60 114A54 54 0 0 1 60 6';
 const BASICS = { en: buildBasics(ING, 'en'), es: buildBasics(ING, 'es') };
+/** @param {RunOpts} [opts] */
 function run({ nutri = bake(), items = [], programmed = null, locale = 'en', storage = memStorage(), today = TODAY, hooks = true, extra = {}, intake, query, basics } = {}) {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   if (query) doc.querySelector = query;
+  /** @type {Record<string, El>} */
   const els = {};
   for (const id of ['nutri-daytype', 'nutri-daytype-src', 'nutri-why', 'nutri-target', 'nutri-sum-info', 'nutri-plan', 'nutri-fuel-block', 'nutri-ride-wrap', 'nutri-fuel-body', 'eat-body', 'intake']) els[id] = doc.el(id);
   els['nutri-auto'] = doc.el('nutri-auto', { tag: 'button', hidden: true });
@@ -64,13 +88,17 @@ function run({ nutri = bake(), items = [], programmed = null, locale = 'en', sto
   els['nutri-plan-kcal'] = doc.el('nutri-plan-kcal');
   els['nutri-note'] = doc.el('nutri-note', { hidden: true });
   els['nutri-fuel-block'].hidden = true;
+  /** @type {Record<string, El>} */
   const radios = {};
+  /** @type {Record<string, El>} */
   const labels = {};
   for (const d of DAY_TYPES) {
     labels[d] = doc.el(null, { tag: 'label', classes: ['seg-opt'] });
     radios['d-' + d] = doc.el(null, { tag: 'input', attrs: { name: 'nutri-day', value: d }, parent: labels[d] });
   }
+  /** @type {unknown[][]} */
   const calls = [];
+  /** @type {Win} */
   const window = { localStorage: storage };
   // the intake rings read window.nutriTarget() when refreshed
   if (hooks === true) {
@@ -88,11 +116,12 @@ function run({ nutri = bake(), items = [], programmed = null, locale = 'en', sto
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
-  const fire = (id, evt, target) => els[id]._listeners[evt].forEach((fn) => fn({ target }));
-  return { els, radios, labels, window, calls, storage, fire, api: window.HCNutri };
+  const fire = (/** @type {string} */ id, /** @type {string} */ evt, /** @type {unknown} */ target) => els[id]._listeners[evt].forEach((fn) => fn({ target }));
+  // the tests read .data only off the memStorage() they passed (the default)
+  return { els, radios, labels, window, calls, storage: /** @type {MemStore} */ (storage), fire, api: window.HCNutri };
 }
-const plain = (v) => JSON.parse(JSON.stringify(v));
-const checkedOf = (radios, prefix) => Object.entries(radios).filter(([k, r]) => k.startsWith(prefix) && r.checked).map(([k]) => k.slice(prefix.length));
+const plain = (/** @type {unknown} */ v) => JSON.parse(JSON.stringify(v));
+const checkedOf = (/** @type {Record<string, El>} */ radios, /** @type {string} */ prefix) => Object.entries(radios).filter(([k, r]) => k.startsWith(prefix) && r.checked).map(([k]) => k.slice(prefix.length));
 
 test('detectDayType port agrees with lib/nutrition/daytype.mjs on every shared case', () => {
   const { api } = run();
@@ -162,7 +191,7 @@ CAP_PLAN.dayPlan.train.meals.push({ name: 'Dinner', parts: [{ ing: 'patata', amt
 test('planFor / solveScale ports agree with lib/nutrition/scale.mjs (example plan + units, manual and ml parts, portion caps)', () => {
   const syn = plain(buildNutriToday(buildNutrition(SYN_ING, SYN_PLAN), SYN_PLAN, { units: { g: 'g', ml: 'ml', ud: 'pc' }, dec: ',' }));
   const cap = plain(buildNutriToday(buildNutrition(CAP_ING, CAP_PLAN), CAP_PLAN, { units: { g: 'g', ml: 'ml', ud: 'pc' }, dec: ',' }));
-  assert.ok(cap.base.rest.flex.some((x) => x.ln && x.ln.some((l) => lineCap(l))), 'the capped fixture bakes caps on its lines');
+  assert.ok(cap.base.rest.flex.some((/** @type {{ ln?: Parameters<typeof lineCap>[0][] }} */ x) => x.ln && x.ln.some((l) => lineCap(l))), 'the capped fixture bakes caps on its lines');
   let held = 0;
   for (const nutri of [bake(), syn, cap]) {
     const { api } = run({ nutri });
@@ -394,6 +423,7 @@ test('window.nutriTarget: today\'s target (goal x day type) for the rings; on bi
 
 // a past day for HCNutri.targetFor: the timeline bakes the last 3 data days
 const YDAY = '2030-01-09';
+/** @param {unknown[]} days @param {Record<string, unknown>} [training] */
 const pastCtx = (days, training = {}) => ({ SCORES: { timeline: { asOf: TODAY, days } }, TRAINING: training });
 
 test('HCNutri.targetFor(past day): THAT day\'s detected day type (its recorded ride minutes) with the current goal, not today\'s', () => {
@@ -453,13 +483,14 @@ test('HCNutri.targetFor beyond the 3 timeline days: DETAIL.sessions give the day
 });
 
 test('applyGoal (the server goal) is applied and cached without calling the settings API; setGoal also saves it there when the API answered', () => {
+  /** @type {string[]} */
   const saved = [];
-  const settings = { ready: () => true, saveGoal: (g) => { saved.push(g); return Promise.resolve(); } };
+  const settings = { ready: () => true, saveGoal: (/** @type {string} */ g) => { saved.push(g); return Promise.resolve(); } };
   const s = run({ hooks: { HCSettings: settings, intakeRefresh: () => {} } });
   assert.equal(s.api.applyGoal('cut'), true);
   assert.equal(s.api.state().goal, 'cut');
   assert.equal(s.storage.data['hc.nutri.goal'], 'cut', 'the local copy is the offline cache');
-  assert.deepEqual(saved, [], 'a server goal is never sent back');
+  assert.deepEqual(saved, /** @type {string[]} */ ([]), 'a server goal is never sent back');
   assert.equal(s.api.applyGoal('shred'), false);
   s.api.setGoal('bulk');
   assert.deepEqual(saved, ['bulk']);
@@ -500,6 +531,7 @@ test('storedGoal: the goal this viewer stored, else null (the plan default is no
 });
 
 test('a refresh (goal / day type change) re-renders Progreso and Constancia when they are loaded', () => {
+  /** @type {string[]} */
   const renders = [];
   const s = run({ hooks: { intakeRefresh: () => {}, HCProgress: { render: () => renders.push('p') }, HCAdherence: { render: () => { renders.push('a'); throw new Error('boom'); } } } });
   renders.length = 0;
@@ -529,6 +561,7 @@ test('HCNutri.targetFor: today\'s manual override and picked ride minutes never 
 });
 
 test('the removed day builder\'s hook is never called (a stale window.bldRefresh is ignored); a failing ring refresh says so', () => {
+  /** @type {string[]} */
   const calls = [];
   const s = run({ hooks: { bldRefresh: () => calls.push('bld'), intakeRefresh: () => calls.push('intake') } });
   s.api.setGoal('cut');
@@ -585,8 +618,10 @@ test('goal chip: low-emphasis button next to today\'s kcal, labelled for screen 
 });
 
 test('goal chip: a tap opens the profile sheet focused on the goal setting; without the sheet it does nothing', () => {
+  /** @type {unknown[][]} */
   const opened = [];
-  const s = run({ hooks: { HCDetail: { open: (...a) => opened.push(a) } } });
+  const s = run({ hooks: { HCDetail: { open: (/** @type {unknown[]} */ ...a) => opened.push(a) } } });
+  /** @type {{ id: string, closest: (sel: string) => unknown }} */
   const chip = { id: 'nutri-goal-chip', closest: (sel) => (sel === '#nutri-goal-chip' ? chip : null) };
   s.fire('nutri-target', 'click', chip);
   assert.deepEqual(JSON.parse(JSON.stringify(opened)), [['profile', null, { focus: '#pf-goal input:checked' }]]);
@@ -596,8 +631,8 @@ test('goal chip: a tap opens the profile sheet focused on the goal setting; with
 });
 
 /* ---- visual summary: kcal ring + macro rows, fill only from intake logged TODAY ---- */
-const ringOf = (h) => (h.match(/<figure class="nt-ring[\s\S]*?<\/figure>/) || [''])[0];
-const macrosOf = (h) => [...h.matchAll(/<li class="(nt-mac[^"]*)"><span class="nt-mac-lbl">([^<]+)<\/span><span class="nt-mac-val">([\s\S]*?)<\/span><span class="nt-mac-track">([\s\S]*?)<\/span><\/li>/g)]
+const ringOf = (/** @type {string} */ h) => (h.match(/<figure class="nt-ring[\s\S]*?<\/figure>/) || [''])[0];
+const macrosOf = (/** @type {string} */ h) => [...h.matchAll(/<li class="(nt-mac[^"]*)"><span class="nt-mac-lbl">([^<]+)<\/span><span class="nt-mac-val">([\s\S]*?)<\/span><span class="nt-mac-track">([\s\S]*?)<\/span><\/li>/g)]
   .map((m) => ({ cls: m[1], lbl: m[2], val: m[3], fill: m[4] }));
 test('kcal ring, no intake today: the full ring track only (state none), "—" inside over "/ target kcal"', () => {
   const h = run().els['nutri-target'].innerHTML;
@@ -679,6 +714,7 @@ test('food log macros: none stated -> a dash, never "0 / 125 g"; some entries la
 test('food API boot: the dial + bars wait for it, then use the food log only (LAN) or the Apple Health day (failure, grace over)', () => {
   const intake = { latest: { date: TODAY, k: 1800, p: 100, c: 200, g: 50 }, freshDays: 3 };
   const food = { date: TODAY, k: 920, p: 60, c: 120, g: 30, n: 3, missing: { protein: false, carbs: false, fat: false }, src: 'log' };
+  /** @type {{ boot: string, grace: boolean, log: object | null }} */
   const st = { boot: 'pending', grace: false, log: null };
   const hooks = {
     foodTotals: () => (st.boot === 'ok' ? st.log : null),
@@ -709,6 +745,7 @@ test('food API boot: the dial + bars wait for it, then use the food log only (LA
 test('food API boot: past the grace the Apple Health day, then a late answer switches the dial to the food log', () => {
   const intake = { latest: { date: TODAY, k: 1800, p: 100, c: 200, g: 50 }, freshDays: 3 };
   const food = { date: TODAY, k: 920, p: 60, c: 120, g: 30, n: 3, missing: { protein: false, carbs: false, fat: false }, src: 'log' };
+  /** @type {{ boot: string, grace: boolean, log: object | null }} */
   const st = { boot: 'pending', grace: false, log: null };
   const s = run({ intake, hooks: {
     foodTotals: () => (st.boot === 'ok' ? st.log : null),
@@ -731,7 +768,9 @@ test('static page (no food API, no wait hook): the Apple Health day at once', ()
 });
 
 test('HCNutri.refresh re-renders Resumen de hoy (the food log calls it after every add / delete)', () => {
+  /** @type {object | null} */
   let food = null;
+  /** @type {string[]} */
   const calls = [];
   const s = run({ hooks: { foodTotals: () => food, intakeRefresh: () => calls.push('intake') } });
   assert.doesNotMatch(s.els['nutri-target'].innerHTML, /dial-fill/);
@@ -812,10 +851,10 @@ const PINNED_TOTALS = {
   'cut/rest': [1959, 132, 266, 43, 0.87, -9], 'cut/gym': [2354, 146, 334, 49, 1.23, -4], 'cut/bike': [2602, 150, 388, 52, 1.67, 18], 'cut/bikeLong': [2549, 150, 375, 52, 1.63, -9],
   'bulk/rest': [2401, 139, 369, 44, 1.67, 199], 'bulk/gym': [2602, 150, 388, 52, 1.67, 398], 'bulk/bike': [2602, 150, 388, 52, 1.67, 318], 'bulk/bikeLong': [2602, 150, 388, 52, 1.67, 238],
 };
-const cardsOf = (html) => [...html.matchAll(/<div class="meal (gd-meal|gd-extras)"[^>]*><div class="meal-top"><div class="meal-name">([^<]+)<\/div><div class="meal-kcal"><b>([\d,.]+)<\/b> kcal<\/div><\/div>/g)]
+const cardsOf = (/** @type {string} */ html) => [...html.matchAll(/<div class="meal (gd-meal|gd-extras)"[^>]*><div class="meal-top"><div class="meal-name">([^<]+)<\/div><div class="meal-kcal"><b>([\d,.]+)<\/b> kcal<\/div><\/div>/g)]
   .map((m) => ({ kind: m[1], name: m[2], kcal: Number(m[3].replace(/[,.]/g, '')) }));
-const sectionOf = (html, name) => html.split('<div class="meal-name">' + name + '<')[1].split('<div class="meal ')[0];
-const selectedOf = (html, key) => {
+const sectionOf = (/** @type {string} */ html, /** @type {string} */ name) => html.split('<div class="meal-name">' + name + '<')[1].split('<div class="meal ')[0];
+const selectedOf = (/** @type {string} */ html, /** @type {string} */ key) => {
   const sel = html.split('data-guide="' + key + '"')[1].split('</select>')[0];
   return (sel.match(/<option value="([^"]+)" selected>/) || [])[1];
 };
@@ -848,13 +887,13 @@ test('guide ports agree with lib: guideBudgets (every goal x day type x ride), r
   }
   // the cooking-oil split: both of lunch / dinner, only one, neither, no oil list
   const mt = { k: 2500, p: 150, c: 280, f: 65 };
-  for (const [rows, slots, oil] of [
+  for (const [rows, slots, oil] of /** @type {[number[][], (string | null)[], number[] | undefined][]} */ ([
     [[[500, 30, 60, 12], [800, 50, 90, 20], [700, 45, 80, 18], [91, 0, 0, 11], [20, 1, 2, 1]], ['breakfast', 'lunch', 'dinner', null, null], [3]],
     [[[800, 50, 90, 20], [90, 0, 0, 10]], ['lunch', null], [1]],
     [[[700, 50, 90, 20], [90, 0, 0, 10]], ['dinner', null], [1]],
     [[[500, 30, 60, 12], [90, 0, 0, 10]], ['breakfast', null], [1]],
     [[[500, 30, 60, 12], [90, 0, 0, 10]], ['lunch', null], undefined],
-  ]) assert.deepEqual(plain(api.guideBudgets({ meals: rows, mt }, slots, MAIN_SLOTS, oil)), plain(guideBudgets({ meals: rows, mt }, slots, MAIN_SLOTS, oil)), JSON.stringify(slots));
+  ])) assert.deepEqual(plain(api.guideBudgets({ meals: rows, mt }, slots, MAIN_SLOTS, oil)), plain(guideBudgets({ meals: rows, mt }, slots, MAIN_SLOTS, oil)), JSON.stringify(slots));
   const b = { k: 800, p: 50, c: 90, f: 20 };
   for (const k of [0, 50, 300, 719, 720, 900]) for (const p of [null, 0, 20, 46, 60]) {
     const logged = { k, p, c: 40, f: null };
@@ -888,6 +927,7 @@ test('exampleAmount port agrees with lib over GUIDE_CASES and every basic x role
 
 test('roleOptions port agrees with lib (basics + the user\'s products, both locales)', () => {
   const { api } = run();
+  // partial products on purpose (only the fields roleOptions reads; an unsupported unit, a missing kcal)
   const prods = [
     { id: 3, name: 'Ñoquis frescos', unit: 'g', per100: { kcal: 160, protein: 4, carbs: 33, fat: 1 } },
     { id: 12, name: 'Atún claro', unit: 'g', per100: { kcal: 110, protein: 25, carbs: 0, fat: 1 } },
@@ -895,8 +935,8 @@ test('roleOptions port agrees with lib (basics + the user\'s products, both loca
     { id: 5, name: 'Raro', unit: 'serving', per100: { kcal: 100, protein: 5, carbs: 5, fat: 5 } },
     { id: 6, name: 'Sin kcal', unit: 'g', per100: { kcal: null, protein: 5, carbs: 5, fat: 5 } },
   ];
-  for (const lang of ['en', 'es']) for (const role of ['p', 'c', 'f']) for (const p of [null, [], prods]) {
-    assert.deepEqual(plain(api.roleOptions(BASICS[lang], p, role)), plain(roleOptions(BASICS[lang], p, role)), `${lang}/${role}`);
+  for (const lang of /** @type {const} */ (['en', 'es'])) for (const role of ['p', 'c', 'f']) for (const p of [null, [], prods]) {
+    assert.deepEqual(plain(api.roleOptions(BASICS[lang], p, role)), plain(roleOptions(BASICS[lang], /** @type {any} */ (p), role)), `${lang}/${role}`);
   }
 });
 
@@ -914,7 +954,7 @@ test('rest day: Breakfast, Lunch, Dinner as plates by parts (protein / carbs / v
   assert.equal(selectedOf(h, 'lunch.f'), 'b:aceiteoliva', 'no fat food at lunch: the fallback');
   assert.equal(selectedOf(h, 'dinner.f'), 'b:avellanas', 'the hazelnuts of the dinner dessert');
   const pollo = BASICS.en.find((f) => f.k === 'pollo');
-  const a = exampleAmount(pollo, 'p', b.meals.lunch.p, GRID);
+  const a = /** @type {{ amt: number }} */ (exampleAmount(pollo, 'p', b.meals.lunch.p, GRID));
   assert.match(lunch, new RegExp('<span class="gd-amt">~' + a.amt + ' g</span>'));
   // the rice for the lunch carbs is past its 150 g maximum: said so, and where the rest comes from
   assert.match(lunch, /<span class="gd-amt">~150 g <span class="gd-max">\(max\.\)<\/span><\/span>/);
@@ -926,7 +966,8 @@ test('rest day: Breakfast, Lunch, Dinner as plates by parts (protein / carbs / v
   assert.match(extras, /For example: a banana ~106 kcal · a yogurt ~79 kcal · a protein shake \(30 g\) ~114 kcal\./);
   assert.match(extras, /<p class="gd-hint">Covers coffee, snacks and pre \/ post-workout\.<\/p>/, 'what Extras holds');
   // the plan's cooking oil counts in lunch and dinner, not in Extras
-  const noOil = guideBudgets(x, nutri.base.rest.sl, MAIN_SLOTS);
+  // called without the oil list on purpose (lib/nutrition/guide.mjs treats a missing one as none)
+  const noOil = /** @type {(x: Parameters<typeof guideBudgets>[0], slots: Parameters<typeof guideBudgets>[1], mains: Parameters<typeof guideBudgets>[2], oil?: Parameters<typeof guideBudgets>[3]) => ReturnType<typeof guideBudgets>} */ (guideBudgets)(x, nutri.base.rest.sl, MAIN_SLOTS);
   assert.ok(b.meals.lunch.f > noOil.meals.lunch.f && b.meals.dinner.f > noOil.meals.dinner.f, 'half the oil in each');
   assert.equal(b.meals.lunch.f + b.meals.dinner.f + b.extras.f, noOil.meals.lunch.f + noOil.meals.dinner.f + noOil.extras.f);
   assert.doesNotMatch(extras, /Split it before and after training/, 'rest day: nothing to split around');
@@ -962,9 +1003,10 @@ test('a macro the main meals already pass leaves no Extras margin and says so (n
 
 test('picking an example: a native select per macro row; the pick persists per viewer (not daily) and recomputes the amount', () => {
   const storage = memStorage();
+  /** @type {string | null} */
   let focused = null;
   const s = run({ storage, query: (sel) => ({ focus: () => { focused = sel; } }) });
-  s.fire('nutri-plan', 'change', { getAttribute: (n) => (n === 'data-guide' ? 'lunch.p' : null), value: 'b:huevo' });
+  s.fire('nutri-plan', 'change', { getAttribute: (/** @type {string} */ n) => (n === 'data-guide' ? 'lunch.p' : null), value: 'b:huevo' });
   assert.deepEqual(JSON.parse(storage.data['hc.nutri.guide']), { picks: { 'lunch.p': 'b:huevo' } });
   assert.equal(focused, 'select[data-guide="lunch.p"]', 'focus back on that select');
   const h = s.els['nutri-plan'].innerHTML;
@@ -988,12 +1030,13 @@ test('picking an example: a native select per macro row; the pick persists per v
 });
 
 // the food log's hooks (client/food-*.js) as the guide reads them
+/** @param {{ groups?: unknown, products?: unknown[], adds?: unknown[] }} [opts] */
 function foodHooks({ groups, products = [], adds = [] } = {}) {
   return {
     HCFood: {
       groupTotals: () => groups,
       products: () => products,
-      addGuide: (o) => { adds.push(o); return { then: (ok, fail) => (o.fail ? fail && fail(new Error('x')) : ok && ok()) }; },
+      addGuide: (/** @type {{ fail?: boolean }} */ o) => { adds.push(o); return { then: (/** @type {(() => void) | undefined} */ ok, /** @type {((e: Error) => void) | undefined} */ fail) => (o.fail ? fail && fail(new Error('x')) : ok && ok()) }; },
     },
     intakeRefresh: () => {},
   };
@@ -1016,7 +1059,7 @@ test('with the food log: each meal shows what is left (done / so far), covered r
   assert.match(lunch, /<p class="gd-state">so far: 300 kcal<\/p>/);
   assert.match(lunch, new RegExp('<b>~' + (b.meals.lunch.p - 20) + '</b> g <span class="gd-of">of ' + b.meals.lunch.p + ' g</span>'));
   const pollo = BASICS.en.find((f) => f.k === 'pollo');
-  const a = exampleAmount(pollo, 'p', b.meals.lunch.p - 20, GRID);
+  const a = /** @type {{ amt: number }} */ (exampleAmount(pollo, 'p', b.meals.lunch.p - 20, GRID));
   assert.match(lunch, new RegExp('<button type="button" class="gd-add" data-guide-add="lunch.p" data-food="b:pollo" data-amt="' + a.amt + '" data-meal="lunch" aria-label="Log ' + a.amt + ' g of Chicken breast in Lunch">\\+</button>'));
   assert.doesNotMatch(sectionOf(h, 'Dinner'), /gd-state|gd-of/, 'nothing logged there: no state line, what is left is the budget');
   assert.match(sectionOf(h, 'Dinner'), /class="gd-add"/, 'but its examples can be logged');
@@ -1034,10 +1077,11 @@ test('guide ports agree with lib: dayRemaining / capByDay', () => {
   for (const c of DAYCAP_CASES) assert.deepEqual(plain(api.capByDay(c.meal, c.day, c.total)), c.expect, JSON.stringify(c));
 });
 
+/** @param {string} h @param {string} slot @param {string} role */
 function rowOf(h, slot, role) { // the <li> of one macro row: the li that holds data-guide="<slot>.<role>", or the covered li by position
-  const card = sectionOf(h, { breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner' }[slot]);
+  const card = sectionOf(h, /** @type {Record<string, string>} */ ({ breakfast: 'Breakfast', lunch: 'Lunch', dinner: 'Dinner' })[slot]);
   const rows = card.split('<li class="gd-row').slice(1);
-  const label = { p: 'Protein', c: 'Carbs', f: 'Fat' }[role];
+  const label = /** @type {Record<string, string>} */ ({ p: 'Protein', c: 'Carbs', f: 'Fat' })[role];
   return rows.find((r) => r.includes('<span class="gd-l">' + label + '</span>')) || '';
 }
 
@@ -1069,7 +1113,7 @@ test('day cap: the day has fewer carbs left than the lunch row -> the row is cap
   assert.match(row, new RegExp('<b>~' + D + '</b> g'));
   const id = selectedOf(h, 'lunch.c');
   const food = BASICS.en.find((f) => 'b:' + f.k === id);
-  const a = exampleAmount(food, 'c', D, GRID);
+  const a = /** @type {{ amt: number }} */ (exampleAmount(food, 'c', D, GRID));
   assert.match(row, new RegExp('data-guide-add="lunch\\.c" data-food="' + id + '" data-amt="' + a.amt + '"'));
   assert.match(h, new RegExp('<span class="gd-left-lbl">Left today</span>[^]*?C <b>' + D + '</b>'), 'the same number as "Left today"');
 });
@@ -1103,16 +1147,18 @@ test('day cap: Extras kcal capped at the day remainder; covered by the day when 
 });
 
 test('"+" logs the example amount into that meal through the food log (HCFood.addGuide); a failure re-enables it', () => {
+  /** @type {unknown[]} */
   const adds = [];
   const s = run({ hooks: foodHooks({ groups: { meals: { breakfast: Z, lunch: Z, dinner: Z }, addon: Z }, adds }) });
+  /** @type {Record<string, string>} */
   const attrs = { 'data-guide-add': 'lunch.p', 'data-food': 'b:pollo', 'data-amt': '195', 'data-meal': 'lunch' };
-  const btn = { disabled: false, getAttribute: (n) => attrs[n] };
-  s.fire('nutri-plan', 'click', { closest: (sel) => (sel === '[data-guide-add]' ? btn : null) });
+  const btn = { disabled: false, getAttribute: (/** @type {string} */ n) => attrs[n] };
+  s.fire('nutri-plan', 'click', { closest: (/** @type {string} */ sel) => (sel === '[data-guide-add]' ? btn : null) });
   assert.deepEqual(plain(adds), [{ group: 'lunch', food: 'b:pollo', amt: 195 }]);
   assert.equal(btn.disabled, true, 'busy until the food log re-renders the guide');
   attrs['data-food'] = 'b:arroz';
-  const btn2 = { disabled: false, getAttribute: (n) => (n === 'data-food' ? 'b:arroz' : attrs[n]) };
-  const failing = run({ hooks: { ...foodHooks({ groups: { meals: { breakfast: Z, lunch: Z, dinner: Z }, addon: Z } }), HCFood: { groupTotals: () => null, products: () => null, addGuide: () => ({ then: (ok, fail) => fail(new Error('offline')) }) } } });
+  const btn2 = { disabled: false, getAttribute: (/** @type {string} */ n) => (n === 'data-food' ? 'b:arroz' : attrs[n]) };
+  const failing = run({ hooks: { ...foodHooks({ groups: { meals: { breakfast: Z, lunch: Z, dinner: Z }, addon: Z } }), HCFood: { groupTotals: () => null, products: () => null, addGuide: () => ({ then: (/** @type {unknown} */ ok, /** @type {(e: Error) => void} */ fail) => fail(new Error('offline')) }) } } });
   failing.fire('nutri-plan', 'click', { closest: () => btn2 });
   assert.equal(btn2.disabled, false);
   // a tap elsewhere or with no food log: nothing
@@ -1133,6 +1179,7 @@ test('the user\'s products (food API, view time) join the selects as "My product
 });
 
 test('the guide re-renders on HCNutri.refresh (the food log calls it after every add / delete)', () => {
+  /** @type {unknown} */
   let groups = null;
   const s = run({ hooks: { HCFood: { groupTotals: () => groups, products: () => [], addGuide: () => null }, intakeRefresh: () => {} } });
   assert.doesNotMatch(s.els['nutri-plan'].innerHTML, /gd-add/);
@@ -1160,10 +1207,12 @@ test('Inicio card on a PAST day (the top bar\'s day stepping): that day\'s detec
     metrics: { sleep: { kind: 'sleep', start: '2030-01-01', v: [7, 7, 7, null, 7, 7, 7, 7, 7, 7] } },
     sessions: [{ d: '2030-01-02', m: 'bike', min: 170, km: 62 }, { d: '2030-01-03', m: 'gym', min: 55 }],
   };
+  /** @type {string | null} */
   let sel = '2030-01-03';
+  /** @type {((d: string | null) => void)[]} */
   const subs = [];
-  const HCDay = { sel: () => sel, on: (fn) => subs.push(fn) };
-  const doc = new StubDocument();
+  const HCDay = { sel: () => sel, on: (/** @type {(d: string | null) => void} */ fn) => subs.push(fn) };
+  const doc = /** @type {Doc} */ (new StubDocument());
   const card = doc.el(null, { classes: ['eat-card'] });
   const h3 = doc.el(null, { tag: 'h3', parent: card, textContent: enN.eat.heading });
   card.querySelector = () => h3;
@@ -1171,7 +1220,7 @@ test('Inicio card on a PAST day (the top bar\'s day stepping): that day\'s detec
   const s = run({ extra: { ...pastCtx([{ date: TODAY, sleep: 7.5, items: [] }]), DETAIL, HCDay } });
   s.els['eat-body'].parent = card;
   subs.forEach((fn) => fn(sel));
-  const plan = (d) => bake().plans.maintain[d].t;
+  const plan = (/** @type {string} */ d) => bake().plans.maintain[d].t;
   assert.match(s.els['eat-body'].innerHTML, /Strength \(auto\) · Maintain/);
   assert.ok(s.els['eat-body'].innerHTML.includes(`<b>${plan('gym').p} g</b>`));
   assert.match(h3.textContent, /^Target for \w{3} \d+ \w{3}$/);

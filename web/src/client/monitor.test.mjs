@@ -14,7 +14,9 @@ import { clientScriptSource } from '../client-bundle.mjs';
 const source = clientScriptSource('monitor.ts');
 
 const ASOF = '2026-09-29';
+/** @param {number} i */
 const wig = (i) => ((i * 7) % 5) - 2;
+/** @param {{n?: number, base: number, amp: number, last?: number, asOf?: string}} o */
 const series = ({ n = 43, base, amp, last, asOf = ASOF }) => Array.from({ length: n }, (_, i) => ({
   date: addDays(asOf, i - (n - 1)),
   value: i === n - 1 && last != null ? last : base + wig(i) * amp,
@@ -30,14 +32,22 @@ function monitor() {
   });
 }
 
+/** @typedef {import('../../../lib/score/monitor.mjs').MonitorCardOk} MonitorCardOk */
+/** @typedef {MonitorCardOk & {band: NonNullable<MonitorCardOk['band']>}} MonitorCard a card with a value and a band (the cards these tests read) */
+/**
+ * @param {unknown} mon
+ * @param {{locale?: string, now?: string, healthNav?: boolean, detail?: boolean, tiles?: {innerHTML: string} | null, day?: unknown,
+ *   days?: unknown, stress?: unknown, detailT?: unknown}} [opts]
+ */
 function render(mon, { locale = 'en', now = ASOF, healthNav = false, detail = false, tiles = null, day = null, days = null, stress = null, detailT = null } = {}) {
   const host = { innerHTML: '' };
   const RealDate = Date;
   class FakeDate extends RealDate {
     static now() { return new RealDate(now + 'T12:00:00').getTime(); }
   }
+  /** @type {import('node:vm').Context} */
   const ctx = {
-    document: { getElementById: (id) => (id === 'monitor' ? host : id === 'home-tiles' ? tiles : id === 't-health' && healthNav ? {} : null) },
+    document: { getElementById: (/** @type {string} */ id) => (id === 'monitor' ? host : id === 'home-tiles' ? tiles : id === 't-health' && healthNav ? {} : null) },
     SCORES: mon === undefined ? undefined : { monitor: mon, days, stress }, I18N_SCORE: locale === 'es' ? esT : enT, LOCALE: locale,
     Date: FakeDate, Math, String, Number, Array, Object, JSON,
   };
@@ -49,6 +59,7 @@ function render(mon, { locale = 'en', now = ASOF, healthNav = false, detail = fa
   vm.runInContext(source, ctx);
   return host.innerHTML;
 }
+/** @param {string} html @param {string} key */
 const cardOf = (html, key) => {
   const at = html.indexOf(`data-hm="${key}"`);
   assert.ok(at !== -1, `missing card ${key}`);
@@ -92,7 +103,7 @@ test('status word + tone class: respiratory out of band is watch (not bad), rest
 test('the normal range is the small line under the value, written one decimal finer than the value', () => {
   const html = render(monitor());
   const rhr = cardOf(html, 'rhr');
-  const c = monitor().cards.find((x) => x.key === 'rhr');
+  const c = /** @type {MonitorCard} */ (monitor().cards.find((x) => x.key === 'rhr'));
   const lo = c.band.lo.toFixed(1), hi = c.band.hi.toFixed(1);
   // short enough for one line next to a long name at 390 px: the bare range, the word lives in the label
   assert.ok(rhr.includes(`<span class="db-base" aria-hidden="true">${lo}–${hi}</span>`), rhr);
@@ -106,8 +117,8 @@ test('the normal range is the small line under the value, written one decimal fi
 test('sleep reads h:mm with no unit: the value and both band bounds (minutes rounded)', () => {
   const html = render(monitor(), { now: addDays(ASOF, -3) }); // sleep's own day: not stale, band shown
   const sleep = cardOf(html, 'sleep');
-  const c = monitor().cards.find((x) => x.key === 'sleep');
-  const hm = (h) => { const m = Math.round(h * 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
+  const c = /** @type {MonitorCard} */ (monitor().cards.find((x) => x.key === 'sleep'));
+  const hm = (/** @type {number} */ h) => { const m = Math.round(h * 60); return `${Math.floor(m / 60)}:${String(m % 60).padStart(2, '0')}`; };
   assert.match(sleep, /<b class="hm-num">5:00<\/b>/, 'value 5 h -> 5:00');
   assert.doesNotMatch(sleep, /<small>h<\/small>|\d h\b/, 'no "h" unit');
   assert.ok(sleep.includes(`<span class="db-base" aria-hidden="true">${hm(c.band.lo)}–${hm(c.band.hi)}</span>`), sleep);
@@ -180,7 +191,8 @@ test('resilience: a throwing card falls back to its empty state; a missing monit
   assert.match(cardOf(html, 'rhr'), /hm-none/);
   assert.match(cardOf(html, 'hrv'), /hm-num/, 'the other cards still render');
   const host = { innerHTML: '' };
-  const ctx = { document: { getElementById: (id) => (id === 'monitor' ? host : null) }, SCORES: { monitor: monitor() }, I18N_SCORE: {}, LOCALE: 'en', Date, Math, String, Number, Array, Object, JSON };
+  /** @type {import('node:vm').Context} */
+  const ctx = { document: { getElementById: (/** @type {string} */ id) => (id === 'monitor' ? host : null) }, SCORES: { monitor: monitor() }, I18N_SCORE: {}, LOCALE: 'en', Date, Math, String, Number, Array, Object, JSON };
   vm.createContext(ctx);
   loadUtil(ctx);
   assert.doesNotThrow(() => vm.runInContext(source, ctx));
@@ -196,13 +208,14 @@ test('stale monitor (> 3 days) is greyed; absent SCORES or host never throws', (
 });
 
 /* ---- Inicio monitor tiles (#home-tiles): a summary tile + the HRV tile, from the SAME baked cards ---- */
+/** @param {unknown} mon @param {Parameters<typeof render>[1]} [opts] */
 const tilesOf = (mon, opts = {}) => { const tiles = { innerHTML: '' }; render(mon, { ...opts, tiles }); return tiles.innerHTML; };
 
 test('tile 1 = the monitor summary: out-of-range count chip, "n/5 metrics" in range, a button that jumps to the full monitor', () => {
   const html = tilesOf(monitor());
   // respiratory High + sleep Low are out of range; resting HR in range; HRV building; wrist temp no data
   assert.match(html, /<button type="button" class="hmt hmt-sum" data-jump="monitor">/, 'a delegated jump (client/core.ts), no inline handler');
-  const sum = html.match(/<button type="button" class="hmt hmt-sum"[\s\S]*?<\/button>/)[0];
+  const sum = /** @type {RegExpMatchArray} */ (html.match(/<button type="button" class="hmt hmt-sum"[\s\S]*?<\/button>/))[0];
   assert.ok(sum.includes(`<span class="hmt-lbl">${enT.monitor.heading}<span class="chev" aria-hidden="true">›</span></span>`));
   assert.match(sum, /<span class="hmt-srow"><span class="hmt-sq hmt-out" aria-hidden="true">!<\/span><span class="hmt-body"><span class="hmt-chip hmt-out">/, 'an orange "!" square left of the status');
   assert.ok(sum.includes(enT.monitor.tile.out.replace('{n}', '2')));
@@ -228,7 +241,7 @@ test('tile 1: every fresh signal in range -> a teal check square + "within range
 test('tile 2 = HRV (a real baked value, no invented stress score): value + unit chip, status word, opens the HRV sheet', () => {
   const mon = monitorFromInputs({ hrv: series({ base: 60, amp: 2, last: 61 }) });
   const html = tilesOf(mon, { detail: true });
-  const t = html.match(/<div class="hmt hmt-hrv[^"]*"[\s\S]*?<!--\/hmt-->/)[0];
+  const t = /** @type {RegExpMatchArray} */ (html.match(/<div class="hmt hmt-hrv[^"]*"[\s\S]*?<!--\/hmt-->/))[0];
   assert.match(t, /data-detail="hrv" role="button"/);
   assert.ok(t.includes(`<span class="hmt-lbl">${enT.monitor.labels.hrv}<span class="chev" aria-hidden="true">›</span></span>`));
   assert.ok(t.includes(`<span class="hmt-val"><b>61</b><small>${enT.monitor.units.hrv}</small></span>`));
@@ -258,9 +271,11 @@ const DAYS = { from: '2026-09-16', to: ASOF, days: [
   { date: PAST, monitor: { inR: 3, out: 1, total: 5, hrv: { value: 58, dec: 0, status: 'low', tone: 'bad', date: '2026-09-24' } } },
   { date: '2026-09-26', monitor: { inR: 4, out: 0, total: 5, hrv: null } },
 ] };
+/** @param {string | null} sel */
 function stepper(sel) {
+  /** @type {((x: string | null) => void)[]} */
   const subs = [];
-  return { sel: () => sel, on: (fn) => subs.push(fn), go: (x) => { sel = x; subs.forEach((fn) => fn(x)); } };
+  return { sel: () => sel, on: (/** @type {(x: string | null) => void} */ fn) => subs.push(fn), go: (/** @type {string | null} */ x) => { sel = x; subs.forEach((fn) => fn(x)); } };
 }
 
 test('day stepping: today selected renders the tiles byte-identically', () => {
@@ -299,13 +314,14 @@ test('day stepping: a past day without HRV spans one tile; one without an entry 
 });
 
 /* ---- tile 2 = the stress monitor (lib/score/stress.mjs, SCORES.stress) when a day has a value ---- */
+/** @param {string} date @param {number} v @param {string} band @param {string} [t] @param {number} [avg] */
 const sday = (date, v, band, t = '14', avg = 1.4) => ({ date, rhr: 50, n: 8, avg, band: 'medium', now: { t, v, band }, mins: { low: 120, medium: 300, high: 60 }, hours: [] });
 const STRESS = { ok: true, asOf: ASOF, maxHr: 190, minHours: 6, days: [
   sday('2026-09-25', 2.4, 'high', '20'),
   { date: '2026-09-26', rhr: 50, n: 3, avg: null, band: null, now: null, mins: null, hours: [] },
   sday(ASOF, 1.8, 'medium'),
 ] };
-const stressTile = (html) => (html.match(/<div class="hmt hmt-stress[\s\S]*?<!--\/hmt-->/) || [''])[0];
+const stressTile = (/** @type {string} */ html) => (html.match(/<div class="hmt hmt-stress[\s\S]*?<!--\/hmt-->/) || [''])[0];
 
 test('tile 2 = Stress monitor: the latest hour\'s value chip, its band word in the band colour, the hour; opens the stress page', () => {
   const html = tilesOf(monitor(), { detail: true, stress: STRESS });
@@ -366,7 +382,7 @@ test('carried values (HC.carried): a tile whose value is from before the shown d
   const mon = monitorFromInputs({ rhr: series({ base: 50, amp: 1, last: 50 }), hrv: series({ base: 60, amp: 2, last: 61 }) });
   // the next morning, before the night syncs: every tile shows yesterday's values
   const y = tilesOf(mon, { stress: STRESS, now: addDays(ASOF, 1), detail: true });
-  const sum = y.match(/<button type="button" class="hmt hmt-sum[^"]*"[\s\S]*?<\/button>/)[0];
+  const sum = /** @type {RegExpMatchArray} */ (y.match(/<button type="button" class="hmt hmt-sum[^"]*"[\s\S]*?<\/button>/))[0];
   assert.match(sum, /^<button type="button" class="hmt hmt-sum carried"/, 'summary tile dimmed');
   assert.ok(sum.includes('</span><span class="hmt-sub"><span class="carried-date">29 Sep</span></span>'), 'the summary names the night it counts, on its own line');
   assert.match(stressTile(y), /^<div class="hmt hmt-stress hmt-sb-medium carried"/, 'stress tile dimmed');
@@ -394,16 +410,16 @@ function buildingOnly() {
 }
 
 test('chip: fresh cards still building their baseline read "Building baseline", never "No data" (list header and tile 1)', () => {
-  for (const [T, locale] of [[enT, 'en'], [esT, 'es']]) {
+  for (const [T, locale] of /** @type {[typeof enT, string][]} */ ([[enT, 'en'], [esT, 'es']])) {
     const html = render(buildingOnly(), { locale });
-    const head = html.match(/<div class="hs-head">[\s\S]*?<\/div>/)[0];
+    const head = /** @type {RegExpMatchArray} */ (html.match(/<div class="hs-head">[\s\S]*?<\/div>/))[0];
     assert.ok(head.includes(`<span class="hmt-chip hmt-none hmt-building">${T.monitor.status.building}</span>`), head);
     assert.ok(!head.includes(`>${T.monitor.tile.none}<`), locale);
     const tiles = tilesOf(buildingOnly(), { locale });
     assert.ok(tiles.includes(`<span class="hmt-chip hmt-none hmt-building">${T.monitor.status.building}</span>`), locale);
     assert.ok(!tiles.includes(`>${T.monitor.tile.none}<`), locale);
     // the count under the chip names the signals with data (building), never 0/5
-    assert.ok(Number(/hmt-sub">(\d+)\//.exec(tiles)[1]) > 0, locale + ': ' + /hmt-sub">[^<]*/.exec(tiles)[0]);
+    assert.ok(Number(/** @type {RegExpExecArray} */ (/hmt-sub">(\d+)\//.exec(tiles))[1]) > 0, locale + ': ' + /** @type {RegExpExecArray} */ (/hmt-sub">[^<]*/.exec(tiles))[0]);
   }
   // a fresh in-range card still wins over a building one (the owner's case)
   const mixed = monitorFromInputs({ rhr: series({ base: 50, amp: 1, last: 50 }), hrv: series({ n: 10, base: 60, amp: 2 }) });
@@ -413,7 +429,7 @@ test('chip: fresh cards still building their baseline read "Building baseline", 
 });
 
 test('a signal with no data at all says the device does not record it (and its sheet says so); a card that failed to render still says "No data"', () => {
-  for (const [T, D, locale] of [[enT, enD, 'en'], [esT, esD, 'es']]) {
+  for (const [T, D, locale] of /** @type {[typeof enT, typeof enD, string][]} */ ([[enT, enD, 'en'], [esT, esD, 'es']])) {
     const html = render(buildingOnly(), { locale, detailT: D });
     for (const k of ['respiratory', 'hrv', 'wristTemp']) {
       const row = cardOf(html, k);

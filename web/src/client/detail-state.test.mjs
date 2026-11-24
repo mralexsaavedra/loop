@@ -13,12 +13,15 @@ import { clientScriptSource } from '../client-bundle.mjs';
 const source = clientScriptSource('detail-state.ts');
 const TODAY = '2026-10-10';
 
-function load({ now = TODAY, D = { asOf: TODAY, metrics: {}, sessions: [] }, settings = null } = {}) {
+/** @param {{now?: string, D?: unknown, settings?: unknown}} [opts] */
+function load({ now = TODAY, D = /** @type {unknown} */ ({ asOf: TODAY, metrics: {}, sessions: [] }), settings = null } = {}) {
   const RealDate = Date;
   class FakeDate extends RealDate {
-    constructor(...a) { super(...(a.length ? a : [now + 'T12:00:00'])); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { super(.../** @type {ConstructorParameters<DateConstructor>} */ (a.length ? a : [now + 'T12:00:00'])); }
     static now() { return new RealDate(now + 'T12:00:00').getTime(); }
   }
+  /** @type {import('node:vm').Context} the script's window (a vm global: untyped by nature) */
   const win = {};
   if (settings) win.HCSettings = settings;
   const ctx = vm.createContext({ window: win, LOCALE: 'en', Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite });
@@ -27,6 +30,7 @@ function load({ now = TODAY, D = { asOf: TODAY, metrics: {}, sessions: [] }, set
   return win.HCDetailState(enT, D);
 }
 // a dense daily series ending on TODAY (index 0 = start)
+/** @param {(number | null)[]} v @param {object} [extra] */
 const series = (v, extra = {}) => ({ start: '2026-10-01', v, dec: 0, kind: 'signal', dir: 1, ...extra });
 
 test('detail-state.ts defines only window.HCDetailState, and reads nothing else at load', () => {
@@ -136,7 +140,7 @@ test('formatting: a dash for no value, sleep hours as h:mm, units from the copy 
 
 test('legendItems: the calendar states in the legend\'s order, per metric kind', () => {
   const S = load();
-  const states = (m) => [...S.legendItems(m)].map((it) => it[0]);
+  const states = (/** @type {object} */ m) => [...S.legendItems(m)].map((/** @type {string[]} */ it) => it[0]);
   assert.deepEqual(states({ kind: 'load' }), ['l1', 'l2', 'l3', 'l4']);
   assert.deepEqual(states({ kind: 'recovery' }), ['good', 'normal', 'bad']);
   assert.deepEqual(states({ kind: 'total', dir: 0, band: { lo: 1, hi: 2 } }), ['hi', 'normal', 'lo']);

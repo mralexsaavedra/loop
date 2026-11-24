@@ -14,14 +14,21 @@ const source = clientScriptSource('today-date.ts');
 
 const HIST = { from: '2026-09-15', to: '2026-09-28', days: [] };
 
+/** @typedef {import('../../test/dom-stub.mjs').StubElement & {disabled?: boolean, focus?: () => void}} El */
+/**
+ * @param {{locale?: string, at?: string, withHost?: boolean, pill?: boolean, days?: unknown, hash?: string, tab?: string, sheetOpen?: boolean}} [opts]
+ */
 function run({ locale = 'en', at = '2026-09-29T09:00:00', withHost = true, pill = true, days = HIST, hash = '', tab = 'home', sheetOpen = false } = {}) {
   const RealDate = Date;
   class FakeDate extends RealDate {
-    constructor(...a) { if (a.length) super(...a); else super(at); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { if (a.length) super(.../** @type {ConstructorParameters<DateConstructor>} */ (a)); else super(at); }
     static now() { return new RealDate(at).getTime(); }
   }
   const doc = new StubDocument();
-  const el = withHost ? doc.el('today-date', { tag: 'time' }) : null;
+  // typed as present: the tests only read it from a page with the host
+  const el = /** @type {El} */ (withHost ? doc.el('today-date', { tag: 'time' }) : null);
+  /** @type {Record<string, El>} */
   const ui = {};
   if (pill) {
     ui.pill = doc.el('date-pill');
@@ -32,20 +39,24 @@ function run({ locale = 'en', at = '2026-09-29T09:00:00', withHost = true, pill 
     ui.live = doc.el('day-live', { tag: 'span' });
   }
   if (sheetOpen) doc.el('detail', { hidden: false });
+  /** @type {string[]} */
   const writes = [];
   const loc = { hash, pathname: '/', search: '' };
-  const win = { listeners: {}, addEventListener(t, fn) { (this.listeners[t] = this.listeners[t] || []).push(fn); } };
+  /** @type {import('node:vm').Context} the script's window (a vm global: untyped by nature) */
+  const win = { listeners: {}, addEventListener(/** @type {string} */ t, /** @type {() => void} */ fn) { (this.listeners[t] = this.listeners[t] || []).push(fn); } };
+  /** @type {import('node:vm').Context} */
   const ctx = {
     document: doc, window: win, location: loc, LOCALE: locale, I18N_DATE: locale === 'es' ? esDate : enDate, Date: FakeDate, Math, String, Number, Array,
     NAV: { day: DAY_HASH }, SCORES: days === undefined ? undefined : { days },
     currentTab: () => tab,
-    history: { replaceState: (s, t, url) => { writes.push(url); loc.hash = url.slice(url.indexOf('#')); } },
+    history: { replaceState: (/** @type {unknown} */ s, /** @type {string} */ t, /** @type {string} */ url) => { writes.push(url); loc.hash = url.slice(url.indexOf('#')); } },
   };
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
   return { el, ui, writes, ctx, D: win.HCDay, win, loc };
 }
+/** @param {ReturnType<typeof run>} r @param {string} k */
 const key = (r, k) => r.ui.pill._listeners.keydown[0]({ key: k, preventDefault() {} });
 
 test('writes the viewer\'s local today: "mié 30 sept" (es) / "Wed 30 Sep" (en), with a machine-readable datetime', () => {
@@ -86,7 +97,7 @@ test('a past day: the label shows its date (CSS uppercases it), the <time> carri
   assert.equal(r.el.getAttribute('datetime'), '2026-09-28');
   assert.equal(r.ui.next.disabled, false);
   assert.equal(r.ui.lbl.getAttribute('aria-disabled'), null);
-  assert.match(r.ui.lbl.getAttribute('aria-label'), /lun 28 sept.*Volver a hoy/);
+  assert.match(/** @type {string} */ (r.ui.lbl.getAttribute('aria-label')), /lun 28 sept.*Volver a hoy/);
   r.ui.lbl._listeners.click[0]();
   assert.equal(r.D.sel(), null);
   assert.equal(r.ui.word.textContent, 'Hoy');
@@ -148,19 +159,20 @@ test('hash round trip: #d= opens on that day; an unreachable one falls back to t
   }
   // a later hash navigation (Back, an edited URL) moves the day without writing
   r.loc.hash = '#d=2026-09-20';
-  r.win.listeners.hashchange.forEach((fn) => fn());
+  r.win.listeners.hashchange.forEach((/** @type {() => void} */ fn) => fn());
   assert.equal(r.D.sel(), '2026-09-20');
   r.loc.hash = '#home';
-  r.win.listeners.hashchange.forEach((fn) => fn());
+  r.win.listeners.hashchange.forEach((/** @type {() => void} */ fn) => fn());
   assert.equal(r.D.sel(), null);
   assert.deepEqual(r.writes, []);
 });
 
 test('listeners hear every change once with the selected day (null = today); one throwing listener never stops the others', () => {
   const r = run();
+  /** @type {(string | null)[]} */
   const heard = [];
   r.D.on(() => { throw new Error('boom'); });
-  r.D.on((d) => heard.push(d));
+  r.D.on((/** @type {string | null} */ d) => heard.push(d));
   r.D.step(-1);
   r.D.set('2026-09-28'); // no change: silent
   r.D.set(null);

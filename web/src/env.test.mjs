@@ -60,6 +60,7 @@ test('resolveEnv: DATA_MODE=example reads the example plan and defaults locale t
 /* The page language (docs/plan-page.md "Locale"): an explicit LOCALE / --locale (developer and test override) >
  * the language chosen on the page (settings.json locale, synced from GET /food/settings) > HC_LOCALE (the server's
  * env, docker/.env) > plan.locale > 'en'. The settings file is personal: the example build never reads it. */
+/** @param {string} root @param {unknown} body @param {string} [dataDir] */
 function withSettings(root, body, dataDir = path.join(root, 'loop-data')) {
   fs.mkdirSync(path.join(dataDir, 'profile'), { recursive: true });
   fs.writeFileSync(path.join(dataDir, 'profile', 'settings.json'), typeof body === 'string' ? body : JSON.stringify(body));

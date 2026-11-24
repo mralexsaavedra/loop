@@ -15,19 +15,26 @@ const source = clientScriptSource('home-week.ts');
 // 2026-09-30 is a Wednesday: the week is Mon 28 Sep – Sun 4 Oct, 3 days elapsed, 4 left
 const WED = '2026-09-30';
 
+/** @typedef {{key: string, done: number, target: number}} GoalRow a weekGoals() row (the fields these tests read) */
+/** @param {string} id @param {boolean} [hidden] */
 function host(id, hidden = false) {
   return { id, innerHTML: '', hidden, querySelector: () => null };
 }
+/** @param {{now?: string, locale?: string, globals?: object, readyState?: string}} [opts] */
 function load({ now = WED, locale = 'en', globals = {}, readyState = 'complete' } = {}) {
   const RealDate = Date;
   class FakeDate extends RealDate {
-    constructor(...a) { if (a.length) super(...a); else super(new RealDate(now + 'T12:00:00').getTime()); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { if (a.length) super(.../** @type {ConstructorParameters<DateConstructor>} */ (a)); else super(new RealDate(now + 'T12:00:00').getTime()); }
     static now() { return new RealDate(now + 'T12:00:00').getTime(); }
   }
+  /** @type {Record<string, ReturnType<typeof host>>} */
   const els = { 'home-tonight': host('home-tonight', true), 'my-plan': host('my-plan', true), 'home-plan': host('home-plan') };
+  /** @type {Record<string, (e: unknown) => void>} */
   const listeners = {};
+  /** @type {import('node:vm').Context} */
   const ctx = {
-    document: { readyState, getElementById: (id) => els[id] || null, addEventListener: (e, f) => { listeners[e] = f; } },
+    document: { readyState, getElementById: (/** @type {string} */ id) => els[id] || null, addEventListener: (/** @type {string} */ e, /** @type {(e: unknown) => void} */ f) => { listeners[e] = f; } },
     I18N_SCORE: locale === 'es' ? esT : enT, LOCALE: locale,
     Date: FakeDate, Math, String, Number, Array, Object, JSON,
     ...globals,
@@ -39,8 +46,10 @@ function load({ now = WED, locale = 'en', globals = {}, readyState = 'complete' 
   return { ctx, els, listeners };
 }
 // vm-realm arrays / objects -> this realm's (deepEqual compares prototypes)
+/** @param {unknown} x @returns {any} JSON round-trip of a value the vm script built */
 const plain = (x) => JSON.parse(JSON.stringify(x));
 // a dense DETAIL-like series from `start`, one slot per day
+/** @param {string} start @param {(number | null)[]} vals @param {object} [extra] */
 const series = (start, vals, extra = {}) => ({ start, v: vals, ...extra });
 
 test('week boundaries: Monday to Sunday of the viewer\'s today; days left after today', () => {
@@ -83,7 +92,7 @@ test('training row: distinct session days vs the days programmed this week', () 
   ];
   const training = { '2026-09-28': { kind: 'gym' }, '2026-09-30': { kind: 'run' }, '2026-10-02': { kind: 'gym' }, '2026-10-05': { kind: 'gym' } };
   const g = ctx.HCWeekPlan.weekGoals({ today: WED, asOf: WED, sessions, sessionsStart: '2026-06-01', training });
-  const r = g.rows.find((x) => x.key === 'training');
+  const r = g.rows.find((/** @type {GoalRow} */ x) => x.key === 'training');
   assert.equal(r.done, 2);
   assert.equal(r.target, 3, 'only the programmed days inside Mon–Sun');
   assert.equal(r.basis, 'programmed');
@@ -99,7 +108,7 @@ test('training row without a programme: vs the usual week (median session days o
   });
   sessions.push({ d: '2026-09-29', m: 'run' });
   const g = ctx.HCWeekPlan.weekGoals({ today: WED, asOf: WED, sessions, sessionsStart: '2026-06-01', training: {} });
-  const r = g.rows.find((x) => x.key === 'training');
+  const r = g.rows.find((/** @type {GoalRow} */ x) => x.key === 'training');
   assert.deepEqual(plain([r.done, r.target, r.basis]), [1, 4, 'typical']);
   // only 2 complete weeks covered by the data → no usual week → row hidden (no other row → no card)
   assert.equal(ctx.HCWeekPlan.weekGoals({ today: WED, asOf: WED, sessions, sessionsStart: '2026-09-14', training: null }), null);
@@ -114,7 +123,7 @@ test('stale or missing health data hides the sleep and training rows; food rows 
   const stale = ctx.HCWeekPlan.weekGoals({ today: WED, asOf: '2026-09-26', sleep, sessions, sessionsStart: '2026-06-01', training: { '2026-09-28': {} } });
   assert.equal(stale, null, 'asOf 4 days old: nothing to count this week');
   const withFood = ctx.HCWeekPlan.weekGoals({ today: WED, asOf: null, sleep, food: [{ date: '2026-09-28', n: 3 }, { date: '2026-09-29', n: 0 }, { date: '2026-09-27', n: 2 }] });
-  assert.deepEqual(plain(withFood.rows.map((r) => [r.key, r.done, r.target])), [['food', 1, 7]]);
+  assert.deepEqual(plain(withFood.rows.map((/** @type {GoalRow} */ r) => [r.key, r.done, r.target])), [['food', 1, 7]]);
 });
 
 test('food rows (LAN page): days logged this week, days on the kcal target; no summary → rows hidden', () => {
@@ -122,7 +131,7 @@ test('food rows (LAN page): days logged this week, days on the kcal target; no s
   const food = [{ date: '2026-09-28', n: 3 }, { date: '2026-09-29', n: 2 }, { date: '2026-09-30', n: 1 }];
   const kcal = { '2026-09-28': 'on', '2026-09-29': 'over', '2026-09-30': 'partial' };
   const g = ctx.HCWeekPlan.weekGoals({ today: WED, asOf: WED, food, kcal });
-  assert.deepEqual(plain(g.rows.map((r) => [r.key, r.done, r.target])), [['food', 3, 7], ['kcal', 1, 5]]);
+  assert.deepEqual(plain(g.rows.map((/** @type {GoalRow} */ r) => [r.key, r.done, r.target])), [['food', 3, 7], ['kcal', 1, 5]]);
   assert.equal(ctx.HCWeekPlan.weekGoals({ today: WED, asOf: WED, food: null, kcal }), null);
 });
 
@@ -191,8 +200,9 @@ test('My plan renders a collapsible card (title, days left, %, bar) + its rows; 
 });
 
 test('My plan reads the food log summary (window.HCAdherence) and refreshes when it answers', () => {
+  /** @type {{days: {date: string, n: number, k: number}[] | null}} */
   const st = { days: null };
-  const HCAdherence = { state: () => st, dayState: (d, t) => (d && t && d.k <= t.k ? 'on' : 'none') };
+  const HCAdherence = { state: () => st, dayState: (/** @type {{k: number} | null} */ d, /** @type {{k: number} | null} */ t) => (d && t && d.k <= t.k ? 'on' : 'none') };
   const HCNutri = { targetFor: () => ({ k: 2000, p: 150 }) };
   const { ctx, els } = load({ globals: { HCAdherence, HCNutri, DETAIL: { asOf: '2026-09-01', metrics: {}, sessions: [] } } });
   assert.equal(els['my-plan'].hidden, true, 'no summary yet');
@@ -209,9 +219,11 @@ test('renders at once, even while the page is still parsing: it runs at the end 
 });
 
 test('Tonight on a PAST day (the top bar\'s day stepping): hidden, and back on today', () => {
+  /** @type {string | null} */
   let sel = '2026-09-29';
+  /** @type {((x: string | null) => void)[]} */
   const subs = [];
-  const HCDay = { sel: () => sel, on: (fn) => subs.push(fn) };
+  const HCDay = { sel: () => sel, on: (/** @type {(x: string | null) => void} */ fn) => subs.push(fn) };
   const { els } = load({ globals: { SCORES: { tonight: TONIGHT }, HCDay } });
   const h = els['home-tonight'];
   assert.equal(h.hidden, true);

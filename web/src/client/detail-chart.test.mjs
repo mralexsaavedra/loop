@@ -17,12 +17,15 @@ const TODAY = '2026-10-10';
 // the chart's SVG geometry (detail-chart.ts): width 320, inner padding 8
 const CW = 320, CPAD = 8;
 
+/** @param {{now?: string}} [opts] */
 function load({ now = TODAY } = {}) {
   const RealDate = Date;
   class FakeDate extends RealDate {
-    constructor(...a) { super(...(a.length ? a : [now + 'T12:00:00'])); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { super(.../** @type {ConstructorParameters<DateConstructor>} */ (a.length ? a : [now + 'T12:00:00'])); }
     static now() { return new RealDate(now + 'T12:00:00').getTime(); }
   }
+  /** @type {import('node:vm').Context} the script's window (a vm global: untyped by nature) */
   const win = {};
   const ctx = vm.createContext({ window: win, LOCALE: 'en', Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite });
   loadUtil(ctx);
@@ -32,8 +35,11 @@ function load({ now = TODAY } = {}) {
   return win.HCDetailChart(enT, DS);
 }
 // a dense daily series from `start` (index 0)
+/** @param {(number | null)[]} v @param {object} [extra] */
 const series = (v, extra = {}) => ({ start: '2026-10-01', v, dec: 0, kind: 'signal', dir: 1, ...extra });
+/** @param {string} html */
 const yLabels = (html) => [...html.split('<div class="dt-yax"')[1].split('</div>')[0].matchAll(/>([^<]+)<\/span>/g)].map((m) => m[1]);
+/** @param {string} html */
 const dots = (html) => [...html.matchAll(/<circle class="dt-pt dt-s-(\w+)"/g)].map((m) => m[1]);
 
 test('detail-chart.ts defines only window.HCDetailChart, and reads nothing else at load', () => {

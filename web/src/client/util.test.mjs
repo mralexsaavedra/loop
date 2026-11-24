@@ -11,12 +11,18 @@ import { stripComments } from '../../../lib/format/js-scan.mjs';
 import { STALE_DAYS } from '../../../lib/stale.mjs';
 import { es as esDate, en as enDate } from '../i18n/date-templates.mjs';
 
-function load({ locale = 'en', at = '2026-09-29T12:00:00', HC_CONST = HC_CONST_BAKE, I18N_DATE = locale === 'es' ? esDate : enDate } = {}) {
+/** @typedef {import('node:vm').Context} VmGlobals the script's globals (a vm context: untyped by nature) */
+/** @typedef {{code?: string, field?: string, status?: number, name?: string}} ApiError what HC.jsonApi / fetchTimeout reject with */
+/** @typedef {{method?: string, headers?: Record<string, string>, body?: string, cache?: string, credentials?: string, signal?: AbortSignal}} FetchInit the init HC hands to fetch */
+/** @param {{locale?: string, at?: string, HC_CONST?: unknown, I18N_DATE?: unknown}} [opts] */
+function load({ locale = 'en', at = '2026-09-29T12:00:00', HC_CONST = /** @type {unknown} */ (HC_CONST_BAKE), I18N_DATE = /** @type {unknown} */ (locale === 'es' ? esDate : enDate) } = {}) {
   const RealDate = Date;
   class FakeDate extends RealDate {
-    constructor(...a) { super(...(a.length ? a : [at])); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { super(.../** @type {ConstructorParameters<DateConstructor>} */ (a.length ? a : [at])); }
     static now() { return new RealDate(at).getTime(); }
   }
+  /** @type {VmGlobals} */
   const ctx = { LOCALE: locale, HC_CONST, I18N_DATE, Date: FakeDate, Math, String, Number, Array, Object, JSON };
   vm.createContext(ctx);
   vm.runInContext(UTIL_SOURCE, ctx);
@@ -45,7 +51,9 @@ test('esc: an absent value (null / undefined) renders as empty, never "null" / "
 });
 
 /* HC.jsonApi(base, header, timeoutMs): the ONE fetch wrapper of the LAN APIs (food-core.ts, journal.ts) */
+/** @param {{fetch?: unknown, protocol?: string, anySignal?: boolean}} [opts] */
 function apiCtx({ fetch, protocol = 'http:', anySignal = true } = {}) {
+  /** @type {VmGlobals} */
   const ctx = { LOCALE: 'en', HC_CONST: HC_CONST_BAKE, I18N_DATE: enDate, Math, String, Number, Array, Object, JSON, Promise, setTimeout, clearTimeout, AbortController, fetch, location: { protocol } };
   // anySignal false: a browser without AbortSignal.any (the caller's signal is relayed by hand)
   if (anySignal) ctx.AbortSignal = AbortSignal;
@@ -53,11 +61,13 @@ function apiCtx({ fetch, protocol = 'http:', anySignal = true } = {}) {
   vm.runInContext(UTIL_SOURCE, ctx);
   return ctx.HC;
 }
+/** @param {number} status @param {unknown} [body] */
 const res = (status, body) => ({ ok: status >= 200 && status < 300, status, json: () => (body === undefined ? Promise.reject(new Error('no json')) : Promise.resolve(body)) });
 
 test('jsonApi: sends its own required header (+ JSON body), resolves a 2xx body ({} when empty)', async () => {
+  /** @type {[string, FetchInit][]} */
   const calls = [];
-  const HC = apiCtx({ fetch: (url, init) => { calls.push([url, init]); return Promise.resolve(res(200, calls.length === 1 ? { a: 1 } : undefined)); } });
+  const HC = apiCtx({ fetch: (/** @type {string} */ url, /** @type {FetchInit} */ init) => { calls.push([url, init]); return Promise.resolve(res(200, calls.length === 1 ? { a: 1 } : undefined)); } });
   const food = HC.jsonApi('/api/food', 'X-HC-Food', 15000);
   assert.deepEqual({ ...(await food('POST', '/log', { x: 1 })) }, { a: 1 });
   const [url, init] = calls[0];
@@ -76,51 +86,52 @@ test('jsonApi: sends its own required header (+ JSON body), resolves a 2xx body 
 
 test('jsonApi: rejects {code, field, status} on an error answer, {code: offline, status: 0} without one or from file://', async () => {
   let HC = apiCtx({ fetch: () => Promise.resolve(res(400, { error: 'invalid', field: 'goal' })) });
-  await assert.rejects(HC.jsonApi('/api/food', 'X-HC-Food', 1000)('PUT', '/settings', {}), (e) => e.code === 'invalid' && e.field === 'goal' && e.status === 400);
+  await assert.rejects(HC.jsonApi('/api/food', 'X-HC-Food', 1000)('PUT', '/settings', {}), (/** @type {ApiError} */ e) => e.code === 'invalid' && e.field === 'goal' && e.status === 400);
   HC = apiCtx({ fetch: () => Promise.resolve(res(500)) });
-  await assert.rejects(HC.jsonApi('/api/food', 'X-HC-Food', 1000)('GET', '/x'), (e) => e.code === 'generic' && e.status === 500);
+  await assert.rejects(HC.jsonApi('/api/food', 'X-HC-Food', 1000)('GET', '/x'), (/** @type {ApiError} */ e) => e.code === 'generic' && e.status === 500);
   HC = apiCtx({ fetch: () => Promise.reject(new TypeError('Failed to fetch')) });
-  await assert.rejects(HC.jsonApi('/api/journal', 'X-HC-Journal', 1000)('GET', '/x'), (e) => e.code === 'offline' && e.status === 0);
+  await assert.rejects(HC.jsonApi('/api/journal', 'X-HC-Journal', 1000)('GET', '/x'), (/** @type {ApiError} */ e) => e.code === 'offline' && e.status === 0);
   let fetched = false;
   HC = apiCtx({ fetch: () => { fetched = true; }, protocol: 'file:' });
-  await assert.rejects(HC.jsonApi('/api/journal', 'X-HC-Journal', 1000)('GET', '/x'), (e) => e.code === 'offline' && e.status === 0);
+  await assert.rejects(HC.jsonApi('/api/journal', 'X-HC-Journal', 1000)('GET', '/x'), (/** @type {ApiError} */ e) => e.code === 'offline' && e.status === 0);
   assert.equal(fetched, false, 'never fetched from a file');
 });
 
 /* HC.fetchTimeout(url, init, ms): the ONE timed fetch (jsonApi, freshness.ts, profile.ts) */
 test('fetchTimeout: passes the answer through; a request that never settles rejects after ms and is aborted', async () => {
+  /** @type {[string, FetchInit][]} */
   const seen = [];
-  let HC = apiCtx({ fetch: (url, init) => { seen.push([url, init]); return Promise.resolve(res(200, {})); } });
+  let HC = apiCtx({ fetch: (/** @type {string} */ url, /** @type {FetchInit} */ init) => { seen.push([url, init]); return Promise.resolve(res(200, {})); } });
   const r = await HC.fetchTimeout('/status.json', { cache: 'no-store' }, 1000);
   assert.equal(r.status, 200);
   assert.equal(seen[0][0], '/status.json');
   assert.equal(seen[0][1].cache, 'no-store', 'the caller\'s init is kept');
   assert.ok(seen[0][1].signal, 'abortable');
-  let signal = null;
-  HC = apiCtx({ fetch: (url, init) => { signal = init.signal; return new Promise(() => {}); } });
+  let signal = /** @type {AbortSignal | null | undefined} */ (null);
+  HC = apiCtx({ fetch: (/** @type {string} */ url, /** @type {FetchInit} */ init) => { signal = init.signal; return new Promise(() => {}); } });
   const t0 = Date.now();
-  await assert.rejects(HC.fetchTimeout('/api/sync', { method: 'POST' }, 30), (e) => e && e.name === 'TimeoutError');
+  await assert.rejects(HC.fetchTimeout('/api/sync', { method: 'POST' }, 30), (/** @type {ApiError} */ e) => e && e.name === 'TimeoutError');
   assert.ok(Date.now() - t0 < 1000, 'gave up after its timeout');
-  assert.equal(signal.aborted, true, 'the hanging request is aborted');
+  assert.equal(/** @type {AbortSignal} */ (signal).aborted, true, 'the hanging request is aborted');
   HC = apiCtx({ fetch: () => Promise.reject(new TypeError('Failed to fetch')) });
   await assert.rejects(HC.fetchTimeout('/x', {}, 1000), TypeError, 'a network error stays a rejection');
 });
 
 test('jsonApi: a request that never answers times out as offline', async () => {
   const HC = apiCtx({ fetch: () => new Promise(() => {}) });
-  await assert.rejects(HC.jsonApi('/api/food', 'X-HC-Food', 30)('GET', '/x'), (e) => e.code === 'offline' && e.status === 0);
+  await assert.rejects(HC.jsonApi('/api/food', 'X-HC-Food', 30)('GET', '/x'), (/** @type {ApiError} */ e) => e.code === 'offline' && e.status === 0);
 });
 
 test('jsonApi + fetchJson: the timeout also covers a body that never arrives (headers came, res.json() stalls)', async () => {
-  let signal = null;
-  const stalled = (url, init) => { signal = init.signal; return Promise.resolve({ ok: true, status: 200, json: () => new Promise(() => {}) }); };
+  let signal = /** @type {AbortSignal | null | undefined} */ (null);
+  const stalled = (/** @type {string} */ url, /** @type {FetchInit} */ init) => { signal = init.signal; return Promise.resolve({ ok: true, status: 200, json: () => new Promise(() => {}) }); };
   let HC = apiCtx({ fetch: stalled });
   const t0 = Date.now();
-  await assert.rejects(HC.jsonApi('/api/food', 'X-HC-Food', 30)('GET', '/x'), (e) => e.code === 'offline' && e.status === 0);
+  await assert.rejects(HC.jsonApi('/api/food', 'X-HC-Food', 30)('GET', '/x'), (/** @type {ApiError} */ e) => e.code === 'offline' && e.status === 0);
   assert.ok(Date.now() - t0 < 1000);
-  assert.equal(signal.aborted, true, 'the stalled body is aborted');
+  assert.equal(/** @type {AbortSignal} */ (signal).aborted, true, 'the stalled body is aborted');
   HC = apiCtx({ fetch: stalled });
-  await assert.rejects(HC.fetchJson('/status.json', { cache: 'no-store' }, 30), (e) => e && e.name === 'TimeoutError');
+  await assert.rejects(HC.fetchJson('/status.json', { cache: 'no-store' }, 30), (/** @type {ApiError} */ e) => e && e.name === 'TimeoutError');
   HC = apiCtx({ fetch: () => Promise.resolve(res(200, { commit: 'abc' })) });
   assert.deepEqual({ ...(await HC.fetchJson('/status.json', {}, 1000)) }, { commit: 'abc' });
   HC = apiCtx({ fetch: () => Promise.resolve(res(503, { error: 'x' })) });
@@ -129,24 +140,24 @@ test('jsonApi + fetchJson: the timeout also covers a body that never arrives (he
 
 test('fetchTimeout: a caller\'s signal is combined with the timeout (never overwritten), with or without AbortSignal.any', async () => {
   for (const anySignal of [true, false]) {
-    let signal = null;
-    const HC = apiCtx({ anySignal, fetch: (url, init) => { signal = init.signal; return new Promise(() => {}); } });
+    let signal = /** @type {AbortSignal | null | undefined} */ (null);
+    const HC = apiCtx({ anySignal, fetch: (/** @type {string} */ url, /** @type {FetchInit} */ init) => { signal = init.signal; return new Promise(() => {}); } });
     const caller = new AbortController();
     const init = { method: 'GET', signal: caller.signal };
     const p = HC.fetchTimeout('/x', init, 5000);
     assert.equal(init.signal, caller.signal, 'the caller\'s init is not mutated');
     assert.notEqual(signal, caller.signal, 'the request carries a combined signal');
-    assert.equal(signal.aborted, false);
+    assert.equal(/** @type {AbortSignal} */ (signal).aborted, false);
     const t0 = Date.now();
     caller.abort();
-    await assert.rejects(p, (e) => e && e.name === 'AbortError');
+    await assert.rejects(p, (/** @type {ApiError} */ e) => e && e.name === 'AbortError');
     assert.ok(Date.now() - t0 < 1000, 'the caller abort ends it at once, not at the timeout');
-    assert.equal(signal.aborted, true, 'the request is aborted by the caller');
+    assert.equal(/** @type {AbortSignal} */ (signal).aborted, true, 'the request is aborted by the caller');
     // and the timeout still aborts a request that carries a caller signal
-    let s2 = null;
-    const HC2 = apiCtx({ anySignal, fetch: (url, i) => { s2 = i.signal; return new Promise(() => {}); } });
-    await assert.rejects(HC2.fetchTimeout('/x', { signal: new AbortController().signal }, 30), (e) => e && e.name === 'TimeoutError');
-    assert.equal(s2.aborted, true);
+    let s2 = /** @type {AbortSignal | null | undefined} */ (null);
+    const HC2 = apiCtx({ anySignal, fetch: (/** @type {string} */ url, /** @type {FetchInit} */ i) => { s2 = i.signal; return new Promise(() => {}); } });
+    await assert.rejects(HC2.fetchTimeout('/x', { signal: new AbortController().signal }, 30), (/** @type {ApiError} */ e) => e && e.name === 'TimeoutError');
+    assert.equal(/** @type {AbortSignal} */ (s2).aborted, true);
   }
 });
 
@@ -236,6 +247,7 @@ test('fmtDate: one shared date formatter, "lun 29 sept" in es / "Mon 29 Sep" in 
 
 test('detailAttrs: the ONE opener markup for the detail sheet (data-detail [+ data-date], a 44px button role), empty when the sheet is not baked', () => {
   const RealDate = Date;
+  /** @type {VmGlobals} */
   const ctx = { LOCALE: 'en', HC_CONST: HC_CONST_BAKE, DETAIL: { metrics: {} }, Date: RealDate, Math, String, Number, Array, Object, JSON };
   vm.createContext(ctx);
   vm.runInContext(UTIL_SOURCE, ctx);
@@ -336,7 +348,8 @@ test('trendTone / metricRow: a ▲ ▼ is never grey — no good direction reads
   assert.equal(HC.trendTone('up', 'watch'), 'watch');
   for (const t of [undefined, null, 'flat', 'normal']) assert.equal(HC.trendTone('down', t), 'neutral', String(t));
   assert.equal(HC.trendTone('flat', 'good'), 'flat', 'the typical dot stays grey whatever the tone');
-  const row = (arrow, tone) => /<span class="db-arr db-(\w+)" aria-hidden="true">(.)<\/span>/.exec(HC.metricRow({ key: 'weight', name: 'W', value: '1', arrow, tone })).slice(1).join(' ');
+  /** @param {string} arrow @param {string} [tone] */
+  const row = (arrow, tone) => /** @type {RegExpExecArray} */ (/<span class="db-arr db-(\w+)" aria-hidden="true">(.)<\/span>/.exec(HC.metricRow({ key: 'weight', name: 'W', value: '1', arrow, tone }))).slice(1).join(' ');
   assert.equal(row('up', 'flat'), 'neutral ▲');
   assert.equal(row('down'), 'neutral ▼');
   assert.equal(row('flat', 'flat'), 'flat •');
@@ -390,7 +403,9 @@ test('carried: a value dated before the shown day names its date and is dimmed; 
 
 test('lan: LAN fetches only when served (http/https or no location); a file:// page skips them', () => {
   assert.equal(load().lan(), true, 'no location (a vm, the build) = served');
+  /** @param {object} loc */
   const at = (loc) => {
+    /** @type {VmGlobals} */
     const ctx = { LOCALE: 'en', HC_CONST: HC_CONST_BAKE, I18N_DATE: enDate, Date, Math, String, Number, Array, Object, JSON, ...loc };
     vm.createContext(ctx);
     vm.runInContext(UTIL_SOURCE, ctx);
@@ -404,6 +419,7 @@ test('lan: LAN fetches only when served (http/https or no location); a file:// p
 
 /* ---------- HC.registerView / HC.view: the detail sheet's registered views (window.HCViews) ---------- */
 function loadWithWindow() {
+  /** @type {VmGlobals} */
   const ctx = { LOCALE: 'en', HC_CONST: HC_CONST_BAKE, I18N_DATE: enDate, Math, String, Number, Array, Object, JSON, Error };
   ctx.window = ctx;
   vm.createContext(ctx);
@@ -417,7 +433,7 @@ test('HC.registerView: creates window.HCViews on first use; HC.view reads own ke
   assert.equal(ctx.HC.view('profile'), null);
   const v = { title: () => 'P', render: () => ({ head: '', body: '' }) };
   ctx.HC.registerView('profile', v);
-  assert.equal(ctx.HCViews.profile, v);
+  assert.equal(/** @type {Record<string, unknown>} */ (/** @type {unknown} */ (ctx.HCViews)).profile, v);
   assert.equal(ctx.HC.view('profile'), v);
   assert.equal(ctx.HC.view('toString'), null, 'no inherited keys');
 });
@@ -433,7 +449,8 @@ test('HC.registerView: registering the same name again replaces the view (never 
 /** The first argument of every HC.registerView(…) call in CODE: comments may name the API
  * (`HC.registerView(<key>, …)`), so they are stripped first by a string-aware scanner (a `"http://…"`
  * or `'/*'` string is not a comment); string contents are kept (the keys are string literals).
- * Returns each argument's source text, trimmed. */
+ * Returns each argument's source text, trimmed.
+ * @param {string} src */
 function registerViewArgs(src) {
   return [...stripComments(src).matchAll(/\bregisterView\s*\(\s*([^,)]*)/g)].map((m) => m[1].trim());
 }
@@ -443,6 +460,7 @@ function registerViewArgs(src) {
  * as paths relative to it. */
 function clientScripts() {
   const dir = path.dirname(fileURLToPath(import.meta.url));
+  /** @param {string} d @returns {string[]} */
   const walk = (d) => fs.readdirSync(d, { withFileTypes: true }).flatMap((e) => {
     const p = path.join(d, e.name);
     return e.isDirectory() ? walk(p) : [p];

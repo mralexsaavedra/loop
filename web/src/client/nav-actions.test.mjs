@@ -12,11 +12,19 @@ import { clientScriptSource } from '../client-bundle.mjs';
 // a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
 const source = clientScriptSource('nav-actions.ts');
 
+/** @typedef {import('../../test/dom-stub.mjs').StubElement & {focus?: () => void, clicks?: number, click?: () => void}} El */
+/**
+ * @typedef {StubDocument & {_listeners: Record<string, ((e: unknown) => void)[]>, addEventListener: (evt: string, fn: (e: unknown) => void) => void,
+ *   activeElement: unknown}} Doc
+ */
+/** @typedef {{key?: string, shiftKey?: boolean}} FireExtra */
+/** @param {{freshness?: boolean, food?: boolean}} [opts] */
 function page({ freshness = false, food = false } = {}) {
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
   doc._listeners = {};
   doc.addEventListener = (evt, fn) => { (doc._listeners[evt] = doc._listeners[evt] || []).push(fn); };
   doc.activeElement = null;
+  /** @param {El} el */
   const focusable = (el) => { el.focus = () => { doc.activeElement = el; }; return el; };
   const root = doc.el('act', { hidden: true });
   const btn = focusable(doc.el('act-btn', { tag: 'button', attrs: { 'aria-expanded': 'false', 'aria-label': 'Actions', 'data-label-close': 'Close actions' }, parent: root }));
@@ -28,18 +36,21 @@ function page({ freshness = false, food = false } = {}) {
     sync: focusable(doc.el(null, { tag: 'button', classes: ['act-item'], attrs: { 'data-act': 'sync' }, hidden: true, parent: pop })),
   };
   doc.el('freshness', { hidden: !freshness });
-  const syncBtn = doc.el('sync-btn', { tag: 'button' });
+  const syncBtn = /** @type {El & {clicks: number}} */ (doc.el('sync-btn', { tag: 'button' }));
   syncBtn.clicks = 0;
   syncBtn.click = () => { syncBtn.clicks += 1; };
+  /** @type {{key: string, date: unknown, opts: {opener?: unknown, focus?: string}}[]} */
   const opened = [];
+  /** @type {import('node:vm').Context} the script's window (a vm global: untyped by nature) */
   const window = {};
   if (food) {
     window.HCViews = { 'food-add': {} };
-    window.HCDetail = { open: (key, date, opts) => opened.push({ key, date, opts }) };
+    window.HCDetail = { open: (/** @type {string} */ key, /** @type {unknown} */ date, /** @type {{opener?: unknown, focus?: string}} */ opts) => opened.push({ key, date, opts }) };
   }
   const ctx = { document: doc, window };
   vm.createContext(ctx);
   vm.runInContext(source, ctx);
+  /** @param {unknown} target @param {string} type @param {FireExtra} [extra] */
   const fire = (target, type, extra = {}) => {
     const e = { type, target, key: extra.key, shiftKey: !!extra.shiftKey, defaultPrevented: false, preventDefault() { this.defaultPrevented = true; } };
     (doc._listeners[type] || []).forEach((fn) => fn(e));
@@ -67,7 +78,7 @@ test('only the available actions are listed: Sync once the freshness group shows
   p.window.HCActions.refresh();
   assert.equal(p.items.food.hidden, false);
   // the freshness endpoint went away: Sync drops out, food stays
-  p.doc.getElementById('freshness').hidden = true;
+  /** @type {El} */ (p.doc.getElementById('freshness')).hidden = true;
   p.window.HCActions.refresh();
   assert.equal(p.items.sync.hidden, true);
   assert.equal(p.root.hidden, false);
@@ -134,7 +145,7 @@ test('actions: food opens the existing add sheet with the button as opener; Sync
 test('an action that went away while the popover was open is not run', () => {
   const p = page({ freshness: true });
   p.fire(p.btn, 'click');
-  p.doc.getElementById('freshness').hidden = true;
+  /** @type {El} */ (p.doc.getElementById('freshness')).hidden = true;
   p.fire(p.items.sync, 'click');
   assert.equal(p.syncBtn.clicks, 0);
 });
@@ -142,9 +153,10 @@ test('an action that went away while the popover was open is not run', () => {
 test('journal: listed once the journal sheet is registered (its API answered); it opens the sheet with the "+" as opener', () => {
   const p = page();
   assert.equal(p.items.journal.hidden, true, 'no journal API: no row');
+  /** @type {{key: string, date: unknown, opts: {opener?: unknown, focus?: string}}[]} */
   const opened = [];
   p.window.HCViews = { journal: {} };
-  p.window.HCDetail = { open: (key, date, opts) => opened.push({ key, date, opts }) };
+  p.window.HCDetail = { open: (/** @type {string} */ key, /** @type {unknown} */ date, /** @type {{opener?: unknown, focus?: string}} */ opts) => opened.push({ key, date, opts }) };
   p.window.HCActions.refresh();
   assert.equal(p.root.hidden, false);
   assert.equal(p.items.journal.hidden, false);

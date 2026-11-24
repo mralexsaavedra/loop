@@ -18,43 +18,58 @@ const source = clientScriptSource('nutri-score.ts');
 const TODAY = '2030-01-28';
 // the text a sighted reader sees (screen-reader-only words left out); `said` = the card's accessible name, from its
 // content (no aria-label: WCAG 2.5.3 Label in Name), screen-reader words included
+/** @param {unknown} html */
 const text = (html) => String(html).replace(/<span class="sr-only">[^<]*<\/span>/g, ' ').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+/** @param {unknown} html */
 const said = (html) => String(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 const G3 = { breakfast: 1, lunch: 1, dinner: 1 };
+/** @param {string} date @param {number | null} k @param {number | null} p @param {number | null} f @param {object} [o] */
 const day = (date, k, p, f, o = {}) => ({ date, k, p, f, n: 3, missing: { p: false, f: false }, groups: G3, ...o });
 const TG = { k: 2000, p: 150, g: 70 };
 
 // clock.iso = the viewer's day (a test may move it past midnight)
+/** @param {{iso: string}} clock */
 function fixedDate(clock) {
   const RealDate = Date;
   return class extends RealDate {
-    constructor(...a) { if (a.length) super(...a); else super(clock.iso + 'T12:00:00'); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { if (a.length) super(.../** @type {ConstructorParameters<DateConstructor>} */ (a)); else super(clock.iso + 'T12:00:00'); }
     static now() { return new RealDate(clock.iso + 'T12:00:00').getTime(); }
   };
 }
+/** @typedef {import('../../test/dom-stub.mjs').StubElement & {innerHTML: string, hidden: boolean}} Host a stub host the script renders into */
+/**
+ * @param {{log?: unknown[], live?: unknown, targetFor?: (date: string) => unknown, locale?: string, sel?: string | null, home?: boolean,
+ *   nutri?: boolean, clock?: {iso: string}}} [opts]
+ */
 function setup({ log = [], live = null, targetFor, locale = 'en', sel = null, home = true, nutri = true, clock = { iso: TODAY } } = {}) {
   const doc = new StubDocument();
+  /** @type {Record<string, Host>} */
   const els = {};
-  if (home) els.home = doc.el('home-nscore', { hidden: true });
+  if (home) els.home = /** @type {Host} */ (doc.el('home-nscore', { hidden: true }));
   if (nutri) {
-    els.block = doc.el('nutri-score-block', { hidden: true });
-    els.host = doc.el('nutri-score');
-    els.info = doc.el('nutri-score-info');
+    els.block = /** @type {Host} */ (doc.el('nutri-score-block', { hidden: true }));
+    els.host = /** @type {Host} */ (doc.el('nutri-score'));
+    els.info = /** @type {Host} */ (doc.el('nutri-score-info'));
   }
+  /** @type {(() => void)[]} */
   const listeners = [];
+  /** @type {import('node:vm').Context} the script's window (a vm global: untyped by nature) */
   const window = { HCNutri: { targetFor: targetFor || (() => TG) } };
   if (live) window.HCAdherence = { state: () => ({ days: live }) };
+  /** @type {import('node:vm').Context} */
   const ctx = {
     document: doc, window, LOCALE: locale, NUTRI: { score: NSCORE }, I18N_NUTRI: locale === 'es' ? esN : enN,
     I18N_SCORE: locale === 'es' ? esS : enS, INTAKE: { log: { asOf: null, days: log } },
-    HCDay: { sel: () => sel, on: (fn) => listeners.push(fn) },
+    HCDay: { sel: () => sel, on: (/** @type {() => void} */ fn) => listeners.push(fn) },
     DETAIL: { metrics: {} }, Date: fixedDate(clock), Math, JSON, Number, String, Object, Array, isFinite,
   };
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
-  return { els, window, S: window.HCNutriScore, step: (d) => { sel = d; listeners.forEach((f) => f()); } };
+  return { els, window, S: window.HCNutriScore, step: (/** @type {string | null} */ d) => { sel = d; listeners.forEach((f) => f()); } };
 }
+/** @param {unknown} x @returns {any} JSON round-trip of a value the vm script built */
 const plain = (x) => JSON.parse(JSON.stringify(x));
 
 test('parity: the port scores exactly what lib/nutrition/nutri-score.mjs scores', () => {

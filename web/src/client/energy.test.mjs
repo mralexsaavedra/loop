@@ -10,6 +10,7 @@ import { clientScriptSource } from '../client-bundle.mjs';
 // a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
 const source = clientScriptSource('energy.ts');
 
+/** @param {string} date @param {number} start @param {number[]} levels @param {{load?: number}} [o] */
 const day = (date, start, levels, o = {}) => ({
   date, wake: '07:00', start,
   now: levels.length ? { h: 6 + levels.length, lv: Math.round(levels[levels.length - 1]) } : { h: null, lv: start },
@@ -26,24 +27,27 @@ const ENERGY = {
   ],
 };
 
-function render({ energy = ENERGY, locale = 'en', now = '2026-09-29', sel = null, detail = true } = {}) {
+/** @param {{energy?: unknown, locale?: string, now?: string, sel?: string | null, detail?: boolean}} [opts] */
+function render({ energy = /** @type {unknown} */ (ENERGY), locale = 'en', now = '2026-09-29', sel = null, detail = true } = {}) {
   const host = { innerHTML: '', hidden: true };
   const RealDate = Date;
   class FakeDate extends RealDate {
     static now() { return new RealDate(now + 'T18:00:00').getTime(); }
   }
+  /** @type {(() => void)[]} */
   const listeners = [];
+  /** @type {import('node:vm').Context} */
   const ctx = {
-    document: { getElementById: (id) => (id === 'home-energy' ? host : null) },
+    document: { getElementById: (/** @type {string} */ id) => (id === 'home-energy' ? host : null) },
     SCORES: { energy }, I18N_SCORE: locale === 'es' ? esT : enT, LOCALE: locale,
-    HCDay: { sel: () => sel, on: (fn) => listeners.push(fn) },
+    HCDay: { sel: () => sel, on: (/** @type {() => void} */ fn) => listeners.push(fn) },
     Date: FakeDate, Math, String, Number, Array, Object, JSON,
   };
   if (detail) ctx.DETAIL = { metrics: {} };
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
-  return { host, step: (d) => { sel = d; listeners.forEach((f) => f()); } };
+  return { host, step: (/** @type {string | null} */ d) => { sel = d; listeners.forEach((f) => f()); } };
 }
 
 test('today: the latest level big, an "estimate" label, the intraday curve from wake, opens the energy page', () => {
@@ -57,7 +61,7 @@ test('today: the latest level big, an "estimate" label, the intraday curve from 
   assert.match(h, /<b class="en-num">55<\/b>/);
   assert.match(h, /<svg class="en-sp"[^>]*aria-hidden="true"/);
   // the line starts at the wake level (72 of 100) and has one point per hour after it
-  const d = /<path class="en-l" d="([^"]+)"/.exec(h)[1];
+  const d = /** @type {RegExpExecArray} */ (/<path class="en-l" d="([^"]+)"/.exec(h))[1];
   assert.equal((d.match(/[ML]/g) || []).length, 5);
   assert.match(h, /de-mid/, '55 = the middle band colour');
   assert.match(h, /From 72 at 07:00/);
@@ -89,7 +93,7 @@ test('day stepping: a past day shows its own level and opens on that day; a day 
 });
 
 test('a level band colours the curve: high >= 67, middle 34-66, low < 34', () => {
-  const E = (lv) => ({ ...ENERGY, days: [day('2026-09-29', 90, [lv])] });
+  const E = (/** @type {number} */ lv) => ({ ...ENERGY, days: [day('2026-09-29', 90, [lv])] });
   assert.match(render({ energy: E(80) }).host.innerHTML, /de-hi/);
   assert.match(render({ energy: E(34) }).host.innerHTML, /de-mid/);
   assert.match(render({ energy: E(20) }).host.innerHTML, /de-lo/);

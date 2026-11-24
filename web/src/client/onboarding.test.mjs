@@ -12,14 +12,25 @@ import { clientScriptSource } from '../client-bundle.mjs';
 // a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
 const source = clientScriptSource('onboarding.ts');
 
+/** @typedef {import('node:vm').Context} VmGlobals the script's globals (a vm context: untyped by nature) */
+/**
+ * @param {{locale?: string, profile?: unknown, settings?: {goal: string | null}, protocol?: string, later?: boolean, putFails?: boolean,
+ *   hash?: string, statusNode?: {textContent: string} | null}} [opts]
+ */
 function setup({ locale = 'en', profile = null, settings = { goal: null }, protocol = 'http:', later = false, putFails = false, hash = '', statusNode = null } = {}) {
+  /** @type {Record<string, ((e: unknown) => void)[]>} */
   const listeners = {};
+  /** @type {[string, string, any][]} the API calls; [2] = the JSON round-trip of the body the script sent */
   const calls = [];
+  /** @type {[string, unknown][]} */
   const opened = [];
+  /** @type {[string, unknown][]} */
   const saved = [];
   let closed = 0;
   let synced = 0;
+  /** @type {Record<string, string>} */
   const store = later ? { 'hc.onboarding.later': '1' } : {};
+  /** @param {string} method @param {string} p @param {unknown} [body] */
   const api = (method, p, body) => {
     calls.push([method, p, body && JSON.parse(JSON.stringify(body))]);
     if (method === 'GET' && p === '/profile') return Promise.resolve({ profile });
@@ -27,26 +38,29 @@ function setup({ locale = 'en', profile = null, settings = { goal: null }, proto
     if (method === 'PUT' && p === '/profile') return putFails ? Promise.reject({ status: 0 }) : Promise.resolve({ profile: body });
     return Promise.reject({ status: 404 });
   };
+  /** @type {VmGlobals} */
   const win = {
     HCFood: { api },
-    HCSettings: { saveGoal: (g) => { saved.push(['goal', g]); return Promise.resolve(); }, saveTarget: (t) => { saved.push(['target', t]); return Promise.resolve(); } },
-    HCDetail: { open: (k, d, o) => opened.push([k, o && o.focus]), close: () => { closed += 1; } },
+    HCSettings: { saveGoal: (/** @type {string} */ g) => { saved.push(['goal', g]); return Promise.resolve(); }, saveTarget: (/** @type {unknown} */ t) => { saved.push(['target', t]); return Promise.resolve(); } },
+    HCDetail: { open: (/** @type {string} */ k, /** @type {unknown} */ d, /** @type {{focus?: unknown} | undefined} */ o) => opened.push([k, o && o.focus]), close: () => { closed += 1; } },
     // the profile sheet registers before this script on the page (manifest order)
     HCViews: { profile: { title: () => 'Profile', render: () => ({ head: '', body: '' }) } },
   };
   const RealDate = Date;
   class FakeDate extends RealDate {
-    constructor(...a) { super(...(a.length ? a : ['2026-10-14T12:00:00'])); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { super(.../** @type {ConstructorParameters<DateConstructor>} */ (a.length ? a : ['2026-10-14T12:00:00'])); }
     static now() { return new RealDate('2026-10-14T12:00:00').getTime(); }
   }
+  /** @type {VmGlobals} */
   const ctx = {
     window: win,
     document: {
-      addEventListener: (t, fn) => { (listeners[t] = listeners[t] || []).push(fn); },
-      getElementById: (id) => (id === 'sync-btn' ? { hidden: false, click: () => { synced += 1; } } : id === 'onb-status' ? statusNode : null),
+      addEventListener: (/** @type {string} */ t, /** @type {(e: unknown) => void} */ fn) => { (listeners[t] = listeners[t] || []).push(fn); },
+      getElementById: (/** @type {string} */ id) => (id === 'sync-btn' ? { hidden: false, click: () => { synced += 1; } } : id === 'onb-status' ? statusNode : null),
     },
     location: { protocol, origin: 'http://192.168.1.50:8091', hash },
-    localStorage: { getItem: (k) => (k in store ? store[k] : null), setItem: (k, v) => { store[k] = String(v); }, removeItem: (k) => { delete store[k]; } },
+    localStorage: { getItem: (/** @type {string} */ k) => (k in store ? store[k] : null), setItem: (/** @type {string} */ k, /** @type {unknown} */ v) => { store[k] = String(v); }, removeItem: (/** @type {string} */ k) => { delete store[k]; } },
     PROFILE: { weight: { kg: 60, date: '2026-10-13' } },
     I18N_ONB: locale === 'es' ? esO : enO,
     LOCALE: locale,
@@ -55,31 +69,44 @@ function setup({ locale = 'en', profile = null, settings = { goal: null }, proto
   vm.createContext(ctx);
   loadUtil(ctx); // with lib-globals.ts: HC_ENERGY
   vm.runInContext(source, ctx);
+  /** @typedef {{getAttribute: (k: string) => string | null, closest: (sel: string) => unknown}} FakeTarget */
+  /** @param {Record<string, string>} attrs @param {object} [extra] @returns {FakeTarget} */
   const el = (attrs, extra = {}) => ({ getAttribute: (k) => (k in attrs ? attrs[k] : null), closest: (sel) => (sel.includes(Object.keys(attrs)[0]) ? el(attrs, extra) : null), ...extra });
+  /** @param {string} type @param {unknown} target */
   const fire = (type, target) => (listeners[type] || []).forEach((fn) => fn({ type, target }));
+  /** @param {string} key @param {unknown} value @param {string} [type] */
   const field = (key, value, type = 'text') => fire('input', el({ 'data-onb-field': key }, { value, type, checked: value === true }));
+  /** @param {string} key @param {string} value */
   const choose = (key, value) => fire('change', el({ 'data-onb-field': key }, { value, type: 'radio' }));
+  /** @param {string} key */
   const tick = (key) => fire('change', el({ 'data-onb-field': key }, { type: 'checkbox', checked: true }));
+  /** @param {string} cell @param {string} value */
   const cellEdit = (cell, value) => fire('change', el({ 'data-onb-cell': cell }, { value }));
+  /** @param {string} a */
   const act = (a) => fire('click', el({ 'data-onb-act': a }));
   // Enter in a field or on a card: target inside the flow (closest('.onb')), not on a button
+  /** @param {Record<string, string>} [attrs] @param {string} [tag] */
   const enter = (attrs = { 'data-onb-field': 'name' }, tag = 'INPUT') => {
-    const t = { tagName: tag, getAttribute: (k) => (k in attrs ? attrs[k] : null), closest: (sel) => (sel === '.onb' ? {} : null) };
+    const t = { tagName: tag, getAttribute: (/** @type {string} */ k) => (k in attrs ? attrs[k] : null), closest: (/** @type {string} */ sel) => (sel === '.onb' ? {} : null) };
     let prevented = 0;
     (listeners.keydown || []).forEach((fn) => fn({ type: 'keydown', key: 'Enter', target: t, preventDefault: () => { prevented += 1; } }));
     return prevented;
   };
+  /** @param {string} value @param {boolean} [checked] */
   const sport = (value, checked = true) => fire('change', el({ 'data-onb-field': 'sport' }, { value, type: 'checkbox', checked }));
   const view = win.HCViews.onboarding;
   const html = () => view.render().body;
   return { win, view, html, field, choose, tick, cellEdit, act, sport, enter, calls, opened, saved, store, get closed() { return closed; }, get synced() { return synced; }, onb: win.HCOnboarding, fire, el };
 }
 const flush = () => new Promise((r) => setTimeout(r, 0));
+/** @param {string} h */
 const clean = (h) => assert.doesNotMatch(h, /NaN|undefined|Infinity|\[object/);
+/** @param {string} h */
 const questions = (h) => (h.match(/class="onb-q"/g) || []).length;
 
 // welcome -> name -> sex -> birth -> height -> weight -> activity -> sports -> one screen per sport -> safety
 // -> goal -> target (not for maintain) -> summary -> data
+/** @param {ReturnType<typeof setup>} s @param {{sex?: string, birthdate?: string, height?: string, weight?: string, activity?: string}} [about] */
 function toSports(s, { sex = 'female', birthdate = '1997-05-20', height = '165', weight = '60', activity = 'light' } = {}) {
   s.act('next'); // welcome
   s.field('name', 'Ana'); s.act('next');
@@ -89,6 +116,7 @@ function toSports(s, { sex = 'female', birthdate = '1997-05-20', height = '165',
   s.field('weightKg', weight); s.act('next');
   s.choose('activity', activity); s.act('next');
 }
+/** @param {ReturnType<typeof setup>} s @param {string[][]} [picks] @param {Parameters<typeof toSports>[1]} [about] */
 function toSafety(s, picks = [['running', '90', '2'], ['strength', '60', '3']], about) {
   toSports(s, about);
   for (const [k] of picks) s.sport(k);
@@ -124,7 +152,7 @@ test('one question per screen, a segmented progress bar that fills, and ONE back
   assert.doesNotMatch(h1, /data-onb-field="sex"/);
   assert.equal((h1.match(/data-onb-act="back"/g) || []).length, 1, 'one back control');
   assert.match(h1, /class="onb-top"><button[^>]*data-onb-act="back"/);
-  const on = (h) => (h.match(/<i class="on">/g) || []).length;
+  const on = (/** @type {string} */ h) => (h.match(/<i class="on">/g) || []).length;
   s.act('next');
   const h2 = s.html();
   assert.equal(questions(h2), 1);
@@ -239,7 +267,7 @@ test('the full path: summary with the weekly average and only the day types the 
   assert.match(d, /data-onb-act="save"/);
   s.act('save');
   await flush(); await flush(); await flush();
-  const put = s.calls.find((c) => c[0] === 'PUT');
+  const put = /** @type {[string, string, any]} */ (s.calls.find((c) => c[0] === 'PUT'));
   assert.equal(put[1], '/profile');
   assert.deepEqual(put[2].sports, SPORTS_RS);
   assert.deepEqual(put[2].targets, computeTargets({ ...PERSON, sports: SPORTS_RS }).targets);
@@ -285,7 +313,7 @@ test('adjust: the grid edits the chosen goal of the used day types; a hard bound
   s.act('next');
   s.act('save');
   await flush(); await flush(); await flush();
-  const put = s.calls.find((c) => c[0] === 'PUT');
+  const put = /** @type {[string, string, any]} */ (s.calls.find((c) => c[0] === 'PUT'));
   assert.equal(put[2].targets.maintain.gym.p, 120);
   assert.equal(put[2].targets.maintain.rest.kcal, computeTargets({ ...PERSON, sports: [{ sport: 'yoga', minutes: 60, perWeek: 3 }] }).targets.maintain.rest.kcal);
   assert.deepEqual(s.saved, [['goal', 'maintain'], ['target', null]]);
@@ -366,7 +394,7 @@ test('first run opens it once: no profile and no goal on the server; never with 
     await flush(); await flush();
     assert.deepEqual(fresh.opened.map((o) => o[0]), ['onboarding'], `hash "${hash}" (a tab hash is not a deep link)`);
   }
-  for (const opts of [{ settings: { goal: 'cut' } }, { later: true }, { profile: { sex: 'male' } }, { hash: '#profile' }, { hash: '#detail/sleep' }]) {
+  for (const opts of /** @type {Parameters<typeof setup>[0][]} */ ([{ settings: { goal: 'cut' } }, { later: true }, { profile: { sex: 'male' } }, { hash: '#profile' }, { hash: '#detail/sleep' }])) {
     const s = setup(opts);
     await flush(); await flush();
     assert.deepEqual(s.opened, [], JSON.stringify(opts));
@@ -424,9 +452,10 @@ test('a refused choice screen announces its error and marks the first option inv
   const node = { textContent: '' };
   const s = setup({ statusNode: node });
   s.act('next'); s.act('next'); // welcome, name
+  /** @type {[string, string][]} */
   const renders = [];
   const open = s.win.HCDetail.open;
-  s.win.HCDetail.open = (k, d, o) => { renders.push([s.html(), node.textContent]); open(k, d, o); };
+  s.win.HCDetail.open = (/** @type {string} */ k, /** @type {unknown} */ d, /** @type {unknown} */ o) => { renders.push([s.html(), node.textContent]); open(k, d, o); };
   s.act('next'); // sex: nothing picked
   assert.equal(node.textContent, 'Pick one.');
   assert.equal(renders.length, 1, 'one re-render');
@@ -437,7 +466,7 @@ test('a refused choice screen announces its error and marks the first option inv
   assert.match(h, /<small class="food-err" id="onb-err-sex">Pick one\.<\/small>/);
   assert.match(h, /name="onb-sex"[^>]*value="female" aria-invalid="true" aria-describedby="onb-err-sex"/);
   assert.equal((h.match(/aria-invalid="true"/g) || []).length, 1, 'only the first option carries it');
-  assert.equal(s.opened.at(-1)[1], '[aria-invalid="true"], [data-onb-act="next"]', 'focus moves to the invalid option');
+  assert.equal(/** @type {[string, unknown]} */ (s.opened.at(-1))[1], '[aria-invalid="true"], [data-onb-act="next"]', 'focus moves to the invalid option');
   s.choose('sex', 'female'); s.act('next');
   assert.doesNotMatch(s.html(), /aria-invalid|onb-err-sex/);
   assert.match(s.html(), /id="onb-status" role="status" aria-live="polite"><\/p>/, 'a passed step clears the status');

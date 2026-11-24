@@ -34,26 +34,40 @@ const FULL = buildProfile({ manual: MANUAL, strava: STRAVA, weight: { kg: 71.4, 
 
 // nutri = a stand-in for client/nutri-day.ts's window.HCNutri (the goal's owner), or null
 // fetch = a stand-in for window.fetch (the manual HEAD probe); links = the elements querySelectorAll returns
+/** @typedef {import('node:vm').Context} VmGlobals the script's globals (a vm context: untyped by nature) */
+/** @typedef {{textContent: string, attrs: Record<string, string>, setAttribute: (k: string, v: string) => void, removeAttribute: (k: string) => void}} FakeEl */
+/** @typedef {{attrs: Record<string, string>, getAttribute: (k: string) => string | null, removeAttribute: (k: string) => void}} FakeLink */
+/** @typedef {{url: string, init: {method?: string, cache?: string}}} FetchCall */
+/**
+ * @typedef {{profile?: Record<string, unknown>, locale?: string, now?: string, photo?: string | null, nutri?: unknown,
+ *   settings?: unknown, progress?: unknown, els?: Record<string, unknown>, fetch?: unknown, links?: FakeLink[],
+ *   location?: {protocol: string}, onb?: boolean}} SetupOpts
+ */
+/** @param {SetupOpts} [opts] */
 function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null, nutri = null, settings = null, progress = null, els = {}, fetch = undefined, links = [], location, onb = false } = {}) {
-  const img = photo ? { getAttribute: (k) => (k === 'src' ? photo : null) } : null;
+  const img = photo ? { getAttribute: (/** @type {string} */ k) => (k === 'src' ? photo : null) } : null;
+  /** @type {VmGlobals} */
   const win = nutri ? { HCNutri: nutri } : {};
   if (settings) win.HCSettings = settings;
   if (progress) win.HCProgress = progress;
   // the onboarding registers its view before this script on the page (manifest order)
   if (onb) win.HCViews = { onboarding: { title: () => 'Set up', render: () => ({ bare: true, body: '' }) } };
+  /** @type {Record<string, ((e: {target: unknown}) => void)[]>} */
   const listeners = {};
   const RealDate = Date;
   class FakeDate extends RealDate {
-    constructor(...a) { super(...(a.length ? a : [now + 'T12:00:00'])); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { super(.../** @type {ConstructorParameters<DateConstructor>} */ (a.length ? a : [now + 'T12:00:00'])); }
     static now() { return new RealDate(now + 'T12:00:00').getTime(); }
   }
   const { photo: _p, ...baked } = profile; // Avatar.astro bakes the photo once, in the button's <img>
+  /** @type {VmGlobals} */
   const ctx = {
     window: win,
     document: {
-      getElementById: (id) => (id === 'avatar-img' ? img : els[id] || null),
-      addEventListener: (t, fn) => { (listeners[t] = listeners[t] || []).push(fn); },
-      querySelectorAll: (sel) => (sel === 'a.pf-manual' ? links : []),
+      getElementById: (/** @type {string} */ id) => (id === 'avatar-img' ? img : els[id] || null),
+      addEventListener: (/** @type {string} */ t, /** @type {(e: {target: unknown}) => void} */ fn) => { (listeners[t] = listeners[t] || []).push(fn); },
+      querySelectorAll: (/** @type {string} */ sel) => (sel === 'a.pf-manual' ? links : []),
     },
     ...(fetch ? { fetch } : {}),
     ...(location ? { location } : {}),
@@ -68,10 +82,13 @@ function setup({ profile = FULL, locale = 'en', now = '2030-01-07', photo = null
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
+  /** @param {string} t @param {unknown} target */
   const fire = (t, target) => (listeners[t] || []).forEach((fn) => fn({ target }));
   return { win, fire, view: win.HCViews && win.HCViews.profile, api: win.HCProfile };
 }
+/** @param {ReturnType<typeof setup>} s */
 const html = (s) => { const r = s.view.render(); return r.head + r.body; };
+/** @param {string} h */
 const clean = (h) => assert.doesNotMatch(h, /NaN|undefined|null|Infinity|<script|href=/);
 
 test('registers the profile view for the detail sheet, titled by the locale', () => {
@@ -157,12 +174,16 @@ const WITH_MANUAL = buildProfile({
 });
 const flush = () => new Promise((r) => setTimeout(r, 0));
 const pdfFetch = (status = 200, type = 'application/pdf') => {
+  /** @type {FetchCall[]} */
   const calls = [];
-  const fn = (url, init) => { calls.push({ url, init }); return Promise.resolve({ status, headers: { get: (k) => (k.toLowerCase() === 'content-type' ? type : null) } }); };
+  /** @param {string} url @param {FetchCall['init']} init */
+  const fn = (url, init) => { calls.push({ url, init }); return Promise.resolve({ status, headers: { get: (/** @type {string} */ k) => (k.toLowerCase() === 'content-type' ? type : null) } }); };
   fn.calls = calls;
-  return fn;
+  return /** @type {typeof fn & {calls: FetchCall[]}} */ (fn);
 };
+/** @param {string} file @returns {FakeLink} */
 const fakeLink = (file) => {
+  /** @type {Record<string, string>} */
   const attrs = { 'data-manual': file, hidden: '' };
   return { attrs, getAttribute: (k) => (k in attrs ? attrs[k] : null), removeAttribute: (k) => { delete attrs[k]; } };
 };
@@ -193,7 +214,7 @@ test('device manual: revealed when HEAD /manuales/<file> answers 200 with a PDF;
   assert.equal(fetch.calls[0].init.cache, 'no-store');
   assert.equal(link.getAttribute('hidden'), null, 'revealed');
   assert.equal(other.getAttribute('hidden'), '', 'another file untouched');
-  assert.doesNotMatch(/<a class="pf-manual"[^>]*>/.exec(html(s))[0], / hidden/);
+  assert.doesNotMatch(/** @type {RegExpExecArray} */ (/<a class="pf-manual"[^>]*>/.exec(html(s)))[0], / hidden/);
   assert.equal(fetch.calls.length, 1, 'probed once');
 });
 
@@ -218,7 +239,7 @@ test('device manual: stays hidden on a 404, a non-PDF 200 (an SPA fallback page)
     html(s);
     await flush();
     assert.equal(link.getAttribute('hidden'), '');
-    assert.match(/<a class="pf-manual"[^>]*>/.exec(html(s))[0], / hidden/);
+    assert.match(/** @type {RegExpExecArray} */ (/<a class="pf-manual"[^>]*>/.exec(html(s)))[0], / hidden/);
   }
 });
 
@@ -254,6 +275,7 @@ test('every name / label is escaped', () => {
 });
 
 test('without PROFILE or I18N_PROFILE the script registers nothing', () => {
+  /** @type {VmGlobals} */
   const win = {};
   const ctx = { window: win, document: { getElementById: () => null } };
   vm.createContext(ctx);
@@ -308,6 +330,7 @@ test('events: upcoming listed soonest first with days to go on the viewer clock,
 /* ---------- Goal setting: the plan's goal, owned by client/nutri-day.ts (hc.nutri.goal) ---------- */
 const GOALS = [{ goal: 'maintain', kcal: 0, bikeKept: false }, { goal: 'cut', kcal: -320, bikeKept: true }, { goal: 'bulk', kcal: 300, bikeKept: false }];
 function nutriStub(goal = 'maintain') {
+  /** @type {{set: string[], state: () => {goal: string}, setGoal: (g: string) => boolean}} */
   const n = { set: [], state: () => ({ goal }), setGoal: (g) => { n.set.push(g); goal = g; return true; } };
   return n;
 }
@@ -352,7 +375,15 @@ test('goal setting is omitted without Nutrición (no HCNutri) or without options
 });
 
 // a stand-in for client/settings.ts (the LAN settings API answered)
+/**
+ * @typedef {{saved: (number | null)[], fns: ((e: {last: unknown, pending?: string}) => void)[], target: number | null, locale: unknown,
+ *   langs: string[], lang?: string | null, saveLocale?: (l: string) => Promise<void>, ready?: () => boolean, targetWeight?: () => number | null,
+ *   limits?: () => {min: number, max: number}, parseTarget?: (v: unknown) => {value?: number | null, error?: string},
+ *   saveTarget?: (kg: number | null) => Promise<void>, onChange?: (fn: (e: {last: unknown, pending?: string}) => void) => number}} SettingsStub
+ */
+/** @param {{ready?: boolean, target?: number | null, locale?: string | null, saveLocale?: (l: string) => Promise<void>}} [opts] */
 function settingsStub({ ready = true, target = null, locale = null, saveLocale } = {}) {
+  /** @type {SettingsStub} */
   const st = { saved: [], fns: [], target, locale, langs: [] };
   st.locale = () => st.lang;
   st.lang = locale;
@@ -371,8 +402,9 @@ function settingsStub({ ready = true, target = null, locale = null, saveLocale }
   st.onChange = (fn) => st.fns.push(fn);
   return st;
 }
+/** @returns {FakeEl} */
 const fakeEl = () => {
-  const el = { textContent: '', attrs: {} };
+  const el = /** @type {FakeEl} */ ({ textContent: '', attrs: {} });
   el.setAttribute = (k, v) => { el.attrs[k] = v; };
   el.removeAttribute = (k) => { delete el.attrs[k]; };
   return el;
@@ -421,7 +453,7 @@ test('the status line follows the settings saves (saving, saved, a coarse reason
   const els = { 'pf-goal-msg': fakeEl(), 'pf-progress-txt': fakeEl() };
   let line = '78.0 kg average · -0.35 kg/wk · On pace';
   setup({ profile: { ...FULL, goals: GOALS }, nutri: nutriStub(), settings: st, progress: { line: () => line }, els });
-  const emit = (last) => st.fns.forEach((fn) => fn({ last }));
+  const emit = (/** @type {unknown} */ last) => st.fns.forEach((fn) => fn({ last }));
   emit({ what: 'target', status: 'saving' });
   assert.equal(els['pf-goal-msg'].textContent, 'Saving…');
   line = '78.0 kg average · -0.35 kg/wk · Target reached';
@@ -479,6 +511,7 @@ test('language (LAN page): Español / English radios, the stored one checked (el
 
 test('language: a change saves it, then presses the Sync button (the page rebuilds); the same language or a bad value does nothing', async () => {
   const st = settingsStub({ locale: null });
+  /** @type {number[]} */
   const clicks = [];
   const els = { 'pf-lang-msg': fakeEl(), 'sync-btn': { hidden: false, click: () => clicks.push(1) } };
   const s = setup({ settings: st, els, locale: 'en' });
@@ -495,6 +528,7 @@ test('language: a change saves it, then presses the Sync button (the page rebuil
   await new Promise((r) => setImmediate(r));
   assert.deepEqual([st.langs, clicks.length], [['es', 'en'], 2], 'back to the page\'s own language: stored, rebuilt');
   const failing = settingsStub({ saveLocale: () => Promise.reject({ code: 'offline' }) });
+  /** @type {number[]} */
   const c2 = [];
   const s2 = setup({ settings: failing, els: { 'sync-btn': { hidden: false, click: () => c2.push(1) } }, locale: 'en' });
   s2.fire('change', { name: 'pf-lang', value: 'es' });
@@ -506,7 +540,7 @@ test('language: its own status line (saving, the rebuild note, a coarse reason);
   const st = settingsStub();
   const els = { 'pf-lang-msg': fakeEl(), 'pf-goal-msg': fakeEl() };
   setup({ profile: { ...FULL, goals: GOALS }, nutri: nutriStub(), settings: st, els });
-  const emit = (last) => st.fns.forEach((fn) => fn({ last }));
+  const emit = (/** @type {unknown} */ last) => st.fns.forEach((fn) => fn({ last }));
   emit({ what: 'locale', status: 'saving' });
   assert.equal(els['pf-lang-msg'].textContent, 'Saving…');
   emit({ what: 'locale', status: 'saved' });
@@ -532,7 +566,7 @@ const NO_STRAVA = buildProfile({
 });
 
 test('Strava never connected (empty placeholder snapshot): no gear block, no Strava wording anywhere, viewer-worded devices hint (en/es)', () => {
-  for (const [locale, T] of [['en', enP], ['es', esP]]) {
+  for (const [locale, T] of /** @type {[string, typeof enP][]} */ ([['en', enP], ['es', esP]])) {
     const h = html(setup({ profile: NO_STRAVA, locale }));
     assert.doesNotMatch(h, /Strava/, `${locale}: Strava is not connected`);
     assert.ok(!h.includes('>' + T.gear.heading + '<'), `${locale}: no gear section`);
@@ -554,8 +588,9 @@ test('owner unchanged: with a real Strava snapshot the gear block, the Strava de
 });
 
 test('no profile copy names a file path, a repo folder or a JSON file (a server user has no clone)', () => {
+  /** @param {object} o @param {string} [p] @returns {[string, unknown][]} */
   const leaves = (o, p = '') => Object.entries(o).flatMap(([k, v]) => (v && typeof v === 'object' ? leaves(v, p + k + '.') : [[p + k, v]]));
-  for (const [locale, dict] of [['es', esP], ['en', enP]]) {
+  for (const [locale, dict] of /** @type {[string, typeof enP][]} */ ([['es', esP], ['en', enP]])) {
     for (const [k, v] of leaves(dict)) {
       assert.doesNotMatch(String(v), /loop-data\/|services\/|[\w-]+\.(json|md|mjs|js)\b|README/, `${locale}.${k}: ${v}`);
     }

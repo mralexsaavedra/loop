@@ -14,27 +14,36 @@ import { clientScriptSource } from '../client-bundle.mjs';
 // a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
 const source = clientScriptSource('progress.ts');
 const CUT = PROGRESS_CASES[0].metric; // 80 -> 78 kg over 41 days, ending 2030-02-10
+/** @param {unknown} html */
 const text = (html) => String(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
 
+/** @param {string} iso */
 function fixedDate(iso) {
   const RealDate = Date;
   return class extends RealDate {
-    constructor(...a) { if (a.length) super(...a); else super(iso + 'T12:00:00'); }
+    /** @param {unknown[]} a the arguments the page script passes to `new Date(...)` */
+    constructor(...a) { if (a.length) super(.../** @type {ConstructorParameters<DateConstructor>} */ (a)); else super(iso + 'T12:00:00'); }
     static now() { return new RealDate(iso + 'T12:00:00').getTime(); }
   };
 }
+/** @param {number | null} target @param {boolean} [ready] */
 function settingsStub(target, ready = true) {
+  /** @type {((e: unknown) => void)[]} */
   const fns = [];
-  return { fns, ready: () => ready, targetWeight: () => target, onChange: (fn) => fns.push(fn) };
+  return { fns, ready: () => ready, targetWeight: () => target, onChange: (/** @type {(e: unknown) => void} */ fn) => fns.push(fn) };
 }
-function run({ weight = CUT, goal = 'cut', settings = null, locale = 'en', today = '2030-02-10', detail } = {}) {
+/** @typedef {import('../../test/dom-stub.mjs').StubElement & {innerHTML: string}} Host a stub element the script renders into */
+/** @param {{weight?: unknown, goal?: string, settings?: unknown, locale?: string, today?: string, detail?: unknown}} [opts] */
+function run({ weight = /** @type {unknown} */ (CUT), goal = 'cut', settings = null, locale = 'en', today = '2030-02-10', detail } = {}) {
   const doc = new StubDocument();
-  const host = doc.el('nutri-progress');
-  const info = doc.el('nutri-progress-info');
+  const host = /** @type {Host} */ (doc.el('nutri-progress'));
+  const info = /** @type {Host} */ (doc.el('nutri-progress-info'));
   info.hidden = true; // as served (Dia.astro)
   const btn = doc.el('nutri-progress-i', { attrs: { 'aria-expanded': 'false' } });
+  /** @type {import('node:vm').Context} the script's window (a vm global: untyped by nature) */
   const window = { HCNutri: { state: () => ({ goal }) } };
   if (settings) window.HCSettings = settings;
+  /** @type {import('node:vm').Context} */
   const ctx = {
     document: doc, window, LOCALE: locale,
     NUTRI: { goal: 'maintain', progress: PROGRESS }, I18N_NUTRI: locale === 'es' ? esN : enN,
@@ -47,6 +56,7 @@ function run({ weight = CUT, goal = 'cut', settings = null, locale = 'en', today
   return { host, info, btn, window, P: window.HCProgress };
 }
 // the card (numbers + labels) and the section's ⓘ block (the why, the rate window, the method)
+/** @param {ReturnType<typeof run>} r */
 const both = (r) => ({ card: text(r.host.innerHTML), info: text(r.info.innerHTML) });
 
 test('parity: the page (HC_PROG via window.HCProgress) computes exactly what lib/nutrition/progress.mjs computes', () => {
@@ -56,7 +66,7 @@ test('parity: the page (HC_PROG via window.HCProgress) computes exactly what lib
     assert.deepEqual(JSON.parse(JSON.stringify(P.rollPoints(c.metric))), rollPoints(c.metric), 'rollPoints ' + c.name);
     assert.deepEqual(JSON.parse(JSON.stringify(P.weeklyRate(rollPoints(c.metric)))), weeklyRate(rollPoints(c.metric)), 'weeklyRate ' + c.name);
   }
-  for (const [d, w] of [['2030-02-10', [6, 12]], ['2030-12-20', [1.5, 3]], ['2030-02-10', null], ['x', [1, 2]]]) {
+  for (const [d, w] of /** @type {[string, number[] | null][]} */ ([['2030-02-10', [6, 12]], ['2030-12-20', [1.5, 3]], ['2030-02-10', null], ['x', [1, 2]]])) {
     assert.deepEqual(JSON.parse(JSON.stringify(P.etaMonths(d, w))), etaMonths(d, w), d);
   }
 });
@@ -115,7 +125,7 @@ test('statuses: the wrong way and faster than safe say so plainly (word on the c
 });
 
 test('few readings and stale weigh-ins: no rate claimed, no ETA', () => {
-  const few = PROGRESS_CASES.find((c) => c.name === 'few readings').metric;
+  const few = /** @type {(typeof PROGRESS_CASES)[number]} */ (PROGRESS_CASES.find((c) => c.name === 'few readings')).metric;
   const r = both(run({ weight: few, today: '2030-01-10', settings: settingsStub(75) }));
   assert.match(r.card, /Too few data/);
   assert.match(r.info, /Too few data for a rate: it needs 8 averages over at least 21 days \(there are 9\)\./);

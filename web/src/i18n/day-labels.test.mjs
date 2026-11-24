@@ -41,7 +41,7 @@ test('S7 personalNutriText / shownDayTypes: short runs, rides and hybrid session
   assert.equal(t.dayTypes.indoor, 'Bici ~1 h');
   assert.equal(t.dayShort.hybrid, 'HYROX / CrossFit');
   assert.equal(t.dayTypes.gym, es.dayTypes.gym, 'unused: unchanged');
-  for (const d of ['hybrid', 'indoor', 'run']) assert.equal(t.autoRaised[d], es.sportText.autoRaised);
+  for (const d of /** @type {const} */ (['hybrid', 'indoor', 'run'])) assert.equal(t.autoRaised[d], es.sportText.autoRaised);
   assert.deepEqual(shownDayTypes(DAY_TYPES, sports), ['rest', 'hybrid', 'indoor', 'run']);
 });
 
@@ -49,7 +49,7 @@ test('personalNutriText: ride-only wording becomes sport-neutral; the input dict
   const before = JSON.stringify(es);
   const t = personalNutriText(es, SPORTS_A, 'es');
   assert.equal(JSON.stringify(es), before);
-  for (const d of ['gym', 'bike', 'bikeLong']) assert.equal(t.autoRaised[d], es.sportText.autoRaised);
+  for (const d of /** @type {const} */ (['gym', 'bike', 'bikeLong'])) assert.equal(t.autoRaised[d], es.sportText.autoRaised);
   assert.equal(t.why.ride, es.sportText.rideWhy);
   assert.equal(t.why.workout, es.why.workout);
   assert.equal(t.fuel.durationLabel, es.sportText.durationLabel);

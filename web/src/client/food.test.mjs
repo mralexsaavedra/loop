@@ -22,8 +22,24 @@ const source = FOOD_SOURCE; // the four food scripts, in page order
 const ING = JSON.parse(fs.readFileSync(path.join(here, '../../../data/nutrition/ingredients.json'), 'utf8')).ingredients;
 const BASICS = { es: buildBasics(ING, 'es'), en: buildBasics(ING, 'en') };
 const TODAY = '2030-01-10';
+/** A StubElement as these tests use it: dom-stub defines innerHTML / textContent with Object.defineProperty
+ * (invisible to tsc), and the food scripts read / write an input's value.
+ * @typedef {import('../../test/dom-stub.mjs').StubElement & { innerHTML: string, textContent: string, value: string,
+ *   disabled: boolean, focus: () => void }} El */
+/** The StubDocument the food scripts run against, with the extras a test hangs on it.
+ * @typedef {{ el: (id: string | null | undefined, opts?: import('../../test/dom-stub.mjs').StubElementOpts) => El,
+ *   getElementById: (id: string) => El | null, addEventListener: (t: string, fn: Function) => void, hidden: boolean }
+ *   & StubDocument} Doc */
+/** The vm globals (window / context) the client scripts read and write: an untyped boundary.
+ * @typedef {Record<string, any>} VmGlobals */
+/** The fetch init a vm script passes (method, headers, body): an untyped boundary. @typedef {Record<string, any>} Init */
+/** One recorded request; `body` is the parsed JSON. @typedef {{ key: string, init: Init, body: any }} Call */
+/** A stubbed fetch response. @typedef {{ ok: boolean, status: number, json: () => Promise<any> }} Res */
+/** A route answer: a response, an Error to throw, or a function of (init, nth call).
+ * @typedef {Res | Error | ((init: Init, n: number) => Res | Error | Promise<Res>)} Route */
 const flush = async () => { for (let i = 0; i < 10; i++) await new Promise((r) => setImmediate(r)); };
-const text = (html) => String(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+const text = (/** @type {unknown} */ html) => String(html).replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+/** @param {unknown} body @returns {Res} */
 const json = (body, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => JSON.parse(JSON.stringify(body)) });
 
 const YOG = { id: 1, name: 'Yogur natural', brand: 'Hacendado', store: 'mercadona', barcode: null, unit: 'g', per100: { kcal: 60, protein: 10, carbs: 4, fat: 0.2 }, servingSize: 125, source: 'label' };
@@ -33,19 +49,25 @@ const RECIPE = { id: 9, name: 'Porridge', kind: 'serving', servings: 2, cookedWe
 const ENTRY = { id: 50, date: TODAY, meal: 'breakfast', refType: 'product', refId: 1, label: 'Yogur natural', amount: 1, unit: 'serving', kcal: 75, protein: 12.5, carbs: 5, fat: 0.3 };
 const TOTALS1 = { kcal: 75, protein: 12.5, carbs: 5, fat: 0.3, count: 1, missing: { protein: false, carbs: false, fat: false } };
 
+/** @param {string} iso */
 function fixedDate(iso, time = '12:00:00') {
   const RealDate = Date;
   return class extends RealDate {
-    constructor(...a) { if (a.length) super(...a); else super(iso + 'T' + time); }
+    /** @param {...(string | number | Date)} a */
+    constructor(...a) { if (a.length) super(.../** @type {[string]} */ (a)); else super(iso + 'T' + time); }
     static now() { return new RealDate(iso + 'T' + time).getTime(); }
   };
 }
 
-/** routes: { 'GET /api/food/products': response | fn(init, n) | Error }; unknown -> network error */
+/** routes: { 'GET /api/food/products': response | fn(init, n) | Error }; unknown -> network error
+ * @param {{ routes?: Record<string, Route>, locale?: string, fetchImpl?: Function, extraIds?: string[], time?: string,
+ *   basics?: unknown, location?: unknown, foodConst?: unknown }} [opts] */
 function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], time, basics, location, foodConst = FOOD_CONST } = {}) {
+  /** @type {Call[]} */
   const calls = [];
+  /** @type {Record<string, number>} */
   const counts = {};
-  const fetch = fetchImpl || (async (url, init = {}) => {
+  const fetch = fetchImpl || (async (/** @type {string} */ url, /** @type {Init} */ init = {}) => {
     const key = `${init.method || 'GET'} ${url}`;
     calls.push({ key, init, body: init.body ? JSON.parse(init.body) : undefined });
     counts[key] = (counts[key] || 0) + 1;
@@ -55,35 +77,43 @@ function setup({ routes = {}, locale = 'es', fetchImpl, extraIds = [], time, bas
     if (res instanceof Error) throw res;
     return res;
   });
-  const doc = new StubDocument();
+  const doc = /** @type {Doc} */ (new StubDocument());
+  /** @type {Record<string, Function[]>} */
   const listeners = {};
   doc.addEventListener = (t, fn) => { (listeners[t] = listeners[t] || []).push(fn); };
-  const fire = (type, target, extra = {}) => (listeners[type] || []).forEach((fn) => fn({ type, target, preventDefault() {}, ...extra }));
+  const fire = (/** @type {string} */ type, /** @type {unknown} */ target, extra = {}) => (listeners[type] || []).forEach((fn) => fn({ type, target, preventDefault() {}, ...extra }));
+  /** @type {Record<string, El>} */
   const els = {};
   for (const id of ['food-log', 'food-msg', 'fp-body', 'fp-msg', 'fr-body', 'fr-msg', ...extraIds]) els[id] = doc.el(id);
   for (const id of ['food-log-block', 'food-products', 'food-recipes']) els[id] = doc.el(id, { hidden: true });
   // the day navigator (static markup in Dia.astro): prev / next / back to today + the live date label
-  for (const [id, act] of [['food-day-prev', 'day-prev'], ['food-day-next', 'day-next'], ['food-day-today', 'day-today']]) els[id] = doc.el(id, { tag: 'button', attrs: { 'data-food-act': act } });
+  for (const [id, act] of /** @type {[string, string][]} */ ([['food-day-prev', 'day-prev'], ['food-day-next', 'day-next'], ['food-day-today', 'day-today']])) els[id] = doc.el(id, { tag: 'button', attrs: { 'data-food-act': act } });
   els['food-day-label'] = doc.el('food-day-label');
+  /** @type {string[]} */
   const hooks = [];
+  /** @type {any[][]} */
   const opened = [];
+  /** @type {VmGlobals} */
   const window = {
     HCNutri: { refresh: () => hooks.push('nutri') },
     intakeRefresh: () => hooks.push('intake'),
-    HCDetail: { open: (key, date, opts) => opened.push([key, opts]), close: () => opened.push(['close']) },
+    HCDetail: { open: (/** @type {string} */ key, /** @type {string} */ date, /** @type {unknown} */ opts) => opened.push([key, opts]), close: () => opened.push(['close']) },
   };
+  /** @type {VmGlobals} */
   const ctx = {
-    document: doc, window, I18N_FOOD: locale === 'es' ? esF : enF, FOOD_CONST: foodConst, FOOD_BASICS: basics === undefined ? BASICS[locale] : basics,
+    document: doc, window, I18N_FOOD: locale === 'es' ? esF : enF, FOOD_CONST: foodConst, FOOD_BASICS: basics === undefined ? BASICS[/** @type {'es' | 'en'} */ (locale)] : basics,
     LOCALE: locale, I18N_DATE: locale === 'es' ? esDate : enDate, Date: fixedDate(TODAY, time), Math, JSON, Number, String, Object, Array, Promise, isFinite, fetch, Uint8Array, setTimeout, clearTimeout,
     ...(location ? { location } : {}),
   };
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
-  const button = (attrs) => doc.el(null, { tag: 'button', attrs });
-  const input = (id, value) => { const el = doc.el(id, { tag: 'input' }); el.value = value; return el; };
+  const button = (/** @type {Record<string, string>} */ attrs) => doc.el(null, { tag: 'button', attrs });
+  const input = (/** @type {string} */ id, /** @type {string} */ value) => { const el = doc.el(id, { tag: 'input' }); el.value = value; return el; };
   return { ctx, doc, els, calls, window, hooks, opened, fire, button, input, F: window.HCFood };
 }
+
+/** @typedef {ReturnType<typeof setup>} Setup */
 
 const BOOT = {
   'GET /api/food/products': json({ products: [YOG, MILK, OATS] }),
@@ -109,12 +139,13 @@ test('no food API (artifact, file://, example build): everything stays hidden, n
 });
 
 test('HCFood.pending(): true while the boot request is in flight, false once it answers or fails; each re-renders the rings', async () => {
+  /** @type {((v?: unknown) => void) | undefined} */
   let release;
   const gate = new Promise((r) => { release = r; });
   const t = setup({ routes: { ...BOOT, 'GET /api/food/products': () => gate.then(() => BOOT['GET /api/food/products']) } });
   assert.equal(t.F.pending(), true, 'set synchronously at load, before intake.ts renders');
   assert.equal(t.F.ready(), false);
-  release();
+  /** @type {(v?: unknown) => void} */ (release)();
   await flush();
   assert.equal(t.F.pending(), false);
   assert.equal(t.F.ready(), true);
@@ -128,6 +159,7 @@ test('HCFood.pending(): true while the boot request is in flight, false once it 
 
 test('no fetch at all: the script still defines a null foodTotals and touches nothing', () => {
   const doc = new StubDocument();
+  /** @type {VmGlobals} */
   const ctx = { document: doc, window: {}, I18N_FOOD: esF, FOOD_CONST, LOCALE: 'es', Date: fixedDate(TODAY) };
   vm.createContext(ctx);
   loadUtil(ctx);
@@ -171,7 +203,7 @@ test('Registrar: pre / post workout and snack entries show in Añadidos with a t
   const t = setup({ routes: { ...BOOT, [`GET /api/food/log?date=${TODAY}`]: json({ date: TODAY, entries: [ENTRY, pre, snack, dinner], totals }) } });
   await flush();
   const html = t.els['food-log'].innerHTML;
-  const groups = Object.fromEntries(html.split('<section class="food-meal" ').slice(1).map((s) => [s.match(/aria-labelledby="fm-h-(\w+)"/)[1], s]));
+  const groups = Object.fromEntries(html.split('<section class="food-meal" ').slice(1).map((s) => [/** @type {RegExpMatchArray} */ (s.match(/aria-labelledby="fm-h-(\w+)"/))[1], s]));
   assert.deepEqual(Object.keys(groups), ['breakfast', 'lunch', 'dinner', 'addon']);
   assert.match(groups.addon, /Plátano<\/span><span class="fe-slot">Pre-entreno<\/span>/);
   assert.match(groups.addon, /Café<\/span><span class="fe-slot">Tentempié<\/span>/);
@@ -209,10 +241,11 @@ test('the add sheet: opens on the tapped meal, lists products by store, filters 
 });
 
 test('adding a product: live preview with the shared formula, POST with the local date, then refresh + announce + close', async () => {
+  /** @type {any} */
   let posted;
   const routes = {
     ...BOOT,
-    'POST /api/food/log': (init) => {
+    'POST /api/food/log': (/** @type {Init} */ init) => {
       posted = JSON.parse(init.body);
       return json({ entry: { ...ENTRY, id: 51, meal: 'lunch', label: 'Leche', refId: 2, amount: 250, unit: 'ml', kcal: 115, protein: 8.5, carbs: 12, fat: 4 }, totals: { ...TOTALS1, kcal: 190, protein: 21, carbs: 17, fat: 4.3, count: 2 } }, 201);
     },
@@ -235,7 +268,7 @@ test('adding a product: live preview with the shared formula, POST with the loca
   assert.match(posted.requestId, /^[A-Za-z0-9-]{8,64}$/, 'every add carries its request id');
   delete posted.requestId;
   assert.deepEqual(posted, { date: TODAY, meal: 'lunch', refType: 'product', refId: 2, amount: 250, unit: 'ml' });
-  const post = t.calls.find((c) => c.key === 'POST /api/food/log');
+  const post = /** @type {Call} */ (t.calls.find((c) => c.key === 'POST /api/food/log'));
   assert.equal(post.init.headers['Content-Type'], 'application/json');
   assert.equal(post.init.headers['X-HC-Food'], '1');
   assert.deepEqual(t.opened.at(-1), ['close']);
@@ -270,19 +303,20 @@ test('switching a product to servings sets the amount to 1; back to its unit set
   assert.match(t.els['fa-panel'].innerHTML, /<option value="g" selected>g<\/option><option value="serving">/);
   t.input('fa-amt', '25');
   t.fire('change', t.input('fa-unit', 'serving'));
-  assert.equal(t.doc.getElementById('fa-amt').value, '1', '25 typed as grams never becomes 25 servings');
+  assert.equal(/** @type {El} */ (t.doc.getElementById('fa-amt')).value, '1', '25 typed as grams never becomes 25 servings');
   assert.match(text(t.els['fa-prev'].innerHTML), /149 kcal/);
   t.input('fa-amt', '2');
   t.fire('change', t.input('fa-unit', 'g'));
-  assert.equal(t.doc.getElementById('fa-amt').value, '40', 'back to grams = one serving in grams');
+  assert.equal(/** @type {El} */ (t.doc.getElementById('fa-amt')).value, '40', 'back to grams = one serving in grams');
   assert.match(text(t.els['fa-prev'].innerHTML), /149 kcal/);
   t.fire('change', t.input('fa-unit', 'g'));
-  assert.equal(t.doc.getElementById('fa-amt').value, '40', 'the same unit again changes nothing');
+  assert.equal(/** @type {El} */ (t.doc.getElementById('fa-amt')).value, '40', 'the same unit again changes nothing');
 });
 
 test('a recipe entry is logged in servings; a quick entry sends only what the user typed', async () => {
+  /** @type {any[]} */
   const bodies = [];
-  const routes = { ...BOOT, 'POST /api/food/log': (init) => { const b = JSON.parse(init.body); delete b.requestId; bodies.push(b); return json({ entry: { ...ENTRY, id: 60 + bodies.length }, totals: TOTALS1 }, 201); } };
+  const routes = { ...BOOT, 'POST /api/food/log': (/** @type {Init} */ init) => { const b = JSON.parse(init.body); delete b.requestId; bodies.push(b); return json({ entry: { ...ENTRY, id: 60 + bodies.length }, totals: TOTALS1 }, 201); } };
   const t = setup({ routes, extraIds: ['fa-panel', 'fa-prev', 'fa-msg'] });
   await flush();
   t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'dinner' }));
@@ -313,7 +347,7 @@ test('save errors: offline keeps the sheet and the log untouched; atwater offers
   let n = 0;
   const routes = {
     ...BOOT,
-    'POST /api/food/log': (init) => {
+    'POST /api/food/log': (/** @type {Init} */ init) => {
       n++;
       if (n === 1) return new TypeError('Failed to fetch');
       if (n === 2) return json({ error: 'atwater' }, 400);
@@ -333,14 +367,14 @@ test('save errors: offline keeps the sheet and the log untouched; atwater offers
   t.fire('click', t.button({ 'data-food-act': 'save' }));
   await flush();
   assert.equal(t.els['fa-msg'].textContent, esF.errors.offline);
-  assert.equal(t.opened.at(-1)[0], 'food-add', 'the sheet stays open');
+  assert.equal(/** @type {unknown[]} */ (t.opened.at(-1))[0], 'food-add', 'the sheet stays open');
   assert.equal(t.window.foodTotals().n, 1, 'nothing half-saved');
   t.fire('click', t.button({ 'data-food-act': 'save' }));
   await flush();
   assert.match(t.els['fa-msg'].innerHTML, /data-food-act="save-force"/);
   t.fire('click', t.button({ 'data-food-act': 'save-force' }));
   await flush();
-  assert.equal(t.calls.filter((c) => c.key === 'POST /api/food/log').at(-1).body.force, true);
+  assert.equal(/** @type {Call} */ (t.calls.filter((c) => c.key === 'POST /api/food/log').at(-1)).body.force, true);
   assert.deepEqual(t.opened.at(-1), ['close']);
 });
 
@@ -350,7 +384,7 @@ test('deleting an entry: DELETE with the header, the entry leaves, totals recomp
   t.hooks.length = 0;
   t.fire('click', t.button({ 'data-food-act': 'del', 'data-id': '50' }));
   await flush();
-  const del = t.calls.find((c) => c.key === 'DELETE /api/food/log/50');
+  const del = /** @type {Call} */ (t.calls.find((c) => c.key === 'DELETE /api/food/log/50'));
   assert.equal(del.init.headers['X-HC-Food'], '1');
   assert.doesNotMatch(t.els['food-log'].innerHTML, /data-id="50"/);
   assert.equal(t.window.foodTotals(), null, 'no entries left: back to the Apple Health intake');
@@ -380,11 +414,12 @@ test('Mis productos: grouped by store with per-100 macros, edit / archive button
 
 test('Open Food Facts: a barcode result shows what OFF has, marks what is missing, and saves only after the user confirms', async () => {
   const offProduct = { code: '8480000123456', name: 'Yogur griego', brand: 'Demo', stores: 'Mercadona', unit: 'g', per100: { kcal: 130, protein: 6, carbs: 4, fat: null }, servingSize: 125, complete: false };
+  /** @type {any[]} */
   let posted = [];
   const routes = {
     ...BOOT,
     'GET /api/food/off?barcode=8480000123456': json({ product: offProduct }),
-    'POST /api/food/products': (init) => {
+    'POST /api/food/products': (/** @type {Init} */ init) => {
       const b = JSON.parse(init.body);
       posted.push(b);
       return b.force ? json({ product: { ...b, id: 4, per100: b.per100 } }, 201) : json({ error: 'atwater' }, 400);
@@ -435,8 +470,9 @@ test('a product form with a missing required value is not sent', async () => {
 });
 
 test('Mis recetas: per-serving macros listed; the editor previews with the shared formula and saves ingredients', async () => {
+  /** @type {any} */
   let posted;
-  const routes = { ...BOOT, 'POST /api/food/recipes': (init) => { posted = JSON.parse(init.body); return json({ recipe: { ...RECIPE, id: 10, name: posted.name } }, 201); } };
+  const routes = { ...BOOT, 'POST /api/food/recipes': (/** @type {Init} */ init) => { posted = JSON.parse(init.body); return json({ recipe: { ...RECIPE, id: 10, name: posted.name } }, 201); } };
   const t = setup({ routes, extraIds: ['frf-prev'] });
   await flush();
   assert.match(text(t.els['fr-body'].innerHTML), /Porridge.*218 kcal/);
@@ -461,7 +497,7 @@ test('en locale: the English copy and a decimal point', async () => {
   assert.match(text(t.els['food-log'].innerHTML), /P 12\.5 · C 5 · F 0\.3/);
 });
 
-const entry = (o) => ({ ...ENTRY, ...o });
+const entry = (/** @type {Record<string, unknown>} */ o) => ({ ...ENTRY, ...o });
 
 test('foodTotals: a macro NO entry states is null (a dash, never 0); a macro SOME entries lack keeps its sum, flagged as a minimum', async () => {
   const quick = [entry({ id: 1, refType: 'quick', protein: null, carbs: null, fat: null, kcal: 250 }), entry({ id: 2, refType: 'quick', protein: null, carbs: null, fat: null, kcal: 100 })];
@@ -513,7 +549,7 @@ test('idempotent add: one request id per pending add, reused on a retry after an
   assert.match(ids[0], /^[A-Za-z0-9-]{8,64}$/);
   assert.ok(ids.every((id) => id === ids[0]), 'the same pending add keeps its id');
   // the re-read may already have brought the row in: a replayed entry replaces, never duplicates
-  const rows = t.window.HCFood.state().log.entries.filter((e) => e.id === 80);
+  const rows = t.window.HCFood.state().log.entries.filter((/** @type {{ id: number }} */ e) => e.id === 80);
   assert.equal(rows.length, 1);
   // a NEW add gets a new id
   t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'snack' }));
@@ -523,12 +559,12 @@ test('idempotent add: one request id per pending add, reused on a retry after an
   t.input('fa-kcal', '50');
   t.fire('click', t.button({ 'data-food-act': 'save' }));
   await flush();
-  assert.notEqual(t.calls.filter((c) => c.key === 'POST /api/food/log').at(-1).body.requestId, ids[0]);
+  assert.notEqual(/** @type {Call} */ (t.calls.filter((c) => c.key === 'POST /api/food/log').at(-1)).body.requestId, ids[0]);
 });
 
 test('the request id works without crypto.randomUUID (plain http on the LAN is not a secure context)', async () => {
   const t = setup({ routes: { ...BOOT, 'POST /api/food/log': json({ entry: entry({ id: 90 }), totals: TOTALS1 }, 201) }, extraIds: ['fa-panel', 'fa-msg'] });
-  t.ctx.crypto = { getRandomValues: (a) => { for (let i = 0; i < a.length; i++) a[i] = i * 17; return a; } };
+  t.ctx.crypto = { getRandomValues: (/** @type {Uint8Array} */ a) => { for (let i = 0; i < a.length; i++) a[i] = i * 17; return a; } };
   await flush();
   t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'snack' }));
   t.window.HCViews['food-add'].render();
@@ -537,7 +573,7 @@ test('the request id works without crypto.randomUUID (plain http on the LAN is n
   t.input('fa-kcal', '1');
   t.fire('click', t.button({ 'data-food-act': 'save' }));
   await flush();
-  assert.match(t.calls.find((c) => c.key === 'POST /api/food/log').body.requestId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
+  assert.match(/** @type {Call} */ (t.calls.find((c) => c.key === 'POST /api/food/log')).body.requestId, /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/);
 });
 
 test('a delete answered 404 (already gone, e.g. a double tap) removes the row silently', async () => {
@@ -558,9 +594,10 @@ test('limits come baked from lib/nutrition/foodlog.mjs (FOOD_CONST.limits), neve
 
 /* ---------- number parsing, unit suffixes, inline field errors ---------- */
 // focus spy: real inputs are built by innerHTML (the stub does not parse it), so tests register them
-const focusSpy = (t) => {
+const focusSpy = (/** @type {Setup} */ t) => {
+  /** @type {string[]} */
   const log = [];
-  const reg = (id, value) => { const el = t.input(id, value); el.focus = () => log.push(id); return el; };
+  const reg = (/** @type {string} */ id, /** @type {string} */ value) => { const el = t.input(id, value); el.focus = () => log.push(id); return el; };
   return { log, reg };
 };
 
@@ -626,11 +663,12 @@ test('product form: the serving field says what it asks, shows the product unit 
 });
 
 test('product form: "g" in the optional serving = not set; units typed after numbers are accepted', async () => {
+  /** @type {any[]} */
   const posted = [];
-  const routes = { ...BOOT, 'POST /api/food/products': (init) => { const b = JSON.parse(init.body); posted.push(b); return json({ product: { ...b, id: 4 + posted.length } }, 201); } };
+  const routes = { ...BOOT, 'POST /api/food/products': (/** @type {Init} */ init) => { const b = JSON.parse(init.body); posted.push(b); return json({ product: { ...b, id: 4 + posted.length } }, 201); } };
   const t = setup({ routes, extraIds: ['fp-form-msg'] });
   await flush();
-  const fill = (serv) => {
+  const fill = (/** @type {string} */ serv) => {
     t.fire('click', t.button({ 'data-food-act': 'p-new' }));
     t.fire('click', t.button({ 'data-food-act': 'p-label' }));
     for (const [id, v] of [['fpf-name', 'Pan'], ['fpf-store', 'dia'], ['fpf-unit', 'g'], ['fpf-kcal', '250 kcal'], ['fpf-p', '9,5 g'], ['fpf-c', '48g'], ['fpf-f', ' 2 '], ['fpf-serv', serv]]) t.input(id, v);
@@ -659,7 +697,7 @@ test('product form: a non-numeric value is an inline error under its field (aria
   assert.equal(t.calls.filter((c) => c.key === 'POST /api/food/products').length, 0);
   for (const el of [carbs, serv]) {
     assert.equal(el.getAttribute('aria-invalid'), 'true');
-    assert.match(el.getAttribute('aria-describedby'), new RegExp(el.getAttribute('id') + '-err'));
+    assert.match(/** @type {string} */ (el.getAttribute('aria-describedby')), new RegExp(el.getAttribute('id') + '-err'));
   }
   assert.equal(t.els['fpf-c-err'].textContent, esF.fieldErrors.number);
   assert.equal(t.els['fpf-serv-err'].textContent, esF.fieldErrors.number);
@@ -691,8 +729,9 @@ test('product form: a server "invalid" with a field lands inline on that field',
 });
 
 test('recipe form: units accepted, an invalid amount is an inline error, the status sits inside the form; the ingredient suffix follows the product', async () => {
+  /** @type {any} */
   let posted;
-  const routes = { ...BOOT, 'POST /api/food/recipes': (init) => { posted = JSON.parse(init.body); return json({ recipe: { ...RECIPE, id: 10, name: posted.name } }, 201); } };
+  const routes = { ...BOOT, 'POST /api/food/recipes': (/** @type {Init} */ init) => { posted = JSON.parse(init.body); return json({ recipe: { ...RECIPE, id: 10, name: posted.name } }, 201); } };
   const t = setup({ routes, extraIds: ['frf-prev', 'fr-form-msg', 'frf-amt-0-err', 'frf-amt-0-unit'] });
   await flush();
   const f = focusSpy(t);
@@ -722,8 +761,9 @@ test('recipe form: units accepted, an invalid amount is an inline error, the sta
 });
 
 test('add sheet: an amount with its unit is accepted; quick entry: a bare unit = not set, a non-number is an inline error', async () => {
+  /** @type {any[]} */
   const bodies = [];
-  const routes = { ...BOOT, 'POST /api/food/log': (init) => { const b = JSON.parse(init.body); delete b.requestId; bodies.push(b); return json({ entry: { ...ENTRY, id: 60 + bodies.length }, totals: TOTALS1 }, 201); } };
+  const routes = { ...BOOT, 'POST /api/food/log': (/** @type {Init} */ init) => { const b = JSON.parse(init.body); delete b.requestId; bodies.push(b); return json({ entry: { ...ENTRY, id: 60 + bodies.length }, totals: TOTALS1 }, 201); } };
   const t = setup({ routes, extraIds: ['fa-panel', 'fa-prev', 'fa-msg', 'fa-p-err'] });
   await flush();
   const f = focusSpy(t);
@@ -785,7 +825,7 @@ test('HCFood.groupTotals: today\'s sums per Registrar group (a missing macro cou
     addon: { k: 105, p: 1.3, c: 27, f: 0 },
   });
   const prods = t.F.products();
-  assert.deepEqual(prods.map((p) => p.id), [1, 2, 3]);
+  assert.deepEqual(prods.map((/** @type {{ id: number }} */ p) => p.id), [1, 2, 3]);
   assert.deepEqual(JSON.parse(JSON.stringify(prods[0])), { id: 1, name: 'Yogur natural', brand: 'Hacendado', unit: 'g', per100: { kcal: 60, protein: 10, carbs: 4, fat: 0.2 } });
   prods[0].name = 'x';
   assert.equal(t.F.products()[0].name, 'Yogur natural', 'a copy');
@@ -795,9 +835,10 @@ test('HCFood.groupTotals: today\'s sums per Registrar group (a missing macro cou
 });
 
 test('HCFood.addGuide: a basic = ONE quick entry in that meal (pieces when it has them), macros from the basics formula; Registrar + Plan de hoy refresh', async () => {
+  /** @type {any[]} */
   const bodies = [];
   const saved = { ...ENTRY, id: 70, meal: 'lunch', refType: 'quick', label: 'Pechuga de pollo · 195 g', kcal: 213, protein: 44.7, carbs: 0, fat: 4.5 };
-  const routes = { ...BOOT, 'POST /api/food/log': (init) => { bodies.push(JSON.parse(init.body)); return json({ entry: saved, totals: TOTALS1 }); } };
+  const routes = { ...BOOT, 'POST /api/food/log': (/** @type {Init} */ init) => { bodies.push(JSON.parse(init.body)); return json({ entry: saved, totals: TOTALS1 }); } };
   const t = setup({ routes, extraIds: ['food-add-lunch'] });
   await flush();
   t.hooks.length = 0;
@@ -820,8 +861,9 @@ test('HCFood.addGuide: a basic = ONE quick entry in that meal (pieces when it ha
 });
 
 test('HCFood.addGuide: an owner product = a product entry (the server applies its formula)', async () => {
+  /** @type {any[]} */
   const bodies = [];
-  const routes = { ...BOOT, 'POST /api/food/log': (init) => { bodies.push(JSON.parse(init.body)); return json({ entry: { ...ENTRY, id: 71 }, totals: TOTALS1 }); } };
+  const routes = { ...BOOT, 'POST /api/food/log': (/** @type {Init} */ init) => { bodies.push(JSON.parse(init.body)); return json({ entry: { ...ENTRY, id: 71 }, totals: TOTALS1 }); } };
   const t = setup({ routes });
   await flush();
   await t.F.addGuide({ group: 'dinner', food: 'p:2', amt: 210 });
@@ -830,9 +872,10 @@ test('HCFood.addGuide: an owner product = a product entry (the server applies it
 });
 
 test('HCFood.addGuide: an ambiguous failure keeps the request id for the retry (no duplicate); a refusal or bad input sends nothing new', async () => {
+  /** @type {any[]} */
   const bodies = [];
   let n = 0;
-  const routes = { ...BOOT, 'POST /api/food/log': (init) => { bodies.push(JSON.parse(init.body)); n++; return n === 1 ? new TypeError('offline') : json({ entry: { ...ENTRY, id: 72 }, totals: TOTALS1 }); } };
+  const routes = { ...BOOT, 'POST /api/food/log': (/** @type {Init} */ init) => { bodies.push(JSON.parse(init.body)); n++; return n === 1 ? new TypeError('offline') : json({ entry: { ...ENTRY, id: 72 }, totals: TOTALS1 }); } };
   const t = setup({ routes });
   await flush();
   await assert.rejects(t.F.addGuide({ group: 'lunch', food: 'b:arroz', amt: 150 }));
@@ -853,11 +896,12 @@ test('HCFood.addGuide: an ambiguous failure keeps the request id for the retry (
 
 /* ---------- basics: generic foods of the public food DB, searched next to the user's products ---------- */
 const BASIC_IDS = ['fa-panel', 'fa-prev', 'fa-msg', 'fa-list', 'fa-amt-err', 'food-add-breakfast', 'food-add-addon'];
+/** @param {Setup} t */
 function openProducts(t, meal = 'breakfast') {
   t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': meal }));
   return t.window.HCViews['food-add'].render().body;
 }
-const pickBasic = (t, key) => t.fire('click', t.button({ 'data-food-act': 'pick', 'data-kind': 'basic', 'data-id': key }));
+const pickBasic = (/** @type {Setup} */ t, /** @type {string} */ key) => t.fire('click', t.button({ 'data-food-act': 'pick', 'data-kind': 'basic', 'data-id': key }));
 
 test('parity: the page computes exactly what lib/nutrition/foodlog.mjs computes for a basic', () => {
   const { F } = setup({ fetchImpl: async () => { throw new TypeError('x'); } });
@@ -944,10 +988,10 @@ test('a basic opens the amount panel in its natural unit: 1 piece for an egg (to
   t.fire('input', t.input('fa-amt', '2'));
   assert.match(text(t.els['fa-prev'].innerHTML), /Huevo · 2 ud \(~100 g\) 144 kcal · P 12,6 · C 0,8 · G 10/);
   t.fire('change', t.input('fa-unit', 'g'));
-  assert.equal(t.doc.getElementById('fa-amt').value, '100', 'switching to grams keeps the same amount of food');
+  assert.equal(/** @type {El} */ (t.doc.getElementById('fa-amt')).value, '100', 'switching to grams keeps the same amount of food');
   assert.match(text(t.els['fa-prev'].innerHTML), /Huevo · 100 g 144 kcal/);
   t.fire('change', t.input('fa-unit', 'piece'));
-  assert.equal(t.doc.getElementById('fa-amt').value, '2');
+  assert.equal(/** @type {El} */ (t.doc.getElementById('fa-amt')).value, '2');
 });
 
 test('a basic without a piece is weighed in its own unit, prefilled with 100 (ml for a liquid, never grams)', async () => {
@@ -963,10 +1007,11 @@ test('a basic without a piece is weighed in its own unit, prefilled with 100 (ml
 });
 
 test('saving a basic: ONE quick entry with all four macros and the amount in its label, through the request-id flow', async () => {
+  /** @type {any[]} */
   const bodies = [];
   const routes = {
     ...BOOT,
-    'POST /api/food/log': (init) => {
+    'POST /api/food/log': (/** @type {Init} */ init) => {
       bodies.push(JSON.parse(init.body));
       if (bodies.length === 1) return new TypeError('Failed to fetch');
       return json({ entry: entry({ id: 90, refType: 'quick', label: 'Huevo · 2 ud (~100 g)', kcal: 144, protein: 12.6, carbs: 0.8, fat: 10 }), totals: { ...TOTALS1, kcal: 219, count: 2 } }, 201);
@@ -1012,8 +1057,9 @@ test('a basic with an invalid or absurd amount is not sent; the error lands unde
 });
 
 test('en locale: basics in English, "pc" in the label, a decimal point', async () => {
+  /** @type {any[]} */
   const bodies = [];
-  const routes = { ...BOOT, 'POST /api/food/log': (init) => { bodies.push(JSON.parse(init.body)); return json({ entry: entry({ id: 91 }), totals: TOTALS1 }, 201); } };
+  const routes = { ...BOOT, 'POST /api/food/log': (/** @type {Init} */ init) => { bodies.push(JSON.parse(init.body)); return json({ entry: entry({ id: 91 }), totals: TOTALS1 }, 201); } };
   const t = setup({ routes, locale: 'en', extraIds: BASIC_IDS });
   await flush();
   openProducts(t);
@@ -1029,7 +1075,7 @@ test('en locale: basics in English, "pc" in the label, a decimal point', async (
 });
 
 /* ---------- Mis recetas: the ingredient picker also offers the public basics ---------- */
-const rPick = (t, i, kind, id) => t.fire('click', t.button({ 'data-food-act': 'r-pick', 'data-i': String(i), 'data-kind': kind, 'data-id': String(id) }));
+const rPick = (/** @type {Setup} */ t, /** @type {number} */ i, /** @type {string} */ kind, /** @type {number | string} */ id) => t.fire('click', t.button({ 'data-food-act': 'r-pick', 'data-i': String(i), 'data-kind': kind, 'data-id': String(id) }));
 
 test('a basic with a defaultAmt prefills it instead of 100: olive oil opens at 1 ml, in the add sheet and in a recipe row', async () => {
   const t = setup({ routes: BOOT, extraIds: [...BASIC_IDS, 'frf-prev'] });
@@ -1069,8 +1115,9 @@ test('recipe picker: an empty search lists Mis productos (+ a hint); typing adds
 });
 
 test('recipe with a product + a basic in pieces + a basic in grams: natural units, pieces <-> grams toggle, live preview, the snapshot is sent', async () => {
+  /** @type {any} */
   let posted;
-  const routes = { ...BOOT, 'POST /api/food/recipes': (init) => { posted = JSON.parse(init.body); return json({ recipe: { ...RECIPE, id: 11, name: posted.name, ingredients: posted.ingredients } }, 201); } };
+  const routes = { ...BOOT, 'POST /api/food/recipes': (/** @type {Init} */ init) => { posted = JSON.parse(init.body); return json({ recipe: { ...RECIPE, id: 11, name: posted.name, ingredients: posted.ingredients } }, 201); } };
   const t = setup({ routes, extraIds: ['frf-prev'] });
   await flush();
   t.fire('click', t.button({ 'data-food-act': 'r-new' }));
@@ -1087,14 +1134,14 @@ test('recipe with a product + a basic in pieces + a basic in grams: natural unit
   t.input('frf-amt-1', '2');
   // pieces -> grams converts the typed amount, grams -> pieces back
   t.fire('change', t.input('frf-mode-1', 'g'));
-  assert.equal(t.doc.getElementById('frf-amt-1').value, '100');
+  assert.equal(/** @type {El} */ (t.doc.getElementById('frf-amt-1')).value, '100');
   t.fire('change', t.input('frf-mode-1', 'piece'));
-  assert.equal(t.doc.getElementById('frf-amt-1').value, '2');
+  assert.equal(/** @type {El} */ (t.doc.getElementById('frf-amt-1')).value, '2');
   t.fire('click', t.button({ 'data-food-act': 'r-add-ing' }));
   rPick(t, 2, 'basic', 'platano');
   t.input('frf-amt-2', '1');
   t.fire('change', t.input('frf-mode-2', 'g'));
-  assert.equal(t.doc.getElementById('frf-amt-2').value, '120', 'one medium banana ~120 g');
+  assert.equal(/** @type {El} */ (t.doc.getElementById('frf-amt-2')).value, '120', 'one medium banana ~120 g');
   t.fire('input', t.input('frf-amt-2', '240'));
   assert.match(text(t.els['frf-prev'].innerHTML), /Por ración: 326 kcal · P 12,7 · C 50,9 · G 8,2/, 'the shared formula: the same numbers as the server');
   t.fire('click', t.button({ 'data-food-act': 'r-save' }));
@@ -1108,8 +1155,9 @@ test('recipe with a product + a basic in pieces + a basic in grams: natural unit
 });
 
 test('a basic counted in grams is stored in units of that food (60 g of egg = 1.2), and "Cambiar" goes back to the search', async () => {
+  /** @type {any} */
   let posted;
-  const routes = { ...BOOT, 'POST /api/food/recipes': (init) => { posted = JSON.parse(init.body); return json({ recipe: { ...RECIPE, id: 12 } }, 201); } };
+  const routes = { ...BOOT, 'POST /api/food/recipes': (/** @type {Init} */ init) => { posted = JSON.parse(init.body); return json({ recipe: { ...RECIPE, id: 12 } }, 201); } };
   const t = setup({ routes, extraIds: ['frf-prev'] });
   await flush();
   t.fire('click', t.button({ 'data-food-act': 'r-new' }));
@@ -1133,8 +1181,9 @@ test('editing a recipe with basics: listed with name + "valor medio" and the amo
   const old = { ...EGG_SNAP, per100: { ...EGG_SNAP.per100, kcal: 70 } };
   const MIXED = { id: 20, name: 'Tortilla', kind: 'serving', servings: 2, cookedWeightG: null, complete: true, perServing: { kcal: 284, protein: 14.4, carbs: 23.9, fat: 12.8 }, per100: null,
     ingredients: [{ productId: 3, amount: 80, name: 'Avena', unit: 'g' }, old, { basic: 'leche', name: 'Leche', unit: 'ml', amount: 200, per100: { kcal: 46, protein: 3.4, carbs: 4.8, fat: 1.7 } }] };
+  /** @type {any} */
   let put;
-  const routes = { ...BOOT, 'GET /api/food/recipes': json({ recipes: [MIXED] }), 'PUT /api/food/recipes/20': (init) => { put = JSON.parse(init.body); return json({ recipe: MIXED }); } };
+  const routes = { ...BOOT, 'GET /api/food/recipes': json({ recipes: [MIXED] }), 'PUT /api/food/recipes/20': (/** @type {Init} */ init) => { put = JSON.parse(init.body); return json({ recipe: MIXED }); } };
   const t = setup({ routes, extraIds: ['frf-prev'] });
   await flush();
   const list = text(t.els['fr-body'].innerHTML);
@@ -1151,8 +1200,9 @@ test('editing a recipe with basics: listed with name + "valor medio" and the amo
 });
 
 test('recipe save: a basic snapshot that fails the Atwater check offers "save anyway" and resends with force', async () => {
+  /** @type {any[]} */
   const bodies = [];
-  const routes = { ...BOOT, 'POST /api/food/recipes': (init) => { const b = JSON.parse(init.body); bodies.push(b); return b.force ? json({ recipe: { ...RECIPE, id: 13 } }, 201) : json({ error: 'atwater' }, 400); } };
+  const routes = { ...BOOT, 'POST /api/food/recipes': (/** @type {Init} */ init) => { const b = JSON.parse(init.body); bodies.push(b); return b.force ? json({ recipe: { ...RECIPE, id: 13 } }, 201) : json({ error: 'atwater' }, 400); } };
   const t = setup({ routes, extraIds: ['frf-prev', 'fr-form-msg'] });
   await flush();
   t.fire('click', t.button({ 'data-food-act': 'r-new' }));
@@ -1255,9 +1305,10 @@ test('day navigator: next walks forward, back to today jumps home and is hidden 
 });
 
 test('adding on a past day: the sheet names the date, the POST sends that date, today\'s totals and Resumen stay untouched', async () => {
+  /** @type {any} */
   let posted;
   const saved = { ...YENTRY, id: 71, meal: 'lunch', label: 'Ensalada', kcal: 150, protein: null, carbs: null, fat: null };
-  const routes = { ...NAV, 'POST /api/food/log': (init) => { posted = JSON.parse(init.body); return json({ entry: saved, totals: { ...YTOTALS, kcal: 950, count: 2 } }, 201); } };
+  const routes = { ...NAV, 'POST /api/food/log': (/** @type {Init} */ init) => { posted = JSON.parse(init.body); return json({ entry: saved, totals: { ...YTOTALS, kcal: 950, count: 2 } }, 201); } };
   const t = setup({ routes, extraIds: ['fa-panel', 'fa-prev', 'fa-msg', 'food-add-lunch'] });
   await flush();
   t.fire('click', t.els['food-day-prev']);
@@ -1297,7 +1348,7 @@ test('adding on a past day: an ambiguous failure re-reads THAT day (same request
   await flush();
   t.fire('click', t.els['food-day-prev']);
   await flush();
-  const reads = (d) => t.calls.filter((c) => c.key === `GET /api/food/log?date=${d}`).length;
+  const reads = (/** @type {string} */ d) => t.calls.filter((c) => c.key === `GET /api/food/log?date=${d}`).length;
   const today0 = reads(TODAY), yday0 = reads(YDAY);
   t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'addon' }));
   t.window.HCViews['food-add'].render();
@@ -1314,7 +1365,7 @@ test('adding on a past day: an ambiguous failure re-reads THAT day (same request
   assert.equal(posts.length, 2);
   assert.ok(posts.every((b) => b.date === YDAY && b.requestId === posts[0].requestId));
   assert.equal(t.F.state().log.entries.length, 1, 'today untouched');
-  assert.equal(t.F.state().log.entries.filter((e) => e.id === 72).length, 0);
+  assert.equal(t.F.state().log.entries.filter((/** @type {{ id: number }} */ e) => e.id === 72).length, 0);
 });
 
 test('deleting on a past day: that day\'s row leaves, today\'s log and totals stay', async () => {
@@ -1337,9 +1388,10 @@ test('deleting on a past day: that day\'s row leaves, today\'s log and totals st
 });
 
 test('HCFood.addGuide always logs to today, also while another day is viewed', async () => {
+  /** @type {any} */
   let posted;
   const saved = { ...ENTRY, id: 73, meal: 'lunch', label: 'Arroz', kcal: 350 };
-  const t = setup({ routes: { ...NAV, 'POST /api/food/log': (init) => { posted = JSON.parse(init.body); return json({ entry: saved, totals: { ...TOTALS1, kcal: 425, count: 2 } }, 201); } } });
+  const t = setup({ routes: { ...NAV, 'POST /api/food/log': (/** @type {Init} */ init) => { posted = JSON.parse(init.body); return json({ entry: saved, totals: { ...TOTALS1, kcal: 425, count: 2 } }, 201); } } });
   await flush();
   t.fire('click', t.els['food-day-prev']);
   await flush();
@@ -1351,6 +1403,7 @@ test('HCFood.addGuide always logs to today, also while another day is viewed', a
 });
 
 test('a slow response for a day already left never overwrites the current view', async () => {
+  /** @type {((v?: unknown) => void) | undefined} */
   let releaseY;
   const slowY = new Promise((r) => { releaseY = r; });
   const routes = {
@@ -1365,12 +1418,13 @@ test('a slow response for a day already left never overwrites the current view',
   t.fire('click', t.els['food-day-prev']); // the day before: fast
   await flush();
   assert.match(t.els['food-log'].innerHTML, /Lentejas/);
-  releaseY(json({ date: YDAY, entries: [YENTRY], totals: YTOTALS }));
+  /** @type {(v?: unknown) => void} */ (releaseY)(json({ date: YDAY, entries: [YENTRY], totals: YTOTALS }));
   await flush();
   assert.equal(t.els['food-day-label'].textContent, 'mar 8 ene');
   assert.match(t.els['food-log'].innerHTML, /Lentejas/);
   assert.doesNotMatch(t.els['food-log'].innerHTML, /Pizza/);
   // and a slow past day that lands after going back to today is ignored too
+  /** @type {((v: Res) => void) | undefined} */
   let releaseY2;
   const t2 = setup({ routes: { ...NAV, [`GET /api/food/log?date=${YDAY}`]: () => new Promise((r) => { releaseY2 = r; }) } });
   await flush();
@@ -1378,7 +1432,7 @@ test('a slow response for a day already left never overwrites the current view',
   await flush();
   t2.fire('click', t2.els['food-day-today']);
   await flush();
-  releaseY2(json({ date: YDAY, entries: [YENTRY], totals: YTOTALS }));
+  /** @type {(v: Res) => void} */ (releaseY2)(json({ date: YDAY, entries: [YENTRY], totals: YTOTALS }));
   await flush();
   assert.equal(t2.els['food-day-label'].textContent, 'Hoy');
   assert.match(t2.els['food-log'].innerHTML, /Yogur natural/);
@@ -1467,9 +1521,10 @@ test('a sheet opened on "today" logs to the today of the SAVE (23:58 -> 00:02), 
 });
 
 test('a sheet opened on a past day keeps that day even when the save happens after midnight', async () => {
+  /** @type {any} */
   let posted;
   const saved = { ...YENTRY, id: 92, label: 'Fruta', kcal: 60 };
-  const routes = { ...NAV, 'POST /api/food/log': (init) => { posted = JSON.parse(init.body); return json({ entry: saved, totals: { ...YTOTALS, kcal: 860, count: 2 } }, 201); } };
+  const routes = { ...NAV, 'POST /api/food/log': (/** @type {Init} */ init) => { posted = JSON.parse(init.body); return json({ entry: saved, totals: { ...YTOTALS, kcal: 860, count: 2 } }, 201); } };
   const t = setup({ routes, extraIds: ['fa-panel', 'fa-prev', 'fa-msg'], time: '23:58:00' });
   await flush();
   t.fire('click', t.els['food-day-prev']);
@@ -1487,6 +1542,7 @@ test('a sheet opened on a past day keeps that day even when the save happens aft
 });
 
 test('a delete in flight survives a re-fetch of its day: the row leaves the CURRENT log (past day, and today with Resumen refreshed)', async () => {
+  /** @type {((v: Res) => void) | undefined} */
   let releaseDel;
   const t = setup({ routes: { ...NAV, 'DELETE /api/food/log/70': () => new Promise((r) => { releaseDel = r; }), [`GET /api/food/log?date=${YDAY2}`]: json({ date: YDAY2, entries: [], totals: YTOTALS }) } });
   await flush();
@@ -1499,13 +1555,14 @@ test('a delete in flight survives a re-fetch of its day: the row leaves the CURR
   t.fire('click', t.els['food-day-next']); // yesterday is read again, the row still there
   await flush();
   assert.match(t.els['food-log'].innerHTML, /data-id="70"/);
-  releaseDel(json({ ok: true }));
+  /** @type {(v: Res) => void} */ (releaseDel)(json({ ok: true }));
   await flush();
   assert.doesNotMatch(t.els['food-log'].innerHTML, /data-id="70"/);
   assert.equal(t.F.state().dayLog.entries.length, 0);
   assert.match(text(t.els['food-log'].innerHTML), /Total del día 0 kcal/);
 
   // today: the log is re-read (an ambiguous guide add) while the delete is pending
+  /** @type {((v: Res) => void) | undefined} */
   let releaseToday;
   const d = setup({
     routes: {
@@ -1522,7 +1579,7 @@ test('a delete in flight survives a re-fetch of its day: the row leaves the CURR
   await flush();
   assert.notEqual(d.F.state().log, before, 'today\'s log object was replaced by the re-read');
   d.hooks.length = 0;
-  releaseToday(json({ ok: true }));
+  /** @type {(v: Res) => void} */ (releaseToday)(json({ ok: true }));
   await flush();
   assert.equal(d.F.state().log.entries.length, 0);
   assert.equal(d.window.foodTotals(), null);
@@ -1549,6 +1606,7 @@ test('a failed past-day load offers Reintentar (re-reads that day); a stale fail
   await flush();
   assert.equal(n, 2);
 
+  /** @type {((v: Res) => void) | undefined} */
   let failLate;
   const s = setup({ routes: { ...NAV, [`GET /api/food/log?date=${YDAY}`]: () => new Promise((r) => { failLate = r; }), [`GET /api/food/log?date=${YDAY2}`]: json({ date: YDAY2, entries: [], totals: YTOTALS }) } });
   await flush();
@@ -1556,7 +1614,7 @@ test('a failed past-day load offers Reintentar (re-reads that day); a stale fail
   await flush();
   s.fire('click', s.els['food-day-prev']);
   await flush();
-  failLate(json({ error: 'internal' }, 500));
+  /** @type {(v: Res) => void} */ (failLate)(json({ error: 'internal' }, 500));
   await flush();
   assert.doesNotMatch(s.els['food-log'].innerHTML, /day-retry/);
   assert.equal(s.els['food-msg'].textContent, '');
@@ -1577,8 +1635,8 @@ test('HCFood.api is the one food API client (header, JSON, coarse codes) for set
   const t = setup({ routes: { ...BOOT, 'PUT /api/food/settings': json({ error: 'invalid', field: 'goal' }, 400) } });
   await flush();
   assert.equal(t.F.ready(), true);
-  await assert.rejects(t.F.api('PUT', '/settings', { goal: 'x' }), (e) => e.code === 'invalid' && e.field === 'goal' && e.status === 400);
-  const put = t.calls.find((c) => c.key === 'PUT /api/food/settings');
+  await assert.rejects(t.F.api('PUT', '/settings', { goal: 'x' }), (/** @type {any} */ e) => e.code === 'invalid' && e.field === 'goal' && e.status === 400);
+  const put = /** @type {Call} */ (t.calls.find((c) => c.key === 'PUT /api/food/settings'));
   assert.equal(put.init.headers['X-HC-Food'], '1');
   assert.equal(put.init.headers['Content-Type'], 'application/json');
   assert.deepEqual(put.body, { goal: 'x' });
@@ -1620,9 +1678,9 @@ test('parseNum takes a trailing kg on a kg field (the target weight), never on a
 });
 
 /* ---------- late night: before LATE_NIGHT_HOUR the evening still belongs to the day before ---------- */
-const sheetMeal = (t) => {
+const sheetMeal = (/** @type {Setup} */ t) => {
   t.fire('click', t.button({ 'data-food-act': 'add' }));
-  return /<option value="(\w+)" selected>/.exec(t.window.HCViews['food-add'].render().body)[1];
+  return /** @type {RegExpExecArray} */ (/<option value="(\w+)" selected>/.exec(t.window.HCViews['food-add'].render().body))[1];
 };
 
 test('late night: the lib cutoff is 04:00', () => {
@@ -1631,9 +1689,10 @@ test('late night: the lib cutoff is 04:00', () => {
 
 for (const time of ['00:30:00', '03:59:00']) {
   test(`late night (${time}): the navigator opens on yesterday, "Hoy" shows, the sheet guesses dinner and logs to yesterday`, async () => {
+    /** @type {any} */
     let posted;
     const saved = { ...YENTRY, id: 93, label: 'Cena', kcal: 500 };
-    const routes = { ...NAV, 'POST /api/food/log': (init) => { posted = JSON.parse(init.body); return json({ entry: saved, totals: { ...YTOTALS, kcal: 1300, count: 2 } }, 201); } };
+    const routes = { ...NAV, 'POST /api/food/log': (/** @type {Init} */ init) => { posted = JSON.parse(init.body); return json({ entry: saved, totals: { ...YTOTALS, kcal: 1300, count: 2 } }, 201); } };
     const t = setup({ routes, time, extraIds: ['fa-panel', 'fa-prev', 'fa-msg'] });
     await flush();
     assert.equal(t.els['food-day-label'].textContent, 'mié 9 ene');
@@ -1702,7 +1761,7 @@ test('late night: a viewer on "today" who comes back after midnight lands on the
 
 /* ---------- the intake rings' past day (HCFood.recentDay): the most recent food-log day in the window ---------- */
 const SUMMARY_URL = 'GET /api/food/log/summary?from=2030-01-07&to=2030-01-10';
-const sumDay = (date, k, extra = {}) => ({ date, k, p: 80, c: 120, f: 40, n: 3, missing: { p: false, c: false, f: false }, groups: { breakfast: 1, lunch: 1, dinner: 1, addon: 0 }, ...extra });
+const sumDay = (/** @type {string} */ date, /** @type {number} */ k, extra = {}) => ({ date, k, p: 80, c: 120, f: 40, n: 3, missing: { p: false, c: false, f: false }, groups: { breakfast: 1, lunch: 1, dinner: 1, addon: 0 }, ...extra });
 
 test('recentDay: null without the food API; nothing requested', async () => {
   const t = setup();
@@ -1721,7 +1780,7 @@ test('recentDay: reads the summary of the window once (lazily), then returns the
   assert.deepEqual(t.hooks, ['intake'], 'the rings re-render once the summary answers');
   assert.deepEqual(JSON.parse(JSON.stringify(t.F.recentDay(3))), { date: '2030-01-09', k: 1800, p: 95.5, c: null, g: 40, n: 3, missing: { protein: true, carbs: true, fat: false }, src: 'log' });
   assert.equal(t.calls.filter((c) => c.key === SUMMARY_URL).length, 1, 'read once');
-  assert.equal(t.calls.find((c) => c.key === SUMMARY_URL).init.headers['X-HC-Food'], '1');
+  assert.equal(/** @type {Call} */ (t.calls.find((c) => c.key === SUMMARY_URL)).init.headers['X-HC-Food'], '1');
 });
 
 test('recentDay: an empty window or a failed read is null (no retry loop); an add / delete re-reads it', async () => {
@@ -1773,19 +1832,20 @@ test('a product marked servingDefault starts the add sheet in servings (amount 1
   assert.match(t.els['fa-panel'].innerHTML, /id="fa-amt"[^>]*value="1"/, 'one serving to start');
   t.input('fa-amt', '1');
   t.fire('change', t.input('fa-unit', 'g'));
-  assert.equal(t.doc.getElementById('fa-amt').value, '40', 'to grams = one serving in grams');
+  assert.equal(/** @type {El} */ (t.doc.getElementById('fa-amt')).value, '40', 'to grams = one serving in grams');
   // a product without the flag keeps grams first (unchanged)
   t.fire('click', t.button({ 'data-food-act': 'pick', 'data-kind': 'product', 'data-id': '1' }));
   assert.match(t.els['fa-panel'].innerHTML, /<option value="g" selected>g<\/option><option value="serving">/);
 });
 
 test('product form: the "log by serving" switch is sent as servingDefault: true, prefilled on edit, and left out when off', async () => {
+  /** @type {any[]} */
   const put = [];
   const flagged = { ...YOG, servingDefault: true };
   const routes = {
     ...BOOT,
     'GET /api/food/products': json({ products: [flagged, MILK, OATS] }),
-    'PUT /api/food/products/1': (init) => { const b = JSON.parse(init.body); put.push(b); return json({ product: { ...flagged, ...b, id: 1 } }); },
+    'PUT /api/food/products/1': (/** @type {Init} */ init) => { const b = JSON.parse(init.body); put.push(b); return json({ product: { ...flagged, ...b, id: 1 } }); },
   };
   const t = setup({ routes, extraIds: ['fp-form-msg'] });
   await flush();
@@ -1806,14 +1866,17 @@ test('product form: the "log by serving" switch is sent as servingDefault: true,
 });
 
 /* ---------- the add sheet from the keyboard (WS-77) ---------- */
+/** @param {Parameters<typeof setup>[0]} [extra] */
 function keyboardSheet(extra = {}) {
   const t = setup({ routes: { ...BOOT, 'GET /api/food/recipes': json({ recipes: [RECIPE, { ...RECIPE, id: 10, name: 'Sin terminar', complete: false }, { ...RECIPE, id: 11, name: 'Batido' }] }) }, extraIds: ['fa-panel', 'fa-list', 'fa-prev', 'fa-msg'], ...extra });
   const sheet = t.doc.el(null, { classes: ['fa'] });
+  /** @type {(string | null)[]} */
   const focused = [];
-  const inSheet = (el) => { el.parent = sheet; el.focus = () => focused.push(el.getAttribute('id') || el.getAttribute('data-tab')); return el; };
+  const inSheet = (/** @type {El} */ el) => { el.parent = sheet; el.focus = () => focused.push(el.getAttribute('id') || el.getAttribute('data-tab')); return el; };
   const q = inSheet(t.input('fa-q', ''));
   const tabs = ['products', 'recipes', 'quick'].map((k) => inSheet(t.doc.el(null, { tag: 'button', classes: ['fa-tab'], attrs: { 'data-food-act': 'tab', 'data-tab': k } })));
-  const key = (k, target = q, mods = {}) => {
+  const key = (/** @type {string} */ k, /** @type {unknown} */ target = q, /** @type {Record<string, unknown>} */ mods = {}) => {
+    /** @type {{ key: string, target: unknown, defaultPrevented: boolean, preventDefault?: () => void } & Record<string, unknown>} */
     const e = { key: k, target, defaultPrevented: false, ...mods };
     e.preventDefault = () => { e.defaultPrevented = true; }; // fire() hands the listeners a copy
     t.fire('keydown', target, e);
@@ -1821,12 +1884,12 @@ function keyboardSheet(extra = {}) {
   };
   return { ...t, q, tabs, key, focused, inSheet };
 }
-const openSheet = async (t) => {
+const openSheet = async (/** @type {Setup} */ t) => {
   await flush();
   t.fire('click', t.button({ 'data-food-act': 'add', 'data-meal': 'lunch' }));
   t.window.HCViews['food-add'].render();
 };
-const active = (html) => (/<button[^>]*data-active="true"[^>]*data-id="([^"]+)"/.exec(html) || [])[1] || null;
+const active = (/** @type {string} */ html) => (/<button[^>]*data-active="true"[^>]*data-id="([^"]+)"/.exec(html) || [])[1] || null;
 
 test('keyboard: ArrowDown / ArrowUp in the search move a highlight over the items in list order (wrapping), the focus stays in the field', async () => {
   const t = keyboardSheet();
@@ -1920,7 +1983,7 @@ test('keyboard: on Recetas (no search) ArrowDown from a tab focuses the highligh
   for (const n of [0, 1]) t.inSheet(t.doc.el('fa-opt-' + n, { tag: 'button', classes: ['fa-item'] }));
   t.key('ArrowDown', t.tabs[1]);
   assert.equal(active(t.els['fa-list'].innerHTML), '9');
-  t.key('ArrowDown', t.doc.getElementById('fa-opt-0'));
+  t.key('ArrowDown', /** @type {El} */ (t.doc.getElementById('fa-opt-0')));
   assert.equal(active(t.els['fa-list'].innerHTML), '11', 'Sin terminar (incomplete, disabled) is skipped');
   assert.deepEqual(t.focused.slice(-2), ['fa-opt-0', 'fa-opt-1'], 'the item takes the focus: Enter presses it');
   assert.doesNotMatch(t.els['fa-list'].innerHTML, /id="fa-opt-\d+"[^>]*data-id="10"/, 'the incomplete recipe gets no option id');

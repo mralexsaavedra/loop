@@ -11,20 +11,31 @@ import { clientScriptSource } from '../client-bundle.mjs';
 
 // a module script: run the bytes the page inlines (web/src/client-bundle.mjs)
 const source = clientScriptSource('home-order.ts');
+/** @param {unknown} x @returns {any} JSON round-trip of a value the vm script built */
 const plain = (x) => JSON.parse(JSON.stringify(x));
 const KEY = 'hc-home-v1';
 
+/** @param {Record<string, string>} [init] @param {{broken?: boolean}} [opts] */
 function storage(init = {}, { broken = false } = {}) {
+  /** @type {Record<string, string>} */
   const data = { ...init };
   return {
     data,
-    getItem: (k) => { if (broken) throw new Error('denied'); return k in data ? data[k] : null; },
-    setItem: (k, v) => { if (broken) throw new Error('denied'); data[k] = String(v); },
+    getItem: (/** @type {string} */ k) => { if (broken) throw new Error('denied'); return k in data ? data[k] : null; },
+    setItem: (/** @type {string} */ k, /** @type {unknown} */ v) => { if (broken) throw new Error('denied'); data[k] = String(v); },
   };
 }
 // the Inicio panel as built: dials, tiles, the six movable blocks, the "Customize Home" row, Hoy's source
+/**
+ * @typedef {{sel: string, parentNode: PanelParent, classList: {add: (c: string) => unknown, remove: (c: string) => boolean, contains: (c: string) => boolean,
+ *   toggle: (c: string, on?: boolean) => void}}} PanelNode
+ * @typedef {{children: PanelNode[], insertBefore: (n: PanelNode, ref: PanelNode | null) => void}} PanelParent
+ */
+/** @param {{without?: string[]}} [opts] */
 function panel({ without = [] } = {}) {
+  /** @type {PanelNode[]} */
   const kids = [];
+  /** @type {PanelParent} */
   const parent = {
     children: kids,
     insertBefore(n, ref) {
@@ -35,8 +46,11 @@ function panel({ without = [] } = {}) {
       n.parentNode = parent;
     },
   };
+  /** @param {string} sel */
   const node = (sel) => {
+    /** @type {Set<string>} */
     const cls = new Set();
+    /** @type {PanelNode} */
     const n = { sel, parentNode: parent, classList: { add: (c) => cls.add(c), remove: (c) => cls.delete(c), contains: (c) => cls.has(c),
       toggle: (c, on) => { if (on === undefined ? !cls.has(c) : on) cls.add(c); else cls.delete(c); } } };
     kids.push(n);
@@ -44,20 +58,25 @@ function panel({ without = [] } = {}) {
   };
   ['#home-dials', '#home-tiles', '#my-day', '.eat-card', '#home-tonight', '#my-journal', '#my-plan', '#my-dash', '#home-cust', '[data-section="hoy"]']
     .filter((s) => !without.includes(s)).forEach(node);
-  return { parent, find: (sel) => kids.find((n) => n.sel === sel) || null, order: () => kids.map((n) => n.sel) };
+  // find: null when absent (the script's lookups); the tests only read blocks they built
+  return { parent, find: (/** @type {string} */ sel) => /** @type {PanelNode} */ (kids.find((n) => n.sel === sel) || null), order: () => kids.map((n) => n.sel) };
 }
+/** @param {{locale?: string, ls?: ReturnType<typeof storage>, dom?: ReturnType<typeof panel>, noStorage?: boolean}} [opts] */
 function load({ locale = 'en', ls = storage(), dom = panel(), noStorage = false } = {}) {
+  /** @type {Record<string, (e: unknown) => void>} */
   const listeners = {};
+  /** @type {unknown[][]} */
   const opened = [];
+  /** @type {import('node:vm').Context} */
   const ctx = {
     document: {
       readyState: 'complete',
-      querySelector: (s) => dom.find(s),
-      getElementById: (id) => dom.find('#' + id),
-      addEventListener: (e, f) => { listeners[e] = f; },
+      querySelector: (/** @type {string} */ s) => dom.find(s),
+      getElementById: (/** @type {string} */ id) => dom.find('#' + id),
+      addEventListener: (/** @type {string} */ e, /** @type {(e: unknown) => void} */ f) => { listeners[e] = f; },
     },
     I18N_SCORE: locale === 'es' ? esT : enT, LOCALE: locale,
-    HCDetail: { open: (k, d, o) => opened.push([k, o && o.focus]) },
+    HCDetail: { open: (/** @type {string} */ k, /** @type {unknown} */ d, /** @type {{focus?: unknown} | undefined} */ o) => opened.push([k, o && o.focus]) },
     Math, String, Number, Array, Object, JSON,
   };
   if (!noStorage) ctx.localStorage = ls;
@@ -65,7 +84,8 @@ function load({ locale = 'en', ls = storage(), dom = panel(), noStorage = false 
   vm.createContext(ctx);
   loadUtil(ctx);
   vm.runInContext(source, ctx);
-  const click = (attrs) => listeners.click({ target: { closest: (s) => (s === '[data-home-act]' ? { getAttribute: (k) => attrs[k] } : null) } });
+  /** @param {Record<string, string>} attrs */
+  const click = (attrs) => listeners.click({ target: { closest: (/** @type {string} */ s) => (s === '[data-home-act]' ? { getAttribute: (/** @type {string} */ k) => attrs[k] } : null) } });
   return { ctx, dom, ls, click, opened };
 }
 const BUILT = ['#home-dials', '#home-tiles', '#my-day', '.eat-card', '#home-tonight', '#my-journal', '#my-plan', '#my-dash', '#home-cust', '[data-section="hoy"]'];

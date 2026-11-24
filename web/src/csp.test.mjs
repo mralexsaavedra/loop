@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { addCsp, cspFor, delegateLegacyHandlers, inlineHandlers, scriptHashes } from './csp.mjs';
 
+/** @param {string} s */
 const sha = (s) => `'sha256-${createHash('sha256').update(s, 'utf8').digest('base64')}'`;
 const page = '<!DOCTYPE html><html><head><meta charset="utf-8"><style>a{}</style></head><body><script>var A=1;</script><script>var B="é";</script></body></html>';
 
@@ -13,7 +14,7 @@ test('scriptHashes: the sha256 of every inline script body, in order (UTF-8 byte
 test('cspFor: hashes only for scripts, never unsafe-inline; a page without scripts gets script-src none', () => {
   const p = cspFor(page);
   assert.match(p, new RegExp(`script-src ${sha('var A=1;').replace(/[+/]/g, '\\$&')} `));
-  assert.doesNotMatch(p.split('; ').find((d) => d.startsWith('script-src')), /unsafe/);
+  assert.doesNotMatch(/** @type {string} */ (p.split('; ').find((d) => d.startsWith('script-src'))), /unsafe/);
   assert.match(cspFor('<p></p>'), /script-src 'none'/);
   assert.equal(cspFor(page + '<script>var A=1;</script>').split(sha('var A=1;')).length, 2, 'a repeated script is listed once');
 });

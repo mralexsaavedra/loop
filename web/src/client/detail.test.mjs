@@ -21,7 +21,26 @@ import { buildDials } from '../view/dial.mjs';
 import { addDays } from '../../../lib/date.mjs';
 import { clientScriptSource } from '../client-bundle.mjs';
 
-const format = (tpl, vars) => tpl.replace(/\{(\w+)\}/g, (_, k) => (vars[k] != null ? vars[k] : ''));
+/** @param {string} tpl @param {Record<string, unknown>} vars @returns {string} */
+const format = (tpl, vars) => tpl.replace(/\{(\w+)\}/g, (_, /** @type {string} */ k) => (vars[k] != null ? String(vars[k]) : ''));
+
+/** A StubElement as the sheet's tests use it: dom-stub defines innerHTML / textContent with
+ * Object.defineProperty (invisible to tsc), and a test may hang focus / scroll / query stubs on it.
+ * @typedef {StubElement & { innerHTML: string, textContent: string, focused: number, focus: () => void,
+ *   scrolled: number, value: string, querySelector: (sel: string) => unknown,
+ *   querySelectorAll: (sel: string) => unknown[] }} El */
+/** @typedef {import('../../../lib/detail/detail.mjs').Dense} Dense */
+/** @typedef {import('../../../lib/detail/detail.mjs').DetailSession} DetailSession */
+/** @typedef {import('../../../lib/detail/detail.mjs').DetailBake} DetailBake */
+/** @typedef {import('../view/dial.mjs').DialModalityOut} DialModalityOut */
+/** @typedef {import('../view/dial.mjs').DialTrendOut} DialTrendOut */
+/** @typedef {Extract<NonNullable<typeof DEMO_SCORES.strain>, {K: number}>} StrainOk */
+/** @typedef {import('../../../lib/score/stress.mjs').StressOk} StressOk */
+/** @typedef {import('../../../lib/score/energy-bank.mjs').EnergyOk} EnergyOk */
+/** @typedef {import('../../../lib/score/energy-bank.mjs').EnergyDayOk} EnergyDayOk */
+/** A stress day over the minimum scored hours (the demo's recent days): every per-day field is set.
+ * @typedef {import('../../../lib/score/stress.mjs').StressDay & { rhr: number, avg: number, band: 'low' | 'medium' | 'high',
+ *   now: { t: string, v: number, band: 'low' | 'medium' | 'high' }, mins: { low: number, medium: number, high: number } }} ScoredStressDay */
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 // the sheet shell (the Tab trap's selector lives there); the vm runs the whole set, DETAIL_SOURCE
@@ -33,20 +52,36 @@ const coreSource = clientScriptSource('core.ts');
 // the synthetic demo extract, read once (lib/extract/read.mjs) like the page build
 const DEMO_INPUTS = readExtract(path.join(here, '..', '..', '..', 'data', 'demo', 'extract'));
 const DEMO = detailFrom(DEMO_INPUTS);
-const NOW = DEMO.asOf; // the viewer opens the page on the demo's newest data day
+const NOW = /** @type {string} */ (DEMO.asOf); // the viewer opens the page on the demo's newest data day
 
+/** @param {Dense} m @param {string} iso */
 const dayIndex = (m, iso) => Math.round((Date.parse(iso + 'T00:00:00Z') - Date.parse(m.start + 'T00:00:00Z')) / 86400000);
+/** @param {Dense} m @param {string} iso */
 const valueOn = (m, iso) => { const i = dayIndex(m, iso); return i >= 0 && i < m.v.length ? m.v[i] : null; };
 
 // parts: true = the sheet's sub-parts (calendar, day panel, chart selection) resolve to stub elements,
 // so a day tap can update them in place; query = extra host.querySelector answers (sel -> element)
+/** @typedef {{ target?: unknown, key?: string, defaultPrevented?: boolean, prevented?: boolean, shiftKey?: boolean,
+ *   preventDefault: () => void } & Record<string, unknown>} StubEvent */
+/** The vm globals (window / context) the client scripts read and write: an untyped boundary.
+ * @typedef {Record<string, any>} VmGlobals */
+/**
+ * @param {{ locale?: string, now?: string, detail?: unknown, hash?: string, backAsync?: boolean, parts?: boolean,
+ *   query?: Record<string, unknown>, views?: unknown, withCore?: boolean, settings?: unknown, dials?: unknown,
+ *   health?: unknown, scores?: unknown }} [opts]
+ */
 function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync = false, parts = false, query = {}, views = null, withCore = false, settings = null, dials = null, health = null, scores = null } = {}) {
+  /** @type {{ doc: Record<string, Function[]>, win: Record<string, Function[]> }} */
   const listeners = { doc: {}, win: {} };
-  const host = new StubElement('div', { attrs: { id: 'detail' }, hidden: true });
+  const host = /** @type {El} */ (new StubElement('div', { attrs: { id: 'detail' }, hidden: true }));
   const closeBtn = { focused: 0, focus() { this.focused++; } };
-  const part = { cal: new StubElement('div'), day: new StubElement('div'), sel: new StubElement('rect') };
+  const part = {
+    cal: /** @type {El} */ (new StubElement('div')),
+    day: /** @type {El} */ (new StubElement('div')),
+    sel: /** @type {El} */ (new StubElement('rect')),
+  };
   let hostWrites = 0;
-  const desc = Object.getOwnPropertyDescriptor(host, 'innerHTML');
+  const desc = /** @type {PropertyDescriptor & { set: (v: unknown) => void }} */ (Object.getOwnPropertyDescriptor(host, 'innerHTML'));
   Object.defineProperty(host, 'innerHTML', { configurable: true, get: desc.get, set: (v) => { hostWrites++; desc.set(v); } });
   host.querySelector = (sel) => {
     if (sel in query) return query[sel];
@@ -57,19 +92,30 @@ function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync =
     return null;
   };
   host.querySelectorAll = () => [];
-  const wrap = new StubElement('div', { classes: ['wrap'] });
-  const heading = { focused: 0, attrs: {}, focus() { this.focused++; }, hasAttribute(k) { return k in this.attrs; }, setAttribute(k, v) { this.attrs[k] = v; } };
-  const panel = { hidden: false, querySelector: (sel) => (sel.includes('h2') ? heading : null) };
-  const root = new StubElement('html');
+  const wrap = /** @type {El} */ (new StubElement('div', { classes: ['wrap'] }));
+  const heading = {
+    focused: 0, attrs: /** @type {Record<string, string>} */ ({}), focus() { this.focused++; },
+    /** @param {string} k */ hasAttribute(k) { return k in this.attrs; },
+    /** @param {string} k @param {string} v */ setAttribute(k, v) { this.attrs[k] = v; },
+  };
+  const panel = { hidden: false, querySelector: (/** @type {string} */ sel) => (sel.includes('h2') ? heading : null) };
+  const root = /** @type {El} */ (new StubElement('html'));
   const loc = { hash, pathname: '/', search: '' };
+  /** @type {unknown[][]} */
   const calls = [];
+  /** @param {'doc' | 'win'} bucket @param {string} type @param {unknown} evt */
   const fire = (bucket, type, evt) => (listeners[bucket][type] || []).forEach((fn) => fn(evt));
+  /** @param {string} url */
   const hashOfUrl = (url) => { const i = String(url).indexOf('#'); return i === -1 ? '' : String(url).slice(i); };
   // the entries below the current one ({state, hash}): Back returns to the previous entry's hash
+  /** @type {{ state: unknown, hash: string }[]} */
   const below = [];
   const history = {
+    /** @type {unknown} */
     state: null,
+    /** @param {unknown} state @param {unknown} _t @param {string} url */
     pushState(state, _t, url) { calls.push(['push', url]); below.push({ state: this.state, hash: loc.hash }); this.state = state; loc.hash = hashOfUrl(url); },
+    /** @param {unknown} state @param {unknown} _t @param {string} url */
     replaceState(state, _t, url) { calls.push(['replace', url]); this.state = state; loc.hash = hashOfUrl(url); },
     back() {
       calls.push(['back']);
@@ -84,33 +130,39 @@ function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync =
       if (backAsync) pendingPops.push(pop); else pop();
     },
   };
+  /** @type {(() => void)[]} */
   const pendingPops = [];
   // withCore: the real core.ts runs first over four tab panels + nav buttons (home shown, as served)
+  /** @type {Record<string, StubElement>} */
   const ids = { detail: host };
   const tabPanels = withCore ? TAB_KEYS.map((t) => {
-    ids['t-' + t] = new StubElement('button', { attrs: t === 'home' ? { 'aria-current': 'page' } : {} });
-    const el = new StubElement('div', { classes: ['tab-panel'], attrs: { 'data-tab': t }, hidden: t !== 'home' });
+    ids['t-' + t] = /** @type {El} */ (new StubElement('button', { attrs: t === 'home' ? { 'aria-current': 'page' } : {} }));
+    const el = /** @type {El} */ (new StubElement('div', { classes: ['tab-panel'], attrs: { 'data-tab': t }, hidden: t !== 'home' }));
     el.querySelector = () => null;
     return el;
   }) : null;
   const doc = {
-    getElementById: (id) => ids[id] || null,
-    querySelector: (sel) => (sel === '.wrap' ? wrap : null),
-    querySelectorAll: (sel) => (sel === '.tab-panel' ? tabPanels || [{ hidden: true, querySelector: () => null }, panel] : []),
-    addEventListener: (t, fn) => { (listeners.doc[t] = listeners.doc[t] || []).push(fn); },
+    getElementById: (/** @type {string} */ id) => ids[id] || null,
+    querySelector: (/** @type {string} */ sel) => (sel === '.wrap' ? wrap : null),
+    querySelectorAll: (/** @type {string} */ sel) => (sel === '.tab-panel' ? tabPanels || [{ hidden: true, querySelector: () => null }, panel] : []),
+    addEventListener: (/** @type {string} */ t, /** @type {Function} */ fn) => { (listeners.doc[t] = listeners.doc[t] || []).push(fn); },
     documentElement: root,
+    /** @type {unknown} */
     activeElement: null,
   };
-  const win = { scrollTo() {}, addEventListener: (t, fn) => { (listeners.win[t] = listeners.win[t] || []).push(fn); } };
+  /** @type {VmGlobals} */
+  const win = { scrollTo() {}, addEventListener: (/** @type {string} */ t, /** @type {Function} */ fn) => { (listeners.win[t] = listeners.win[t] || []).push(fn); } };
   const RealDate = Date;
   class FakeDate extends RealDate {
-    constructor(...a) { super(...(a.length ? a : [now + 'T12:00:00'])); }
+    /** @param {...(string | number | Date)} a */
+    constructor(...a) { super(.../** @type {[string]} */ (a.length ? a : [now + 'T12:00:00'])); }
     static now() { return new RealDate(now + 'T12:00:00').getTime(); }
   }
+  /** @type {VmGlobals} */
   const ctx = {
     document: doc, window: win, history, location: loc,
     DETAIL: detail, I18N_DETAIL: locale === 'es' ? esT : enT, I18N_DATE: locale === 'es' ? esDate : enDate, LOCALE: locale,
-    Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite, parseInt, setTimeout: (fn) => fn(),
+    Date: FakeDate, Math, String, Number, Array, Object, JSON, isFinite, parseInt, setTimeout: (/** @type {() => void} */ fn) => fn(),
   };
   win.history = history;
   if (views) win.HCViews = views;
@@ -132,15 +184,17 @@ function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync =
   return {
     ctx, host, wrap, root, loc, calls, api, closeBtn, part, heading, shownTab,
     hostWrites: () => hostWrites,
-    flushBack: () => { while (pendingPops.length) pendingPops.shift()(); },
-    click: (target) => fire('doc', 'click', { target, preventDefault() {} }),
-    key: (key, target = host) => { const e = { key, target, prevented: false, preventDefault() { this.prevented = true; } }; fire('doc', 'keydown', e); return e; },
-    keyEvent: (e) => fire('doc', 'keydown', e),
+    flushBack: () => { while (pendingPops.length) /** @type {() => void} */ (pendingPops.shift())(); },
+    click: (/** @type {unknown} */ target) => fire('doc', 'click', { target, preventDefault() {} }),
+    key: (/** @type {string} */ key, /** @type {unknown} */ target = host) => { const e = { key, target, prevented: false, preventDefault() { this.prevented = true; } }; fire('doc', 'keydown', e); return e; },
+    keyEvent: (/** @type {StubEvent} */ e) => fire('doc', 'keydown', e),
     popstate: () => fire('win', 'popstate', {}),
-    change: (target) => fire('doc', 'change', { target }),
+    change: (/** @type {unknown} */ target) => fire('doc', 'change', { target }),
   };
 }
-const act = (a, extra = {}) => new StubElement('button', { attrs: { 'data-dt-act': a, ...extra } });
+/** @param {string} a @param {Record<string, string>} [extra] */
+const act = (a, extra = {}) => /** @type {El} */ (new StubElement('button', { attrs: { 'data-dt-act': a, ...extra } }));
+/** @param {string} html */
 const clean = (html) => assert.doesNotMatch(html, /NaN|undefined|null|Infinity|<script|src=|href=/);
 
 test('every DETAIL key of the demo build renders a view: title, latest value + date, range switch, chart, month calendar, no NaN', () => {
@@ -151,7 +205,7 @@ test('every DETAIL key of the demo build renders a view: title, latest value + d
     assert.equal(s.host.hidden, false, key);
     // a dial page's visible title is its day; the metric stays the dialog's label (screen readers)
     const dial = ['sleep', 'recovery', 'strain'].includes(key) || key.startsWith('load-');
-    assert.ok(html.includes(`id="dt-title"><span class="sr-only">${enT.metrics[key].title} · </span>${dial ? '' : enT.trend.title + '<'}`), `${key} title`);
+    assert.ok(html.includes(`id="dt-title"><span class="sr-only">${enT.metrics[/** @type {keyof typeof enT.metrics} */ (key)].title} · </span>${dial ? '' : enT.trend.title + '<'}`), `${key} title`);
     assert.match(html, /class="dt-range"/, `${key} range switch`);
     assert.match(html, /<svg class="dt-chart"/, `${key} chart`);
     assert.match(html, /class="dt-cal"/, `${key} calendar`);
@@ -161,7 +215,7 @@ test('every DETAIL key of the demo build renders a view: title, latest value + d
 
 test('the sheet is an accessible modal: focus moves in, the page behind is inert, Esc closes and focus returns to the opener', () => {
   const s = setup();
-  const opener = new StubElement('div', { attrs: { 'data-detail': 'hrv' } });
+  const opener = /** @type {El} */ (new StubElement('div', { attrs: { 'data-detail': 'hrv' } }));
   opener.focused = 0;
   opener.focus = () => { opener.focused++; };
   assert.equal(s.host.getAttribute('role'), 'dialog');
@@ -191,7 +245,7 @@ test('a key a view already handled (defaultPrevented) is left alone: the add she
 test('history: opening pushes #detail/<metric>[/<date>], Back (popstate) closes, closing pops the pushed entry', () => {
   const s = setup();
   const d = addDays(NOW, -3);
-  s.click(new StubElement('div', { attrs: { 'data-detail': 'sleep', 'data-date': d } }));
+  s.click(/** @type {El} */ (new StubElement('div', { attrs: { 'data-detail': 'sleep', 'data-date': d } })));
   assert.deepEqual(s.calls[0], ['push', `#detail/sleep/${d}`]);
   assert.equal(s.api.state().date, d);
   s.loc.hash = '';
@@ -211,7 +265,7 @@ test('deep link: a page opened with #detail/<metric>/<date> opens that view on l
   assert.equal(s.api.state().date, d);
   assert.equal(s.calls.filter((c) => c[0] === 'push').length, 0);
   s.key('Escape');
-  assert.equal(s.calls.at(-1)[0], 'replace');
+  assert.equal(/** @type {unknown[]} */ (s.calls.at(-1))[0], 'replace');
   assert.equal(s.loc.hash, '');
   // junk hashes are ignored
   assert.equal(setup({ hash: '#detail/nope' }).host.hidden, true);
@@ -219,7 +273,7 @@ test('deep link: a page opened with #detail/<metric>/<date> opens that view on l
 });
 
 test('deep link: a retired key (#detail/load-gym, before gym split into strength + hybrid) opens its replacement', () => {
-  const d = DEMO.sessions.find((x) => x.m === 'strength').d;
+  const d = /** @type {DetailSession} */ (DEMO.sessions.find((x) => x.m === 'strength')).d;
   const s = setup({ withCore: true, hash: `#detail/load-gym/${d}` });
   assert.equal(s.host.hidden, false);
   assert.equal(s.api.state().key, 'load-strength');
@@ -249,7 +303,7 @@ test('walking HR (a daytime signal) shows the day value vs its personal median, 
 
 test('Enter or Space on a card opener opens its view', () => {
   const s = setup();
-  const e = s.key('Enter', new StubElement('div', { attrs: { 'data-detail': 'weight' } }));
+  const e = s.key('Enter', /** @type {El} */ (new StubElement('div', { attrs: { 'data-detail': 'weight' } })));
   assert.equal(e.prevented, true);
   assert.equal(s.api.state().key, 'weight');
 });
@@ -285,11 +339,11 @@ test('range switch: W / M / 6M / 1Y, opens on M; the pressed button follows, the
 test('W / M / 6M windowing: the period average, the delta vs the previous period, clamping to the data\'s first day', () => {
   // a synthetic signal: 20 days of 50 then 10 days of 60, lower is better (like RHR)
   const start = addDays(NOW, -29);
-  const v = Array.from({ length: 30 }, (_, i) => (i < 20 ? 50 : 60));
+  const v = Array.from({ length: 30 }, (_, i) => /** @type {number | null} */ (i < 20 ? 50 : 60));
   v[25] = null; // a missing day is skipped, never 0
   const detail = { asOf: NOW, days: 365, metrics: { rhr: { kind: 'signal', dir: -1, dec: 0, start, v } }, sessions: [] };
   const s = setup({ detail });
-  const P = (days) => JSON.parse(JSON.stringify(s.api.periodStats('rhr', NOW, days)));
+  const P = (/** @type {number} */ days) => JSON.parse(JSON.stringify(s.api.periodStats('rhr', NOW, days)));
   const w = P(7);
   assert.deepEqual([w.from, w.to, w.clamped, w.avg, w.n], [addDays(NOW, -6), NOW, false, 60, 6]);
   assert.equal(w.prev, (4 * 50 + 3 * 60) / 7, 'the 7 days before the week');
@@ -352,7 +406,7 @@ test('step navigation: the trend sheet\'s window and month arrows are .nav-btn +
   const s = setup();
   s.api.open('sleep');
   const html = s.host.innerHTML;
-  const btn = (attrs, glyph) => new RegExp(`<button type="button" class="nav-btn" ${attrs} aria-label="[^"]+"( disabled)?><span class="chev" aria-hidden="true">${glyph}</span></button>`);
+  const btn = (/** @type {string} */ attrs, /** @type {string} */ glyph) => new RegExp(`<button type="button" class="nav-btn" ${attrs} aria-label="[^"]+"( disabled)?><span class="chev" aria-hidden="true">${glyph}</span></button>`);
   const winNext = html.match(btn('data-dt-act="win" data-wdir="1"', '›'));
   const winPrev = html.match(btn('data-dt-act="win" data-wdir="-1"', '‹'));
   const monNext = html.match(btn('data-dt-act="month" data-dir="1"', '›'));
@@ -393,12 +447,12 @@ test('sleep day detail: asleep hours vs target, bedtime – wake, that night\'s 
   const html = s.host.innerHTML;
   const sl = DEMO.metrics.sleep;
   const i = dayIndex(sl, d);
-  const clock = (h) => { h = ((h % 24) + 24) % 24; const H = Math.floor(h); let M = Math.round((h - H) * 60); let HH = H; if (M === 60) { M = 0; HH = (H + 1) % 24; } return String(HH).padStart(2, '0') + ':' + String(M).padStart(2, '0'); };
+  const clock = (/** @type {number} */ h) => { h = ((h % 24) + 24) % 24; const H = Math.floor(h); let M = Math.round((h - H) * 60); let HH = H; if (M === 60) { M = 0; HH = (H + 1) % 24; } return String(HH).padStart(2, '0') + ':' + String(M).padStart(2, '0'); };
   assert.ok(html.includes(`<b class="dt-row-val">${fmtHours(sl.v[i])}</b>`), 'hours (h:mm)');
   assert.ok(html.includes(`${clock(sl.bed[i])}–${clock(sl.wake[i])}`), 'bedtime – wake');
   assert.ok(html.includes(String(valueOn(DEMO.metrics.hrv, d))), 'HRV that night');
   assert.ok(html.includes(String(valueOn(DEMO.metrics.rhr, d))), 'resting HR that night');
-  const f1 = (k) => fmtHours(valueOn({ ...sl, v: sl[k] }, d));
+  const f1 = (/** @type {string} */ k) => fmtHours(valueOn({ ...sl, v: sl[k] }, d));
   assert.ok(html.includes(format(enT.day.stages, { rem: f1('rem'), deep: f1('deep'), core: f1('core'), awake: f1('awake') })), 'that night\'s stages');
   assert.ok(html.includes(`${valueOn({ ...sl, v: sl.eff }, d)}%`), 'efficiency');
   assert.ok(!html.includes(enT.day.stagesNote));
@@ -428,7 +482,7 @@ test('sleep day detail: an estimated (in-bed-only) night says so under its hours
 
 test('workouts / load day detail lists that day\'s sessions after the same-day rule; a load view shows only its modality', () => {
   const s = setup();
-  const day = DEMO.sessions.find((x) => x.m === 'run');
+  const day = /** @type {DetailSession} */ (DEMO.sessions.find((x) => x.m === 'run'));
   s.api.open('workouts', day.d);
   let html = s.host.innerHTML;
   const all = DEMO.sessions.filter((x) => x.d === day.d);
@@ -451,7 +505,7 @@ test('daily totals: the day value vs the personal median; energy splits active a
   const d = addDays(NOW, -2);
   s.api.open('steps', d);
   const m = DEMO.metrics.steps;
-  const v = valueOn(m, d);
+  const v = /** @type {number} */ (valueOn(m, d));
   const pct = Math.round(100 * (v / m.band.median - 1));
   assert.ok(s.host.innerHTML.includes(`${pct > 0 ? '+' : ''}${pct}%`), 'percent vs median');
   s.api.open('energy', d);
@@ -560,14 +614,21 @@ test('es: Spanish copy, decimal comma, Spanish dates', () => {
 });
 
 /* ---------- the sheet never contradicts the card it opens from ---------- */
-const DIALS = buildDials(buildScoresFrom(DEMO_INPUTS), healthFrom(DEMO_INPUTS));
+// cast: healthFrom's recovery union ({hasData: false} | …) shares no key with dial.mjs's weak DialHealth
+const DIALS = buildDials(buildScoresFrom(DEMO_INPUTS), /** @type {import('../view/dial.mjs').DialHealth} */ (healthFrom(DEMO_INPUTS)));
+/** @param {string} html */
 const headOf = (html) => html.split('<div class="dt-body">')[0];
+/** @param {number} v @param {number} dec */
 const sgn = (v, dec) => (v > 0 ? '+' : '') + v.toFixed(dec);
+/** @returns {DetailBake} */
 const copy = () => JSON.parse(JSON.stringify(DEMO));
 
 // the dial deep-dive pages (client/deepdive.ts): the top of the body, its insight card, its ⓘ block
+/** @param {string} html */
 const insightOf = (html) => (html.split('<div class="dd-insight">')[1] || '').split('</div>')[0];
+/** @param {string} html */
 const infoOf = (html) => (html.split('<div class="dd-info" id="dd-info" hidden>')[1] || '').split('</div><section')[0];
+/** @param {string} html */
 const heroOf = (html) => (html.split('<section class="dd-hero')[1] || '').split('</section>')[0];
 
 test('metric chart: 3 round Y-axis ticks (grid lines + labels), and the Y range leaves room past the outermost point so out-of-range days are never pinned to the edge', () => {
@@ -594,12 +655,12 @@ test('ONE sheet header for dial deep-dives and metric details: "‹" back (= clo
   const back = '<button type="button" class="sh-back" data-dt-act="close" aria-label="Back">‹</button>';
   for (const key of ['sleep', 'recovery', 'load-strength']) {
     const s = setup({ dials: DIALS });
-    const opener = new StubElement('div', { attrs: { 'data-detail': key } });
+    const opener = /** @type {El} */ (new StubElement('div', { attrs: { 'data-detail': key } }));
     opener.focused = 0;
     opener.focus = () => { opener.focused++; };
     s.click(opener);
     const h = headOf(s.host.innerHTML);
-    assert.ok(h.includes('<div class="dt-head sh-head">' + back + `<h2 class="sh-title" id="dt-title"><span class="sr-only">${enT.metrics[key].title} · </span>${enT.deep.today}</h2>`), key + ': ' + h.slice(0, 200));
+    assert.ok(h.includes('<div class="dt-head sh-head">' + back + `<h2 class="sh-title" id="dt-title"><span class="sr-only">${enT.metrics[/** @type {keyof typeof enT.metrics} */ (key)].title} · </span>${enT.deep.today}</h2>`), key + ': ' + h.slice(0, 200));
     assert.match(h, /<button type="button" class="sh-info" data-dt-act="info" aria-expanded="false" aria-controls="dd-info" aria-label="How to read this page"><svg viewBox="0 0 24 24" aria-hidden="true">/, 'the ⓘ is the SVG icon, not a serif "i"');
     assert.doesNotMatch(h, /dd-today|dd-back|dd-info-btn|class="dt-close"/, 'the old header is gone');
     assert.equal(s.closeBtn.focused, 1, 'focus moves to the back button');
@@ -627,8 +688,8 @@ test('ONE sheet header for dial deep-dives and metric details: "‹" back (= clo
 });
 
 test('ⓘ toggles the long-notes block in place (no re-render); the CTA jumps to the history chart and focuses its pressed range', () => {
-  const info = new StubElement('div', { hidden: true });
-  const period = new StubElement('div');
+  const info = /** @type {El} */ (new StubElement('div', { hidden: true }));
+  const period = /** @type {El} */ (new StubElement('div'));
   period.scrolled = 0;
   period.scrollIntoView = () => { period.scrolled++; };
   const pressed = { focused: 0, focus() { this.focused++; } };
@@ -656,13 +717,13 @@ test('recovery deep-dive: the insight card leads with Inicio\'s outlook sentence
   const W = enT.deep.prose;
   const ins = insightOf(s.host.innerHTML);
   assert.ok(ins.startsWith('<p class="dd-ln">Over the last 7 days recovery has stayed at baseline. '), 'one paragraph, the advice first');
-  assert.ok(ins.includes(format(W.rec, { when: W.lastNight, band: W.recBands[DIALS.recovery.band] })), 'then last night in words');
+  assert.ok(ins.includes(format(W.rec, { when: W.lastNight, band: W.recBands[/** @type {keyof typeof W.recBands} */ (DIALS.recovery.band)] })), 'then last night in words');
   assert.ok(!ins.includes(' it has been '), 'the advice already carries the 7-day trend');
   assert.equal((ins.match(/<p class="dd-ln/g) || []).length, 1);
   const none = setup({ dials: DIALS });
   none.ctx.window.HCAdvice = () => '';
   none.api.open('recovery');
-  assert.ok(insightOf(none.host.innerHTML).startsWith('<p class="dd-ln">' + format(W.rec, { when: W.lastNight, band: W.recBands[DIALS.recovery.band] })));
+  assert.ok(insightOf(none.host.innerHTML).startsWith('<p class="dd-ln">' + format(W.rec, { when: W.lastNight, band: W.recBands[/** @type {keyof typeof W.recBands} */ (DIALS.recovery.band)] })));
 });
 
 test('recovery deep-dive = the dial: the hero ring is last night\'s % with ONE % band colour; the insight says "last night" + the % band and the 7-day trend in its own band colour; the SD value is under ⓘ', () => {
@@ -680,12 +741,12 @@ test('recovery deep-dive = the dial: the hero ring is last night\'s % with ONE %
   assert.ok(hero.includes(`<span class="dd-lbl">${enT.deep.label.recovery}</span>`));
   const ins = insightOf(html);
   const W = enT.deep.prose;
-  assert.ok(ins.includes(format(W.rec, { when: W.lastNight, band: W.recBands[d.band] })), 'last night in words, the % band');
-  const sdLine = format(enT.rec.sdLbl, { value: sgn(d.value, 1), band: '' });
+  assert.ok(ins.includes(format(W.rec, { when: W.lastNight, band: W.recBands[/** @type {keyof typeof W.recBands} */ (d.band)] })), 'last night in words, the % band');
+  const sdLine = format(enT.rec.sdLbl, { value: sgn(/** @type {number} */ (d.value), 1), band: '' });
   const sdHead = sdLine.slice(0, sdLine.indexOf(' · '));
   assert.ok(!ins.includes(sdHead), 'the insight carries ONE band (the %): the SD line is not there');
   assert.ok(infoOf(html).includes(sdHead), 'the night\'s SD value moved under ⓘ (still reachable)');
-  const trend = format(W.recTrend, { dir: W.dirs[d.trend.dir], value: sgn(d.trend.value, 1) + ' ' + enT.metrics.recovery.unit });
+  const trend = format(W.recTrend, { dir: W.dirs[/** @type {keyof typeof W.dirs} */ (/** @type {DialTrendOut} */ (d.trend).dir)], value: sgn(/** @type {number} */ (/** @type {DialTrendOut} */ (d.trend).value), 1) + ' ' + enT.metrics.recovery.unit });
   assert.ok(ins.includes(trend), 'the 7-day trend in words (no advice sentence)');
   assert.equal((ins.match(/<p class="dd-ln/g) || []).length, 1, 'one paragraph of prose');
   const later = setup({ now: addDays(NOW, 1), dials: DIALS });
@@ -701,12 +762,12 @@ test('recovery deep-dive = the dial: the hero ring is last night\'s % with ONE %
   // fallback: a dial without a % (under 21 prior nights) keeps the SD hero
   const noPct = setup({ dials: { ...DIALS, recovery: { ...d, pct: null, band: 'above', mid: { x: 60, y: 107 } } } });
   noPct.api.open('recovery');
-  assert.ok(heroOf(noPct.host.innerHTML).includes(`<b class="dd-num">${sgn(d.value, 1)}<small>SD</small></b>`));
+  assert.ok(heroOf(noPct.host.innerHTML).includes(`<b class="dd-num">${sgn(/** @type {number} */ (d.value), 1)}<small>SD</small></b>`));
   assert.ok(!infoOf(noPct.host.innerHTML).includes(enT.rec.pctNote));
   // no DIALS: the number still shows, from the same baked headline, with an empty ring
   const bare = setup();
   bare.api.open('recovery');
-  assert.ok(heroOf(bare.host.innerHTML).includes(`<b class="dd-num">${sgn(d.value, 1)}<small>SD</small></b>`));
+  assert.ok(heroOf(bare.host.innerHTML).includes(`<b class="dd-num">${sgn(/** @type {number} */ (d.value), 1)}<small>SD</small></b>`));
   assert.doesNotMatch(heroOf(bare.host.innerHTML), /dd-fill/);
   clean(html);
 });
@@ -747,7 +808,7 @@ test('carried values (HC.carried): a recovery or sleep night from an earlier day
 });
 
 test('carried values: the load deep-dive never carries (its hero reads the viewer\'s day only: the day\'s RE, else rest / no session)', () => {
-  const s = setup({ now: addDays(DEMO.asOf, 2), dials: DIALS });
+  const s = setup({ now: addDays(/** @type {string} */ (DEMO.asOf), 2), dials: DIALS });
   const key = Object.keys(DEMO.metrics).find((k) => /^load-/.test(k));
   s.api.open(key);
   assert.ok(headOf(s.host.innerHTML).includes(`</span>${enT.deep.today}</h2>`));
@@ -767,7 +828,7 @@ test('weight header = the Salud card\'s 7-day rolling average (the chart line), 
 });
 
 test('weight: the user\'s target weight (LAN settings) is a dashed line + a "Target" note; none without the settings API', () => {
-  const settings = (ready, kg) => ({ ready: () => ready, targetWeight: () => kg });
+  const settings = (/** @type {boolean} */ ready, /** @type {number | null} */ kg) => ({ ready: () => ready, targetWeight: () => kg });
   const s = setup({ settings: settings(true, 66.5) });
   s.api.open('weight');
   assert.match(s.host.innerHTML, /<line class="dt-target"/);
@@ -837,14 +898,14 @@ test('load deep-dive: the strength / hybrid / run / bike pills — the page\'s m
 });
 
 test('load deep-dive = the dial: today\'s RE in a strain ring with the typical-day tick, else the dial\'s word; the insight carries today\'s line', () => {
-  for (const m of DIALS.load.modalities) assert.equal(DEMO.metrics['load-' + m.key].typical, m.typical, `${m.key}: same typical day as the dial`);
+  for (const m of /** @type {DialModalityOut[]} */ (DIALS.load.modalities)) assert.equal(DEMO.metrics['load-' + m.key].typical, m.typical, `${m.key}: same typical day as the dial`);
   const s = setup({ dials: DIALS });
   s.api.open('load-strength');
   const gym = DEMO.metrics['load-strength'];
   let hero = heroOf(s.host.innerHTML);
-  const t = DIALS.load.tick;
+  const t = /** @type {import('../view/dial.mjs').DialTick} */ (DIALS.load.tick);
   assert.ok(hero.includes(`<line class="dd-tick" x1="${t.x1}" y1="${t.y1}" x2="${t.x2}" y2="${t.y2}"/>`), 'typical day = the white tick at 6 o\'clock');
-  const gd = DIALS.load.modalities.find((m) => m.key === 'strength');
+  const gd = /** @type {DialModalityOut} */ (/** @type {DialModalityOut[]} */ (DIALS.load.modalities).find((m) => m.key === 'strength'));
   if (gd.state === 'ok') {
     assert.ok(hero.startsWith(' dd-strain"'));
     assert.ok(hero.includes('<b class="dd-num">28<small>RE</small></b>'));
@@ -868,39 +929,39 @@ test('load deep-dive = the dial: today\'s RE in a strain ring with the typical-d
 });
 
 test('load deep-dive: the day and the 7-day vs 42-day trend as prose in the insight; the ring scale and the unscored note under ⓘ', () => {
-  const run = DIALS.load.modalities.find((m) => m.key === 'run' && m.state === 'ok') || DIALS.load.modalities.find((m) => m.state === 'ok');
+  const run = /** @type {DialModalityOut} */ (/** @type {DialModalityOut[]} */ (DIALS.load.modalities).find((m) => m.key === 'run' && m.state === 'ok') || /** @type {DialModalityOut[]} */ (DIALS.load.modalities).find((m) => m.state === 'ok'));
   const s = setup({ dials: DIALS });
   s.api.open('load-' + run.key);
   const ins = insightOf(s.host.innerHTML);
   assert.ok(!ins.includes(enT.load.scale) && infoOf(s.host.innerHTML).includes(enT.load.scale), 'the scale explanation moved under ⓘ');
-  const trend = format(enT.deep.prose.loadTrend, { band: enT.load.bands[run.band], pct: (run.trendPct > 0 ? '+' : '') + run.trendPct + '%' });
+  const trend = format(enT.deep.prose.loadTrend, { band: enT.load.bands[/** @type {keyof typeof enT.load.bands} */ (run.band)], pct: (/** @type {number} */ (run.trendPct) > 0 ? '+' : '') + run.trendPct + '%' });
   assert.ok(ins.includes(trend), `acute/chronic context "${trend}"`);
   assert.equal((ins.match(/<p class="dd-ln/g) || []).length, 1, 'one paragraph');
   const sentences = ins.replace(/<[^>]+>/g, '').split('VIEW')[0].split(/[.!?](\s|$)/).filter((x) => x && x.trim()).length;
   assert.ok(sentences >= 2 && sentences <= 3, `2–3 sentences, got ${sentences}`);
   assert.ok(s.host.innerHTML.includes(`>${enT.deep.ctas.load}<`), 'the page\'s own CTA');
   const d2 = JSON.parse(JSON.stringify(DIALS));
-  d2.load.modalities.find((m) => m.key === run.key).unscored = 2;
+  d2.load.modalities.find((/** @type {DialModalityOut} */ m) => m.key === run.key).unscored = 2;
   const u = setup({ dials: d2 });
   u.api.open('load-' + run.key);
   assert.ok(infoOf(u.host.innerHTML).includes(format(enT.load.unscoredNote, { n: 2 })));
   const es = setup({ dials: DIALS, locale: 'es' });
   es.api.open('load-' + run.key);
   assert.ok(infoOf(es.host.innerHTML).includes(esT.load.scale));
-  assert.ok(es.host.innerHTML.includes(`>${esT.deep.ctas.load}<`) && es.host.innerHTML.includes(`<span class="sr-only">${esT.metrics['load-' + run.key].title} · </span>${esT.deep.today}<`));
+  assert.ok(es.host.innerHTML.includes(`>${esT.deep.ctas.load}<`) && es.host.innerHTML.includes(`<span class="sr-only">${esT.metrics[/** @type {keyof typeof esT.metrics} */ ('load-' + run.key)].title} · </span>${esT.deep.today}<`));
   const none = setup();
   none.api.open('load-' + run.key);
-  assert.ok(!insightOf(none.host.innerHTML).includes(enT.load.bands[run.band]));
+  assert.ok(!insightOf(none.host.innerHTML).includes(enT.load.bands[/** @type {keyof typeof enT.load.bands} */ (run.band)]));
   assert.doesNotMatch(none.host.innerHTML, /NaN|undefined/);
 });
 
 test('sleep deep-dive: the insight adds the measured sleep debt of the last 7 nights (net shortfall vs the fixed target, surplus offsets); fewer than 5 nights with data = no debt sentence', () => {
-  const week = (vals) => {
+  const week = (/** @type {(number | null)[]} */ vals) => {
     const D = copy(), m = D.metrics.sleep, i = dayIndex(m, NOW);
     vals.forEach((v, k) => { m.v[i - (vals.length - 1) + k] = v; });
     return D;
   };
-  const ins = (D, locale = 'en') => { const s = setup({ detail: D, dials: DIALS, locale }); s.api.open('sleep'); return insightOf(s.host.innerHTML); };
+  const ins = (/** @type {DetailBake} */ D, locale = 'en') => { const s = setup({ detail: D, dials: DIALS, locale }); s.api.open('sleep'); return insightOf(s.host.innerHTML); };
   // shortfalls vs 7:30: 0:30, 1:00, 0, −0:30, 1:30, 0:30, 1:00 → 4:00 short over 7 nights
   const short = week([7, 6.5, 7.5, 8, 6, 7, 6.5]);
   assert.ok(ins(short).includes(format(enT.deep.prose.debt, { n: 7, value: '4:00' })), ins(short));
@@ -927,20 +988,20 @@ test('sleep deep-dive: the hero is last night\'s sleep performance % in the slee
   assert.ok(hero.includes(`<span class="dd-lbl">${enT.deep.label.sleepPerf}</span>`));
   assert.ok(hero.includes(`d="${DIALS.sleep.fill}"`));
   const ins = insightOf(html);
-  const v = valueOn(DEMO.metrics.sleep, NOW);
+  const v = /** @type {number} */ (valueOn(DEMO.metrics.sleep, NOW));
   assert.ok(ins.includes(format(enT.deep.prose.sleep, { when: enT.deep.prose.lastNight, value: fmtHours(v), delta: fmtHours(v - 7.5, true), target: '7:30' })));
   assert.ok(ins.includes(enT.deep.prose.allOk) || /(was|were) worse than your usual\./.test(ins), 'the contributors in one sentence');
   assert.ok(ins.includes(`>${enT.deep.ctas.sleep}<`));
   const info = infoOf(html);
   assert.ok(info.includes(format(enT.deep.sleepNotes.perf, { target: '7:30' })), 'ⓘ: performance formula, need = target');
-  for (const k of ['eff', 'cons', 'stages']) assert.ok(info.includes(enT.deep.sleepNotes[k]), `ⓘ: ${k}`);
+  for (const k of ['eff', 'cons', 'stages']) assert.ok(info.includes(enT.deep.sleepNotes[/** @type {keyof typeof enT.deep.sleepNotes} */ (k)]), `ⓘ: ${k}`);
   // stages bar: awake / REM / core / deep, widths by hours, legend with hours and % of asleep
   const sl = DEMO.metrics.sleep;
   const st = html.split('<section class="dd-stages"')[1].split('</section>')[0];
   assert.ok(html.indexOf('dd-contrib') > html.indexOf('dd-hero') && html.indexOf('dd-stages') > html.indexOf('dd-insight') && html.indexOf('dd-stages') < html.indexOf('dd-weekly'), 'dial -> contributors -> insight, then the stages bar');
   assert.ok(st.startsWith(`><h3 class="dd-sec">${enT.deep.stages.aria}</h3>`), 'a titled section');
   assert.deepEqual([...st.matchAll(/<i class="dd-st dd-st-([a-z]+)"/g)].map((x) => x[1]), ['awake', 'rem', 'core', 'deep']);
-  const rem = valueOn({ ...sl, v: sl.rem }, NOW);
+  const rem = /** @type {number} */ (valueOn({ ...sl, v: sl.rem }, NOW));
   assert.ok(st.includes(`${enT.deep.stages.rem} <b>${fmtHours(rem)} · ${Math.round((100 * rem) / v)}%</b>`));
   // no DIALS: the hours hero; no stage arrays: no bar
   const bare = setup({ detail: (() => { const c = copy(); for (const k of ['rem', 'deep', 'core', 'awake', 'inbed', 'eff']) delete c.metrics.sleep[k]; return c; })() });
@@ -981,7 +1042,7 @@ test('notes: colours are against the current range (static); a metric whose own 
 
 test('close then an immediate re-open (Back still pending) keeps the new sheet open and gives it its own history entry', () => {
   const s = setup({ backAsync: true });
-  s.click(new StubElement('div', { attrs: { 'data-detail': 'sleep' } }));
+  s.click(/** @type {El} */ (new StubElement('div', { attrs: { 'data-detail': 'sleep' } })));
   s.click(act('close'));
   assert.deepEqual(s.calls.at(-1), ['back']);
   s.api.open('steps');
@@ -1029,7 +1090,7 @@ test('focus: a disabled or missing control after a re-render hands focus to the 
 test('a throwing history.pushState leaves no lock behind: no dt-lock, inert or aria-hidden after close', () => {
   const s = setup();
   s.ctx.history.pushState = () => { throw new Error('SecurityError'); };
-  s.click(new StubElement('div', { attrs: { 'data-detail': 'sleep' } }));
+  s.click(/** @type {El} */ (new StubElement('div', { attrs: { 'data-detail': 'sleep' } })));
   assert.equal(s.host.hidden, false);
   s.click(act('close'));
   assert.equal(s.host.hidden, true);
@@ -1053,10 +1114,10 @@ test('a day tap re-renders only the calendar and the day panel (the chart is not
 
 test('opener delegation: a click on a control inside a card opens nothing; the card itself (or plain content in it) opens the sheet', () => {
   const s = setup();
-  const card = new StubElement('div', { attrs: { 'data-detail': 'hrv', role: 'button' } });
-  const inner = new StubElement('button', { parent: card });
-  const link = new StubElement('a', { parent: card });
-  const text = new StubElement('span', { parent: card });
+  const card = /** @type {El} */ (new StubElement('div', { attrs: { 'data-detail': 'hrv', role: 'button' } }));
+  const inner = /** @type {El} */ (new StubElement('button', { parent: card }));
+  const link = /** @type {El} */ (new StubElement('a', { parent: card }));
+  const text = /** @type {El} */ (new StubElement('span', { parent: card }));
   s.click(inner);
   s.click(link);
   assert.equal(s.host.hidden, true);
@@ -1075,7 +1136,7 @@ const profileView = (over = {}) => ({
 
 test('a registered view opens from its opener: its title + head + body in the same modal, #<key> pushed, Esc closes', () => {
   const s = setup({ views: profileView() });
-  const btn = new StubElement('button', { attrs: { 'data-detail': 'profile', 'aria-haspopup': 'dialog' } });
+  const btn = /** @type {El} */ (new StubElement('button', { attrs: { 'data-detail': 'profile', 'aria-haspopup': 'dialog' } }));
   btn.focused = 0;
   btn.focus = () => { btn.focused++; };
   s.click(btn);
@@ -1093,7 +1154,7 @@ test('a registered view opens from its opener: its title + head + body in the sa
 
 test('a registered view may return `bare`: no shared header, the view draws its own (and its own #dt-title)', () => {
   const s = setup({ views: profileView({ render: () => ({ bare: true, body: '<h2 class="sr-only" id="dt-title">Set up</h2><p class="pf-body">B</p>' }) }) });
-  s.click(new StubElement('button', { attrs: { 'data-detail': 'profile', 'aria-haspopup': 'dialog' } }));
+  s.click(/** @type {El} */ (new StubElement('button', { attrs: { 'data-detail': 'profile', 'aria-haspopup': 'dialog' } })));
   const html = s.host.innerHTML;
   assert.doesNotMatch(html, /sh-head|data-dt-act="close"/);
   assert.ok(html.includes('<div class="dt-body"><h2 class="sr-only" id="dt-title">Set up</h2><p class="pf-body">B</p></div>'));
@@ -1103,12 +1164,12 @@ test('a registered view may return `bare`: no shared header, the view draws its 
 
 test('a registered view may return `info`: the header gets the shared ⓘ and the block sits collapsed under it; none = no ⓘ', () => {
   const s = setup({ views: profileView({ render: () => ({ head: '', body: '<p class="pf-body">B</p>', info: '<p class="pf-why">W</p>' }) }) });
-  s.click(new StubElement('button', { attrs: { 'data-detail': 'profile', 'aria-haspopup': 'dialog' } }));
+  s.click(/** @type {El} */ (new StubElement('button', { attrs: { 'data-detail': 'profile', 'aria-haspopup': 'dialog' } })));
   const html = s.host.innerHTML;
   assert.match(html, /<button type="button" class="sh-info" data-dt-act="info" aria-expanded="false" aria-controls="dd-info"/);
   assert.ok(html.includes('<div class="dd-info dt-info" id="dd-info" hidden><p class="pf-why">W</p></div>'));
   const plain = setup({ views: profileView() });
-  plain.click(new StubElement('button', { attrs: { 'data-detail': 'profile', 'aria-haspopup': 'dialog' } }));
+  plain.click(/** @type {El} */ (new StubElement('button', { attrs: { 'data-detail': 'profile', 'aria-haspopup': 'dialog' } })));
   assert.doesNotMatch(plain.host.innerHTML, /sh-info|dd-info/);
 });
 
@@ -1164,7 +1225,7 @@ test('Shift+Tab across text fields moves back normally; from the first stop it w
   const first = mk(), a = mk(), b = mk(), last = mk();
   s.host.querySelectorAll = () => [first, a, b, last];
   // a Shift+Tab from a middle field, then from the first stop
-  const fireKey = (target) => { const ev = { key: 'Tab', shiftKey: true, target, prevented: false, preventDefault() { this.prevented = true; } }; s.ctx.document.activeElement = target; s.keyEvent(ev); return ev; };
+  const fireKey = (/** @type {unknown} */ target) => { const ev = { key: 'Tab', shiftKey: true, target, prevented: false, preventDefault() { this.prevented = true; } }; s.ctx.document.activeElement = target; s.keyEvent(ev); return ev; };
   assert.equal(fireKey(b).prevented, false, 'the browser moves focus to the previous field');
   assert.equal(fireKey(first).prevented, true);
   assert.equal(last.focused, 1);
@@ -1176,8 +1237,8 @@ test('the Tab trap skips controls the browser cannot focus (disabled, hidden, in
   s.api.open('profile');
   const mk = (o = {}) => ({ focused: 0, focus() { this.focused++; }, closest: () => null, ...o });
   const first = mk(), last = mk();
-  const skipped = [mk({ disabled: true }), mk({ hidden: true }), mk({ closest: (sel) => (sel === '[hidden]' ? {} : null) }),
-    mk({ closest: (sel) => (sel === 'fieldset[disabled]' ? {} : null) }), mk({ tagName: 'INPUT', closest: (sel) => (sel === 'details' ? { open: false } : null) })];
+  const skipped = [mk({ disabled: true }), mk({ hidden: true }), mk({ closest: (/** @type {string} */ sel) => (sel === '[hidden]' ? {} : null) }),
+    mk({ closest: (/** @type {string} */ sel) => (sel === 'fieldset[disabled]' ? {} : null) }), mk({ tagName: 'INPUT', closest: (/** @type {string} */ sel) => (sel === 'details' ? { open: false } : null) })];
   s.host.querySelectorAll = () => [first, ...skipped, last];
   s.ctx.document.activeElement = last;
   const ev = s.key('Tab', last);
@@ -1214,13 +1275,13 @@ test('HCDetail.open(key, date, {focus}) moves focus to that control of the view 
 test('Back after opening a sheet from a tab closes it and leaves #<tab>; so does the close button', () => {
   const s = setup({ withCore: true, hash: '#nutricion' });
   assert.deepEqual(s.shownTab(), ['nutricion']);
-  s.click(new StubElement('div', { attrs: { 'data-detail': 'sleep' } }));
+  s.click(/** @type {El} */ (new StubElement('div', { attrs: { 'data-detail': 'sleep' } })));
   assert.equal(s.loc.hash, '#detail/sleep');
   s.ctx.history.back(); // the browser Back button
   assert.equal(s.host.hidden, true);
   assert.equal(s.loc.hash, '#nutricion');
   assert.deepEqual(s.shownTab(), ['nutricion'], 'Back never switches the tab underneath');
-  s.click(new StubElement('div', { attrs: { 'data-detail': 'steps' } }));
+  s.click(/** @type {El} */ (new StubElement('div', { attrs: { 'data-detail': 'steps' } })));
   s.click(act('close'));
   assert.deepEqual(s.calls.at(-1), ['back']);
   assert.equal(s.loc.hash, '#nutricion');
@@ -1305,15 +1366,15 @@ test('an opened deep link and a plain tab hash are never rewritten at load', () 
 });
 
 /* ---------- dial deep-dive: contributors (today vs the prior 30 days) + weekly trends ---------- */
-const contribOf = (html) => (html.split('<section class="dd-contrib"')[1] || '').split('</section>')[0];
-const rowsOf = (html) => [...contribOf(html).matchAll(/data-row="([a-zA-Z]+)"/g)].map((x) => x[1]);
-const weeklyOf = (html) => (html.split('<section class="dd-weekly">')[1] || '');
+const contribOf = (/** @type {string} */ html) => (html.split('<section class="dd-contrib"')[1] || '').split('</section>')[0];
+const rowsOf = (/** @type {string} */ html) => [...contribOf(html).matchAll(/data-row="([a-zA-Z]+)"/g)].map((x) => x[1]);
+const weeklyOf = (/** @type {string} */ html) => (html.split('<section class="dd-weekly">')[1] || '');
 
 test('contributors compare today with the middle half of the prior 30 days, direction-aware: teal better, orange worse, grey dot typical, neutral grey arrow without a good direction', () => {
   const s = setup();
   const H = s.ctx.window.HCDeep;
   const day = '2026-09-28';
-  const series = (today, prior) => (iso) => (iso === day ? today : iso < day && iso >= addDays(day, -30) ? prior[(Date.parse(iso) / 864e5) % prior.length] : null);
+  const series = (/** @type {number | null} */ today, /** @type {number[]} */ prior) => (/** @type {string} */ iso) => (iso === day ? today : iso < day && iso >= addDays(day, -30) ? prior[(Date.parse(iso) / 864e5) % prior.length] : null);
   const prior = [50, 52, 54, 56, 58, 60];
   assert.deepEqual(pick(H.compare(series(70, prior), day, 1)), { side: 1, tone: 'better' }, 'HRV up = better');
   assert.deepEqual(pick(H.compare(series(70, prior), day, -1)), { side: 1, tone: 'worse' }, 'resting HR up = worse');
@@ -1321,11 +1382,11 @@ test('contributors compare today with the middle half of the prior 30 days, dire
   assert.deepEqual(pick(H.compare(series(55, prior), day, 1)), { side: 0, tone: 'typical' }, 'inside p25–p75 = typical');
   assert.deepEqual(pick(H.compare(series(70, prior), day, 0)), { side: 1, tone: 'neutral' }, 'no good direction = neutral');
   assert.equal(H.compare(series(null, prior), day, 1), null, 'no value today: the row is hidden');
-  const sparse = (iso) => (iso === day ? 70 : iso === addDays(day, -1) ? 50 : null);
+  const sparse = (/** @type {string} */ iso) => (iso === day ? 70 : iso === addDays(day, -1) ? 50 : null);
   assert.deepEqual(pick(H.compare(sparse, day, 1)), { side: null, tone: null }, 'too few prior days: a value without a marker');
-  assert.deepEqual(pick(H.compare(series(30, prior), day, 0, (x) => x > 54)), { side: -1, tone: 'neutral' }, 'keep filters the prior days');
+  assert.deepEqual(pick(H.compare(series(30, prior), day, 0, (/** @type {number} */ x) => x > 54)), { side: -1, tone: 'neutral' }, 'keep filters the prior days');
 });
-function pick(c) { return c && { side: c.side, tone: c.tone }; }
+/** @param {{ side: unknown, tone: unknown } | null} c */ function pick(c) { return c && { side: c.side, tone: c.tone }; }
 
 test('recovery contributors on the scored night, as the reference: HRV, resting HR, respiratory rate, sleep performance %; ▲▼ vs prior 30 days with a legend; a missing value hides its row', () => {
   const s = setup({ dials: DIALS });
@@ -1336,7 +1397,7 @@ test('recovery contributors on the scored night, as the reference: HRV, resting 
   const c = contribOf(html);
   assert.ok(c.includes(`<span class="dd-row-lbl">${enT.deep.contrib.rows.hrv}</span><b class="dd-row-val">${valueOn(DEMO.metrics.hrv, night)} ms</b>`));
   assert.ok(c.includes(`<b class="dd-row-val">${valueOn(DEMO.metrics.rhr, night)} bpm</b>`));
-  assert.ok(c.includes(`<span class="dd-row-lbl">${enT.deep.contrib.rows.resp}</span><b class="dd-row-val">${valueOn(DEMO.metrics.respiratory, night).toFixed(1)} brpm</b>`), 'respiratory rate that night');
+  assert.ok(c.includes(`<span class="dd-row-lbl">${enT.deep.contrib.rows.resp}</span><b class="dd-row-val">${/** @type {number} */ (valueOn(DEMO.metrics.respiratory, night)).toFixed(1)} brpm</b>`), 'respiratory rate that night');
   const sl = DEMO.metrics.sleep;
   assert.ok(c.includes(`<span class="dd-row-lbl">${enT.deep.contrib.rows.perf}</span><b class="dd-row-val">${valueOn({ ...sl, v: sl.perf }, night)}%</b>`), 'sleep performance % replaces hours of sleep');
   assert.match(c, /class="dd-mk dd-(better|worse|typical)" aria-hidden="true">[▲▼•]<\/span><span class="sr-only">/);
@@ -1363,8 +1424,8 @@ test('recovery contributors on the scored night, as the reference: HRV, resting 
 
 test('recovery respiratory row: no good direction — a neutral ▲ / ▼ outside the prior 30 days\' middle half, a grey dot inside', () => {
   const night = DEMO.metrics.recovery.head.date;
-  const rowOf = (h) => contribOf(h).split('data-row="resp"')[1].split('</li>')[0];
-  const at = (v) => {
+  const rowOf = (/** @type {string} */ h) => contribOf(h).split('data-row="resp"')[1].split('</li>')[0];
+  const at = (/** @type {number | null} */ v) => {
     const d = copy();
     const m = d.metrics.respiratory;
     for (let k = 1; k <= 30; k++) { const i = dayIndex(m, addDays(night, -k)); if (i >= 0) m.v[i] = 14 + (k % 5) * 0.2; }
@@ -1394,9 +1455,9 @@ test('sleep contributors: hours vs need, efficiency, consistency, REM + deep; be
   const o = setup({ detail: old, dials: DIALS });
   o.api.open('sleep');
   assert.deepEqual(rowsOf(o.host.innerHTML), ['need', 'bed', 'wake']);
-  const clockOf = (h) => { h = ((h % 24) + 24) % 24; const H = Math.floor(h), M = Math.round((h - H) * 60); return String(M === 60 ? (H + 1) % 24 : H).padStart(2, '0') + ':' + String(M === 60 ? 0 : M).padStart(2, '0'); };
-  assert.ok(contribOf(o.host.innerHTML).includes(`<b class="dd-row-val">${clockOf(valueOn({ ...sl, v: sl.bed }, NOW))}</b>`), 'bedtime clock');
-  const bedRow = (h) => contribOf(h).split('data-row="bed"')[1].split('</li>')[0];
+  const clockOf = (/** @type {number} */ h) => { h = ((h % 24) + 24) % 24; const H = Math.floor(h), M = Math.round((h - H) * 60); return String(M === 60 ? (H + 1) % 24 : H).padStart(2, '0') + ':' + String(M === 60 ? 0 : M).padStart(2, '0'); };
+  assert.ok(contribOf(o.host.innerHTML).includes(`<b class="dd-row-val">${clockOf(/** @type {number} */ (valueOn({ ...sl, v: sl.bed }, NOW)))}</b>`), 'bedtime clock');
+  const bedRow = (/** @type {string} */ h) => contribOf(h).split('data-row="bed"')[1].split('</li>')[0];
   assert.doesNotMatch(bedRow(o.host.innerHTML), /dd-better|dd-worse/, 'bedtime has no good direction');
   // a bedtime just after midnight compares as a LATE evening (▲), not as the earliest of the month
   const late = copy();
@@ -1409,7 +1470,7 @@ test('sleep contributors: hours vs need, efficiency, consistency, REM + deep; be
   html = s.host.innerHTML;
   const gym = DEMO.metrics['load-strength'];
   const rows = rowsOf(html);
-  if (valueOn(gym, NOW) > 0) assert.equal(rows[0], 're', 'trained today: today\'s RE first');
+  if (/** @type {number} */ (valueOn(gym, NOW)) > 0) assert.equal(rows[0], 're', 'trained today: today\'s RE first');
   assert.ok(rows.includes('sessions') && rows.includes('typical'));
   const n = DEMO.sessions.filter((x) => x.m === 'strength' && x.d >= addDays(NOW, -6) && x.d <= NOW).length;
   assert.ok(contribOf(html).includes(`data-row="sessions">`) && contribOf(html).split('data-row="sessions"')[1].includes(`<b class="dd-row-val">${n}</b>`));
@@ -1422,7 +1483,7 @@ test('weekly trends: each card title is a button with the chevron: the page\'s o
   const s = setup({ dials: DIALS });
   s.api.open('recovery');
   const wk = weeklyOf(s.host.innerHTML);
-  const opener = (title) => new RegExp(`<button type="button" class="dd-wk-btn"([^>]*)>${title}<span class="chev" aria-hidden="true">›</span></button>`).exec(wk)[1];
+  const opener = (/** @type {string} */ title) => /** @type {RegExpExecArray} */ (new RegExp(`<button type="button" class="dd-wk-btn"([^>]*)>${title}<span class="chev" aria-hidden="true">›</span></button>`).exec(wk))[1];
   assert.equal(opener('Recovery'), ' data-dt-act="trend"');
   assert.equal(opener('HRV'), ' data-detail="hrv"');
   assert.equal(opener('Resting HR'), ' data-detail="rhr"');
@@ -1431,8 +1492,8 @@ test('weekly trends: each card title is a button with the chevron: the page\'s o
   const sw = weeklyOf(s.host.innerHTML);
   assert.equal([...sw.matchAll(/class="dd-wk-btn" data-dt-act="trend"/g)].length, 3, 'on the sleep page every card is about its own trend');
   const days = s.ctx.window.HCDeep.weekOf(NOW);
-  const wd = (iso) => ['M', 'T', 'W', 'T', 'F', 'S', 'S'][(new Date(iso + 'T12:00:00Z').getUTCDay() + 6) % 7];
-  days.forEach((d) => assert.ok(wk.includes(`<span class="dd-wd">${wd(d)}<b>${+d.slice(8)}</b></span>`), d));
+  const wd = (/** @type {string} */ iso) => ['M', 'T', 'W', 'T', 'F', 'S', 'S'][(new Date(iso + 'T12:00:00Z').getUTCDay() + 6) % 7];
+  days.forEach((/** @type {string} */ d) => assert.ok(wk.includes(`<span class="dd-wd">${wd(d)}<b>${+d.slice(8)}</b></span>`), d));
 });
 
 test('weekly trends: one card per input, 7 bars ending at the page\'s day (highlighted, with its value), values on top; recovery = each night\'s % in its band colour, sleep bars sleep, load bars strain; a missing day has no bar', () => {
@@ -1441,16 +1502,16 @@ test('weekly trends: one card per input, 7 bars ending at the page\'s day (highl
   let wk = weeklyOf(s.host.innerHTML);
   assert.ok(wk.startsWith(`<h3 class="dd-sec">${enT.deep.weekly.title}</h3>`));
   const cards = wk.split('<section class="dd-wk"').slice(1);
-  assert.deepEqual(cards.map((c) => /<h4 class="dd-wk-t"><button type="button" class="dd-wk-btn"[^>]*>([^<]+)</.exec(c)[1]), ['Recovery', 'HRV', 'Resting HR', 'Sleep']);
+  assert.deepEqual(cards.map((c) => /** @type {RegExpExecArray} */ (/<h4 class="dd-wk-t"><button type="button" class="dd-wk-btn"[^>]*>([^<]+)</.exec(c))[1]), ['Recovery', 'HRV', 'Resting HR', 'Sleep']);
   const rec = cards[0];
   assert.equal((rec.match(/<li class="dd-col/g) || []).length, 7);
   assert.equal((rec.match(/dd-col dd-now/g) || []).length, 1, 'the page\'s day highlighted');
   const days = s.ctx.window.HCDeep.weekOf(NOW);
   assert.deepEqual([days[0], days[6]], [addDays(NOW, -6), NOW]);
   // the % the dial showed each morning (DIALS.days), coloured >= 67 good / <= 33 low / else mid, never SD
-  const pctOn = (d) => { const x = DIALS.days.find((e) => e.date === d); return x && x.recovery.state === 'ok' && x.recovery.date === d ? x.recovery.pct : null; };
+  const pctOn = (/** @type {string} */ d) => { const x = DIALS.days.find((e) => e.date === d); return x && x.recovery.state === 'ok' && x.recovery.date === d ? x.recovery.pct : null; };
   let shown = 0;
-  days.forEach((d) => {
+  days.forEach((/** @type {string} */ d) => {
     const v = pctOn(d);
     if (v == null) return;
     shown++;
@@ -1460,7 +1521,7 @@ test('weekly trends: one card per input, 7 bars ending at the page\'s day (highl
   assert.ok(shown >= 4, 'most nights of the demo week have a %');
   assert.doesNotMatch(rec, /SD|\+\d\.\d</, 'no z-scores');
   assert.ok(rec.includes(`<li class="dd-col dd-now"><span class="dd-val dd-v-${DIALS.recovery.band}">${DIALS.recovery.pct}%</span>`), 'the headline night = the last, highlighted column, with its value');
-  const missing = days.filter((d) => pctOn(d) == null);
+  const missing = days.filter((/** @type {string} */ d) => pctOn(d) == null);
   assert.ok(missing.length > 0, 'the demo has a recovery gap this week');
   assert.equal((rec.match(/<span class="dd-val">—<\/span><span class="dd-track-col"><\/span>/g) || []).length, missing.length, 'a night without a %: a dash, no bar');
   // a day later (no data yet today): the week still ends on the headline night, so no empty highlighted column
@@ -1473,7 +1534,7 @@ test('weekly trends: one card per input, 7 bars ending at the page\'s day (highl
   bare.api.open('recovery');
   const m = DEMO.metrics.recovery;
   const brec = weeklyOf(bare.host.innerHTML).split('<section class="dd-wk"')[1];
-  days.forEach((d) => {
+  days.forEach((/** @type {string} */ d) => {
     const v = valueOn(m, d);
     if (v == null) return;
     const st = v >= m.cut ? 'good' : v <= -m.cut ? 'low' : 'mid';
@@ -1492,14 +1553,14 @@ test('weekly trends: one card per input, 7 bars ending at the page\'s day (highl
   // its days after the data are empty
   const later2 = setup({ now: addDays(NOW, 2), dials: DIALS });
   later2.api.open('sleep');
-  assert.ok(weeklyOf(later2.host.innerHTML).includes(`<li class="dd-col dd-now"><span class="dd-val">${fmtHours(valueOn(DEMO.metrics.sleep, DIALS.sleep.date))}</span>`), 'the dial\'s night, highlighted');
+  assert.ok(weeklyOf(later2.host.innerHTML).includes(`<li class="dd-col dd-now"><span class="dd-val">${fmtHours(valueOn(DEMO.metrics.sleep, /** @type {string} */ (DIALS.sleep.date)))}</span>`), 'the dial\'s night, highlighted');
   later2.api.open('load-strength');
   assert.ok(weeklyOf(later2.host.innerHTML).includes('<li class="dd-col dd-now"><span class="dd-val">—</span>'), 'today, no data yet');
   clean(s.host.innerHTML);
 });
 
 test('a run day shows the watch running dynamics the Entreno run row no longer prints (power, GCT, oscillation, stride)', () => {
-  const day = DEMO.sessions.find((x) => x.m === 'run');
+  const day = /** @type {DetailSession} */ (DEMO.sessions.find((x) => x.m === 'run'));
   const health = { running: { hasData: true, sessions: [{ date: day.d, dist: 8, power: 276, gct: 242, vosc: 8.3, stride: 1.14 }] } };
   const s = setup({ health });
   s.api.open('load-run', day.d);
@@ -1523,10 +1584,10 @@ test('a run day shows the watch running dynamics the Entreno run row no longer p
 });
 
 test('a dated dial sheet (a run / ride row) opens scrolled to that day\'s panel; an undated one stays at the top', () => {
-  const day = DEMO.sessions.find((x) => x.m === 'run');
+  const day = /** @type {DetailSession} */ (DEMO.sessions.find((x) => x.m === 'run'));
   const s = setup({ parts: true });
-  let scrolled = [];
-  s.part.day.scrollIntoView = (o) => scrolled.push(o);
+  let scrolled = /** @type {{ block?: string }[]} */ ([]);
+  s.part.day.scrollIntoView = /** @type {(o?: { block?: string }) => void} */ ((/** @type {{ block?: string }} */ o) => scrolled.push(o));
   s.api.open('load-run', day.d);
   assert.equal(scrolled.length, 1, 'scrolled to the day panel');
   assert.equal(scrolled[0].block, 'start');
@@ -1541,7 +1602,7 @@ test('a dated dial sheet (a run / ride row) opens scrolled to that day\'s panel;
 });
 
 test('a session with HR zones shows ZONE 5…0 rows (bar, %, duration, bpm range), avg / max HR and the max-HR note; hidden without zones', () => {
-  const day = DEMO.sessions.find((x) => x.m === 'run');
+  const day = /** @type {DetailSession} */ (DEMO.sessions.find((x) => x.m === 'run'));
   const sessions = DEMO.sessions.map((x) => (x === day ? { ...x, hr: 150, hx: 178, z: [60, 0, 600, 1200, 900, 240] } : (({ z, hx, ...rest }) => rest)(x)));
   const detail = { ...DEMO, zoneMax: { hr: 190, src: 'observed' }, sessions };
   const s = setup({ detail });
@@ -1551,7 +1612,7 @@ test('a session with HR zones shows ZONE 5…0 rows (bar, %, duration, bpm range
   assert.ok(block, 'a zones block in the session');
   const rows = [...block[0].matchAll(/<li class="dt-zone dt-z(\d)">([\s\S]*?)<\/li>/g)];
   assert.deepEqual(rows.map((r) => r[1]), ['5', '4', '3', '2', '1', '0'], 'ZONE 5 first, down to 0');
-  const text = (r) => r[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const text = (/** @type {RegExpMatchArray} */ r) => r[2].replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
   assert.equal(text(rows[0]), 'Zone 5 171+ bpm 8% 4:00'); // 240 of 3000 s
   assert.equal(text(rows[2]), 'Zone 3 133–151 bpm 40% 20:00');
   assert.equal(text(rows[4]), 'Zone 1 95–113 bpm 0% 0:00');
@@ -1560,7 +1621,7 @@ test('a session with HR zones shows ZONE 5…0 rows (bar, %, duration, bpm range
   assert.match(html, /avg HR 150 bpm · max 178 bpm/);
   assert.match(html, /Zones = % of a max HR of 190 bpm \(the highest Strava recorded in the last 12 months\)/);
   // another day / modality without zones: no block
-  s.api.open('load-strength', DEMO.sessions.find((x) => x.m === 'strength').d);
+  s.api.open('load-strength', /** @type {DetailSession} */ (DEMO.sessions.find((x) => x.m === 'strength')).d);
   assert.doesNotMatch(s.host.innerHTML, /dt-zones/);
   // no zoneMax (never happens with a zones file, but never NaN): rows without the bpm ranges
   const bare = setup({ detail: { ...detail, zoneMax: undefined } });
@@ -1574,19 +1635,19 @@ test('a session with HR zones shows ZONE 5…0 rows (bar, %, duration, bpm range
 const DEMO_SCORES = buildScoresFrom(DEMO_INPUTS);
 
 test('strain deep-dive: the hero = the day\'s strain in its baked ring, contributors = the day\'s activities + the all-day load, the band in the insight, formula + K under ⓘ', () => {
-  const S = DEMO_SCORES.strain;
+  const S = /** @type {StrainOk} */ (DEMO_SCORES.strain);
   assert.equal(S.ok, true, 'the demo extract calibrates day strain');
   const s = setup({ dials: DIALS, scores: DEMO_SCORES });
   s.api.open('strain');
   const html = s.host.innerHTML;
   const day = S.days[S.days.length - 1];
-  const dial = DIALS.strain.days.find((d) => d.date === day.date);
+  const dial = /** @type {import('../view/dial.mjs').DialStrainDayOut} */ (/** @type {import('../view/dial.mjs').DialStrainOut} */ (DIALS.strain).days.find((d) => d.date === day.date));
   const hero = heroOf(html);
   assert.ok(hero.startsWith(' dd-strain"'));
   assert.ok(hero.includes(`<b class="dd-num">${day.s.toFixed(1)}</b>`));
   assert.ok(hero.includes(`d="${dial.fill}"`), 'the same arc as the Inicio dial');
   const rows = [...contribOf(html).matchAll(/<span class="dd-row-lbl">([^<]+) <small/g)].map((m) => m[1]);
-  assert.deepEqual(rows, [...day.acts.map((a) => enT.deep.strain.mods[a.m]), enT.deep.strain.allDay]);
+  assert.deepEqual(rows, [...day.acts.map((a) => enT.deep.strain.mods[/** @type {keyof typeof enT.deep.strain.mods} */ (a.m)]), enT.deep.strain.allDay]);
   const band = day.s >= 18 ? 'allOut' : day.s >= 14 ? 'high' : day.s >= 10 ? 'moderate' : 'light';
   assert.ok(insightOf(html).includes(enT.deep.strain.bands[band]));
   const info = infoOf(html);
@@ -1603,7 +1664,7 @@ test('strain deep-dive: the insight adds the usual day strain on days with a sim
   // 121 days ending at `end`; k = days before `end`. Recovery: k % 3 = 0 above (+2 SD), 1 around (0), 2 below (−2).
   // Strain: above days cycle 10/12/14/16 (k = 3…90: 8×10, 8×12, 7×14, 7×16 → p25–p75 = 10.5–14.0), around days 8, below days 5;
   // above days older than 90 days carry 20 (they must not count)
-  const build = ({ recToday = 2 } = {}) => {
+  const build = (/** @type {{ recToday?: number | null }} */ { recToday = 2 } = {}) => {
     const D = copy(), n = 121, start = addDays(end, -(n - 1));
     const rec = [], st = [];
     for (let i = 0; i < n; i++) {
@@ -1615,7 +1676,7 @@ test('strain deep-dive: the insight adds the usual day strain on days with a sim
     D.metrics.strain = { ...D0, start, v: st };
     return D;
   };
-  const ins = (D, locale = 'en') => { const s = setup({ detail: D, dials: DIALS, scores: DEMO_SCORES, locale }); s.api.open('strain', end); return insightOf(s.host.innerHTML); };
+  const ins = (/** @type {DetailBake} */ D, locale = 'en') => { const s = setup({ detail: D, dials: DIALS, scores: DEMO_SCORES, locale }); s.api.open('strain', end); return insightOf(s.host.innerHTML); };
   const T = enT.deep.prose;
   assert.ok(cut > 0 && cut < 2, 'the synthetic ±2 / 0 values sit clearly in the day bands');
   assert.ok(ins(build()).includes(format(T.strainByRec, { band: T.recBand.above, lo: '10.5', hi: '14.0', n: 30 })), ins(build()));
@@ -1628,7 +1689,7 @@ test('strain deep-dive: the insight adds the usual day strain on days with a sim
 });
 
 test('strain deep-dive follows the day it was opened on; a day without all-day heart rate says so', () => {
-  const S = DEMO_SCORES.strain;
+  const S = /** @type {StrainOk} */ (DEMO_SCORES.strain);
   const prev = S.days[S.days.length - 2];
   const s = setup({ dials: DIALS, scores: DEMO_SCORES });
   s.api.open('strain', prev.date);
@@ -1646,8 +1707,8 @@ test('trend view: the window steps back and forward by its own length (forward d
   const s = setup();
   s.api.open('rhr');
   s.click(act('range', { 'data-range': '7' }));
-  const winOf = (html) => /<div class="dt-win" role="group" aria-label="Period shown">([^]*?)<\/div>/.exec(html)[1];
-  const fmt2 = (iso) => format(enDate.dayNoWeekdayTpl, { day: String(Number(iso.slice(8))), month: enDate.months[Number(iso.slice(5, 7)) - 1] });
+  const winOf = (/** @type {string} */ html) => /** @type {RegExpExecArray} */ (/<div class="dt-win" role="group" aria-label="Period shown">([^]*?)<\/div>/.exec(html))[1];
+  const fmt2 = (/** @type {string} */ iso) => format(enDate.dayNoWeekdayTpl, { day: String(Number(iso.slice(8))), month: enDate.months[Number(iso.slice(5, 7)) - 1] });
   let w = winOf(s.host.innerHTML);
   assert.ok(w.includes(`<span class="dt-win-lbl">${fmt2(addDays(NOW, -6))} – ${fmt2(NOW)}, ${NOW.slice(2, 4)}</span>`), w);
   assert.match(w, /data-wdir="1" aria-label="Later period" disabled>/, 'no window after today');
@@ -1687,7 +1748,7 @@ test('trend view: "TREND VIEW" header + a metric picker pill (non-dial metrics o
   assert.match(html, /<label class="dt-metric"><span class="sr-only">Metric<\/span><select class="dt-metric-sel sel" data-dt-pick="metric">/);
   assert.match(html, /<\/select><span class="chev sel-chev" aria-hidden="true">›<\/span><\/label>/, 'the shared select: the system chevron, not the browser arrow');
   s.click(act('range', { 'data-range': '182' }));
-  const sel = new StubElement('select', { attrs: { 'data-dt-pick': 'metric' } });
+  const sel = /** @type {El} */ (new StubElement('select', { attrs: { 'data-dt-pick': 'metric' } }));
   sel.value = 'hrv';
   const pushes = s.calls.filter((c) => c[0] === 'push').length;
   s.change(sel);
@@ -1705,7 +1766,7 @@ test('trend view: "TREND VIEW" header + a metric picker pill (non-dial metrics o
 
 /* ---------- trend chart + header (Q11a-4) ---------- */
 test('6M on ~7 months of data: the previous window starts before the data but holds over half its days, so the pill is a delta (not "Data since"); under half → no delta', () => {
-  const mk = (len) => {
+  const mk = (/** @type {number} */ len) => {
     const start = addDays(NOW, -(len - 1));
     const v = Array.from({ length: len }, (_, i) => (i < len - 182 ? 60 : 55));
     return { asOf: NOW, days: 365, metrics: { rhr: { kind: 'signal', dir: -1, dec: 0, start, v } }, sessions: [] };
@@ -1754,7 +1815,7 @@ test('trend sentence: sleep reads h:mm, so two windows that print the same clock
   const s = setup({ detail: { asOf: NOW, days: 365, metrics: { sleep: { kind: 'sleep', dir: 1, dec: 2, start, v } }, sessions: [] } });
   s.api.open('sleep');
   s.click(act('range', { 'data-range': '7' }));
-  const txt = /<p class="dt-trend-txt">([^<]*)<\/p>/.exec(s.host.innerHTML)[1];
+  const txt = /** @type {RegExpExecArray} */ (/<p class="dt-trend-txt">([^<]*)<\/p>/.exec(s.host.innerHTML))[1];
   assert.match(txt, /was 0:18, about the same as the week before \(0:18\)\./);
   // sleep has a good direction (up): a 1.6% drop is a real ▼ in the worse colour, never a flat dot
   assert.match(s.host.innerHTML, /<span class="dt-pill dt-pill-bad">▼ 2% vs prior week<\/span>/, 'the pill still shows the real change');
@@ -1775,13 +1836,13 @@ test('trend pill: a change with no good direction is a neutral ▲ / ▼ (dt-pil
 });
 
 /* ---------- stress monitor page (key 'stress', SCORES.stress: lib/score/stress.mjs) ---------- */
-const curveOf = (html) => (html.split('<section class="ds-curve"')[1] || '').split('</section>')[0];
-const bandsOf = (html) => (html.split('<section class="ds-bands"')[1] || '').split('</section>')[0];
+const curveOf = (/** @type {string} */ html) => (html.split('<section class="ds-curve"')[1] || '').split('</section>')[0];
+const bandsOf = (/** @type {string} */ html) => (html.split('<section class="ds-bands"')[1] || '').split('</section>')[0];
 
 test('stress page: hero = the latest scored hour on a 0-3 gauge with its band word + hour; hourly curve over the three shaded bands; time in each band; formula + limits under ⓘ', () => {
-  const S = DEMO_SCORES.stress;
+  const S = /** @type {StressOk} */ (DEMO_SCORES.stress);
   assert.equal(S.ok, true, 'the demo extract scores stress');
-  const day = S.days[S.days.length - 1];
+  const day = /** @type {ScoredStressDay} */ (S.days[S.days.length - 1]);
   const s = setup({ scores: DEMO_SCORES });
   s.api.open('stress');
   const html = s.host.innerHTML;
@@ -1796,12 +1857,12 @@ test('stress page: hero = the latest scored hour on a 0-3 gauge with its band wo
   assert.equal((curve.match(/<circle class="ds-pt /g) || []).length, day.hours.length, 'one point per scored hour');
   assert.match(curve, /<path class="ds-line" d="M/);
   const bands = bandsOf(html);
-  for (const b of ['low', 'medium', 'high']) assert.ok(bands.includes(enT.deep.stress.bandRows[b]));
-  const dur = (min) => fmtMinutes(min);
-  for (const b of ['low', 'medium', 'high']) assert.ok(bands.includes(`<b class="ds-bmin">${dur(day.mins[b])}</b>`), b + ': ' + bands);
+  for (const b of /** @type {const} */ (['low', 'medium', 'high'])) assert.ok(bands.includes(enT.deep.stress.bandRows[b]));
+  const dur = (/** @type {number} */ min) => fmtMinutes(min);
+  for (const b of /** @type {const} */ (['low', 'medium', 'high'])) assert.ok(bands.includes(`<b class="ds-bmin">${dur(day.mins[b])}</b>`), b + ': ' + bands);
   assert.ok(insightOf(html).includes(format(enT.deep.stress.avg, { value: day.avg.toFixed(1), band: enT.deep.stress.bands[day.band].toLowerCase() })));
   const info = infoOf(html);
-  for (const k of ['formula', 'hours', 'limits', 'estimate']) assert.ok(info.includes(enT.deep.stress.notes[k]), k);
+  for (const k of /** @type {const} */ (['formula', 'hours', 'limits', 'estimate'])) assert.ok(info.includes(enT.deep.stress.notes[k]), k);
   assert.ok(info.includes(format(enT.deep.stress.notes.inputs, { rhr: day.rhr.toFixed(1), max: String(S.maxHr), min: String(S.minHours) })));
   // the day-average trend lives below (the sheet's chart + calendar), coloured by band
   assert.match(html, /class="dt-period"/);
@@ -1810,8 +1871,8 @@ test('stress page: hero = the latest scored hour on a 0-3 gauge with its band wo
 });
 
 test('stress page follows the day it was opened on; a day under the minimum hours says so; no SCORES.stress -> the empty sheet', () => {
-  const S = DEMO_SCORES.stress;
-  const prev = S.days[S.days.length - 2];
+  const S = /** @type {StressOk} */ (DEMO_SCORES.stress);
+  const prev = /** @type {ScoredStressDay} */ (S.days[S.days.length - 2]);
   const s = setup({ scores: DEMO_SCORES });
   s.api.open('stress', prev.date);
   assert.ok(heroOf(s.host.innerHTML).includes(`<b class="dd-num">${prev.now.v.toFixed(1)}</b>`));
@@ -1829,11 +1890,11 @@ test('stress page follows the day it was opened on; a day under the minimum hour
 });
 
 test('a dated stress page (the Inicio tile\'s earlier reading) opens at its hero — the hero IS that day — not scrolled to the day panel', () => {
-  const S = DEMO_SCORES.stress;
-  const prev = S.days[S.days.length - 2];
+  const S = /** @type {StressOk} */ (DEMO_SCORES.stress);
+  const prev = /** @type {ScoredStressDay} */ (S.days[S.days.length - 2]);
   const s = setup({ scores: DEMO_SCORES, parts: true });
-  const scrolled = [];
-  s.part.day.scrollIntoView = (o) => scrolled.push(o);
+  const scrolled = /** @type {unknown[]} */ ([]);
+  s.part.day.scrollIntoView = /** @type {(o?: unknown) => void} */ ((/** @type {unknown} */ o) => scrolled.push(o));
   s.api.open('stress', prev.date);
   assert.ok(heroOf(s.host.innerHTML).includes(`<b class="dd-num">${prev.now.v.toFixed(1)}</b>`));
   assert.equal(scrolled.length, 0);
@@ -1842,7 +1903,7 @@ test('a dated stress page (the Inicio tile\'s earlier reading) opens at its hero
 test('es stress page: Spanish copy, decimal comma', () => {
   const s = setup({ locale: 'es', scores: DEMO_SCORES });
   s.api.open('stress');
-  const day = DEMO_SCORES.stress.days[DEMO_SCORES.stress.days.length - 1];
+  const day = /** @type {ScoredStressDay} */ (/** @type {StressOk} */ (DEMO_SCORES.stress).days[/** @type {StressOk} */ (DEMO_SCORES.stress).days.length - 1]);
   assert.ok(heroOf(s.host.innerHTML).includes(`<b class="dd-num">${day.now.v.toFixed(1).replace('.', ',')}</b>`));
   assert.ok(s.host.innerHTML.includes(esT.deep.stress.notes.formula));
   assert.equal(esT.metrics.stress.title, 'Estimación de estrés');
@@ -1870,10 +1931,10 @@ test('fitness age: the headline reads "≤ 25" / "≥ 75" at a clamp bound of th
 });
 
 /* ---------- energy bank page (key 'energy', SCORES.energy: lib/score/energy-bank.mjs) ---------- */
-const partsOf = (html) => (html.split('<section class="dd-contrib"')[1] || '').split('</section>')[0];
+const partsOf = (/** @type {string} */ html) => (html.split('<section class="dd-contrib"')[1] || '').split('</section>')[0];
 
 test('energy page: hero = the latest level on a 0-100 gauge with its band; the intraday curve from wake; what moved it; our-model notes + constants under ⓘ', () => {
-  const E = DEMO_SCORES.energy;
+  const E = /** @type {EnergyOk} */ (DEMO_SCORES.energy);
   assert.equal(E.ok, true, 'the demo extract bakes the energy bank');
   const day = E.days[E.days.length - 1];
   assert.ok(day.now, 'the demo\'s newest day has a value');
@@ -1887,16 +1948,16 @@ test('energy page: hero = the latest level on a 0-100 gauge with its band; the i
   assert.ok(hero.includes(`<span class="ds-band">${enT.deep.energy.bands[band]}</span>`));
   const curve = curveOf(html);
   for (const b of ['lo', 'mid', 'hi']) assert.match(curve, new RegExp(`<rect class="ds-zone de-${b}"`));
-  const path = /<path class="ds-line" d="([^"]+)"/.exec(curve)[1];
+  const path = /** @type {RegExpExecArray} */ (/<path class="ds-line" d="([^"]+)"/.exec(curve))[1];
   assert.equal((path.match(/[ML]/g) || []).length, day.hours.length + 1, 'the wake point + one per hour');
-  const marked = day.hours.filter((h) => h.wo || h.ld >= 5 || h.st >= 2).length;
+  const marked = day.hours.filter((h) => h.wo || h.ld >= 5 || /** @type {number} */ (h.st) >= 2).length;
   assert.equal((curve.match(/<circle class="ds-pt /g) || []).length, marked, 'workout / load and high-stress hours are marked');
   const parts = partsOf(html);
-  for (const k of ['start', 'base', 'stress', 'load', 'charge', 'low']) assert.ok(parts.includes(enT.deep.energy.rows[k]), k);
+  for (const k of /** @type {const} */ (['start', 'base', 'stress', 'load', 'charge', 'low'])) assert.ok(parts.includes(enT.deep.energy.rows[k]), k);
   assert.ok(parts.includes(`<b class="dd-row-val">${day.start}</b>`));
   assert.ok(insightOf(html).includes(format(enT.deep.energy.line, { start: day.start, wake: day.wake, value: day.now.lv, time: String(day.now.h).padStart(2, '0') + ':00' })));
   const info = infoOf(html);
-  for (const k of ['model', 'hours', 'limits']) assert.ok(info.includes(enT.deep.energy.notes[k]), k);
+  for (const k of /** @type {const} */ (['model', 'hours', 'limits'])) assert.ok(info.includes(enT.deep.energy.notes[k]), k);
   assert.ok(info.includes('−1.5 (being awake)') && info.includes('−30 × (1 − e^(−TRIMP ÷ K))') && info.includes('+1 when stress is under 0.5'), 'the formula with the baked constants');
   assert.ok(info.includes(enT.bands.bank));
   // the trend below: each day's latest level, coloured by the three thirds
@@ -1906,13 +1967,13 @@ test('energy page: hero = the latest level on a 0-100 gauge with its band; the i
 });
 
 test('energy page follows the day it was opened on; a day without a recovery % says why; no SCORES.energy -> the empty sheet', () => {
-  const E = DEMO_SCORES.energy;
+  const E = /** @type {EnergyOk} */ (DEMO_SCORES.energy);
   const valued = E.days.filter((d) => d.now);
-  const prev = valued[valued.length - 2];
+  const prev = /** @type {EnergyDayOk} */ (valued[valued.length - 2]);
   const s = setup({ scores: DEMO_SCORES });
   s.api.open('energy-bank', prev.date);
   assert.ok(heroOf(s.host.innerHTML).includes(`<b class="dd-num">${prev.now.lv}</b>`));
-  const gap = E.days.find((d) => !d.now && d.date > E.metric.start);
+  const gap = E.days.find((d) => !d.now && d.date > /** @type {{ start: string }} */ (E.metric).start);
   assert.ok(gap, 'the demo has a day without a recovery %');
   s.api.open('energy-bank', gap.date);
   assert.ok(insightOf(s.host.innerHTML).includes(enT.deep.energy.reasons.noRecovery));
@@ -1933,9 +1994,9 @@ test('es energy page: Spanish copy', () => {
 // the nutrition score: scored by the page at view time (client/nutri-score.ts), read through
 // window.HCNutriScore.metric(); a SYNTHETIC series ending on the viewer's today (so far)
 function nscoreMetric() {
-  const start = addDays(NOW, -89), v = Array(90).fill(null), days = {};
-  const put = (iso, score, o = {}) => {
-    v[dayIndex({ start }, iso)] = score;
+  const start = addDays(NOW, -89), v = Array(90).fill(null), days = /** @type {Record<string, unknown>} */ ({});
+  const put = (/** @type {string} */ iso, /** @type {number | null} */ score, o = {}) => {
+    v[dayIndex(/** @type {Dense} */ ({ start }), iso)] = score;
     days[iso] = { score, parts: { k: { v: 2100, t: 2000, pts: 100 }, p: { v: 120, t: 150, pts: 75 }, f: null }, inc: true, partial: false, meals: true, assumed: false, ...o };
   };
   put(addDays(NOW, -3), 90, { inc: false, parts: { k: { v: 2000, t: 2000, pts: 100 }, p: { v: 150, t: 150, pts: 100 }, f: { v: 60, t: 70, pts: 100 } } });
@@ -1953,7 +2014,7 @@ test('nutrition score sheet: the trend view of the page-scored series, bands 85 
   assert.ok(html.includes(enT.metrics.nutrition.title));
   assert.ok(html.includes(enT.todaySoFar), 'the newest day is today, so far');
   assert.ok(html.includes(enT.bands.nscore));
-  for (const k of ['nsGood', 'nsMid', 'nsLow']) assert.ok(html.includes(enT.legend[k]), k);
+  for (const k of /** @type {const} */ (['nsGood', 'nsMid', 'nsLow'])) assert.ok(html.includes(enT.legend[k]), k);
   // the 7-day average: (90 + 70 + 50) / 3 = 70, today's 40 left out
   assert.match(html, /<b class="dt-trend-num">70<\/b>/);
   assert.match(html, new RegExp(`class="dt-day dt-s-good" data-dt-act="day" data-date="${addDays(NOW, -3)}"`));
@@ -2001,7 +2062,7 @@ test('nutrition score day panel: the score, each component eaten / target and po
   assert.ok(html.includes(`<span class="dt-row-lbl">${P.k}</span><b class="dt-row-val">2,100 / 2,000 kcal</b><small class="dt-row-sub">100 / 100 pts</small>`));
   assert.ok(html.includes(`<span class="dt-row-lbl">${P.p}</span><b class="dt-row-val">120 / 150 g</b><small class="dt-row-sub">75 / 100 pts</small>`));
   assert.ok(html.includes(`<span class="dt-row-lbl">${P.f}</span><b class="dt-row-val">—</b><small class="dt-row-sub">${P.unknown}</small>`));
-  for (const k of ['inc', 'meals', 'assumed']) assert.ok(html.includes(P[k]), k);
+  for (const k of /** @type {const} */ (['inc', 'meals', 'assumed'])) assert.ok(html.includes(P[k]), k);
   s.api.open('nutrition', NOW);
   // today is still filling up: "In progress" instead of a score, eaten / target without points
   const today = s.host.innerHTML;
@@ -2025,7 +2086,7 @@ test('nutrition score: listed in the trend picker (and selected) once the page h
 });
 
 test('deep-dive History fold: the month calendar + day panel sit behind one collapsed row, toggled in place and remembered; a dated open starts it open; the trend view has no fold', () => {
-  const box = new StubElement('div', { hidden: true });
+  const box = /** @type {El} */ (new StubElement('div', { hidden: true }));
   const s = setup({ dials: DIALS, query: { '#dd-hist': box } });
   s.api.open('recovery');
   let html = s.host.innerHTML;
@@ -2061,17 +2122,17 @@ test('deep-dive History fold: the month calendar + day panel sit behind one coll
 test('trend view 6M / 1Y: only the days out of the range get a dot (the 7-day line carries the rest); M keeps every day', () => {
   const s = setup();
   const m = DEMO.metrics.rhr;
-  const inWin = (from) => { const out = []; for (let d = from < m.start ? m.start : from; d <= NOW; d = addDays(d, 1)) { const v = valueOn(m, d); if (v != null) out.push(v); } return out; };
+  const inWin = (/** @type {string} */ from) => { const out = []; for (let d = from < m.start ? m.start : from; d <= NOW; d = addDays(d, 1)) { const v = valueOn(m, d); if (v != null) out.push(v); } return out; };
   s.api.open('rhr');
   let html = s.host.innerHTML;
   assert.equal((html.match(/class="dt-pt/g) || []).length, inWin(addDays(NOW, -29)).length, 'M: a dot per day with data');
   // the "Daily" key shows the dots' own colours: one mark per state drawn, never a stand-in blue swatch
-  const keyStates = (h, cls) => {
+  const keyStates = (/** @type {string} */ h, /** @type {string} */ cls) => {
     const k = h.match(new RegExp(`<span class="dt-k dt-k-pts ${cls}"><svg class="dt-k-sw"[^>]*>([\\s\\S]*?)<\\/svg>([^<]*)<\\/span>`));
     return k ? { label: k[2], sts: [...k[1].matchAll(/class="dt-kd dt-s-(\w+)"/g)].map((x) => x[1]) } : null;
   };
-  const drawnStates = (h) => [...new Set([...h.matchAll(/class="dt-pt dt-s-(\w+)"/g)].map((x) => x[1]))].sort();
-  const dk = keyStates(html, 'dt-k-daily');
+  const drawnStates = (/** @type {string} */ h) => [...new Set([...h.matchAll(/class="dt-pt dt-s-(\w+)"/g)].map((x) => x[1]))].sort();
+  const dk = /** @type {{ label: string, sts: string[] }} */ (keyStates(html, 'dt-k-daily'));
   assert.equal(dk.label, enT.chartKey.daily);
   assert.deepEqual([...dk.sts].sort(), drawnStates(html), 'the key marks = the states the chart drew');
   assert.ok(dk.sts.length > 1, 'the demo month mixes states (so a single blue swatch would lie)');
@@ -2083,7 +2144,7 @@ test('trend view 6M / 1Y: only the days out of the range get a dot (the 7-day li
   assert.equal((html.match(/class="dt-pt/g) || []).length, out.length, '6M: a dot per out-of-range day only');
   assert.doesNotMatch(html, /dt-pt dt-s-normal/, 'no in-range dot');
   assert.match(html, /class="dt-line"/, 'the 7-day line stays');
-  const ok = keyStates(html, 'dt-k-out');
+  const ok = /** @type {{ label: string, sts: string[] }} */ (keyStates(html, 'dt-k-out'));
   assert.equal(ok.label, enT.chartKey.outside, 'the key says which days are dots');
   assert.deepEqual([...ok.sts].sort(), drawnStates(html), 'in the out-of-range days\' own colours');
   // recovery: out of range = beyond the day cut (the calendar's above / below baseline)
@@ -2097,17 +2158,17 @@ test('trend view 6M / 1Y: only the days out of the range get a dot (the 7-day li
   const es = setup({ locale: 'es' });
   es.api.open('rhr');
   es.click(act('range', { 'data-range': '365' }));
-  assert.equal(keyStates(es.host.innerHTML, 'dt-k-out').label, esT.chartKey.outside);
+  assert.equal(/** @type {{ label: string }} */ (keyStates(es.host.innerHTML, 'dt-k-out')).label, esT.chartKey.outside);
 });
 
 test('trend view breakdown: one stacked bar of the window\'s days by calendar state with a count each ("6x"), following the window; LEARN MORE opens ⓘ; none for training volume', () => {
-  const info = new StubElement('div', { hidden: true });
+  const info = /** @type {El} */ (new StubElement('div', { hidden: true }));
   info.scrolled = 0;
   info.scrollIntoView = () => { info.scrolled++; };
-  const ibtn = new StubElement('button', { attrs: { 'aria-expanded': 'false' } });
+  const ibtn = /** @type {El} */ (new StubElement('button', { attrs: { 'aria-expanded': 'false' } }));
   const s = setup({ query: { '#dd-info': info, '.sh-info': ibtn } });
   const m = DEMO.metrics.rhr;
-  const count = (from) => {
+  const count = (/** @type {string} */ from) => {
     const c = { good: 0, normal: 0, bad: 0 };
     for (let d = from; d <= NOW; d = addDays(d, 1)) {
       const v = valueOn(m, d);
@@ -2117,7 +2178,7 @@ test('trend view breakdown: one stacked bar of the window\'s days by calendar st
     }
     return c;
   };
-  const brkOf = (html) => (html.split('<section class="dt-brk"')[1] || '').split('</section>')[0];
+  const brkOf = (/** @type {string} */ html) => (html.split('<section class="dt-brk"')[1] || '').split('</section>')[0];
   s.api.open('rhr');
   for (const [range, from] of [['30', addDays(NOW, -29)], ['7', addDays(NOW, -6)]]) {
     s.click(act('range', { 'data-range': range }));
@@ -2126,7 +2187,7 @@ test('trend view breakdown: one stacked bar of the window\'s days by calendar st
     const tot = c.good + c.normal + c.bad;
     assert.ok(b.includes(`<h3 class="dt-brk-t">${enT.trend.brk.title}</h3><button type="button" class="cta" data-dt-act="learn">${enT.trend.brk.learn}<span aria-hidden="true"> →</span></button>`));
     assert.deepEqual([...b.matchAll(/<li data-st="([a-z]+)">/g)].map((x) => x[1]), ['good', 'normal', 'bad'], 'the legend\'s order');
-    for (const k of ['good', 'normal', 'bad']) {
+    for (const k of /** @type {const} */ (['good', 'normal', 'bad'])) {
       assert.ok(b.includes(`${k === 'good' ? enT.legend.good : k === 'bad' ? enT.legend.bad : enT.legend.normal}<b>${c[k]}x</b>`), `${range}: ${k} ${c[k]}x`);
       if (c[k]) assert.ok(b.includes(`<i class="dt-s-${k}" style="width:${Math.round((1000 * c[k]) / tot) / 10}%"></i>`), `${range}: ${k} segment`);
       else assert.ok(!b.includes(`<i class="dt-s-${k}"`), `${range}: no empty segment`);
@@ -2166,6 +2227,7 @@ test('no region landmarks inside the sheet: a <section> of a deep dive or the tr
 });
 
 // clip a metric to its last `n` days (every per-day array sliced, start moved): a user whose data starts late
+/** @param {string} key @param {number} n */
 function clipped(key, n) {
   const d = copy(), m = d.metrics[key], len = m.v.length;
   for (const k of Object.keys(m)) if (Array.isArray(m[k]) && m[k].length === len) m[k] = m[k].slice(-n);
@@ -2174,27 +2236,27 @@ function clipped(key, n) {
 }
 
 test('trend sentence: a window clipped to the data\'s first day names that day, never "these 30 days"; a full window keeps its span', () => {
-  for (const [T, locale] of [[enT, 'en'], [esT, 'es']]) {
+  for (const [T, locale] of /** @type {[typeof enT, string][]} */ ([[enT, 'en'], [esT, 'es']])) {
     const d = clipped('workouts', 2);
     const s = setup({ locale, detail: d });
     s.api.open('workouts');
-    const txt = s.host.innerHTML.match(/<p class="dt-trend-txt">([^<]*)<\/p>/)[1];
+    const txt = /** @type {RegExpMatchArray} */ (s.host.innerHTML.match(/<p class="dt-trend-txt">([^<]*)<\/p>/))[1];
     assert.ok(!txt.includes(T.trend.span.m), `${locale}: ${txt}`);
     const since = format(T.trend.spanSince, { date: '' });
     assert.ok(txt.includes(since), `${locale}: ${txt}`);
     // the owner's case: a full 30-day window still says "these 30 days"
     const full = setup({ locale });
     full.api.open('steps');
-    assert.ok(full.host.innerHTML.match(/<p class="dt-trend-txt">([^<]*)<\/p>/)[1].includes(T.trend.span.m), locale);
+    assert.ok(/** @type {RegExpMatchArray} */ (full.host.innerHTML.match(/<p class="dt-trend-txt">([^<]*)<\/p>/))[1].includes(T.trend.span.m), locale);
   }
 });
 
 test('nutrition score sheet: only today logged (never counts until the day ends) says so, never "no data in this period"', () => {
-  for (const [T, locale] of [[enT, 'en'], [esT, 'es']]) {
+  for (const [T, locale] of /** @type {[typeof enT, string][]} */ ([[enT, 'en'], [esT, 'es']])) {
     const s = setup({ locale });
     s.ctx.window.HCNutriScore = { metric: () => ({ kind: 'nscore', dir: 1, dec: 0, start: NOW, v: [null], days: { [NOW]: { score: 40, partial: true, parts: {}, inc: false, meals: true, assumed: false } }, bands: { good: 85, mid: 60 } }) };
     s.api.open('nutrition');
-    const txt = s.host.innerHTML.match(/<p class="dt-trend-txt">([^<]*)<\/p>/)[1];
+    const txt = /** @type {RegExpMatchArray} */ (s.host.innerHTML.match(/<p class="dt-trend-txt">([^<]*)<\/p>/))[1];
     assert.equal(txt, format(T.trend.sent.todayPending, { metric: T.metrics.nutrition.title }), locale);
   }
   // a window with no day at all keeps the plain "no data" sentence
@@ -2205,7 +2267,7 @@ test('nutrition score sheet: only today logged (never counts until the day ends)
 });
 
 test('a gated recovery sheet explains the gate (the card\'s own text), never the generic "no data yet"', () => {
-  for (const [T, locale] of [[enT, 'en'], [esT, 'es']]) {
+  for (const [T, locale] of /** @type {[typeof enT, string][]} */ ([[enT, 'en'], [esT, 'es']])) {
     const d = copy();
     delete d.metrics.recovery;
     const s = setup({ locale, detail: d, scores: { recovery: { gated: true, reason: 'insufficient' } } });
@@ -2217,7 +2279,7 @@ test('a gated recovery sheet explains the gate (the card\'s own text), never the
 });
 
 test('a load sheet whose workouts carry no effort explains why (the cards\' own sentence), never the generic "no data yet"', () => {
-  for (const [T, locale] of [[enT, 'en'], [esT, 'es']]) {
+  for (const [T, locale] of /** @type {[typeof enT, string][]} */ ([[enT, 'en'], [esT, 'es']])) {
     const d = copy();
     for (const k of ['load-strength', 'load-hybrid', 'load-run', 'load-bike']) delete d.metrics[k];
     const scores = { load: { reEpoch: null, modalities: ['strength', 'hybrid', 'run', 'bike'].map((key) => ({ key, trend: { gated: true, reason: 'noEffortSource' } })) } };
@@ -2237,7 +2299,7 @@ test('a load sheet whose workouts carry no effort explains why (the cards\' own 
 });
 
 test('a night signal the device never wrote (absent while other data exists) says so in its sheet; a fresh empty build keeps "no data yet"', () => {
-  for (const [T, locale] of [[enT, 'en'], [esT, 'es']]) {
+  for (const [T, locale] of /** @type {[typeof enT, string][]} */ ([[enT, 'en'], [esT, 'es']])) {
     const d = copy();
     for (const k of ['hrv', 'respiratory', 'wristTemp']) delete d.metrics[k];
     const s = setup({ locale, detail: d });
@@ -2254,7 +2316,7 @@ test('a night signal the device never wrote (absent while other data exists) say
 
 test('sleep day detail: an estimated (in-bed-only) night without stages says the device records only time in bed', () => {
   const d = addDays(NOW, -1);
-  for (const [T, locale] of [[enT, 'en'], [esT, 'es']]) {
+  for (const [T, locale] of /** @type {[typeof enT, string][]} */ ([[enT, 'en'], [esT, 'es']])) {
     const est = copy();
     const sl = est.metrics.sleep;
     sl.est = sl.v.map(() => null);

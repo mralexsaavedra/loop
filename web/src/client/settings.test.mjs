@@ -16,10 +16,18 @@ const foodSource = FOOD_SOURCE; // the four food scripts, in page order
 const source = clientScriptSource('settings.ts');
 const FOOD_CONST = { meals: FOOD_MEALS, stores: FOOD_STORES, units: FOOD_UNITS, limits: FOOD_LIMITS, goals: SETTINGS_GOALS, groups: MEAL_GROUPS, mainSlots: MAIN_SLOTS, addonGroup: ADDON_GROUP, addonSlot: ADDON_SLOT };
 const flush = async () => { for (let i = 0; i < 10; i++) await new Promise((r) => setImmediate(r)); };
+/** @param {unknown} body @param {number} [status] */
 const json = (body, status = 200) => ({ ok: status >= 200 && status < 300, status, json: async () => JSON.parse(JSON.stringify(body)) });
+/** @param {string | null} goal @param {number | null} [targetWeightKg] */
 const SET = (goal, targetWeightKg = null) => json({ settings: { goal, targetWeightKg, updatedAt: '2030-01-10T10:00:00.000Z' } });
 
+/**
+ * @typedef {{goal: string, applied: string[], stored: string | null, pending: string | null, pendingGoal?: () => string | null,
+ *   clearPending?: (g: string) => void, state?: () => {goal: string}, applyGoal?: (g: string) => boolean, storedGoal?: () => string | null}} NutriStub
+ */
+/** @param {string} [goal] @param {string | null} [stored] @param {string | null} [pending] */
 function nutriStub(goal = 'maintain', stored = null, pending = null) {
+  /** @type {NutriStub} */
   const n = { goal, applied: [], stored, pending };
   n.pendingGoal = () => n.pending;
   n.clearPending = (g) => { if (n.pending === g) n.pending = null; };
@@ -28,28 +36,39 @@ function nutriStub(goal = 'maintain', stored = null, pending = null) {
   n.storedGoal = () => n.stored;
   return n;
 }
-/** routes: {'GET /api/food/settings': response | fn(init, n)}; unknown -> a network error (offline) */
+/** @typedef {{method?: string, headers: Record<string, string>, body?: string}} FetchInit the init HC hands to fetch (headers always set) */
+/** @typedef {{code?: string}} ApiError what HCSettings rejects with */
+/** routes: {'GET /api/food/settings': response | fn(init, n)}; unknown -> a network error (offline)
+ * @param {{routes?: Record<string, unknown>, nutri?: NutriStub}} [opts] */
 function setup({ routes = {}, nutri = nutriStub() } = {}) {
+  /** @type {{key: string, init: FetchInit, body: any}[]} body = the JSON the script sent */
   const calls = [];
+  /** @type {Record<string, number>} */
   const counts = {};
-  const fetch = async (url, init = {}) => {
+  /** @param {string} url @param {FetchInit} [init] */
+  const fetch = async (url, init = /** @type {FetchInit} */ ({})) => {
     const key = `${init.method || 'GET'} ${url}`;
     calls.push({ key, init, body: init.body ? JSON.parse(init.body) : undefined });
     counts[key] = (counts[key] || 0) + 1;
-    const r = routes[key];
+    const r = /** @type {any} */ (routes[key]); // a route answer: a response or a function of (init, n)
     if (r === undefined) throw new TypeError('Failed to fetch');
     return typeof r === 'function' ? r(init, counts[key]) : r;
   };
-  const doc = new StubDocument();
+  const doc = /** @type {StubDocument & {addEventListener?: (t: string, fn: (e: unknown) => void) => void, hidden?: boolean}} */ (new StubDocument());
+  /** @type {Record<string, ((e: unknown) => void)[]>} */
   const docListeners = {};
   doc.addEventListener = (t, fn) => { (docListeners[t] = docListeners[t] || []).push(fn); };
   doc.hidden = false;
   // collected timers; clearTimeout really cancels (the request timeout of HC.fetchTimeout is cleared on an answer)
+  /** @type {{fn: () => void, ms: number, id: number}[]} */
   const timers = [];
   let nextId = 0;
+  /** @param {() => void} fn @param {number} ms */
   const setTimeout = (fn, ms) => { timers.push({ fn, ms, id: ++nextId }); return nextId; };
-  const clearTimeout = (id) => { const i = timers.findIndex((x) => x.id === id); if (i !== -1) timers.splice(i, 1); };
+  const clearTimeout = (/** @type {number} */ id) => { const i = timers.findIndex((x) => x.id === id); if (i !== -1) timers.splice(i, 1); };
+  /** @type {import('node:vm').Context} the script's window (a vm global: untyped by nature) */
   const window = { HCNutri: nutri };
+  /** @type {import('node:vm').Context} */
   const ctx = {
     document: doc, window, I18N_FOOD: esF, FOOD_CONST, FOOD_BASICS: [], LOCALE: 'es',
     Math, JSON, Number, String, Object, Array, Promise, isFinite, fetch, Uint8Array, setTimeout, clearTimeout,
@@ -70,7 +89,7 @@ test('no settings API (artifact, file://, example build): not ready, no goal app
   assert.equal(t.S.targetWeight(), null);
   assert.deepEqual(t.nutri.applied, []);
   assert.deepEqual(t.calls.map((c) => c.key), ['GET /api/food/products', 'GET /api/food/settings']);
-  await assert.rejects(t.S.saveGoal('cut'), (e) => e.code === 'offline');
+  await assert.rejects(t.S.saveGoal('cut'), (/** @type {ApiError} */ e) => e.code === 'offline');
   assert.equal(t.calls.length, 2, 'never PUTs without the API');
 });
 
@@ -81,7 +100,7 @@ test('the server goal is the source of truth: applied through HCNutri.applyGoal,
   assert.equal(t.S.goal(), 'cut');
   assert.equal(t.S.targetWeight(), 72.5);
   assert.deepEqual(t.nutri.applied, ['cut']);
-  const get = t.calls.find((c) => c.key === 'GET /api/food/settings');
+  const get = /** @type {(typeof t.calls)[number]} */ (t.calls.find((c) => c.key === 'GET /api/food/settings'));
   assert.equal(get.init.headers['X-HC-Food'], '1');
   // the same goal as the local one: nothing to apply
   const same = setup({ routes: { 'GET /api/food/settings': SET('maintain') } });
@@ -113,7 +132,7 @@ test('a PENDING goal (picked here, never confirmed) wins over the server and is 
 
 test('a failed goal PUT stays pending and is retried when the page becomes visible again', async () => {
   const nutri = nutriStub('bulk', 'bulk', 'bulk');
-  const t = setup({ nutri, routes: { 'GET /api/food/settings': SET('cut'), 'PUT /api/food/settings': (init, n) => (n === 1 ? json({ error: 'rate_limited' }, 429) : SET('bulk')) } });
+  const t = setup({ nutri, routes: { 'GET /api/food/settings': SET('cut'), 'PUT /api/food/settings': (/** @type {FetchInit} */ init, /** @type {number} */ n) => (n === 1 ? json({ error: 'rate_limited' }, 429) : SET('bulk')) } });
   await flush();
   assert.equal(nutri.pending, 'bulk');
   assert.equal(t.S.state().pending, 'bulk', 'the profile can say "pendiente de guardar"');
@@ -125,7 +144,7 @@ test('a failed goal PUT stays pending and is retried when the page becomes visib
 });
 
 test('GET /settings is retried with backoff on offline / 5xx (3 tries in all), never on 404 / 503', async () => {
-  const t = setup({ routes: { 'GET /api/food/settings': (init, n) => (n < 3 ? json({ error: 'internal' }, 500) : SET('cut')) } });
+  const t = setup({ routes: { 'GET /api/food/settings': (/** @type {FetchInit} */ init, /** @type {number} */ n) => (n < 3 ? json({ error: 'internal' }, 500) : SET('cut')) } });
   await flush();
   assert.deepEqual(t.tick(), [1000]);
   await flush();
@@ -150,10 +169,11 @@ test('GET /settings is retried with backoff on offline / 5xx (3 tries in all), n
 });
 
 test('saveTarget: a partial PUT of the target (1 decimal), null clears it; out-of-range is refused before any request', async () => {
-  const t = setup({ routes: { 'GET /api/food/settings': SET('cut'), 'PUT /api/food/settings': (init) => SET('cut', JSON.parse(init.body).targetWeightKg) } });
+  const t = setup({ routes: { 'GET /api/food/settings': SET('cut'), 'PUT /api/food/settings': (/** @type {{body: string}} */ init) => SET('cut', JSON.parse(init.body).targetWeightKg) } });
   await flush();
+  /** @type {unknown[]} */
   const seen = [];
-  t.S.onChange((s) => seen.push(s.last && s.last.status));
+  t.S.onChange((/** @type {{last: {status?: string, what?: string} | null, locale?: string}} */ s) => seen.push(s.last && s.last.status));
   await t.S.saveTarget(72.46);
   assert.equal(t.S.targetWeight(), 72.5);
   await t.S.saveTarget(null);
@@ -161,8 +181,8 @@ test('saveTarget: a partial PUT of the target (1 decimal), null clears it; out-o
   const bodies = t.calls.filter((c) => c.key === 'PUT /api/food/settings').map((c) => c.body);
   assert.deepEqual(bodies, [{ targetWeightKg: 72.5 }, { targetWeightKg: null }]);
   assert.deepEqual(seen, ['saving', 'saved', 'saving', 'saved']);
-  await assert.rejects(t.S.saveTarget(20), (e) => e.code === 'invalid');
-  await assert.rejects(t.S.saveGoal('shred'), (e) => e.code === 'invalid');
+  await assert.rejects(t.S.saveTarget(20), (/** @type {ApiError} */ e) => e.code === 'invalid');
+  await assert.rejects(t.S.saveGoal('shred'), (/** @type {ApiError} */ e) => e.code === 'invalid');
   assert.equal(t.calls.filter((c) => c.key === 'PUT /api/food/settings').length, 2);
 });
 
@@ -170,15 +190,15 @@ test('a refused save reports its coarse code to the listeners and keeps the last
   const t = setup({ routes: { 'GET /api/food/settings': SET('cut', 70), 'PUT /api/food/settings': json({ error: 'rate_limited' }, 429) } });
   await flush();
   let last = null;
-  t.S.onChange((s) => { last = s.last; });
-  await assert.rejects(t.S.saveTarget(68), (e) => e.code === 'rate_limited');
+  t.S.onChange((/** @type {{last: {status?: string, what?: string} | null, locale?: string}} */ s) => { last = s.last; });
+  await assert.rejects(t.S.saveTarget(68), (/** @type {ApiError} */ e) => e.code === 'rate_limited');
   assert.deepEqual(JSON.parse(JSON.stringify(last)), { what: 'target', status: 'error', code: 'rate_limited' });
   assert.equal(t.S.targetWeight(), 70);
 });
 
 test('parseTarget: the food forms\' parser (decimal comma, a trailing kg), empty = no target, the 35–250 kg range', async () => {
   const t = setup();
-  const P = (v) => JSON.parse(JSON.stringify(t.S.parseTarget(v)));
+  const P = (/** @type {unknown} */ v) => JSON.parse(JSON.stringify(t.S.parseTarget(v)));
   assert.deepEqual(P('72,5'), { value: 72.5 });
   assert.deepEqual(P(' 80 kg '), { value: 80 });
   assert.deepEqual(P('72.46'), { value: 72.5 });
@@ -194,11 +214,12 @@ test('parseTarget: the food forms\' parser (decimal comma, a trailing kg), empty
 test('locale: the page language from GET /settings (es | en, anything else = not set); saveLocale is a partial PUT', async () => {
   let stored = 'en';
   const body = () => json({ settings: { goal: 'cut', targetWeightKg: null, locale: stored, updatedAt: '2030-01-10T10:00:00.000Z' } });
-  const t = setup({ routes: { 'GET /api/food/settings': body, 'PUT /api/food/settings': (init) => { stored = JSON.parse(init.body).locale; return body(); } } });
+  const t = setup({ routes: { 'GET /api/food/settings': body, 'PUT /api/food/settings': (/** @type {{body: string}} */ init) => { stored = JSON.parse(init.body).locale; return body(); } } });
   await flush();
   assert.equal(t.S.locale(), 'en');
+  /** @type {unknown[]} */
   const seen = [];
-  t.S.onChange((s) => seen.push([s.locale, s.last && s.last.what, s.last && s.last.status]));
+  t.S.onChange((/** @type {{last: {status?: string, what?: string} | null, locale?: string}} */ s) => seen.push([s.locale, s.last && s.last.what, s.last && s.last.status]));
   await t.S.saveLocale('es');
   assert.equal(t.S.locale(), 'es');
   await t.S.saveLocale(null);
@@ -206,7 +227,7 @@ test('locale: the page language from GET /settings (es | en, anything else = not
   const bodies = t.calls.filter((c) => c.key === 'PUT /api/food/settings').map((c) => c.body);
   assert.deepEqual(bodies, [{ locale: 'es' }, { locale: null }], 'only the locale is sent');
   assert.deepEqual(seen, [['en', 'locale', 'saving'], ['es', 'locale', 'saved'], ['es', 'locale', 'saving'], [null, 'locale', 'saved']]);
-  await assert.rejects(t.S.saveLocale('fr'), (e) => e.code === 'invalid');
+  await assert.rejects(t.S.saveLocale('fr'), (/** @type {ApiError} */ e) => e.code === 'invalid');
   assert.equal(t.calls.filter((c) => c.key === 'PUT /api/food/settings').length, 2, 'refused before any request');
 });
 
