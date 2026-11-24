@@ -95,8 +95,8 @@ test('dash-templates.mjs (Entrenos tab client format strings) has identical keys
   }
 });
 
-test('dash-templates.mjs modalityLabels covers the same modality keys (strength/hiit/run/bike/other) in es/en, all non-empty', () => {
-  assert.deepEqual(Object.keys(esDash.modalityLabels).sort(), ['bike', 'hiit', 'other', 'run', 'strength']);
+test('dash-templates.mjs modalityLabels covers the same modality keys (strength/hybrid/run/bike/other) in es/en, all non-empty', () => {
+  assert.deepEqual(Object.keys(esDash.modalityLabels).sort(), ['bike', 'hybrid', 'other', 'run', 'strength']);
   assert.deepEqual(Object.keys(esDash.modalityLabels).sort(), Object.keys(enDash.modalityLabels).sort());
   for (const [locale, labels] of [['es', esDash.modalityLabels], ['en', enDash.modalityLabels]]) {
     for (const [key, str] of Object.entries(labels)) assert.notEqual(str.trim(), '', `${locale} dash-templates.modalityLabels.${key} must not be empty`);
@@ -158,7 +158,7 @@ test('score-templates.mjs reuses the advice copy from lib/score/advice-copy.mjs 
 
 test('score-templates.mjs carries the four accurate caveats, SDNN and the not-medical note; never the false strength claim', () => {
   for (const [locale, dict] of [['es', esScore], ['en', enScore]]) {
-    for (const k of ['re', 'notComparable', 'gymLabel', 'noEpoch', 'residual', 'sdnn', 'notMedical']) {
+    for (const k of ['re', 'notComparable', 'modLabel', 'noEpoch', 'residual', 'sdnn', 'notMedical']) {
       assert.ok(dict.caveats[k], `${locale}.caveats.${k}`);
     }
     assert.match(dict.caveats.sdnn, /SDNN/);
@@ -168,7 +168,7 @@ test('score-templates.mjs carries the four accurate caveats, SDNN and the not-me
   assert.match(enScore.caveats.re, /HR-derived/);
   assert.match(enScore.caveats.re, /metcon/);
   assert.match(enScore.caveats.notComparable, /not comparable/i);
-  assert.match(enScore.caveats.gymLabel, /auto-label/i);
+  assert.match(enScore.caveats.modLabel, /how each session was recorded/i);
   assert.match(enScore.caveats.notMedical, /not medical advice/i);
 });
 
@@ -193,16 +193,17 @@ test('Salud copy no longer claims HR under-reads/under-represents strength, and 
   assert.match(enHealth.loadNoteHtml, /metcon/);
 });
 
-test('Entrenamiento dashboard labels the watch "hiit" bucket as gym (matches Inicio), strength stays separate', () => {
-  assert.equal(esDash.modalityLabels.hiit, 'Gimnasio');
-  assert.equal(enDash.modalityLabels.hiit, 'Gym');
+test('Entreno labels strength and hybrid by name (the same buckets as Inicio); no Watch-over-tags-HIIT caveat', () => {
+  assert.equal(esDash.modalityLabels.hybrid, 'Híbrido');
+  assert.equal(enDash.modalityLabels.hybrid, 'Hybrid');
   assert.equal(esDash.modalityLabels.strength, 'Fuerza');
   assert.equal(enDash.modalityLabels.strength, 'Strength');
-  // the caveat (now behind the Activity card's ⓘ) must name the bar by its visible label
-  assert.equal(esAct.modalityLabels.hiit, 'Gimnasio');
-  assert.equal(enAct.modalityLabels.hiit, 'Gym');
-  assert.match(esAct.labelsNote, /«Gimnasio»/);
-  assert.match(enAct.labelsNote, /“Gym”/);
+  // the note (behind the Activity card's ⓘ) names the bars by their visible labels
+  assert.equal(esAct.modalityLabels.hybrid, 'Híbrido');
+  assert.equal(enAct.modalityLabels.hybrid, 'Hybrid');
+  assert.match(esAct.labelsNote, /«Fuerza».*«Híbrido»/);
+  assert.match(enAct.labelsNote, /“Strength”.*“Hybrid”/);
+  for (const d of [esAct, enAct, esDash, enDash, esScore, enScore]) assert.doesNotMatch(JSON.stringify(d), /Gimnasio|"Gym"|“Gym”|auto-label/);
 });
 
 test('intake-templates.mjs (Mi día intake rings) has identical key trees in es/en, no empty leaves, and the placeholders intake.ts relies on', () => {
@@ -264,7 +265,7 @@ test('score-templates.mjs timeline copy has the placeholders timeline.ts relies 
   for (const dict of [esScore, enScore]) {
     assert.match(dict.timeline.dateHeading, /\{date\}/);
     assert.match(dict.timeline.re, /\{n\}/);
-    assert.deepEqual(Object.keys(dict.timeline.modalities), ['gym', 'run', 'bike', 'other']);
+    assert.deepEqual(Object.keys(dict.timeline.modalities), ['strength', 'hybrid', 'run', 'bike', 'other']);
   }
 });
 
@@ -294,7 +295,7 @@ test('detail-templates.mjs (detail sheet) has identical key trees in es/en, no e
     // + 'stress' / 'energy': their series are baked in SCORES.stress / SCORES.energy (lib/score), not DETAIL
     assert.deepEqual(Object.keys(dict.metrics), [...DETAIL_KEYS, 'stress', 'energy-bank', 'nutrition'], `${locale}: one entry per DETAIL key, in order, then stress, energy-bank, nutrition`);
     for (const k of [...DETAIL_KEYS, 'stress', 'energy-bank', 'nutrition']) assert.ok(dict.metrics[k].title && dict.metrics[k].unit, `${locale}.metrics.${k}`);
-    assert.deepEqual(Object.keys(dict.modalities), ['gym', 'run', 'bike', 'other']);
+    assert.deepEqual(Object.keys(dict.modalities), ['strength', 'hybrid', 'run', 'bike', 'other']);
     for (const [k, ph] of [['latestLbl', 'date'], ['staleNote', 'date'], ['chartAria', 'from'], ['calAria', 'month']]) assert.match(dict[k], new RegExp(`\\{${ph}\\}`), `${locale}.${k}`);
     for (const k of ['monitor', 'iqr']) for (const ph of ['lo', 'hi', 'median', 'unit']) assert.match(dict.bands[k], new RegExp(`\\{${ph}\\}`), `${locale}.bands.${k}`);
   }

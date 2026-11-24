@@ -128,7 +128,7 @@ type DialParts = { fill?: string | null; mid?: { x: number; y: number } | null }
     };
     return T.advice[a.key].replace(/\{(\w+)\}/g, function (_: string, k: string) { return k in fill ? fill[k] : ''; });
   }
-  var ADV_MOD: Record<string, string> = ES ? { gym: 'gimnasio', run: 'carrera', bike: 'bici' } : { gym: 'gym', run: 'run', bike: 'bike' };
+  var ADV_MOD: Record<string, string> = ES ? { strength: 'fuerza', hybrid: 'híbrido', run: 'carrera', bike: 'bici' } : { strength: 'strength', hybrid: 'hybrid', run: 'run', bike: 'bike' };
 
   /* ---- recovery ---- */
   // Whoop-style detail: headline (last night, big number + band word, one short 7-day trend line) |
@@ -345,7 +345,7 @@ type DialParts = { fill?: string | null; mid?: { x: number; y: number } | null }
   }
 
   function caveatsHtml() {
-    var keys = ['re', 'notComparable', 'gymLabel', 'noEpoch', 'residual', 'sdnn', 'notMedical'];
+    var keys = ['re', 'notComparable', 'modLabel', 'noEpoch', 'residual', 'sdnn', 'notMedical'];
     return '<p class="sc-caveats-h"><b>' + esc(T.caveatsHeading) + '</b></p><ul class="sc-caveats">' +
       keys.map(function (k) { return '<li class="sc-caveat">' + esc(T.caveats[k]) + '</li>'; }).join('') + '</ul>';
   }

@@ -86,6 +86,17 @@ function translateType (sportType) {
   return SPORT_TYPE_MAP[sportType] || FALLBACK_TYPE
 }
 
+// An indoor ride (Strava's `trainer` flag, or a VirtualRide: Zwift & co.) is written as
+// IndoorCycling: still the `bike` modality (every reader matches /Cycling/), shown as "Rodillo".
+// rides.csv and the HR zones keep keying on translateType (any ride). No flag at all (an ingest
+// image that does not export it) keeps the outdoor label.
+const INDOOR_RIDE_TYPE = 'IndoorCycling'
+function workoutType (activity) {
+  const type = translateType(activity.sport_type)
+  if (type === 'Cycling' && (activity.trainer === true || activity.sport_type === 'VirtualRide')) return INDOOR_RIDE_TYPE
+  return type
+}
+
 const numOrNull = (v) => (typeof v === 'number' && Number.isFinite(v) ? v : null)
 const round2 = (v) => Math.round(v * 100) / 100
 const bpmRound = (v) => Math.round(v)
@@ -113,7 +124,7 @@ function toRow (activity) {
 
   const sportType = activity.sport_type
   const mapped = Object.prototype.hasOwnProperty.call(SPORT_TYPE_MAP, sportType)
-  const type = translateType(sportType)
+  const type = workoutType(activity)
 
   const hrAvg = numOrNull(activity.average_heartrate)
   const hrMax = numOrNull(activity.max_heartrate)
@@ -336,6 +347,16 @@ function stalePowerWarning (activities) {
     'active-energy correction is off. Rebuild it (docker compose up -d --build loop-ingest) and re-run.'
 }
 
+// An ingest image built before the indoor flag exports no `trainer` (Strava always sends it as a
+// boolean), so every trainer ride would be filed as an outdoor ride.
+function staleTrainerWarning (activities) {
+  const rides = (activities || []).filter((a) => a && translateType(a.sport_type) === 'Cycling')
+  if (!rides.length) return null
+  if (rides.some((a) => typeof a.trainer === 'boolean')) return null
+  return 'WARNING: no ride carries the trainer flag — the ingest image is probably stale, so indoor trainer rides ' +
+    'show as outdoor rides. Rebuild it (docker compose up -d --build loop-ingest) and re-run.'
+}
+
 // An ingest image built before the HR-stream backfill exports no `hr_hist` at all (null = not
 // fetched yet / no HR is a real value), so no workout can get HR zones.
 function staleZonesWarning (activities) {
@@ -385,6 +406,8 @@ async function main ({ env = process.env, log = console.log, error = console.err
   if (stalePower) error(stalePower)
   const staleZones = staleZonesWarning(activities)
   if (staleZones) error(staleZones)
+  const staleTrainer = staleTrainerWarning(activities)
+  if (staleTrainer) error(staleTrainer)
   const prof = readProfileMaxHr(profileJson)
   if (prof.error) error(`WARNING: ${profileJson} — ${prof.error}; using the observed max HR for the HR zones.`)
   const plan = syncDir(outDir, activities, { profileMaxHr: prof.maxHr })
@@ -406,6 +429,9 @@ export {
   WORKOUTS_CSV,
   WORKOUTS_HEADER,
   translateType,
+  workoutType,
+  INDOOR_RIDE_TYPE,
+  staleTrainerWarning,
   toRow,
   buildRows,
   updateMeta,

@@ -573,7 +573,7 @@ All colours are tokens in `web/src/styles/tokens.css`; the palette is sampled fr
   card's own inner layout may split (Nutrition's summary card: kcal dial | day type + macro bars).
   `web/test/desktop.test.mjs` pins the 960 px column and the absence of multi-column grids.
 - Desktop details: Home's three dials are one centred group (`--dial-size` 168 px, a fixed 72 px gap) with
-  the gym / run / bike pills centred under the load dial; its monitor tiles take their natural height with
+  the strength / hybrid / run / bike pills centred under the load dial; its monitor tiles take their natural height with
   the value one size up; Tonight's dashed line is capped at 560 px, centred; Training's 30-day calendar is
   capped at 640 px, centred, tiles 48 px tall ([`training.md`](training.md)); `--fs-2xs` (auxiliary text)
   goes from 10.5 to 11.5 px.

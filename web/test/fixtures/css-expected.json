@@ -264,8 +264,6 @@
   "|||.act-legend|||padding": "0",
   "|||.act-m-bike|||background": "var(--mid)",
   "|||.act-m-bike|||fill": "var(--mid)",
-  "|||.act-m-hiit|||background": "var(--strain)",
-  "|||.act-m-hiit|||fill": "var(--strain)",
   "|||.act-m-other|||background": "var(--faint)",
   "|||.act-m-other|||fill": "var(--faint)",
   "|||.act-m-run|||background": "var(--up)",
@@ -4357,5 +4355,7 @@
   "|||.hb-sum|||margin": "0 0 var(--sp-3)",
   "|||.hb-sum|||color": "var(--muted)",
   "|||.hb-sum|||font-size": "var(--fs-small)",
-  "|||.dt-day.dt-s-l3, .dt-day.dt-s-l4|||color": "var(--on-strain)"
+  "|||.dt-day.dt-s-l3, .dt-day.dt-s-l4|||color": "var(--on-strain)",
+  "|||.act-m-hybrid|||fill": "var(--strain)",
+  "|||.act-m-hybrid|||background": "var(--strain)"
 }

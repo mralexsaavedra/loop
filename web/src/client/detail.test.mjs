@@ -14,7 +14,7 @@ import { es as esDate, en as enDate } from '../i18n/date-templates.mjs';
 import { loadUtil, DETAIL_SOURCE } from '../../test/client-util.mjs';
 import { fmtHours, fmtMinutes, fmtInt } from '../../../lib/format/numbers.mjs';
 import { StubElement } from '../../test/dom-stub.mjs';
-import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, VIEW_TAB } from '../../../lib/nav/tabs.mjs';
+import { TAB_KEYS, SECTION_TAB, DETAIL_TAB, DETAIL_ALIAS, VIEW_TAB } from '../../../lib/nav/tabs.mjs';
 import { buildScoresFrom } from '../../../lib/score/index.mjs';
 import { healthFrom } from '../../../lib/health/aggregate.mjs';
 import { buildDials } from '../view/dial.mjs';
@@ -122,7 +122,7 @@ function setup({ locale = 'en', now = NOW, detail = DEMO, hash = '', backAsync =
   vm.createContext(ctx);
   loadUtil(ctx);
   if (withCore) {
-    ctx.NAV = { tabs: [...TAB_KEYS], sectionTab: { ...SECTION_TAB }, detailTab: { ...DETAIL_TAB }, viewTab: { ...VIEW_TAB } };
+    ctx.NAV = { tabs: [...TAB_KEYS], sectionTab: { ...SECTION_TAB }, detailTab: { ...DETAIL_TAB }, detailAlias: { ...DETAIL_ALIAS }, viewTab: { ...VIEW_TAB } };
     vm.runInContext(coreSource, ctx);
   }
   vm.runInContext(deepSource, ctx);
@@ -216,6 +216,14 @@ test('deep link: a page opened with #detail/<metric>/<date> opens that view on l
   // junk hashes are ignored
   assert.equal(setup({ hash: '#detail/nope' }).host.hidden, true);
   assert.equal(setup({ hash: '#detail/sleep/2026-13-99x' }).host.hidden, true);
+});
+
+test('deep link: a retired key (#detail/load-gym, before gym split into strength + hybrid) opens its replacement', () => {
+  const d = DEMO.sessions.find((x) => x.m === 'strength').d;
+  const s = setup({ withCore: true, hash: `#detail/load-gym/${d}` });
+  assert.equal(s.host.hidden, false);
+  assert.equal(s.api.state().key, 'load-strength');
+  assert.equal(s.api.state().date, d);
 });
 
 test('a frame that refuses history writes (sandboxed artifact): the view still opens and closing never calls history.back()', () => {
@@ -428,9 +436,9 @@ test('workouts / load day detail lists that day\'s sessions after the same-day r
   assert.ok(html.includes(enT.modalities.run));
   assert.ok(html.includes(`${day.min} min`));
   if (day.re != null) assert.ok(html.includes(`RE ${day.re}`));
-  s.api.open('load-gym', day.d);
+  s.api.open('load-strength', day.d);
   html = s.host.innerHTML;
-  assert.equal((html.match(/class="dt-sess"/g) || []).length, all.filter((x) => x.m === 'gym').length);
+  assert.equal((html.match(/class="dt-sess"/g) || []).length, all.filter((x) => x.m === 'strength').length);
   const w = DEMO.metrics.workouts;
   const rest = addDays(w.start, w.v.findIndex((x) => x === 0));
   s.api.open('workouts', rest);
@@ -584,7 +592,7 @@ test('metric chart: 3 round Y-axis ticks (grid lines + labels), and the Y range 
 
 test('ONE sheet header for dial deep-dives and metric details: "‹" back (= close, focus lands there), the day (dials) or the metric name centred as the dialog title, ⓘ = the shared SVG icon (dials) or an equal spacer', () => {
   const back = '<button type="button" class="sh-back" data-dt-act="close" aria-label="Back">‹</button>';
-  for (const key of ['sleep', 'recovery', 'load-gym']) {
+  for (const key of ['sleep', 'recovery', 'load-strength']) {
     const s = setup({ dials: DIALS });
     const opener = new StubElement('div', { attrs: { 'data-detail': key } });
     opener.focused = 0;
@@ -805,11 +813,11 @@ test('a daily total\'s newest day, when it is the viewer\'s today, reads "today,
   assert.doesNotMatch(later.host.innerHTML, /dt-s-partial/, 'a finished day gets its state again');
 });
 
-test('load deep-dive: the gym / run / bike pills — the page\'s modality pressed, each opens its page and, with score.ts loaded, sets Inicio\'s load dial (window.HCScore.setMod)', () => {
+test('load deep-dive: the strength / hybrid / run / bike pills — the page\'s modality pressed, each opens its page and, with score.ts loaded, sets Inicio\'s load dial (window.HCScore.setMod)', () => {
   const s = setup({ dials: DIALS });
   s.api.open('load-run');
   const html = s.host.innerHTML;
-  const mods = ['gym', 'run', 'bike'].filter((k) => DEMO.metrics['load-' + k]);
+  const mods = ['strength', 'hybrid', 'run', 'bike'].filter((k) => DEMO.metrics['load-' + k]);
   assert.ok(mods.length >= 2, 'the demo has several load series');
   const sw = (html.match(/<div class="dial-switch" role="group" aria-label="Load modality">[\s\S]*?<\/div>/) || [''])[0];
   assert.deepEqual([...sw.matchAll(/data-detail="load-([a-z]+)"/g)].map((m) => m[1]), mods);
@@ -820,7 +828,7 @@ test('load deep-dive: the gym / run / bike pills — the page\'s modality presse
   // with score.ts's window.HCScore present, a pill also switches Inicio's dial
   const t = setup({ dials: DIALS });
   t.ctx.window.HCScore = { setMod: () => {} };
-  t.api.open('load-gym');
+  t.api.open('load-strength');
   assert.match(t.host.innerHTML, /data-detail="load-bike" aria-pressed="false" data-mod="bike">Bike<\/button>/);
   // other dial pages: no pills
   const r = setup({ dials: DIALS });
@@ -831,19 +839,19 @@ test('load deep-dive: the gym / run / bike pills — the page\'s modality presse
 test('load deep-dive = the dial: today\'s RE in a strain ring with the typical-day tick, else the dial\'s word; the insight carries today\'s line', () => {
   for (const m of DIALS.load.modalities) assert.equal(DEMO.metrics['load-' + m.key].typical, m.typical, `${m.key}: same typical day as the dial`);
   const s = setup({ dials: DIALS });
-  s.api.open('load-gym');
-  const gym = DEMO.metrics['load-gym'];
+  s.api.open('load-strength');
+  const gym = DEMO.metrics['load-strength'];
   let hero = heroOf(s.host.innerHTML);
   const t = DIALS.load.tick;
   assert.ok(hero.includes(`<line class="dd-tick" x1="${t.x1}" y1="${t.y1}" x2="${t.x2}" y2="${t.y2}"/>`), 'typical day = the white tick at 6 o\'clock');
-  const gd = DIALS.load.modalities.find((m) => m.key === 'gym');
+  const gd = DIALS.load.modalities.find((m) => m.key === 'strength');
   if (gd.state === 'ok') {
     assert.ok(hero.startsWith(' dd-strain"'));
     assert.ok(hero.includes('<b class="dd-num">28<small>RE</small></b>'));
   } else {
     assert.ok(hero.includes(enT.deep.words.loadGated));
   }
-  const gl = DEMO.metrics['load-gym'].gate ? '' : format(enT.deep.prose.loadDay, { day: '28', typical: gym.typical.toFixed(0) });
+  const gl = DEMO.metrics['load-strength'].gate ? '' : format(enT.deep.prose.loadDay, { day: '28', typical: gym.typical.toFixed(0) });
   if (gl) assert.ok(insightOf(s.host.innerHTML).includes(gl));
   s.api.open('load-run');
   const run = DEMO.metrics['load-run'];
@@ -1397,13 +1405,13 @@ test('sleep contributors: hours vs need, efficiency, consistency, REM + deep; be
   const l = setup({ detail: late, dials: DIALS });
   l.api.open('sleep');
   assert.ok(bedRow(l.host.innerHTML).includes('<b class="dd-row-val">00:30</b><span class="dd-mk dd-neutral" aria-hidden="true">▲</span>'));
-  s.api.open('load-gym');
+  s.api.open('load-strength');
   html = s.host.innerHTML;
-  const gym = DEMO.metrics['load-gym'];
+  const gym = DEMO.metrics['load-strength'];
   const rows = rowsOf(html);
   if (valueOn(gym, NOW) > 0) assert.equal(rows[0], 're', 'trained today: today\'s RE first');
   assert.ok(rows.includes('sessions') && rows.includes('typical'));
-  const n = DEMO.sessions.filter((x) => x.m === 'gym' && x.d >= addDays(NOW, -6) && x.d <= NOW).length;
+  const n = DEMO.sessions.filter((x) => x.m === 'strength' && x.d >= addDays(NOW, -6) && x.d <= NOW).length;
   assert.ok(contribOf(html).includes(`data-row="sessions">`) && contribOf(html).split('data-row="sessions"')[1].includes(`<b class="dd-row-val">${n}</b>`));
   s.api.open('load-run');
   assert.ok(!rowsOf(s.host.innerHTML).includes('re'), 'no session today: no effort row');
@@ -1475,9 +1483,9 @@ test('weekly trends: one card per input, 7 bars ending at the page\'s day (highl
   wk = weeklyOf(s.host.innerHTML);
   assert.match(wk, /dd-bar dd-c-sleep/);
   assert.deepEqual([...wk.matchAll(/<h4 class="dd-wk-t"><button type="button" class="dd-wk-btn"[^>]*>([^<]+)</g)].map((x) => x[1]), ['Sleep', enT.deep.weekly.perf, enT.deep.weekly.restor]);
-  s.api.open('load-gym');
+  s.api.open('load-strength');
   wk = weeklyOf(s.host.innerHTML);
-  assert.deepEqual([...wk.matchAll(/<h4 class="dd-wk-t"><button type="button" class="dd-wk-btn"[^>]*>([^<]+)</g)].map((x) => x[1]), ['Gym load', enT.deep.weekly.minutes]);
+  assert.deepEqual([...wk.matchAll(/<h4 class="dd-wk-t"><button type="button" class="dd-wk-btn"[^>]*>([^<]+)</g)].map((x) => x[1]), ['Strength load', enT.deep.weekly.minutes]);
   assert.match(wk, /dd-bar dd-c-strain/);
   assert.doesNotMatch(wk, /dd-c-(good|mid|low|sleep)/);
   // a later viewer: sleep ends on the dial's night (within the week); load ends at the viewer's today,
@@ -1485,7 +1493,7 @@ test('weekly trends: one card per input, 7 bars ending at the page\'s day (highl
   const later2 = setup({ now: addDays(NOW, 2), dials: DIALS });
   later2.api.open('sleep');
   assert.ok(weeklyOf(later2.host.innerHTML).includes(`<li class="dd-col dd-now"><span class="dd-val">${fmtHours(valueOn(DEMO.metrics.sleep, DIALS.sleep.date))}</span>`), 'the dial\'s night, highlighted');
-  later2.api.open('load-gym');
+  later2.api.open('load-strength');
   assert.ok(weeklyOf(later2.host.innerHTML).includes('<li class="dd-col dd-now"><span class="dd-val">—</span>'), 'today, no data yet');
   clean(s.host.innerHTML);
 });
@@ -1502,8 +1510,8 @@ test('a run day shows the watch running dynamics the Entreno run row no longer p
   assert.ok(html.indexOf('dt-dyn') > html.indexOf('class="dt-sessions"'), 'under the sessions of that day');
   s.api.open('workouts', day.d);
   assert.match(s.host.innerHTML, /dt-dyn/, 'the training-time view of that day too');
-  // another day, a gym view, no HEALTH or no dynamics recorded: no line
-  s.api.open('load-gym', day.d);
+  // another day, a strength view, no HEALTH or no dynamics recorded: no line
+  s.api.open('load-strength', day.d);
   assert.doesNotMatch(s.host.innerHTML, /dt-dyn/);
   const bare = setup({ health: { running: { hasData: true, sessions: [{ date: day.d, dist: 8, power: null, gct: null, vosc: null, stride: null }] } } });
   bare.api.open('load-run', day.d);
@@ -1552,7 +1560,7 @@ test('a session with HR zones shows ZONE 5…0 rows (bar, %, duration, bpm range
   assert.match(html, /avg HR 150 bpm · max 178 bpm/);
   assert.match(html, /Zones = % of a max HR of 190 bpm \(the highest Strava recorded in the last 12 months\)/);
   // another day / modality without zones: no block
-  s.api.open('load-gym', DEMO.sessions.find((x) => x.m === 'gym').d);
+  s.api.open('load-strength', DEMO.sessions.find((x) => x.m === 'strength').d);
   assert.doesNotMatch(s.host.innerHTML, /dt-zones/);
   // no zoneMax (never happens with a zones file, but never NaN): rows without the bpm ranges
   const bare = setup({ detail: { ...detail, zoneMax: undefined } });
@@ -1586,7 +1594,7 @@ test('strain deep-dive: the hero = the day\'s strain in its baked ring, contribu
   assert.ok(info.includes(`K = ${S.K.toFixed(1)}`));
   assert.match(weeklyOf(html), /dd-c-strain/);
   // Relative Effort per modality stays one tap away
-  for (const k of ['gym', 'run', 'bike']) if (DEMO.metrics['load-' + k]) assert.match(html, new RegExp(`class="dd-re-link" data-detail="load-${k}"`));
+  for (const k of ['strength', 'hybrid', 'run', 'bike']) if (DEMO.metrics['load-' + k]) assert.match(html, new RegExp(`class="dd-re-link" data-detail="load-${k}"`));
   clean(html);
 });
 
@@ -1675,7 +1683,7 @@ test('trend view: "TREND VIEW" header + a metric picker pill (non-dial metrics o
   const opts = [...html.matchAll(/<option value="([^"]+)"( selected)?>/g)];
   assert.ok(opts.length >= 2);
   assert.deepEqual(opts.filter((o) => o[2]).map((o) => o[1]), ['rhr'], 'the open metric is selected');
-  for (const k of ['sleep', 'recovery', 'strain', 'load-gym']) assert.ok(!opts.some((o) => o[1] === k), `${k} keeps its dial page`);
+  for (const k of ['sleep', 'recovery', 'strain', 'load-strength']) assert.ok(!opts.some((o) => o[1] === k), `${k} keeps its dial page`);
   assert.match(html, /<label class="dt-metric"><span class="sr-only">Metric<\/span><select class="dt-metric-sel sel" data-dt-pick="metric">/);
   assert.match(html, /<\/select><span class="chev sel-chev" aria-hidden="true">›<\/span><\/label>/, 'the shared select: the system chevron, not the browser arrow');
   s.click(act('range', { 'data-range': '182' }));
@@ -2137,7 +2145,7 @@ test('trend view breakdown: one stacked bar of the window\'s days by calendar st
   // recovery: its day states; training load / volume: no breakdown
   s.api.open('recovery');
   assert.deepEqual([...brkOf(s.host.innerHTML).matchAll(/<li data-st="([a-z]+)">/g)].map((x) => x[1]), ['good', 'normal', 'bad']);
-  s.api.open('load-gym');
+  s.api.open('load-strength');
   assert.doesNotMatch(s.host.innerHTML, /dt-brk/);
   s.api.open('workouts');
   assert.doesNotMatch(s.host.innerHTML, /dt-brk/);
@@ -2211,10 +2219,10 @@ test('a gated recovery sheet explains the gate (the card\'s own text), never the
 test('a load sheet whose workouts carry no effort explains why (the cards\' own sentence), never the generic "no data yet"', () => {
   for (const [T, locale] of [[enT, 'en'], [esT, 'es']]) {
     const d = copy();
-    for (const k of ['load-gym', 'load-run', 'load-bike']) delete d.metrics[k];
-    const scores = { load: { reEpoch: null, modalities: ['gym', 'run', 'bike'].map((key) => ({ key, trend: { gated: true, reason: 'noEffortSource' } })) } };
+    for (const k of ['load-strength', 'load-hybrid', 'load-run', 'load-bike']) delete d.metrics[k];
+    const scores = { load: { reEpoch: null, modalities: ['strength', 'hybrid', 'run', 'bike'].map((key) => ({ key, trend: { gated: true, reason: 'noEffortSource' } })) } };
     const s = setup({ locale, detail: d, scores });
-    for (const k of ['load-gym', 'load-run', 'load-bike']) {
+    for (const k of ['load-strength', 'load-hybrid', 'load-run', 'load-bike']) {
       s.api.open(k);
       assert.ok(s.host.innerHTML.includes(T.load.gated.noEffortSource), locale + ' ' + k);
       assert.ok(!s.host.innerHTML.includes(T.empty), locale + ' ' + k);

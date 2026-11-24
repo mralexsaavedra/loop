@@ -29,7 +29,7 @@ parses it into the extract CSVs. A parsing fix later is a re-sync, not a re-impo
 | POST   | `/ingest/health-auto-export`  | bearer | `202` with the stored row id; `400` on an empty body, invalid JSON or a `\u0000` anywhere in it (`code: "nul_character"`: Postgres cannot store it, so it is refused rather than a `500` the client retries forever); `413` over `MAX_BODY_BYTES` |
 | POST   | `/sync/strava`                | bearer | `200` with the activity count; `409` when unconfigured |
 | GET    | `/export/raw`                 | bearer | `200` with `[{id, received_at, payload}]` (at most `limit` rows and about 32 MB of payloads per page; `X-Has-More: true` when the byte budget cut it); `400` on a bad query |
-| GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate, suffer_score, kilojoules, total_elevation_gain, start_utc, device_watts, hr_hist}]`; `400` on a bad query |
+| GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate, suffer_score, kilojoules, total_elevation_gain, start_utc, device_watts, trainer, hr_hist}]`; `400` on a bad query |
 | POST   | `/strava/activities/:id/annotate` | bearer | `200` `{ok, id, updated, name_changed, description_changed, current_name, current_description, name_is_default, had_description, dry_run, overwrite}`: writes `{name?, description?}` to the Strava activity, the description only when it has none and the name only over Strava's automatic title (`overwrite: true`: an edit the owner asked for replaces both) (see "Naming and describing an activity" below); `400` (`bad_body`, `unknown_field`, `bad_field` + `field`, `nothing_to_write`), `404 activity_not_found`, `409 strava_write_scope_missing` / `strava not configured`, `415`, `429 strava_rate_limited`, `502 strava_auth` / `strava_network` / `strava_error` |
 | GET    | `/food/products`              | header | `200` `{products}`: active products (per-100 macros, store, serving size, `servingDefault`) |
 | POST / PUT / DELETE | `/food/products[/:id]` | header | create `201` / edit `200` (PUT = the whole product) / archive `200`; `409 barcode_exists`, `400 atwater` unless `force`; `servingDefault: true` (log by serving by default) only with a `servingSize`, else `400 invalid` |
@@ -432,7 +432,8 @@ without the field, so the column stays blank until the rebuild and the next
 `npm run sync:strava` (which prints a stale-image warning when no activity carries
 elevation). Likewise `start_utc` (Strava's UTC `start_date`) and `device_watts` (true only for a
 real power meter) feed `rides.csv` and the power-meter correction of the Watch's active energy on
-ride days; without them the sync warns and the correction stays off.
+ride days; without them the sync warns and the correction stays off. `trainer` (Strava's indoor
+flag) files a trainer ride as `IndoorCycling`; without it the sync warns and indoor rides stay outdoor.
 
 ### Per-workout HR zones: the HR-stream backfill (`hr_hist`)
 

@@ -215,7 +215,7 @@ lib, the page and the built page.
 
 | Input | Rule (`DETECT`) |
 | --- | --- |
-| done gym / run (`SCORES.timeline`, same-day rows merged per modality) | ≥ 20 min → gym (shorter = a stub) |
+| done gym / run (`SCORES.timeline`, same-day rows merged per modality; strength + hybrid summed) | ≥ 20 min → gym (shorter = a stub) |
 | done `other` (walks, tennis…) | ≥ 45 min only, as gym |
 | done ride | < 30 min = commute (ignored); 30–74 → gym; ≥ 75 → bike; ≥ 150 → bikeLong |
 | programmed `TRAINING[today]` | `kind: "bike"` by optional `durationMin`, same ride thresholds (absent = bike); other kinds → gym |

@@ -162,7 +162,7 @@ values; no new metric (the recovery % is a rank of the same composite).
 
 ### Load dial (fallback third dial)
 
-- ONE dial per modality, one shown, NO pills under the dials. The gym / run / bike pills live in the
+- ONE dial per modality, one shown, NO pills under the dials. The strength / hybrid / run / bike pills live in the
   `load-<m>` deep-dive, between its contributors and the insight card (`deepdive.ts` `modSwitch`, the
   page's modality pressed, only with two or more load series); a pill opens that modality's page and,
   through its `data-mod` attribute (`score.ts`'s delegated listener), calls `window.HCScore.setMod(key)` (no bare page global; `deepdive.ts` feature-detects it), which shows that modality's dial on Home and in the collapsed row.
@@ -290,8 +290,8 @@ the nutrition score and today's activities.
 - `lib/score/timeline.mjs`, baked as `SCORES.timeline` even when `hasData` is false; `#timeline` +
   `client/timeline.ts`, under the outlook bar in "My day".
 - Per day: last night's sleep (`sleep-daily.csv`, dated the wake-up day, with its bed / wake clock
-  `bed` / `wake` when the row has them) and that day's workouts by Home modality (gym / run / bike /
-  other) with minutes and RE when the source recorded it.
+  `bed` / `wake` when the row has them) and that day's workouts by Home modality (strength / hybrid /
+  run / bike / other) with minutes and RE when the source recorded it.
 - Row = a coloured chip (sleep `--sleep`, workout `--strain`: line icon + hours asleep; a workout's RE
   as a bare number, else its minutes; dark ink), the uppercase name, and the details stacked on the
   right behind a thin bar of the row's colour: bed / wake time for sleep; for a workout the minutes
@@ -635,7 +635,7 @@ What it shows: last night's recovery as a % rank (headline), with the 7-day tren
 What it shows: per-modality training load from Strava Relative Effort, today vs the typical day.
 `lib/score/training-load.mjs`.
 
-- PER MODALITY (gym / run / bike; `other` is shown raw, never scored) and Relative-Effort-only (Strava
+- PER MODALITY (strength / hybrid / run / bike; `other` is shown raw, never scored) and Relative-Effort-only (Strava
   `suffer_score`; Apple rows have no RE and are counted as `unscored`).
 - Same-day rows follow the [shared rule](#same-day-merge-rule) (junk dropped, one source, then SUM).
 - The series starts at the first date with any RE (`reEpoch`); acute 7d vs chronic 42d EWMA.
@@ -746,8 +746,8 @@ What it shows: Home for a PAST day (`#d=YYYY-MM-DD`) via the top bar's "‹ HOY 
 
 What it shows: the limits of the scores, kept reachable wherever a dial is shown.
 
-- RE is HR-derived (credits the metcon more than heavy sets); modalities are not comparable; "gym" is
-  the Watch auto-label; no comparable load before the RE epoch; same-day rows are summed (a real
+- RE is HR-derived (credits the metcon more than heavy sets); modalities are not comparable; strength
+  vs hybrid comes from how each session was recorded; no comparable load before the RE epoch; same-day rows are summed (a real
   two-a-day is indistinguishable); HRV is daytime SDNN; not medical advice.
 - They live with each dial's detail: the caveats card in Entreno's `load` section; the recovery card in
   Salud.
@@ -757,12 +757,15 @@ What it shows: the limits of the scores, kept reachable wherever a dial is shown
 
 ## Same-day merge rule
 
-What it shows: ONE rule (`lib/training/sessions.mjs` `mergeSameDay(rows, keyFn, { dropJunk, dropStub })`)
+What it shows: ONE rule (`lib/training/sessions.mjs` `mergeSameDay(rows, keyFn, { dropJunk, dropStub, dedupeKey })`)
 used by EVERY workouts.csv reader: the load series, the timeline, the Entreno calendar / cumulative
 time, the workouts dashboard, the running / cycling tables and Salud's load vs recovery.
 
-- Key = the physical modality (Home's gym / run / bike / other), or one constant for a single-family
-  table; Entreno buckets the surviving rows into its five display buckets afterwards.
+- Key = the modality (`byModality`: strength / hybrid / run / bike / other), or one constant for a
+  single-family table. The one-source step (3 below) runs per `dedupeKey`: the PHYSICAL family
+  (`byPhysical`: strength + hybrid = gym), because a Watch copy of a weights session may be labelled
+  HIIT while its Strava copy says WeightTraining. The surviving rows are then split by key, so strength
+  and HIIT of one day are two sessions.
 
 Per (date, key), in order:
 

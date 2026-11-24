@@ -31,6 +31,8 @@ type Route = { deep: boolean; tab: string | null; day?: boolean; anchor?: string
   var VIEW_TAB = (typeof NAV !== 'undefined' && NAV && NAV.viewTab) || {};
   // an in-page anchor deep link (#monitor) -> the tab that holds it (lib/nav/tabs.mjs ANCHOR_TAB)
   var ANCHOR_TAB = (typeof NAV !== 'undefined' && NAV && NAV.anchorTab) || {};
+  // a retired detail key -> its replacement (lib/nav/tabs.mjs DETAIL_ALIAS: #detail/load-gym -> load-strength)
+  var DETAIL_ALIAS = (typeof NAV !== 'undefined' && NAV && NAV.detailAlias) || {};
   // Inicio's day stepping (lib/nav/tabs.mjs DAY_HASH): #d=YYYY-MM-DD = a past day, shown on DAY.tab
   var DAY = (typeof NAV !== 'undefined' && NAV && NAV.day) || null;
 
@@ -155,7 +157,10 @@ type Route = { deep: boolean; tab: string | null; day?: boolean; anchor?: string
     // a past day of Inicio (#d=YYYY-MM-DD): its tab, the hash kept; today-date.ts validates the day
     if (DAY && hash.indexOf('#' + DAY.prefix) === 0) return { deep: false, tab: DAY.tab, day: true };
     var m = DETAIL_HASH_RE.exec(hash);
-    if (m) return { deep: true, tab: hasOwn(DETAIL_TAB, m[1]) ? DETAIL_TAB[m[1]] : null };
+    if (m) {
+      var dk = hasOwn(DETAIL_ALIAS, m[1]) ? DETAIL_ALIAS[m[1]] : m[1];
+      return { deep: true, tab: hasOwn(DETAIL_TAB, dk) ? DETAIL_TAB[dk] : null };
+    }
     m = KEY_HASH_RE.exec(hash);
     if (m && hasOwn(VIEW_TAB, m[1])) return { deep: true, tab: VIEW_TAB[m[1]] };
     if (m && hasOwn(ANCHOR_TAB, m[1])) return { deep: false, tab: ANCHOR_TAB[m[1]], anchor: m[1] };

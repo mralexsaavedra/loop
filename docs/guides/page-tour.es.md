@@ -40,7 +40,7 @@ Cómo está hecho (en inglés): [pestaña Inicio](../home-tab.md), [vistas de de
 
 | Tarjeta | Qué te dice | De dónde salen los datos |
 | --- | --- | --- |
-| **Carga** (gimnasio / carrera / bici) | Tu última sesión puntuada en cada deporte, y si tu carga de 7 días está por encima, por debajo o en línea con tu carga de 42 días | Relative Effort de Strava |
+| **Carga** (fuerza / híbrido / carrera / bici) | Tu última sesión puntuada en cada deporte, y si tu carga de 7 días está por encima, por debajo o en línea con tu carga de 42 días | Relative Effort de Strava |
 | **Actividad** | El tiempo total de entrenamiento de la semana, el mes o los 6 meses (S / M / 6M) frente al periodo anterior; sesiones, días de entrenamiento, días por semana; el reparto por deporte; un calendario de 30 días | Entrenamientos del Apple Watch y Strava |
 | **Carrera** / **Ciclismo** | Una fila por carrera o salida: distancia, tiempo, ritmo, frecuencia cardiaca, esfuerzo, desnivel | Entrenamientos del Apple Watch y Strava |
 | **Carga cardiovascular semanal** | Tu carga de entrenamiento por semana, y cómo se comparan tu VFC y tu frecuencia cardiaca en reposo en las semanas más duras y en las más suaves | Entrenamientos con frecuencia cardiaca; Apple Health |

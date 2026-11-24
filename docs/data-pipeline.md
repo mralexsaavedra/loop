@@ -365,13 +365,18 @@ still shows up.
 
 **Type mapping**
 
-- Cycling-family sport types (incl. e-bike and virtual/indoor rides) all translate to the same
-  `Cycling` type as Apple Health uses, so they land in the `bike` modality.
+- Cycling-family sport types (incl. e-bike) translate to the same `Cycling` type as Apple Health
+  uses, so they land in the `bike` modality.
+- An indoor ride (Strava's `trainer` flag, or a `VirtualRide`) is written as `IndoorCycling`: still
+  the `bike` modality (every reader matches `/Cycling/`), shown as "Rodillo" / "Indoor ride" on the
+  page. `rides.csv` and the HR zones keep every ride. Without the flag (an ingest image that does not
+  export `trainer`) a ride stays `Cycling` and the sync warns that the image is stale.
 - Racket, team and outdoor sports map to the Apple type the Watch writes (Tennis, Squash, Badminton,
   Pickleball, Soccer, Basketball, Volleyball, Golf…; Padel keeps its name), all in the `other`
   modality, so a Watch Tennis row and a Strava Tennis row merge into ONE session (pinned by a test).
-- Strava's generic `Workout` maps to `Other`, the Watch's generic label that stays in `GYM_TYPES`
-  (the user's gym / metcon label).
+- Strava's `WeightTraining` (Hevy's upload) maps to `TraditionalStrengthTraining` (the `strength`
+  modality); `HighIntensityIntervalTraining`, `Crossfit` and the generic `Workout` (→ `Other`, the
+  Watch's generic label) are `hybrid` (`lib/training/modality.mjs`).
 - An unknown sport falls back to `Unmapped` (→ `other`, never gym) and is listed in `_meta.json`
   `stravaSync.unmapped`.
 
@@ -380,8 +385,8 @@ still shows up.
 - Strava rows are ALWAYS kept, also on dates the export covers (Strava is the only source of Relative
   Effort, kJ and elevation). They are rebuilt each run and removed only by their `Strava API` tag.
 - Dedupe happens at READ time: every workouts.csv reader goes through `lib/training/sessions.mjs`
-  `mergeSameDay`, which keeps ONE source per date + physical modality (Inicio's gym / run / bike /
-  other).
+  `mergeSameDay`, which keeps ONE source per date + physical family (gym = strength + hybrid / run / bike /
+  other), then splits the surviving rows by modality.
 - Source order: "Strava API" > "Strava" (the Strava app's HealthKit copy) > Apple Watch > any other
   app, when the winner covers at least half of the loser's minutes (`SUPERSEDE_MIN_COVERAGE`); lower
   coverage = a different session, both counted.

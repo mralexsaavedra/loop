@@ -792,9 +792,13 @@ type Sub = { cls?: string; text: string };
     var vm = VIEW_HASH_RE.exec(hash);
     if (vm) return viewOf(vm[1]) ? { key: vm[1], date: null } : null;
     var mm = HASH_RE.exec(hash);
+    if (!mm) return null;
+    // a retired key opens its replacement (lib/nav/tabs.mjs DETAIL_ALIAS: load-gym -> load-strength)
+    var alias = typeof NAV !== 'undefined' && NAV && NAV.detailAlias;
+    var key = own(alias, mm[1]) ? alias[mm[1]] : mm[1];
     // own keys only (no "constructor" / "toString"), and only a metric the page has data for
-    if (!mm || !own(T.metrics, mm[1]) || !metric(mm[1])) return null;
-    return { key: mm[1], date: mm[2] || null };
+    if (!own(T.metrics, key) || !metric(key)) return null;
+    return { key: key, date: mm[2] || null };
   }
   function act(el: Element): void {
     var a = el.getAttribute('data-dt-act');

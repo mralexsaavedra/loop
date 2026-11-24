@@ -356,9 +356,9 @@
   height: 10px;
   border-radius: 2px;
 }
-/* modality identity (legend swatch + bar segment): gym = strain blue, strength its light tint, run
+/* modality identity (legend swatch + bar segment): hybrid = strain blue, strength its light tint, run
    teal, bike yellow, anything else grey — the legend always names them, colour is never alone */
-.act-m-hiit {
+.act-m-hybrid {
   fill: var(--strain);
   background: var(--strain);
 }

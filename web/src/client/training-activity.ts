@@ -46,9 +46,8 @@ type Summary = {
   // wide screens (styles/base.css breakpoint): the calendar is an HTML grid spanning the card's full
   // width (.cal-grid, styles/training.css) instead of the phone's fixed-size SVG; re-rendered on change
   var WIDE = '(min-width: 900px)';
-  // the bar's known buckets (the dashboard's; the Watch's `hiit` is shown as Gym); segments are drawn
-  // largest first
-  var MODS = ['hiit', 'strength', 'run', 'bike', 'other'];
+  // the bar's known buckets (lib/training/modality.mjs); segments are drawn largest first
+  var MODS = ['strength', 'hybrid', 'run', 'bike', 'other'];
   // a change below this share is "about the same" (the detail sheet's DELTA_FLAT)
   var DELTA_FLAT = 0.01;
   var RANGE_KEY: Record<number, string> = { 7: 'w', 30: 'm', 182: 'm6' };

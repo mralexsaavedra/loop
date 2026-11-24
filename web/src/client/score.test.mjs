@@ -271,12 +271,12 @@ test('colour only on the direction arrow: no grade-fill classes on the recovery 
   assert.doesNotMatch(html, /sc-(red|amber|green|grade)/);
 });
 
-test('load: one compact card per modality (gym/run/bike): last session RE, "LOAD · date", a trend pill; gated ones show the reason behind ⓘ and no number', () => {
+test('load: one compact card per modality (strength/hybrid/run/bike): last session RE, "LOAD · date", a trend pill; gated ones show the reason behind ⓘ and no number', () => {
   const s = fixtureScores();
   const hosts = {};
   render(s, { hosts, dials: buildDials(s, HEALTH) });
   const html = hosts.load.innerHTML;
-  assert.equal((html.match(/class="ld-card[ "]/g) || []).length, 3);
+  assert.equal((html.match(/class="ld-card[ "]/g) || []).length, 4);
   for (const m of s.load.modalities) assert.match(html, new RegExp(`data-mod="${m.key}"`));
   const run = s.load.modalities.find((m) => m.key === 'run');
   assert.equal(run.trend.ok, true);
@@ -351,7 +351,7 @@ test('the four accurate caveats + SDNN + not-medical render; the retired strengt
   assert.equal(count(html, 'class="sc-caveat"'), 7);
   assert.match(html, /HR-derived/);
   assert.match(html, /not comparable/i);
-  assert.match(html, /auto-label/i);
+  assert.match(html, /how each session was recorded/i);
   assert.match(html, /no comparable load before/i);
   assert.match(html, /not medical advice/i);
   assert.doesNotMatch(html, /under-?weights? strength/i);
@@ -812,7 +812,7 @@ test('load dial default: the modality with a session on the viewer\'s today, not
   assert.equal(visibleFig(html), second, 'its dial is the visible one');
   assert.ok(figOf(html, second).includes('<b class="dial-num">94<small>RE</small></b>'));
   assert.match(html, new RegExp(`<figure class="dial dial-load[^"]*" data-dmod="${first}" hidden`), 'the first ungated one is hidden');
-  assert.equal(count(html.match(/<figure class="dial dial-load[^>]*>/g).join(''), ' hidden>'), 2, 'one visible load dial');
+  assert.equal(count(html.match(/<figure class="dial dial-load[^>]*>/g).join(''), ' hidden>'), 3, 'one visible load dial');
 });
 
 test('load dial default: several sessions today -> the one with the highest RE; none today -> the first ungated', () => {
@@ -905,8 +905,8 @@ test('dials: a null asOf / date never produces NaN/undefined text', () => {
 
 test('window.HCScore.setMod: shows only the chosen modality\'s load dial on Inicio and in the collapsed row (the pills live in the load deep-dive); no bare global', () => {
   const el = (key) => ({ key, hidden: false, getAttribute: (a) => (a === 'data-dmod' ? key : null) });
-  const panes = ['gym', 'run', 'bike'].map((k) => el(k));
-  const minis = ['gym', 'run', 'bike'].map((k) => el(k));
+  const panes = ['strength', 'run', 'bike'].map((k) => el(k));
+  const minis = ['strength', 'run', 'bike'].map((k) => el(k));
   const hosts = { 'home-dials': { querySelectorAll: () => panes }, 'home-mini': { querySelectorAll: () => minis } };
   const ctx = { window: {}, document: { getElementById: (id) => hosts[id] || null } };
   vm.createContext(ctx);
@@ -916,13 +916,13 @@ test('window.HCScore.setMod: shows only the chosen modality\'s load dial on Inic
   ctx.window.HCScore.setMod('bike');
   assert.deepEqual(panes.map((p) => p.hidden), [true, true, false]);
   assert.deepEqual(minis.map((p) => p.hidden), [true, true, false], 'the collapsed row follows');
-  ctx.window.HCScore.setMod('gym');
+  ctx.window.HCScore.setMod('strength');
   assert.deepEqual(panes.map((p) => p.hidden), [false, true, true]);
 });
 
 test('a click on (or inside) a load page pill [data-mod] sets the dial: delegated, no inline handler', () => {
   const el = (key) => ({ key, hidden: false, getAttribute: (a) => (a === 'data-dmod' ? key : null) });
-  const panes = ['gym', 'run', 'bike'].map((k) => el(k));
+  const panes = ['strength', 'run', 'bike'].map((k) => el(k));
   const listeners = [];
   const ctx = { window: {}, document: { getElementById: (id) => (id === 'home-dials' ? { querySelectorAll: () => panes } : null), addEventListener: (t, fn) => { if (t === 'click') listeners.push(fn); } } };
   vm.createContext(ctx);
@@ -1154,7 +1154,7 @@ test('no effort source: the Entreno load cards name it (pill + aria) and a note 
     const html = hosts.load.innerHTML;
     assert.doesNotMatch(html, new RegExp(T.load.gated.baselineBuilding.slice(0, 20)), `${locale}: never the 4-weeks promise`);
     assert.ok(!html.includes(`<span class="ld-pill ld-flat">${T.dials.load.gated}</span>`), `${locale}: no "Building" pill`);
-    assert.equal(count(html, `<span class="ld-pill ld-flat">${T.dials.load.noEffort}</span>`), 3, `${locale}: every card says no effort data`);
+    assert.equal(count(html, `<span class="ld-pill ld-flat">${T.dials.load.noEffort}</span>`), 4, `${locale}: every card says no effort data`);
     const note = html.match(/<p class="sc-note ld-noeffort">([^<]*)<\/p>/);
     assert.ok(note, `${locale}: a note under the cards`);
     assert.equal(note[1], T.load.gated.noEffortSource.replace(/'/g, '&#39;'));

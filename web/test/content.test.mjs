@@ -398,7 +398,7 @@ test('example build: the detail sheet ships hidden OUTSIDE .wrap (so the page ca
   const m = /var DETAIL = (\{.*?\});\nvar I18N_DETAIL = /s.exec(html);
   assert.ok(m, 'DETAIL baked');
   const detail = JSON.parse(m[1].replace(/\\u003c/g, '<'));
-  for (const key of ['sleep', 'recovery', 'hrv', 'rhr', 'respiratory', 'wristTemp', 'walkingHr', 'vo2max', 'steps', 'exercise', 'distance', 'flights', 'energy', 'weight', 'bodyfat', 'lean', 'waist', 'workouts', 'load-gym', 'load-run', 'load-bike']) {
+  for (const key of ['sleep', 'recovery', 'hrv', 'rhr', 'respiratory', 'wristTemp', 'walkingHr', 'vo2max', 'steps', 'exercise', 'distance', 'flights', 'energy', 'weight', 'bodyfat', 'lean', 'waist', 'workouts', 'load-strength', 'load-hybrid', 'load-run', 'load-bike']) {
     assert.ok(detail.metrics[key] && detail.metrics[key].v.length > 0, `demo DETAIL has ${key}`);
   }
   assert.ok(detail.sessions.length > 0);

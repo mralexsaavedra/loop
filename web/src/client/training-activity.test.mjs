@@ -14,7 +14,7 @@ import { clientScriptSource } from '../client-bundle.mjs';
 const source = clientScriptSource('training-activity.ts');
 const ASOF = '2026-09-29';
 
-// every 2nd day in the last 30 (60 min run), every 3rd day in the previous 30 (30 min gym)
+// every 2nd day in the last 30 (60 min run), every 3rd day in the previous 30 (30 min hybrid)
 const rows = [];
 for (let i = 0; i < 30; i += 2) rows.push({ date: addDays(ASOF, -i), type: 'Running', dur: 60 });
 for (let i = 30; i < 60; i += 3) rows.push({ date: addDays(ASOF, -i), type: 'HighIntensityIntervalTraining', dur: 30 });
@@ -72,7 +72,7 @@ test('openers: the total and the calendar open the training-time sheet; a day ce
 test('M window: total of the last 30 days vs the 30 before, sessions / days / per week, split with counts', () => {
   assert.match(render(ACT), /<span class="dt-pill">no prior period<\/span>/, 'the month before starts before the first session: no comparison');
   const html = render(ACT2);
-  // last 30: 15 runs × 60 + a 45-min ride = 945 min; previous 30: 10 gym × 30 = 300 min -> +215%
+  // last 30: 15 runs × 60 + a 45-min ride = 945 min; previous 30: 10 hybrid × 30 = 300 min -> +215%
   assert.match(html, /<b class="dt-trend-num">15:45<\/b><span class="dt-pill dt-pill-neutral">▲ 215% vs prior month<\/span>/);
   const stats = [...html.matchAll(/<div class="act-stat"><b>([^<]*)<\/b><span>([^<]*)<\/span><\/div>/g)].map((m) => [m[1], m[2]]);
   assert.deepEqual(stats, [['16', 'Sessions'], ['15', 'Days'], ['3:41', 'Per week']], '16 sessions (15 runs + 1 ride, the run+ride day counts twice) on 15 days');
@@ -97,7 +97,7 @@ test('W and 6M windows (HCActivity.summary): totals, sessions and split follow t
   const m6 = win.HCActivity.summary(byDate, ASOF, 182);
   assert.equal(m6.min, 945 + 300, 'every baked session of the last 182 days');
   assert.equal(m6.sessions, 26);
-  assert.deepEqual({ ...m6.mods.hiit }, { min: 300, n: 10 });
+  assert.deepEqual({ ...m6.mods.hybrid }, { min: 300, n: 10 });
   assert.equal(m6.prev, null, 'the 6M before starts before the first session: no comparison');
   assert.equal(m6.pct, null);
   const byDate2 = Object.fromEntries(ACT2.days.map((d) => [d.date, d]));
@@ -133,7 +133,7 @@ test('the switch: 6M re-renders the card (total, pill, split) and keeps focus; t
   onClick({ target: { closest: (sel) => (sel === '[data-act-range]' ? btn : null) } });
   assert.match(host.innerHTML, /data-act-range="182" aria-pressed="true"/);
   assert.match(host.innerHTML, /<b class="dt-trend-num">20:45<\/b><span class="dt-pill">no prior period<\/span>/);
-  assert.match(host.innerHTML, /act-m-hiit/, 'the gym sessions of the previous month are inside 6M');
+  assert.match(host.innerHTML, /act-m-hybrid/, 'the hybrid sessions of the previous month are inside 6M');
   assert.deepEqual(sets, [['hc-act-range', '182']]);
   assert.deepEqual(focused, ['[data-act-range="182"]']);
   assert.match(render(ACT, { stored: '7' }), /data-act-range="7" aria-pressed="true"/, 'a remembered window opens the card');

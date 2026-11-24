@@ -53,12 +53,14 @@ type DetailSession = { d: string; m: string; min: number; re?: number | null; n?
   // a row opens the detail sheet on its day (client/detail.ts): sleep -> the sleep view, a scored
   // modality -> its load view, anything else -> training time
   function modDetail(mod: string): string {
-    return mod === 'gym' || mod === 'run' || mod === 'bike' ? 'load-' + mod : 'workouts';
+    return mod === 'strength' || mod === 'hybrid' || mod === 'run' || mod === 'bike' ? 'load-' + mod : 'workouts';
   }
   // 24-unit line icons (stroke = currentColor), inline so the page stays self-contained
   var ICON: Record<string, string> = {
     sleep: '<path d="M20 14.5A8 8 0 1 1 9.5 4a6.5 6.5 0 0 0 10.5 10.5z"/>',
     gym: '<path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/>',
+    strength: '<path d="M6 8v8M18 8v8M3 10v4M21 10v4M6 12h12"/>',
+    hybrid: '<path d="M13 2 4 14h7l-1 8 9-12h-7z"/>',
     run: '<circle cx="14" cy="4.5" r="1.8"/><path d="M8 21l3-6 3 2v5M6 12l3-4h4l3 4 3 1M11 15l-1-4"/>',
     bike: '<circle cx="6" cy="16" r="3.5"/><circle cx="18" cy="16" r="3.5"/><path d="M6 16l4-7h5l3 7M10 9l2 7h-6M14 6h3"/>',
     other: '<path d="M3 12h4l2-6 4 12 2-6h6"/>',
@@ -104,7 +106,7 @@ type DetailSession = { d: string; m: string; min: number; re?: number | null; n?
     return typeof v === 'number' && isFinite(v) ? v : null;
   }
   // a past day in SCORES.timeline's day shape, from DETAIL (null when nothing was logged that day)
-  var MODS = ['gym', 'run', 'bike', 'other'];
+  var MODS = ['strength', 'hybrid', 'run', 'bike', 'other'];
   function pastDay(iso: string): TimelineDay | null {
     var X: Partial<PageGlobals['DETAIL']> = typeof DETAIL !== 'undefined' && DETAIL ? DETAIL : {};
     var sl = X.metrics && X.metrics.sleep;
