@@ -875,7 +875,12 @@ test('log summary reads are rate limited per client address (429 rate_limited, n
 })
 
 /* ---------- the in-page onboarding profile ---------- */
-const cells = (kcal, p, f) => ({ rest: { kcal, p, f }, gym: { kcal: kcal + 350, p, f }, bike: { kcal: kcal + 850, p, f }, bikeLong: { kcal: kcal + 1450, p, f } })
+const cells = (kcal, p, f) => ({
+  rest: { kcal, p, f }, gym: { kcal: kcal + 350, p, f }, hybrid: { kcal: kcal + 500, p, f }, indoor: { kcal: kcal + 550, p, f },
+  run: { kcal: kcal + 600, p, f }, bike: { kcal: kcal + 850, p, f }, bikeLong: { kcal: kcal + 1450, p, f }
+})
+// a page saved before the hybrid / indoor / run day types PUTs four cells per goal
+const oldCells = (kcal, p, f) => ({ rest: { kcal, p, f }, gym: { kcal: kcal + 350, p, f }, bike: { kcal: kcal + 850, p, f }, bikeLong: { kcal: kcal + 1450, p, f } })
 const PROFILE = {
   name: 'Ana', sex: 'female', birthdate: '1997-05-20', heightCm: 165, weightKg: 60, activity: 'light',
   goals: ['maintain', 'cut', 'bulk'],
@@ -893,6 +898,24 @@ test('profile: GET before any write = null; PUT stores the whole document and re
     assert.ok(r.body.profile.updatedAt)
     assert.deepEqual((await t.call('GET', '/food/profile')).body.profile.goals, ['maintain', 'cut', 'bulk'])
     assert.equal('sports' in r.body.profile, false, 'sports are optional')
+  } finally { await t.close() }
+})
+
+test('profile: an OLD 4-cell PUT is accepted, each missing hybrid / indoor / run cell filled from that goal\'s gym cell', async () => {
+  const t = await setup()
+  try {
+    const old = { ...PROFILE, targets: { maintain: oldCells(1800, 108, 48), cut: oldCells(1550, 120, 48), bulk: oldCells(1950, 108, 48) } }
+    const r = await t.call('PUT', '/food/profile', { body: old })
+    assert.equal(r.status, 200)
+    for (const g of ['maintain', 'cut', 'bulk']) {
+      for (const d of ['hybrid', 'indoor', 'run']) assert.deepEqual(r.body.profile.targets[g][d], old.targets[g].gym, `${g}.${d}`)
+      for (const d of ['rest', 'gym', 'bike', 'bikeLong']) assert.deepEqual(r.body.profile.targets[g][d], old.targets[g][d], `${g}.${d}`)
+    }
+    assert.deepEqual(t.store.db.profile.targets, r.body.profile.targets, 'stored filled')
+    // a missing old cell is still refused; an unknown day type too
+    const { bike: _b, ...noBike } = old.targets.cut
+    assert.deepEqual((await t.call('PUT', '/food/profile', { body: { ...old, targets: { ...old.targets, cut: noBike } } })).body, { error: 'invalid', field: 'targets.cut.bike' })
+    assert.deepEqual((await t.call('PUT', '/food/profile', { body: { ...old, targets: { ...old.targets, cut: { ...old.targets.cut, tempo: old.targets.cut.gym } } } })).body, { error: 'invalid', field: 'targets.cut.tempo' })
   } finally { await t.close() }
 })
 

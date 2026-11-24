@@ -175,7 +175,8 @@ Labels in the reply language (the config may give them):
 - The plan: `loop-data/cache/plan.json` (the user's personal plan, gitignored) +
   `data/nutrition/ingredients.json` (the food DB, food-composition-database / label values);
   `data/nutrition/plan-tables.md` for the generated tables.
-  Targets by goal × day type (rest / gym / bike / bikeLong; maintain / cut / bulk), portion scaling
+  Targets by goal × day type (rest / gym = strength / hybrid / indoor / run / bike / bikeLong;
+  maintain / cut / bulk), portion scaling
   and on-bike fuelling ("Avituallamiento") are described in `docs/nutrition.md` and
   `docs/nutrition-food-log.md` and computed by `lib/nutrition/targets.mjs`,
   `scale.mjs`, `fuel.mjs`.

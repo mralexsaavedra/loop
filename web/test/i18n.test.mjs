@@ -227,6 +227,9 @@ test('nutri-templates.mjs (Resumen de hoy / Plan de hoy / Avituallamiento) has i
     assert.deepEqual(Object.keys(dict.goals), GOALS);
     assert.deepEqual(Object.keys(dict.dayTypes), DAY_TYPES);
     assert.deepEqual(Object.keys(dict.dayShort), DAY_TYPES);
+    // S7: a detected type above the picked one names itself; every type but rest can be the detected one
+    assert.deepEqual(Object.keys(dict.autoRaised), DAY_TYPES.filter((d) => d !== 'rest'));
+    for (const v of Object.values(dict.autoRaised)) assert.match(v, /\{type\}/);
     assert.equal(dict.dayIcons, undefined, 'no emoji: the segments draw inline SVG icons');
     for (const v of Object.values(dict.dayShort)) assert.ok(v.length <= 10, `${locale} short day label "${v}" fits a quarter of 360 px`);
     assert.deepEqual(Object.keys(dict.plan.meals), MEAL_SLOTS);
@@ -353,6 +356,15 @@ test('one label per meal slot across food / nutri / profile copy (es: snack = "T
   }
   assert.equal(esFood.meals.snack, 'Tentempié');
   assert.equal(esFood.groupOption.addon, 'Añadido', 'the Registrar group keeps its own name');
+});
+
+test('S7 onboarding-templates.mjs: a summary row name for every day type', () => {
+  for (const dict of [esOnb, enOnb]) assert.deepEqual(Object.keys(dict.summary.days), DAY_TYPES);
+});
+
+test('S1 day-type names: gym is the strength day; hybrid / indoor / run named in both languages', () => {
+  assert.deepEqual([esNutri.dayTypes.gym, esNutri.dayTypes.hybrid, esNutri.dayTypes.indoor, esNutri.dayTypes.run], ['Fuerza', 'Híbrido', 'Rodillo', 'Carrera']);
+  assert.deepEqual([enNutri.dayTypes.gym, enNutri.dayTypes.hybrid, enNutri.dayTypes.indoor, enNutri.dayTypes.run], ['Strength', 'Hybrid', 'Indoor ride', 'Run']);
 });
 
 test('onboarding-templates.mjs (the in-page onboarding) has identical key trees in es/en, all non-empty', () => {

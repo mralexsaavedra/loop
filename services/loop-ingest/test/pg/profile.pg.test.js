@@ -23,7 +23,7 @@ test.after(async () => {
   await db.drop()
 })
 
-const cells = (kcal) => ({ rest: { kcal, p: 100, f: 50 }, gym: { kcal, p: 100, f: 50 }, bike: { kcal, p: 100, f: 50 }, bikeLong: { kcal, p: 100, f: 50 } })
+const cells = (kcal) => Object.fromEntries(['rest', 'gym', 'hybrid', 'indoor', 'run', 'bike', 'bikeLong'].map((d) => [d, { kcal, p: 100, f: 50 }]))
 const OWN = { weightKg: 60, activity: 'light', goals: ['maintain'], targets: { maintain: cells(1800), cut: cells(1600), bulk: cells(2000) } }
 const WIZARD = { name: 'Ana', sex: 'female', birthdate: '1995-03-02', heightCm: 165, ...OWN }
 

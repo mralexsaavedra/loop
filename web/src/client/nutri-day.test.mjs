@@ -14,6 +14,7 @@ import { es as esDate, en as enDate } from '../i18n/date-templates.mjs';
 import { buildNutrition } from '../../../lib/nutrition/macros.mjs';
 import { buildNutriToday } from '../../../lib/nutrition/today.mjs';
 import { DETECT } from '../../../lib/nutrition/daytype.mjs';
+import { DAY_TYPES } from '../../../lib/nutrition/targets.mjs';
 import { DAYTYPE_CASES, DAYINPUT_CASES } from '../../../lib/nutrition/daytype.mjs';
 import { fuelPlan, FUEL_CASES } from '../../../lib/nutrition/fuel.mjs';
 import { planFor, solveScale } from '../../../lib/nutrition/scale.mjs';
@@ -65,7 +66,7 @@ function run({ nutri = bake(), items = [], programmed = null, locale = 'en', sto
   els['nutri-fuel-block'].hidden = true;
   const radios = {};
   const labels = {};
-  for (const d of ['rest', 'gym', 'bike', 'bikeLong']) {
+  for (const d of DAY_TYPES) {
     labels[d] = doc.el(null, { tag: 'label', classes: ['seg-opt'] });
     radios['d-' + d] = doc.el(null, { tag: 'input', attrs: { name: 'nutri-day', value: d }, parent: labels[d] });
   }
@@ -165,7 +166,7 @@ test('planFor / solveScale ports agree with lib/nutrition/scale.mjs (example pla
   let held = 0;
   for (const nutri of [bake(), syn, cap]) {
     const { api } = run({ nutri });
-    for (const g of ['maintain', 'cut', 'bulk']) for (const d of ['rest', 'gym', 'bike', 'bikeLong']) for (const min of [null, 60, 120, 185, 240, 360]) {
+    for (const g of ['maintain', 'cut', 'bulk']) for (const d of DAY_TYPES) for (const min of [null, 60, 120, 185, 240, 360]) {
       assert.deepEqual(plain(api.planFor(nutri, g, d, min)), plain(planFor(nutri, g, d, min)), `${g}/${d}/${min}`);
     }
     for (const day of ['train', 'rest']) for (let target = 300; target < 5000; target += 173) {
@@ -337,9 +338,9 @@ test('the orphaned hc.nutri.picks key (the removed choosable blocks) is cleared 
   assert.match(run({ storage: denied }).els['nutri-plan'].innerHTML, /gd-meal/);
 });
 
-test('every goal x day type renders a target and a plan (all 12)', () => {
+test('every goal x day type renders a target and a plan (every cell)', () => {
   const s = run();
-  for (const g of ['maintain', 'cut', 'bulk']) for (const d of ['rest', 'gym', 'bike', 'bikeLong']) {
+  for (const g of ['maintain', 'cut', 'bulk']) for (const d of DAY_TYPES) {
     s.api.setGoal(g);
     s.fire('nutri-daytype', 'change', { value: d });
     const t = s.els['nutri-target'].innerHTML + s.els['nutri-plan'].innerHTML;
@@ -350,11 +351,33 @@ test('every goal x day type renders a target and a plan (all 12)', () => {
 });
 
 test('Inicio card: day type + goal and today\'s target kcal / macros', () => {
-  const { els } = run({ items: [{ modality: 'run', dur: 45 }] });
+  const { els } = run({ items: [{ modality: 'strength', dur: 45 }] });
   const h = els['eat-body'].innerHTML;
-  assert.match(h, /Gym or run \(auto\) · Maintain/);
+  assert.match(h, /Strength \(auto\) · Maintain/);
   assert.match(h, /~2,700<span>kcal/);
   assert.match(h, /<b>125 g<\/b><span>Protein/);
+  const r = run({ items: [{ modality: 'run', dur: 45 }] }).els['eat-body'].innerHTML;
+  assert.match(r, /Run \(auto\) · Maintain/, 'a run is its own day type now');
+  assert.match(r, /~3,000<span>kcal/);
+});
+
+test('S7 the new day types on the page: an indoor ride is indoor (auto) with no ride fuel; overrides and the raise rule use them', () => {
+  const s = run({ items: [{ modality: 'bike', dur: 60, indoor: true }] });
+  assert.equal(s.api.state().dayType, 'indoor');
+  assert.equal(s.api.state().rideMin, null, 'no ride minutes off a bike day');
+  assert.equal(s.els['nutri-fuel-block'].hidden, true, 'no during-ride fuelling on a trainer day');
+  assert.equal(s.els['nutri-why'].textContent, 'Workout recorded today.');
+  assert.equal(s.labels.indoor.classes.has('seg-auto'), true);
+  assert.match(s.els['eat-body'].innerHTML, /Indoor ride \(auto\) · Maintain/);
+  // a picked hybrid day is stored and drives the target
+  s.fire('nutri-daytype', 'change', { value: 'hybrid' });
+  assert.equal(s.api.state().dayType, 'hybrid');
+  assert.deepEqual(JSON.parse(s.storage.data['hc.nutri.dayType']), { date: TODAY, type: 'hybrid', auto: 'indoor' });
+  assert.match(s.els['nutri-target'].innerHTML, /<span class="nt-of">\/ 2,950 kcal<\/span>/);
+  // picked strength this morning, a run synced later (more demanding): the run wins, with its own note
+  const raised = run({ items: [{ modality: 'run', dur: 40 }], storage: memStorage({ 'hc.nutri.dayType': JSON.stringify({ date: TODAY, type: 'gym', auto: 'rest' }) }) });
+  assert.equal(raised.api.state().dayType, 'run');
+  assert.equal(raised.els['nutri-note'].textContent, 'Run detected: switched to Run.');
 });
 
 test('window.nutriTarget: today\'s target (goal x day type) for the rings; on bike days the MEALS target', () => {
@@ -387,13 +410,13 @@ test('HCNutri.targetFor(past day): THAT day\'s detected day type (its recorded r
   assert.match(es.label, /^Objetivo de ese día · /);
 });
 
-test('the onboarding sports reach the page: a runner\'s 90-min run is a long day; without sports it stays a gym day', () => {
+test('the onboarding sports reach the page: a runner\'s 90-min run is a long day; without sports it stays a run day', () => {
   const RUNS = [{ sport: 'running', minutes: 90, perWeek: 2 }];
   assert.deepEqual(bake().detect, { ...DETECT }, 'no sports: the bake is unchanged');
   assert.deepEqual(bake({ sports: RUNS }).detect, { ...DETECT, endurance: ['run'] });
   const ctx = pastCtx([{ date: YDAY, sleep: 7, items: [{ modality: 'run', dur: 90 }] }]);
   assert.equal(run({ nutri: bake({ sports: RUNS }), extra: ctx }).api.targetFor(YDAY).dayType, 'bike');
-  assert.equal(run({ extra: ctx }).api.targetFor(YDAY).dayType, 'gym');
+  assert.equal(run({ extra: ctx }).api.targetFor(YDAY).dayType, 'run');
   assert.equal(run({ nutri: bake({ sports: RUNS }), items: [{ modality: 'run', dur: 160 }] }).window.nutriTarget().dayType, 'bikeLong');
 });
 
@@ -817,7 +840,7 @@ test('planFor totals (lib and the page port) equal the pinned ones; the guide\'s
 test('guide ports agree with lib: guideBudgets (every goal x day type x ride), remaining / mealState / isCovered', () => {
   const nutri = bake();
   const { api } = run({ nutri });
-  for (const g of ['maintain', 'cut', 'bulk']) for (const d of ['rest', 'gym', 'bike', 'bikeLong']) for (const min of [null, 60, 185, 360]) {
+  for (const g of ['maintain', 'cut', 'bulk']) for (const d of DAY_TYPES) for (const min of [null, 60, 185, 360]) {
     const x = planFor(nutri, g, d, min);
     const sl = nutri.base[x.base].sl;
     const oil = nutri.guide.oil[x.base];
@@ -1149,7 +1172,7 @@ test('Inicio card on a PAST day (the top bar\'s day stepping): that day\'s detec
   s.els['eat-body'].parent = card;
   subs.forEach((fn) => fn(sel));
   const plan = (d) => bake().plans.maintain[d].t;
-  assert.match(s.els['eat-body'].innerHTML, /Gym or run \(auto\) · Maintain/);
+  assert.match(s.els['eat-body'].innerHTML, /Strength \(auto\) · Maintain/);
   assert.ok(s.els['eat-body'].innerHTML.includes(`<b>${plan('gym').p} g</b>`));
   assert.match(h3.textContent, /^Target for \w{3} \d+ \w{3}$/);
   sel = '2030-01-04'; // nothing recorded that day: the day type cannot be told

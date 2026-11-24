@@ -246,6 +246,10 @@ What it shows: the programmed session for today, as a row of Home's "Today's act
 - Source: `loop-data/cache/training.json` (GITIGNORED, personal, and OPTIONAL — see below): the
   programmed sessions keyed by ISO date (`days["YYYY-MM-DD"]`); a date with no entry renders as a rest /
   unprogrammed day.
+- A session's optional `kind` (`lib/training/program.mjs` `KINDS`, checked by `validateProgram`) is `gym`
+  (strength), `hybrid`, `indoor` (trainer ride), `run` or `bike` (+ an optional `durationMin`): it picks the
+  nutrition day type (docs/nutrition.md → Day-type detection) and the icon (🏃 run, 🚴 bike / indoor, 🏋️ the
+  rest; the timeline row draws the bike for indoor and its bolt for hybrid).
 - The build bakes it into a page-level JSON global; the page picks "today" client-side with `new Date()`.
 - The page is a build-time snapshot, so the baked program must cover the current date — regenerate when a
   new block lands.

@@ -162,16 +162,18 @@ type OnbDoc = {
   function minutesText(m: number) {
     return m < 60 ? format(T.session.min, { n: m }) : HC.hours(m / 60);
   }
+  // the day type a picked sport's sessions fill (HC_ENERGY.dayTypeOfSport: by sport, by length from 75 min)
+  function dayOf(k: string) { return E.dayTypeOfSport(k, S.sess[k].minutes); }
   function sportsOf(d: string) {
-    return S.picks.filter(function (k) { return E.dayTypeOfMinutes(S.sess[k].minutes) === d; }).map(function (k) { return T.sports.names[k]; });
+    return S.picks.filter(function (k) { return dayOf(k) === d; }).map(function (k) { return T.sports.names[k]; });
   }
   // the week's average kcal for the chosen goal: each sport's sessions on its day type, the other days rest
   // (more than 7 sessions a week are scaled to 7)
   function weekAverage(t: Targets) {
-    var n: Record<string, number> = { gym: 0, bike: 0, bikeLong: 0 }, total = 0;
-    S.picks.forEach(function (k) { n[E.dayTypeOfMinutes(S.sess[k].minutes)] += S.sess[k].perWeek; total += S.sess[k].perWeek; });
+    var n: Record<string, number> = {}, total = 0;
+    S.picks.forEach(function (k) { var d = dayOf(k); n[d] = (n[d] || 0) + S.sess[k].perWeek; total += S.sess[k].perWeek; });
     var f = total > 7 ? 7 / total : 1, sum = 0;
-    ['gym', 'bike', 'bikeLong'].forEach(function (d) { sum += n[d] * f * t[S.goal][d].kcal; });
+    Object.keys(n).forEach(function (d) { sum += n[d] * f * t[S.goal][d].kcal; });
     sum += (7 - Math.min(7, total)) * t[S.goal].rest.kcal;
     return E.round50(sum / 7);
   }

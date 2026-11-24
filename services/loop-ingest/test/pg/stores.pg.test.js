@@ -282,7 +282,7 @@ test('food / journal / profile text with U+0000: Postgres refuses it (22021), so
       [400, { error: 'invalid', field: 'name' }])
     assert.deepEqual(await call('POST', '/food/log', { date: '2030-02-02', meal: 'snack', refType: 'quick', label: 'x\u0000', kcal: 10 }), [400, { error: 'invalid', field: 'label' }])
     assert.deepEqual(await call('PUT', '/journal/day', { date: '2030-02-02', answers: {}, notes: 'n\u0000' }), [400, { error: 'invalid', field: 'notes' }])
-    const targets = Object.fromEntries(['maintain', 'cut', 'bulk'].map((g) => [g, Object.fromEntries(['rest', 'gym', 'bike', 'bikeLong'].map((d) => [d, { kcal: 2200, p: 140, f: 70 }]))]))
+    const targets = Object.fromEntries(['maintain', 'cut', 'bulk'].map((g) => [g, Object.fromEntries(['rest', 'gym', 'hybrid', 'indoor', 'run', 'bike', 'bikeLong'].map((d) => [d, { kcal: 2200, p: 140, f: 70 }]))]))
     assert.deepEqual(await call('PUT', '/food/profile', { name: 'A\u0000', sex: 'male', birthdate: '1990-01-01', heightCm: 180, weightKg: 75, activity: 'active', goals: ['maintain'], targets }),
       [400, { error: 'invalid', field: 'name' }])
     const quick = await call('POST', '/food/log', { date: '2030-02-02', meal: 'snack', refType: 'quick', label: 'tab\there', kcal: 10 })

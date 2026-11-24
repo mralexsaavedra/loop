@@ -16,9 +16,9 @@ export const es = {
   goalChip: 'Objetivo: {goal}. Cámbialo en tu perfil',
   goals: { maintain: 'Mantener', cut: 'Bajar', bulk: 'Ganar' },
   dayLegend: 'Tipo de día',
-  dayTypes: { rest: 'Descanso', gym: 'Gimnasio o carrera', bike: 'Bici ~2 h', bikeLong: 'Bici larga' },
+  dayTypes: { rest: 'Descanso', gym: 'Fuerza', hybrid: 'Híbrido', indoor: 'Rodillo', run: 'Carrera', bike: 'Bici ~2 h', bikeLong: 'Bici larga' },
   // short segment labels (the day-type control); dayTypes above stay the full names used in sentences
-  dayShort: { rest: 'Descanso', gym: 'Gym', bike: 'Bici', bikeLong: 'Bici larga' },
+  dayShort: { rest: 'Descanso', gym: 'Fuerza', hybrid: 'Híbrido', indoor: 'Rodillo', run: 'Carrera', bike: 'Bici', bikeLong: 'Bici larga' },
   // a person with onboarding sports (web/src/i18n/day-labels.mjs): sport names and sport-neutral wording
   sportText: {
     names: { strength: 'Fuerza', running: 'Correr', cycling: 'Bici', swimming: 'Natación', hybrid: 'HYROX / CrossFit', team: 'Deporte de equipo', yoga: 'Yoga / pilates', other: 'Otro deporte' },
@@ -31,7 +31,10 @@ export const es = {
   chosen: '(elegido)',
   backToAuto: 'Usar el detectado: {type}',
   autoRaised: {
-    gym: 'Detectado entrenamiento: cambiado a {type}.',
+    gym: 'Detectado entrenamiento de fuerza: cambiado a {type}.',
+    hybrid: 'Detectado entrenamiento híbrido: cambiado a {type}.',
+    indoor: 'Detectado rodillo: cambiado a {type}.',
+    run: 'Detectada carrera: cambiado a {type}.',
     bike: 'Detectada salida en bici: cambiado a {type}.',
     bikeLong: 'Detectada salida larga: cambiado a {type}.',
   },
@@ -224,9 +227,9 @@ export const en = {
   goalChip: 'Goal: {goal}. Change it in your profile',
   goals: { maintain: 'Maintain', cut: 'Lose', bulk: 'Gain' },
   dayLegend: 'Day type',
-  dayTypes: { rest: 'Rest', gym: 'Gym or run', bike: 'Ride ~2 h', bikeLong: 'Long ride' },
+  dayTypes: { rest: 'Rest', gym: 'Strength', hybrid: 'Hybrid', indoor: 'Indoor ride', run: 'Run', bike: 'Ride ~2 h', bikeLong: 'Long ride' },
   // short segment labels (the day-type control); dayTypes above stay the full names used in sentences
-  dayShort: { rest: 'Rest', gym: 'Gym', bike: 'Ride', bikeLong: 'Long ride' },
+  dayShort: { rest: 'Rest', gym: 'Strength', hybrid: 'Hybrid', indoor: 'Indoor', run: 'Run', bike: 'Ride', bikeLong: 'Long ride' },
   // a person with onboarding sports (web/src/i18n/day-labels.mjs): sport names and sport-neutral wording
   sportText: {
     names: { strength: 'Strength', running: 'Running', cycling: 'Cycling', swimming: 'Swimming', hybrid: 'HYROX / CrossFit', team: 'Team sport', yoga: 'Yoga / pilates', other: 'Other sport' },
@@ -239,7 +242,10 @@ export const en = {
   chosen: '(chosen)',
   backToAuto: 'Use the detected one: {type}',
   autoRaised: {
-    gym: 'Workout detected: switched to {type}.',
+    gym: 'Strength workout detected: switched to {type}.',
+    hybrid: 'Hybrid workout detected: switched to {type}.',
+    indoor: 'Indoor ride detected: switched to {type}.',
+    run: 'Run detected: switched to {type}.',
     bike: 'Ride detected: switched to {type}.',
     bikeLong: 'Long ride detected: switched to {type}.',
   },

@@ -18,6 +18,7 @@ import { loadInputs } from '../../lib/load/inputs.mjs';
 import { TAB_KEYS } from '../../lib/nav/tabs.mjs';
 import { buildNutrition } from '../../lib/nutrition/macros.mjs';
 import * as nutriToday from '../../lib/nutrition/today.mjs';
+import { DAY_TYPES } from '../../lib/nutrition/targets.mjs';
 import { buildReference } from '../../lib/nutrition/reference.mjs';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -65,7 +66,7 @@ function loadExampleNut() {
   return { plan, nut };
 }
 
-test('example build: the dia section carries Resumen de hoy (day type radios only, target host, intake host), Plan de hoy and the ride-fuelling block, and bakes the 12 lib-computed plans', () => {
+test('example build: the dia section carries Resumen de hoy (day type radios only, target host, intake host), Plan de hoy and the ride-fuelling block, and bakes the lib-computed plans (every goal x day type)', () => {
   assert.ok(fs.existsSync(examplePath), `missing ${examplePath} — run \`npm run pretest\` first`);
   const html = fs.readFileSync(examplePath, 'utf8');
   const { plan, nut } = loadExampleNut();
@@ -76,10 +77,10 @@ test('example build: the dia section carries Resumen de hoy (day type radios onl
   });
   at.forEach((i, n) => assert.ok(i !== -1, `marker ${n} missing from the dia section`));
   assert.deepEqual([...at].sort((x, y) => x - y), at, 'order: summary, food log (Registrar), plan, fuelling');
-  // labelled radios: the 4 day types are the ONLY control; the goal lives in the profile sheet (a chip
-  // next to today's kcal, client-rendered, opens it)
-  assert.equal((dia.match(/<input type="radio" name="nutri-day"/g) || []).length, 4);
-  // the day-type chips are text only at every width (with icons the four wrap to two rows at 360 px)
+  // labelled radios: the day types (lib/nutrition/targets.mjs DAY_TYPES, all of them without onboarding sports) are
+  // the ONLY control; the goal lives in the profile sheet (a chip next to today's kcal, client-rendered, opens it)
+  assert.deepEqual([...dia.matchAll(/<input type="radio" name="nutri-day" value="([a-zA-Z]+)"/g)].map((x) => x[1]), [...DAY_TYPES]);
+  // the day-type chips are text only at every width (with icons they wrap to more rows at 360 px)
   const dayField = dia.slice(dia.indexOf('id="nutri-daytype"'), dia.indexOf('</fieldset>', dia.indexOf('id="nutri-daytype"')));
   assert.doesNotMatch(dayField, /<svg/, 'no icon inside a day-type chip');
   assert.doesNotMatch(dia, /nutri-goal"|name="nutri-goal/, 'no goal radio group in Nutrición');

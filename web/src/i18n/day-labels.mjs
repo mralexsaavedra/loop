@@ -1,10 +1,11 @@
 /* Per-person day-type names (onboarding v2): a person who entered their sports in the in-page onboarding
  * (lib/profile/onboarding.mjs `sports`) sees each day type named after the sports that fill it and their usual
- * length ("Correr ~1,5 h") instead of the plan's gym / bike / long bike, and sport-neutral wording where the
- * dictionary talks about rides. The four day-type keys stay the same (lib/nutrition/targets.mjs DAY_TYPES).
+ * length ("Correr ~1,5 h") instead of the plan's names, and sport-neutral wording where the dictionary talks about
+ * rides. A sport fills the day type lib/nutrition/energy.mjs dayTypeOfSport gives it; the day-type keys stay the
+ * same (lib/nutrition/targets.mjs DAY_TYPES).
  * Without sports the dictionary is returned as is. Build-time only (web/src/tabs/Dia.astro). Pure: no I/O. */
 import { DAY_TYPES } from '../../../lib/nutrition/targets.mjs';
-import { dayTypeOfMinutes, usedDayTypes } from '../../../lib/nutrition/energy.mjs';
+import { dayTypeOfSport, usedDayTypes } from '../../../lib/nutrition/energy.mjs';
 
 const SHORT_NAMES = 2; // the segment control keeps two names, then "+N"
 
@@ -29,7 +30,7 @@ export function personalNutriText(T, sports, lang) {
   const dayTypes = { ...T.dayTypes };
   const dayShort = { ...T.dayShort };
   for (const d of DAY_TYPES) {
-    const mine = sports.filter((s) => dayTypeOfMinutes(s.minutes) === d).sort((a, b) => b.perWeek - a.perWeek);
+    const mine = sports.filter((s) => dayTypeOfSport(s.sport, s.minutes) === d).sort((a, b) => b.perWeek - a.perWeek);
     if (d === 'rest' || !mine.length) continue;
     const names = mine.map((s) => S.names[s.sport]);
     const n = mine.reduce((a, s) => a + s.perWeek, 0);

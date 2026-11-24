@@ -27,8 +27,22 @@ test('personalNutriText: each used day type is named after its sports (most freq
   assert.deepEqual(Object.keys(t.dayTypes), DAY_TYPES);
   const e = personalNutriText(en, [{ sport: 'cycling', minutes: 180, perWeek: 1 }, { sport: 'swimming', minutes: 40, perWeek: 2 }, { sport: 'team', minutes: 60, perWeek: 2 }, { sport: 'hybrid', minutes: 60, perWeek: 1 }], 'en');
   assert.equal(e.dayTypes.bikeLong, 'Cycling ~3 h');
-  assert.equal(e.dayShort.gym, 'Swimming · Team sport +1', 'segment labels keep two names');
-  assert.equal(e.dayTypes.gym, 'Swimming · Team sport · HYROX / CrossFit ~50 min');
+  assert.equal(e.dayShort.gym, 'Swimming · Team sport', 'a short hybrid session fills the hybrid day (dayTypeOfSport)');
+  assert.equal(e.dayTypes.gym, 'Swimming · Team sport ~50 min');
+  assert.equal(e.dayTypes.hybrid, 'HYROX / CrossFit ~1 h');
+  const three = personalNutriText(en, [{ sport: 'swimming', minutes: 40, perWeek: 3 }, { sport: 'team', minutes: 60, perWeek: 2 }, { sport: 'yoga', minutes: 60, perWeek: 1 }], 'en');
+  assert.equal(three.dayShort.gym, 'Swimming · Team sport +1', 'segment labels keep two names');
+});
+
+test('S7 personalNutriText / shownDayTypes: short runs, rides and hybrid sessions name the run, indoor and hybrid days', () => {
+  const sports = [{ sport: 'running', minutes: 45, perWeek: 3 }, { sport: 'cycling', minutes: 60, perWeek: 2 }, { sport: 'hybrid', minutes: 60, perWeek: 1 }];
+  const t = personalNutriText(es, sports, 'es');
+  assert.equal(t.dayTypes.run, 'Correr ~45 min');
+  assert.equal(t.dayTypes.indoor, 'Bici ~1 h');
+  assert.equal(t.dayShort.hybrid, 'HYROX / CrossFit');
+  assert.equal(t.dayTypes.gym, es.dayTypes.gym, 'unused: unchanged');
+  for (const d of ['hybrid', 'indoor', 'run']) assert.equal(t.autoRaised[d], es.sportText.autoRaised);
+  assert.deepEqual(shownDayTypes(DAY_TYPES, sports), ['rest', 'hybrid', 'indoor', 'run']);
 });
 
 test('personalNutriText: ride-only wording becomes sport-neutral; the input dictionary is not mutated', () => {
@@ -48,7 +62,7 @@ test('every sport has a name in both languages, and sportText has the same keys'
   assert.deepEqual(Object.keys(es.sportText), Object.keys(en.sportText));
 });
 
-test('shownDayTypes: the day-type control shows only the days a person\'s week has (all four without sports)', () => {
+test('shownDayTypes: the day-type control shows only the days a person\'s week has (all of them without sports)', () => {
   assert.deepEqual(shownDayTypes(DAY_TYPES, undefined), DAY_TYPES);
   assert.deepEqual(shownDayTypes(DAY_TYPES, [{ sport: 'yoga', minutes: 60, perWeek: 3 }]), ['rest', 'gym']);
   assert.deepEqual(shownDayTypes(DAY_TYPES, SPORTS_A), ['rest', 'gym', 'bike']);
