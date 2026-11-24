@@ -2,18 +2,22 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { guardSync } from '../src/sync.js'
 
+/** @typedef {import('../src/db.js').Pool} Pool @typedef {import('../src/strava.js').FetchImpl} FetchImpl */
+/** @typedef {(value?: unknown) => void} Resolve */
+
 function fakeStatus () {
+  /** @type {string[]} */
   const events = []
   return {
     events,
     recordStravaOk: async () => { events.push('ok') },
-    recordStravaError: async (code) => { events.push(`error: ${code}`) }
+    recordStravaError: async (/** @type {string} */ code) => { events.push(`error: ${code}`) }
   }
 }
 
 test('concurrent callers share ONE in-flight run (the loop and POST /sync never overlap)', async () => {
   let runs = 0
-  let finish
+  let finish = /** @type {Resolve} */ (/** @type {unknown} */ (undefined)) // set by the promise executor
   const runOnce = guardSync(() => { runs += 1; return new Promise((resolve) => { finish = resolve }) }, { status: fakeStatus() })
 
   const a = runOnce()
@@ -51,7 +55,7 @@ test('works without a status recorder', async () => {
 
 test('afterOk runs once per successful run, after the status is recorded, and the caller does not wait for it', async () => {
   const status = fakeStatus()
-  let finishAfter
+  let finishAfter = /** @type {Resolve} */ (/** @type {unknown} */ (undefined)) // set by the promise executor
   let afterCalls = 0
   const runOnce = guardSync(async () => ({ count: 1 }), {
     status,
@@ -71,6 +75,7 @@ test('afterOk is skipped on a failed run, and a throwing / rejecting hook never 
   await assert.rejects(failing())
   assert.equal(afterCalls, 0)
 
+  /** @type {string[]} */
   const logs = []
   const sync = guardSync(async () => ({ count: 0 }), { afterOk: () => { throw new Error('boom') }, log: (l) => logs.push(l) })
   assert.deepEqual(await sync(), { count: 0 })
@@ -83,10 +88,13 @@ test('afterOk is skipped on a failed run, and a throwing / rejecting hook never 
 test('createStravaSync returns the activity result without waiting for the athlete refresh, which then runs in the background', async () => {
   const { createStravaSync } = await import('../src/sync.js')
   const client = { query: async () => ({ rows: [] }), release () {} }
-  const pool = { connect: async () => client, query: async () => ({ rows: [] }) }
+  // a pool stand-in: only connect() and query()
+  const pool = /** @type {Pool} */ (/** @type {unknown} */ ({ connect: async () => client, query: async () => ({ rows: [] }) }))
+  /** @type {string[]} */
   const urls = []
-  let releaseAthlete
+  let releaseAthlete = /** @type {Resolve} */ (/** @type {unknown} */ (undefined)) // set by the promise executor
   const athleteGate = new Promise((resolve) => { releaseAthlete = resolve })
+  /** A fetch stand-in answering only the fields the Strava client reads. @param {string | URL} url */
   const fetchImpl = async (url) => {
     const u = String(url)
     urls.push(u)
@@ -95,10 +103,10 @@ test('createStravaSync returns the activity result without waiting for the athle
     if (u.endsWith('/api/v3/athlete')) { await athleteGate; return { ok: false, status: 500 } }
     return { ok: false, status: 500 }
   }
-  const sync = createStravaSync(pool, { STRAVA_CLIENT_ID: 'i', STRAVA_CLIENT_SECRET: 's', STRAVA_REFRESH_TOKEN: 'r' }, { fetchImpl, log: () => {} })
+  const sync = createStravaSync(pool, { STRAVA_CLIENT_ID: 'i', STRAVA_CLIENT_SECRET: 's', STRAVA_REFRESH_TOKEN: 'r' }, { fetchImpl: /** @type {FetchImpl} */ (/** @type {unknown} */ (fetchImpl)), log: () => {} })
   const result = await sync.runOnce()
   assert.equal(result.count, 0)
-  assert.equal(result.athlete, undefined, 'the activity result no longer carries the profile outcome')
+  assert.equal(/** @type {Record<string, unknown>} */ (result).athlete, undefined, 'the activity result no longer carries the profile outcome')
   await new Promise((resolve) => setImmediate(resolve))
   assert.ok(urls.some((u) => u.endsWith('/api/v3/athlete')), 'the athlete refresh was kicked off')
   releaseAthlete()
@@ -115,16 +123,20 @@ test('a rejected token is recorded as strava_auth', async () => {
 test('createStravaSync runs one HR-stream backfill batch after the athlete refresh, in the background', async () => {
   const { createStravaSync } = await import('../src/sync.js')
   const client = { query: async () => ({ rows: [] }), release () {} }
+  /** @type {(readonly unknown[])[]} */
   const saved = []
-  const pool = {
+  const pool = /** @type {Pool} */ (/** @type {unknown} */ ({
     connect: async () => client,
+    /** @param {string} sql @param {readonly unknown[]} values */
     query: async (sql, values) => {
       if (/LEFT JOIN strava_activity_hr/.test(sql)) return { rows: [{ id: '77' }] }
       if (/INSERT INTO strava_activity_hr/.test(sql)) saved.push(values)
       return { rows: [] }
     }
-  }
+  }))
+  /** @type {string[]} */
   const urls = []
+  /** @param {string | URL} url */
   const fetchImpl = async (url) => {
     const u = String(url)
     urls.push(u)
@@ -133,7 +145,7 @@ test('createStravaSync runs one HR-stream backfill batch after the athlete refre
     if (u.includes('/activities/77/streams')) return { ok: true, status: 200, json: async () => ({ time: { data: [0, 4] }, heartrate: { data: [140, 141] } }) }
     return { ok: false, status: 500 }
   }
-  const sync = createStravaSync(pool, { STRAVA_CLIENT_ID: 'i', STRAVA_CLIENT_SECRET: 's', STRAVA_REFRESH_TOKEN: 'r' }, { fetchImpl, log: () => {} })
+  const sync = createStravaSync(pool, { STRAVA_CLIENT_ID: 'i', STRAVA_CLIENT_SECRET: 's', STRAVA_REFRESH_TOKEN: 'r' }, { fetchImpl: /** @type {FetchImpl} */ (/** @type {unknown} */ (fetchImpl)), log: () => {} })
   await sync.runOnce()
   await new Promise((resolve) => setImmediate(resolve))
   const r = await sync.hrIdle()
@@ -145,30 +157,36 @@ test('createStravaSync runs one HR-stream backfill batch after the athlete refre
 // C1: the first pull of a long history is incremental: every page is upserted as it arrives, so a rate
 // limit partway keeps them, and the next run resumes from the newest stored activity instead of page 1.
 function memoryPool () {
+  /** @type {Map<unknown, unknown>} */
   const rows = new Map()
   const client = {
+    /** @param {string} sql @param {readonly unknown[]} values */
     async query (sql, values) {
       if (/^INSERT INTO strava_activity /.test(sql)) rows.set(values[0], values[1])
       return { rows: [] }
     },
     release () {}
   }
-  return {
+  // a pool stand-in: only connect() and query(), plus the stored rows for the test to read
+  return /** @type {Pool & { rows: Map<unknown, unknown> }} */ (/** @type {unknown} */ ({
     rows,
     connect: async () => client,
+    /** @param {string} sql */
     query: async (sql) => {
       if (/MAX\(start_local\)/.test(sql)) return { rows: [{ newest: rows.size ? [...rows.values()].sort().at(-1) : null }] }
       return { rows: [] }
     }
-  }
+  }))
 }
 
 test('createStravaSync: a first pull hit by a 429 keeps its pages, and the next run resumes from the newest stored one', async () => {
   const { createStravaSync } = await import('../src/sync.js')
   const pool = memoryPool()
+  /** @type {(string | null)[]} */
   const afters = []
   let activityCalls = 0
-  const day = (i) => new Date(Date.UTC(2020, 0, 1) + i * 86_400_000).toISOString().replace('.000Z', 'Z')
+  const day = (/** @type {number} */ i) => new Date(Date.UTC(2020, 0, 1) + i * 86_400_000).toISOString().replace('.000Z', 'Z')
+  /** @param {string | URL} url */
   const fetchImpl = async (url) => {
     const u = new URL(String(url))
     if (u.pathname.endsWith('/oauth/token')) return { ok: true, status: 200, json: async () => ({ access_token: 't', expires_at: Math.floor(Date.now() / 1000) + 3600 }) }
@@ -181,9 +199,9 @@ test('createStravaSync: a first pull hit by a 429 keeps its pages, and the next 
     }
     return { ok: false, status: 500 }
   }
-  const sync = createStravaSync(pool, { STRAVA_CLIENT_ID: 'i', STRAVA_CLIENT_SECRET: 's', STRAVA_REFRESH_TOKEN: 'r' }, { fetchImpl, log: () => {} })
+  const sync = createStravaSync(pool, { STRAVA_CLIENT_ID: 'i', STRAVA_CLIENT_SECRET: 's', STRAVA_REFRESH_TOKEN: 'r' }, { fetchImpl: /** @type {FetchImpl} */ (/** @type {unknown} */ (fetchImpl)), log: () => {} })
 
-  await assert.rejects(sync.runOnce(), (err) => err.rateLimited === true)
+  await assert.rejects(sync.runOnce(), (/** @type {import('../src/strava.js').StravaError} */ err) => err.rateLimited === true)
   assert.equal(pool.rows.size, 100, 'the first page was stored before the rate limit')
   assert.equal(afters[0], '0', 'the first pull walks ascending from the beginning')
 
@@ -196,11 +214,14 @@ test('createStravaSync: a first pull hit by a 429 keeps its pages, and the next 
 })
 
 test('a failed status write after a good pull is its own log event, never reported as a Strava failure', async () => {
+  /** @type {string[]} */
   const events = []
+  /** @type {unknown[]} */
   const logs = []
   let afterCalls = 0
   const status = {
     async recordStravaOk () { throw new Error('connect ECONNREFUSED db') },
+    /** @param {string} code */
     async recordStravaError (code) { events.push(`error: ${code}`) }
   }
   const runOnce = guardSync(async () => ({ count: 3 }), { status, afterOk: () => { afterCalls++ }, log: (l) => logs.push(JSON.parse(l)) })
@@ -211,6 +232,7 @@ test('a failed status write after a good pull is its own log event, never report
 })
 
 test('a failed status write after a failed pull is logged and the Strava error is still rethrown', async () => {
+  /** @type {unknown[]} */
   const logs = []
   const status = { async recordStravaOk () {}, async recordStravaError () { throw new Error('db down') } }
   const runOnce = guardSync(async () => { throw new Error('strava activities failed: 401') }, { status, log: (l) => logs.push(JSON.parse(l)) })

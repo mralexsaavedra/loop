@@ -4,30 +4,41 @@ import { createSyncRoutes } from '../src/sync-routes.js'
 import { createSyncTrigger } from '../src/trigger.js'
 import { createSyncStatus } from '../src/status.js'
 
+/** @typedef {import('node:http').IncomingMessage} Req @typedef {import('node:http').ServerResponse} Res */
+/** What the stand-in recorded; `headers` is read only after writeHead set it, `body` is the parsed JSON.
+ * @typedef {{ status: number | null, headers: Record<string, unknown>, body: any }} Recorded */
+
+/** A response stand-in (only writeHead, end and headersSent). @returns {Res & Recorded} */
 function fakeRes () {
-  return {
+  return /** @type {Res & Recorded} */ (/** @type {unknown} */ ({
     status: null,
     headers: null,
     body: null,
     headersSent: false,
+    /** @this {Recorded & { headersSent: boolean }} @param {number} status @param {Record<string, unknown>} headers */
     writeHead (status, headers) { this.status = status; this.headers = headers; this.headersSent = true },
+    /** @this {Recorded} @param {string} payload */
     end (payload) { this.body = JSON.parse(payload) }
-  }
+  }))
 }
 
+/** @returns {import('../src/db.js').Queryable} */
 function fakePool () {
-  return {
+  return /** @type {import('../src/db.js').Queryable} */ (/** @type {unknown} */ ({
+    /** @param {string} sql */
     async query (sql) {
       if (/FROM raw_payload/.test(sql)) return { rows: [{ last: new Date('2030-01-02T09:55:00Z') }] }
       if (/FROM sync_status/.test(sql)) return { rows: [{ trigger_seq: 41 }] }
       return { rows: [] }
     }
-  }
+  }))
 }
 
+/** @param {{ now?: () => number, runStrava?: () => Promise<unknown>, writeTrigger?: (seq: number) => Promise<void> }} [options] */
 async function setup ({ now = () => Date.parse('2030-01-02T10:00:00Z'), runStrava = async () => ({ count: 1 }), writeTrigger } = {}) {
   const status = createSyncStatus({ pool: fakePool(), stravaConfigured: true, now, log: () => {} })
   await status.load()
+  /** @type {number[]} */
   const written = []
   const trigger = createSyncTrigger({
     runStrava,
@@ -42,7 +53,7 @@ async function setup ({ now = () => Date.parse('2030-01-02T10:00:00Z'), runStrav
 test('POST /sync answers 202 {seq, coalesced} JSON without any auth header', async () => {
   const { routes, written } = await setup()
   const res = fakeRes()
-  const done = routes.handleSync({ headers: {} }, res)
+  const done = routes.handleSync(/** @type {Req} */ ({ headers: {} }), res)
   assert.equal(res.status, 202)
   assert.equal(res.headers['content-type'], 'application/json')
   assert.equal(res.headers['cache-control'], 'no-store')
@@ -56,10 +67,10 @@ test('a second POST /sync within 60 s is NOT refused or dropped: 202 with a NEW 
   mock.timers.enable({ apis: ['setTimeout', 'Date'], now: Date.parse('2030-01-02T10:00:00Z') })
   try {
     const { routes, written } = await setup({ now: () => Date.now() })
-    await routes.handleSync({ headers: {} }, fakeRes())
+    await routes.handleSync(/** @type {Req} */ ({ headers: {} }), fakeRes())
     mock.timers.tick(19_000)
     const res = fakeRes()
-    const done = routes.handleSync({ headers: {} }, res)
+    const done = routes.handleSync(/** @type {Req} */ ({ headers: {} }), res)
     assert.equal(res.status, 202)
     assert.deepEqual(res.body, { ok: true, seq: 43, coalesced: true, deferred: true })
     assert.equal(res.headers['retry-after'], undefined)
@@ -74,9 +85,9 @@ test('a second POST /sync within 60 s is NOT refused or dropped: 202 with a NEW 
 
 test('GET /sync/status: exact key set, no-store, the trigger seq', async () => {
   const { routes } = await setup()
-  await routes.handleSync({ headers: {} }, fakeRes())
+  await routes.handleSync(/** @type {Req} */ ({ headers: {} }), fakeRes())
   const res = fakeRes()
-  await routes.handleStatus({ headers: {} }, res)
+  await routes.handleStatus(/** @type {Req} */ ({ headers: {} }), res)
   assert.equal(res.status, 200)
   assert.equal(res.headers['cache-control'], 'no-store')
   assert.deepEqual(Object.keys(res.body).sort(), [
@@ -92,9 +103,9 @@ test('GET /sync/status never leaks raw error text from a failed pull or trigger 
     runStrava: async () => { throw new Error('strava token refresh failed: 401 client_secret=hunter2') },
     writeTrigger: async () => { throw Object.assign(new Error('EACCES: permission denied, open /trigger/.refresh.tmp'), { code: 'EACCES' }) }
   })
-  await routes.handleSync({ headers: {} }, fakeRes())
+  await routes.handleSync(/** @type {Req} */ ({ headers: {} }), fakeRes())
   const res = fakeRes()
-  await routes.handleStatus({ headers: {} }, res)
+  await routes.handleStatus(/** @type {Req} */ ({ headers: {} }), res)
   assert.equal(res.body.lastTriggerError, 'trigger_write')
   assert.equal(res.body.lastTriggerErrorSeq, 42)
   const raw = JSON.stringify(res.body)

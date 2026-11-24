@@ -2,12 +2,16 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import { createOffClient, normalizeOffProduct, OFF_USER_AGENT, OFF_BASE } from '../src/off.js'
 
-const json = (body, { status = 200, headers = {} } = {}) => ({
+/** @typedef {import('../src/off.js').OffError} OffError @typedef {typeof globalThis.fetch} Fetch */
+
+/** A fetch answer: only the Response fields the client reads.
+ * @param {unknown} body @param {{ status?: number, headers?: Record<string, string> }} [options] */
+const json = (body, { status = 200, headers = {} } = {}) => /** @type {Response} */ (/** @type {unknown} */ ({
   ok: status >= 200 && status < 300,
   status,
   headers: new Headers({ 'content-type': 'application/json', ...headers }),
   body: new Blob([JSON.stringify(body)]).stream()
-})
+}))
 
 const PRODUCT = {
   code: '8480000123456',
@@ -47,9 +51,11 @@ test('normalize: implausible values are dropped to null, never passed on', () =>
 })
 
 test('barcode lookup: v2 product URL, descriptive User-Agent, no redirects, a timeout signal; cached for later calls', async () => {
+  /** @type {{ url: string, init: { headers: Record<string, string>, redirect?: string, signal?: AbortSignal } }[]} */
   const calls = []
+  /** @param {string} url @param {{ headers: Record<string, string>, redirect?: string, signal?: AbortSignal }} init */
   const fetch = async (url, init) => { calls.push({ url, init }); return json({ status: 1, product: PRODUCT }) }
-  const off = createOffClient({ fetch })
+  const off = createOffClient({ fetch: /** @type {Fetch} */ (/** @type {unknown} */ (fetch)) })
   const p = await off.byBarcode('8480000123456')
   assert.equal(p.name, 'Yogur natural')
   assert.equal(calls.length, 1)
@@ -65,37 +71,37 @@ test('barcode lookup: v2 product URL, descriptive User-Agent, no redirects, a ti
 
 test('barcode not found -> off_not_found (404); OFF 429 -> off_rate_limited; network / 5xx -> off_unavailable', async () => {
   const notFound = createOffClient({ fetch: async () => json({ status: 0, status_verbose: 'product not found' }, { status: 404 }) })
-  await assert.rejects(notFound.byBarcode('00000000'), (e) => e.status === 404 && e.code === 'off_not_found')
+  await assert.rejects(notFound.byBarcode('00000000'), (/** @type {OffError} */ e) => e.status === 404 && e.code === 'off_not_found')
   const limited = createOffClient({ fetch: async () => json({}, { status: 429 }) })
-  await assert.rejects(limited.byBarcode('12345678'), (e) => e.status === 429 && e.code === 'off_rate_limited')
+  await assert.rejects(limited.byBarcode('12345678'), (/** @type {OffError} */ e) => e.status === 429 && e.code === 'off_rate_limited')
   const down = createOffClient({ fetch: async () => { throw new TypeError('fetch failed') } })
-  await assert.rejects(down.byBarcode('12345678'), (e) => e.status === 502 && e.code === 'off_unavailable')
+  await assert.rejects(down.byBarcode('12345678'), (/** @type {OffError} */ e) => e.status === 502 && e.code === 'off_unavailable')
   const five = createOffClient({ fetch: async () => json({}, { status: 503 }) })
-  await assert.rejects(five.search('avena'), (e) => e.status === 502 && e.code === 'off_unavailable')
+  await assert.rejects(five.search('avena'), (/** @type {OffError} */ e) => e.status === 502 && e.code === 'off_unavailable')
 })
 
 test('a response over the size cap is refused (declared or streamed)', async () => {
   const declared = createOffClient({ maxBytes: 100, fetch: async () => json({ status: 1, product: PRODUCT }, { headers: { 'content-length': '5000' } }) })
-  await assert.rejects(declared.byBarcode('12345678'), (e) => e.code === 'off_unavailable')
+  await assert.rejects(declared.byBarcode('12345678'), (/** @type {OffError} */ e) => e.code === 'off_unavailable')
   const streamed = createOffClient({ maxBytes: 100, fetch: async () => json({ status: 1, product: PRODUCT }) })
-  await assert.rejects(streamed.byBarcode('12345678'), (e) => e.code === 'off_unavailable')
+  await assert.rejects(streamed.byBarcode('12345678'), (/** @type {OffError} */ e) => e.code === 'off_unavailable')
 })
 
 test('a hung request is aborted by the timeout', async () => {
   const off = createOffClient({
     timeoutMs: 20,
-    fetch: (url, init) => new Promise((resolve, reject) => { init.signal.addEventListener('abort', () => reject(init.signal.reason)) })
+    fetch: (url, init) => new Promise((resolve, reject) => { /** @type {{ signal: AbortSignal }} */ (init).signal.addEventListener('abort', () => reject(/** @type {{ signal: AbortSignal }} */ (init).signal.reason)) })
   })
-  await assert.rejects(off.byBarcode('12345678'), (e) => e.code === 'off_unavailable')
+  await assert.rejects(off.byBarcode('12345678'), (/** @type {OffError} */ e) => e.code === 'off_unavailable')
 })
 
 test('search: text query, at most 10 normalized results with a code', async () => {
-  let seen
-  const fetch = async (url) => {
+  let seen = /** @type {URL} */ (/** @type {unknown} */ (undefined)) // set by the fake fetch
+  const fetch = async (/** @type {string} */ url) => {
     seen = new URL(url)
     return json({ products: [PRODUCT, { product_name: 'no code' }, ...Array.from({ length: 12 }, (_, i) => ({ ...PRODUCT, code: String(10000000 + i) }))] })
   }
-  const off = createOffClient({ fetch })
+  const off = createOffClient({ fetch: /** @type {Fetch} */ (/** @type {unknown} */ (fetch)) })
   const r = await off.search('  Yogur  ')
   assert.equal(seen.searchParams.get('search_terms'), 'Yogur')
   assert.equal(seen.searchParams.get('json'), '1')
@@ -106,15 +112,15 @@ test('search: text query, at most 10 normalized results with a code', async () =
 test('rate limits: search <= 10/min, product <= 100/min (token buckets); cache hits are free', async () => {
   let t = 0
   let n = 0
-  const fetch = async (url) => { n++; return url.includes('/api/v2/product/') ? json({ status: 1, product: PRODUCT }) : json({ products: [] }) }
-  const off = createOffClient({ fetch, now: () => t })
+  const fetch = async (/** @type {string} */ url) => { n++; return url.includes('/api/v2/product/') ? json({ status: 1, product: PRODUCT }) : json({ products: [] }) }
+  const off = createOffClient({ fetch: /** @type {Fetch} */ (/** @type {unknown} */ (fetch)), now: () => t })
   for (let i = 0; i < 10; i++) await off.search(`q${i}`)
-  await assert.rejects(off.search('q10'), (e) => e.status === 429 && e.code === 'off_rate_limited')
+  await assert.rejects(off.search('q10'), (/** @type {OffError} */ e) => e.status === 429 && e.code === 'off_rate_limited')
   await off.search('q0') // cached
   t += 6_000 // one token back (10/min)
   await off.search('q11')
   for (let i = 0; i < 100; i++) await off.byBarcode(String(20000000 + i))
-  await assert.rejects(off.byBarcode('30000000'), (e) => e.code === 'off_rate_limited')
+  await assert.rejects(off.byBarcode('30000000'), (/** @type {OffError} */ e) => e.code === 'off_rate_limited')
   assert.equal(n, 111)
 })
 
@@ -136,22 +142,22 @@ test('an upstream 429 / 5xx / timeout is remembered for ~60 s (no hammering), th
   let t = 0
   let n = 0
   const off = createOffClient({ now: () => t, fetch: async () => { n++; return json({}, { status: 503 }) } })
-  await assert.rejects(off.byBarcode('12345678'), (e) => e.code === 'off_unavailable')
-  await assert.rejects(off.byBarcode('12345678'), (e) => e.code === 'off_unavailable')
+  await assert.rejects(off.byBarcode('12345678'), (/** @type {OffError} */ e) => e.code === 'off_unavailable')
+  await assert.rejects(off.byBarcode('12345678'), (/** @type {OffError} */ e) => e.code === 'off_unavailable')
   assert.equal(n, 1, 'served from the negative cache')
   t = 61_000
   await assert.rejects(off.byBarcode('12345678'))
   assert.equal(n, 2)
   let m = 0
   const limited = createOffClient({ now: () => t, fetch: async () => { m++; return json({}, { status: 429 }) } })
-  await assert.rejects(limited.search('avena'), (e) => e.code === 'off_rate_limited')
-  await assert.rejects(limited.search('avena'), (e) => e.code === 'off_rate_limited')
+  await assert.rejects(limited.search('avena'), (/** @type {OffError} */ e) => e.code === 'off_rate_limited')
+  await assert.rejects(limited.search('avena'), (/** @type {OffError} */ e) => e.code === 'off_rate_limited')
   assert.equal(m, 1)
 })
 
 test('concurrent identical misses share ONE upstream request', async () => {
   let n = 0
-  let release
+  let release = /** @type {(value?: unknown) => void} */ (/** @type {unknown} */ (undefined)) // set by the promise executor
   const gate = new Promise((resolve) => { release = resolve })
   const off = createOffClient({ fetch: async () => { n++; await gate; return json({ status: 1, product: PRODUCT }) } })
   const a = off.byBarcode('8480000123456')

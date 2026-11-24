@@ -6,27 +6,33 @@ import { runMigrations, checksum, MIGRATION_LOCK_KEY } from '../src/migrations.j
  * A fake pool whose one client records every statement and keeps an in-memory schema_migrations ledger.
  * `fail` maps a migration's SQL text to the error it throws; `applied` seeds the ledger {file: checksum}.
  */
+/** @param {{ fail?: Record<string, string>, applied?: Record<string, string> }} [options] */
 function fakePool ({ fail = {}, applied = {} } = {}) {
   const ledger = new Map(Object.entries(applied))
+  /** @type {string[]} */
   const log = []
+  /** @type {readonly unknown[] | null} */
   let pending = null // the ledger row of the open transaction, committed on COMMIT
   let released = 0
   const client = {
+    /** @param {string} sql @param {readonly unknown[]} [params] @returns {Promise<{ rows: unknown[] }>} */
     async query (sql, params = []) {
       log.push(params.length ? `${sql.trim().split('\n')[0]} [${params.join(',')}]` : sql.trim().split('\n')[0])
       if (fail[sql]) throw new Error(fail[sql])
       if (/^SELECT name, checksum FROM schema_migrations/.test(sql)) return { rows: [...ledger].map(([name, c]) => ({ name, checksum: c })) }
       if (/^INSERT INTO schema_migrations/.test(sql)) pending = params
-      if (sql === 'COMMIT' && pending) { ledger.set(pending[0], pending[1]); pending = null }
+      if (sql === 'COMMIT' && pending) { ledger.set(/** @type {string} */ (pending[0]), /** @type {string} */ (pending[1])); pending = null }
       if (sql === 'ROLLBACK') pending = null
       return { rows: [] }
     },
     release () { released++ }
   }
-  return { pool: { connect: async () => client }, log, ledger, released: () => released }
+  // the fake pool has only the connect() runMigrations calls, and its client only query + release
+  const pool = /** @type {import('../src/db.js').Pool} */ (/** @type {unknown} */ ({ connect: async () => client }))
+  return { pool, log, ledger, released: () => released }
 }
-const readSql = async (f) => `SQL ${f}`
-const ran = (log) => log.filter((l) => l.startsWith('SQL '))
+const readSql = async (/** @type {string} */ f) => `SQL ${f}`
+const ran = (/** @type {string[]} */ log) => log.filter((l) => l.startsWith('SQL '))
 
 test('first boot: every file runs once inside its own transaction and is recorded in the ledger, under the advisory lock', async () => {
   const f = fakePool()
@@ -54,7 +60,7 @@ test('an applied file whose content changed refuses to start, before any migrati
   const f = fakePool({ applied: { '001': checksum('SQL 001'), '009': checksum('the original 009') } })
   await assert.rejects(
     runMigrations(f.pool, { core: ['001', '009', '012'], optional: {}, readSql, log: () => {} }),
-    (err) => {
+    (/** @type {Error & { code?: string }} */ err) => {
       assert.equal(err.code, 'migration_checksum_mismatch')
       assert.match(err.message, /009 was changed after it was applied/)
       assert.match(err.message, /never edit an applied migration; add a new sql\/ file instead/)
@@ -71,6 +77,7 @@ test('CRLF line endings do not change the checksum (a Windows checkout is the sa
 })
 
 test('a failing OPTIONAL group is rolled back, logged and reported, never thrown, and stays pending for the next boot', async () => {
+  /** @type {{ event?: string }[]} */
   const logged = []
   const f = fakePool({ fail: { 'SQL 006': 'permission denied for schema public' } })
   const r = await runMigrations(f.pool, { core: ['001', '005'], optional: { food: ['006'], journal: ['010'] }, readSql, log: (l) => logged.push(JSON.parse(l)) })

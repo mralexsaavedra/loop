@@ -9,8 +9,15 @@ import { createPool, migrate } from '../../src/db.js'
 import { createProfileStore, moveIdentityToDocument } from '../../src/profile-db.js'
 import { createDocumentStore } from '../../src/documents-db.js'
 
+/** @typedef {import('../../../../lib/profile/onboarding.mjs').OnboardingProfile} OnboardingProfile */
+/** @typedef {import('../../src/profile-db.js').ComposedProfile} ComposedProfile */
+/** The profile document as stored: a JSON object. @typedef {import('../../src/documents.js').DocumentRow & { data: Record<string, unknown> }} StoredDoc */
+
 const quiet = () => {}
-let db, pool
+/** @type {Awaited<ReturnType<typeof freshDatabase>>} */
+let db
+/** @type {import('../../src/db.js').Pool} */
+let pool
 test.before(async () => {
   if (skip) return
   db = await freshDatabase()
@@ -23,8 +30,10 @@ test.after(async () => {
   await db.drop()
 })
 
-const cells = (kcal) => Object.fromEntries(['rest', 'gym', 'hybrid', 'indoor', 'run', 'bike', 'bikeLong'].map((d) => [d, { kcal, p: 100, f: 50 }]))
+const cells = (/** @type {number} */ kcal) => Object.fromEntries(['rest', 'gym', 'hybrid', 'indoor', 'run', 'bike', 'bikeLong'].map((d) => [d, { kcal, p: 100, f: 50 }]))
+/** @type {Pick<OnboardingProfile, 'weightKg' | 'activity' | 'goals' | 'targets'>} */
 const OWN = { weightKg: 60, activity: 'light', goals: ['maintain'], targets: { maintain: cells(1800), cut: cells(1600), bulk: cells(2000) } }
+/** @type {OnboardingProfile} */
 const WIZARD = { name: 'Ana', sex: 'female', birthdate: '1995-03-02', heightCm: 165, ...OWN }
 
 async function reset () {
@@ -43,9 +52,9 @@ test('a wizard save stores the identity in the profile document and only its own
   assert.deepEqual(composed, WIZARD)
   assert.equal(typeof updatedAt, 'string')
   assert.deepEqual(await rawRow(), OWN, 'no identity field in the onboarding row')
-  const doc = await docs.get('profile')
+  const doc = /** @type {StoredDoc} */ (await docs.get('profile'))
   assert.deepEqual([doc.data, doc.revision], [{ name: 'Ana', sex: 'female', birthdate: '1995-03-02', heightCm: 165 }, 1])
-  const { updatedAt: _u, ...read } = await store.getProfile()
+  const { updatedAt: _u, ...read } = /** @type {ComposedProfile} */ (await store.getProfile())
   assert.deepEqual(read, WIZARD)
 })
 
@@ -54,13 +63,13 @@ test('a wizard save keeps the rest of an existing profile document, its key orde
   const docs = createDocumentStore(pool)
   await docs.put('profile', { devices: [{ name: 'Watch' }], heightCm: 180, maxHr: 190 }, 0)
   await createProfileStore(pool).putProfile({ ...WIZARD, name: undefined })
-  const doc = await docs.get('profile')
+  const doc = /** @type {StoredDoc} */ (await docs.get('profile'))
   assert.equal(doc.revision, 2)
   assert.deepEqual(Object.keys(doc.data), ['devices', 'heightCm', 'maxHr', 'sex', 'birthdate'])
   assert.deepEqual(doc.data, { devices: [{ name: 'Watch' }], heightCm: 165, maxHr: 190, sex: 'female', birthdate: '1995-03-02' })
   // a save with the same identity does not write the document again
   await createProfileStore(pool).putProfile({ ...WIZARD, name: undefined })
-  assert.equal((await docs.get('profile')).revision, 2)
+  assert.equal(/** @type {StoredDoc} */ (await docs.get('profile')).revision, 2)
 })
 
 test('a wizard save without a name leaves the document name alone', { skip }, async () => {
@@ -77,9 +86,9 @@ test('the identity is read from the profile document: a coach edit there is what
   const store = createProfileStore(pool)
   const docs = createDocumentStore(pool)
   await store.putProfile(WIZARD)
-  const doc = await docs.get('profile')
+  const doc = /** @type {StoredDoc} */ (await docs.get('profile'))
   await docs.put('profile', { ...doc.data, heightCm: 166 }, doc.revision)
-  assert.equal((await store.getProfile()).heightCm, 166)
+  assert.equal(/** @type {ComposedProfile} */ (await store.getProfile()).heightCm, 166)
   // no onboarding row: null, whatever the document holds (the owner's case: a profile without the page wizard)
   await pool.query('DELETE FROM app_profile')
   assert.equal(await store.getProfile(), null)
@@ -93,7 +102,7 @@ test('concurrent wizard and coach saves: no lost update, the document revision c
   const coach = docs.put('profile', { devices: [{ name: 'Edge' }] }, 1)
   const wizard = store.putProfile(WIZARD)
   const [coachRow] = await Promise.all([coach, wizard])
-  const doc = await docs.get('profile')
+  const doc = /** @type {StoredDoc} */ (await docs.get('profile'))
   assert.equal(doc.data.sex, 'female', 'the wizard identity is in the document')
   if (coachRow) {
     // the coach saved first or second: either way both changes are present, at revision 3
@@ -107,17 +116,18 @@ test('concurrent wizard and coach saves: no lost update, the document revision c
 
 test('moveIdentityToDocument: an onboarding row from before moves its identity into the document, once', { skip }, async () => {
   await reset()
+  /** @type {unknown[]} */
   const logs = []
   await pool.query('INSERT INTO app_profile (id, data) VALUES (1, $1)', [JSON.stringify(WIZARD)])
   assert.deepEqual(await moveIdentityToDocument(pool, (l) => logs.push(JSON.parse(l))), { moved: ['name', 'sex', 'birthdate', 'heightCm'] })
   assert.deepEqual(await rawRow(), OWN)
-  const doc = await createDocumentStore(pool).get('profile')
+  const doc = /** @type {StoredDoc} */ (await createDocumentStore(pool).get('profile'))
   assert.deepEqual([doc.data, doc.revision], [{ name: 'Ana', sex: 'female', birthdate: '1995-03-02', heightCm: 165 }, 1])
   assert.deepEqual(logs, [{ event: 'profile_identity_moved', keys: ['name', 'sex', 'birthdate', 'heightCm'], kept: [] }])
   // a second start has nothing to move
   assert.deepEqual(await moveIdentityToDocument(pool, quiet), { moved: [] })
-  assert.equal((await createDocumentStore(pool).get('profile')).revision, 1)
-  const { updatedAt: _u, ...read } = await createProfileStore(pool).getProfile()
+  assert.equal(/** @type {StoredDoc} */ (await createDocumentStore(pool).get('profile')).revision, 1)
+  const { updatedAt: _u, ...read } = /** @type {ComposedProfile} */ (await createProfileStore(pool).getProfile())
   assert.deepEqual(read, WIZARD)
 })
 
@@ -125,10 +135,11 @@ test('moveIdentityToDocument: a value the document already has wins over the old
   await reset()
   await createDocumentStore(pool).put('profile', { heightCm: 170, devices: [] }, 0)
   await pool.query('INSERT INTO app_profile (id, data) VALUES (1, $1)', [JSON.stringify(WIZARD)])
+  /** @type {unknown[]} */
   const logs = []
   await moveIdentityToDocument(pool, (l) => logs.push(JSON.parse(l)))
   assert.deepEqual(logs, [{ event: 'profile_identity_moved', keys: ['name', 'sex', 'birthdate', 'heightCm'], kept: ['heightCm'] }])
-  const doc = await createDocumentStore(pool).get('profile')
+  const doc = /** @type {StoredDoc} */ (await createDocumentStore(pool).get('profile'))
   assert.deepEqual(doc.data, { heightCm: 170, devices: [], name: 'Ana', sex: 'female', birthdate: '1995-03-02' })
   assert.equal(doc.revision, 2)
   assert.deepEqual(await rawRow(), OWN)

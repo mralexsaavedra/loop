@@ -4,9 +4,20 @@ import { readFile } from 'node:fs/promises'
 import { fileURLToPath } from 'node:url'
 import { createFoodStore } from '../src/food-db.js'
 
+/** @typedef {import('../src/food-validate.js').ProductInput} ProductInput */
+/** One recorded statement (every store call the tests read passes its values). @typedef {{ sql: string, values: readonly unknown[] }} Call */
+
+/** A pool stand-in with only query(): it records each statement and answers `handler`'s rows.
+ * @param {(sql: string, values?: readonly unknown[]) => { rows: unknown[], rowCount?: number }} [handler] */
 function fakePool (handler = () => ({ rows: [] })) {
+  /** @type {Call[]} */
   const calls = []
-  return { calls, query: async (sql, values) => { calls.push({ sql, values }); return handler(sql, values) } }
+  const pool = {
+    calls,
+    /** @param {string} sql @param {readonly unknown[]} [values] */
+    query: async (sql, values) => { calls.push({ sql, values: /** @type {readonly unknown[]} */ (values) }); return handler(sql, values) }
+  }
+  return /** @type {import('../src/food-db.js').FoodPool & { calls: Call[] }} */ (/** @type {unknown} */ (pool))
 }
 
 const PRODUCT_ROW = {
@@ -46,13 +57,13 @@ test('products map numeric strings to numbers and dates to ISO', async () => {
 test('insertProduct is parameterized; a unique violation becomes 409 barcode_exists', async () => {
   const pool = fakePool(() => ({ rows: [PRODUCT_ROW] }))
   const store = createFoodStore(pool)
-  await store.insertProduct({ name: "O'Brien", brand: null, store: 'dia', barcode: null, unit: 'g', per100: { kcal: 1, protein: 0, carbs: 0, fat: 0 }, servingSize: null, source: 'manual', offCode: null })
+  await store.insertProduct(/** @type {ProductInput} */ ({ name: "O'Brien", brand: null, store: 'dia', barcode: null, unit: 'g', per100: { kcal: 1, protein: 0, carbs: 0, fat: 0 }, servingSize: null, source: 'manual', offCode: null }))
   assert.doesNotMatch(pool.calls[0].sql, /O'Brien/)
   assert.ok(pool.calls[0].values.includes("O'Brien"))
 
   const dup = createFoodStore(fakePool(() => { throw Object.assign(new Error('duplicate key value violates unique constraint "food_product_barcode_uq"'), { code: '23505' }) }))
-  await assert.rejects(dup.insertProduct({ name: 'x', store: 'dia', unit: 'g', per100: { kcal: 1, protein: 0, carbs: 0, fat: 0 }, source: 'manual' }),
-    (e) => e.status === 409 && e.code === 'barcode_exists')
+  await assert.rejects(dup.insertProduct(/** @type {ProductInput} */ ({ name: 'x', store: 'dia', unit: 'g', per100: { kcal: 1, protein: 0, carbs: 0, fat: 0 }, source: 'manual' })),
+    (/** @type {import('../src/http.js').HttpError} */ e) => e.status === 409 && e.code === 'barcode_exists')
 })
 
 test('archive only touches an active row and reports whether it did', async () => {
@@ -71,16 +82,16 @@ test('recipes keep ingredients as JSON; log rows come back with a YYYY-MM-DD dat
   assert.deepEqual([r.id, r.kind, r.servings, r.cookedWeightG, r.ingredients], [2, 'batch', null, 1000, [{ productId: 7, amount: 300 }]])
   const [e] = await store.listLog('2030-01-10')
   assert.deepEqual([e.id, e.date, e.refType, e.refId, e.amount, e.kcal, e.protein, e.carbs], [9, '2030-01-10', 'quick', null, 1, 250, null, 30.5])
-  const logSql = pool.calls.at(-1).sql
+  const logSql = /** @type {Call} */ (pool.calls.at(-1)).sql
   assert.match(logSql, /to_char\(date, 'YYYY-MM-DD'\) AS date/)
   assert.match(logSql, /ORDER BY created_at, id/)
-  assert.deepEqual(pool.calls.at(-1).values, ['2030-01-10'])
+  assert.deepEqual(/** @type {Call} */ (pool.calls.at(-1)).values, ['2030-01-10'])
 })
 
 test('insertLog is idempotent on the request id (ON CONFLICT DO NOTHING -> null); getLogByRequest finds the stored row', async () => {
   const pool = fakePool(() => ({ rows: [] }))
   const store = createFoodStore(pool)
-  const r = await store.insertLog({ date: '2030-01-10', meal: 'snack', refType: 'quick', label: 'x', amount: 1, unit: 'serving', kcal: 1, protein: null, carbs: null, fat: null, requestId: 'abc-12345' })
+  const r = await store.insertLog(/** @type {import('../src/food-db.js').LogInsert} */ ({ date: '2030-01-10', meal: 'snack', refType: 'quick', label: 'x', amount: 1, unit: 'serving', kcal: 1, protein: null, carbs: null, fat: null, requestId: 'abc-12345' }))
   assert.equal(r, null)
   assert.match(pool.calls[0].sql, /ON CONFLICT \(request_id\) WHERE request_id IS NOT NULL DO NOTHING/)
   assert.equal(pool.calls[0].values.at(-1), 'abc-12345')
@@ -100,7 +111,7 @@ test('recipe ingredients: a basic snapshot comes back with its key, name, unit, 
     { basic: 'huevo', name: 'Huevo', unit: 'ud', amount: 2, per100: { kcal: 72, protein: 6.3, carbs: 0.4, fat: 5 } }
   ])
   await store.insertRecipe({ name: 'Tortilla', kind: 'serving', servings: 2, cookedWeightG: null, ingredients: r.ingredients })
-  assert.deepEqual(JSON.parse(pool.calls.at(-1).values[4]), r.ingredients, 'stored as given (JSONB, no migration)')
+  assert.deepEqual(JSON.parse(/** @type {string} */ (/** @type {Call} */ (pool.calls.at(-1)).values[4])), r.ingredients, 'stored as given (JSONB, no migration)')
 })
 
 test('migration 007_settings.sql: one idempotent settings row, goal + target weight constrained like the API', async () => {
@@ -128,7 +139,7 @@ test('migration 014_food_serving_default.sql: a NEW file in the food group adds 
 test('insertProduct / updateProduct write serving_default as their last product value', async () => {
   const pool = fakePool(() => ({ rows: [PRODUCT_ROW] }))
   const store = createFoodStore(pool)
-  const p = { name: 'Yogur', store: 'mercadona', unit: 'g', per100: { kcal: 60, protein: 10, carbs: 4, fat: 0.2 }, servingSize: 125, servingDefault: true, source: 'label' }
+  const p = /** @type {ProductInput} */ ({ name: 'Yogur', store: 'mercadona', unit: 'g', per100: { kcal: 60, protein: 10, carbs: 4, fat: 0.2 }, servingSize: 125, servingDefault: true, source: 'label' })
   await store.insertProduct(p)
   assert.match(pool.calls[0].sql, /off_code, serving_default\)\s+VALUES \(\$1,[^)]*\$13\)/)
   assert.equal(pool.calls[0].values[12], true)

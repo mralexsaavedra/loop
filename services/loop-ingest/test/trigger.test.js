@@ -8,26 +8,31 @@ import {
   MIN_TRIGGER_INTERVAL_MS, MIN_STRAVA_INTERVAL_MS
 } from '../src/trigger.js'
 
+/** @typedef {(value?: unknown) => void} Resolve */
+
 function clock (start = Date.parse('2030-01-02T10:00:00Z')) {
   let t = start
-  return { now: () => t, advance: (ms) => { t += ms } }
+  return { now: () => t, advance: (/** @type {number} */ ms) => { t += ms } }
 }
 
-/** In-memory stand-in for status.js: just the calls the trigger makes. */
+/** In-memory stand-in for status.js: just the calls the trigger makes.
+ * @param {{ seq?: number, stravaOkAgoMs?: number | null }} [options] */
 function fakeStatus ({ seq = 0, stravaOkAgoMs = null } = {}) {
+  /** @type {string[]} */
   const events = []
   const s = {
     events,
     seq,
     currentSeq: () => s.seq,
     nextTriggerSeq: () => { s.seq += 1; return s.seq },
-    stravaFresh: (ms) => stravaOkAgoMs != null && stravaOkAgoMs < ms,
-    recordTrigger: async (n) => { events.push(`trigger ${n}`) },
-    recordTriggerError: async (n) => { events.push(`trigger_error ${n}`) }
+    stravaFresh: (/** @type {number} */ ms) => stravaOkAgoMs != null && stravaOkAgoMs < ms,
+    recordTrigger: async (/** @type {number} */ n) => { events.push(`trigger ${n}`) },
+    recordTriggerError: async (/** @type {number} */ n) => { events.push(`trigger_error ${n}`) }
   }
   return s
 }
 
+/** @template T @param {(dir: string) => Promise<T>} fn */
 async function withDir (fn) {
   const dir = await mkdtemp(path.join(tmpdir(), 'trigger-'))
   try { return await fn(dir) } finally { await rm(dir, { recursive: true, force: true }) }
@@ -69,15 +74,16 @@ test('trigger writer refuses a symlinked target and leaves the link target untou
   await writeFile(victim, 'keep me\n')
   await symlink(victim, path.join(dir, 'refresh'))
   const write = createTriggerWriter({ dir })
-  await assert.rejects(write(5), (err) => err.code === 'ESYMLINK')
+  await assert.rejects(write(5), (/** @type {NodeJS.ErrnoException} */ err) => err.code === 'ESYMLINK')
   assert.equal(await readFile(victim, 'utf8'), 'keep me\n')
   assert.deepEqual((await readdir(dir)).sort(), ['refresh', 'victim'], 'no temp file left behind')
 }))
 
 test('POST /sync: 202 {seq, coalesced:false}; Strava runs first, then the trigger carries the seq', async () => {
   const c = clock()
+  /** @type {string[]} */
   const order = []
-  let finishStrava
+  let finishStrava = /** @type {Resolve} */ (/** @type {unknown} */ (undefined)) // set by the promise executor
   const status = fakeStatus({ seq: 4 })
   const trigger = createSyncTrigger({
     runStrava: () => { order.push('strava'); return new Promise((resolve) => { finishStrava = resolve }) },
@@ -100,7 +106,8 @@ test('POST /sync: 202 {seq, coalesced:false}; Strava runs first, then the trigge
 test('a click while the previous trigger is still pending coalesces onto it and does nothing else', async () => {
   const c = clock()
   let stravaRuns = 0
-  let finishStrava
+  let finishStrava = /** @type {Resolve} */ (/** @type {unknown} */ (undefined)) // set by the promise executor
+  /** @type {number[]} */
   const written = []
   const trigger = createSyncTrigger({
     runStrava: () => { stravaRuns += 1; return new Promise((resolve) => { finishStrava = resolve }) },
@@ -123,7 +130,7 @@ test('a click while the previous trigger is still pending coalesces onto it and 
 
 const T0 = Date.parse('2030-01-02T10:00:00Z')
 
-/** Fake clock AND fake setTimeout, so the deferred write can be driven by tick(). */
+/** Fake clock AND fake setTimeout, so the deferred write can be driven by tick(). @param {() => Promise<void>} fn */
 function withFakeTimers (fn) {
   return async () => {
     mock.timers.enable({ apis: ['setTimeout', 'Date'], now: T0 })
@@ -136,8 +143,11 @@ async function drain () {
   for (let i = 0; i < 20; i++) await Promise.resolve()
 }
 
+/** @param {{ runStrava?: (() => unknown) | null, status?: ReturnType<typeof fakeStatus>, waitMs?: number }} [options] */
 function deferredSetup ({ runStrava = null, status = fakeStatus({ seq: 1 }), waitMs } = {}) {
+  /** @type {{ seq: number, at: number }[]} */
   const written = []
+  /** @type {any[]} the parsed JSON log lines */
   const logs = []
   const trigger = createSyncTrigger({
     runStrava,
@@ -224,12 +234,13 @@ test('after the deferred write, the next click inside ITS window defers again fr
 
 test('the deferred write pulls Strava only when its own 5 min cooldown allows', withFakeTimers(async () => {
   let pulls = 0
+  /** @type {number | null} */
   let okAgo = null
   const status = fakeStatus({ seq: 1 })
   status.stravaFresh = (ms) => okAgo != null && okAgo < ms
   const { trigger, written } = deferredSetup({ runStrava: async () => { pulls += 1; okAgo = 0 }, status })
   const first = trigger.handle()
-  assert.equal(first.body.strava, 'started')
+  assert.equal(/** @type {{ strava?: string }} */ (first.body).strava, 'started')
   await first.done
   mock.timers.tick(19_000)
   okAgo = 19_000
@@ -258,6 +269,7 @@ test('flush() writes a pending deferred seq at once (shutdown) and cancels its t
 
 test('Strava is pulled at most once per 5 min: a recent success skips the pull, the trigger is still written', async () => {
   let stravaRuns = 0
+  /** @type {number[]} */
   const written = []
   const trigger = createSyncTrigger({
     runStrava: async () => { stravaRuns += 1 },
@@ -266,7 +278,7 @@ test('Strava is pulled at most once per 5 min: a recent success skips the pull, 
     log: () => {}
   })
   const res = trigger.handle()
-  assert.equal(res.body.strava, 'recent')
+  assert.equal(/** @type {{ strava?: string }} */ (res.body).strava, 'recent')
   await res.done
   assert.equal(stravaRuns, 0)
   assert.deepEqual(written, [1])
@@ -285,6 +297,7 @@ test('a Strava success older than 5 min is pulled again', async () => {
 })
 
 test('a failed Strava pull still writes the trigger (rebuild from what is stored)', async () => {
+  /** @type {number[]} */
   const written = []
   const trigger = createSyncTrigger({
     runStrava: async () => { throw new Error('strava token refresh failed: 401') },
@@ -297,6 +310,7 @@ test('a failed Strava pull still writes the trigger (rebuild from what is stored
 })
 
 test('a hung Strava pull cannot hold the trigger past waitMs', async () => {
+  /** @type {number[]} */
   const written = []
   const trigger = createSyncTrigger({
     runStrava: () => new Promise(() => {}),
@@ -310,6 +324,7 @@ test('a hung Strava pull cannot hold the trigger past waitMs', async () => {
 })
 
 test('a trigger write failure is recorded as trigger_write for that seq and logged, never thrown', async () => {
+  /** @type {any[]} the parsed JSON log lines */
   const logs = []
   const status = fakeStatus()
   const trigger = createSyncTrigger({
@@ -325,7 +340,7 @@ test('a trigger write failure is recorded as trigger_write for that seq and logg
 })
 
 test('flush() awaits an in-flight (non-deferred) run so its write lands before shutdown', withFakeTimers(async () => {
-  let finishStrava
+  let finishStrava = /** @type {Resolve} */ (/** @type {unknown} */ (undefined)) // set by the promise executor
   const { trigger, written } = deferredSetup({
     runStrava: () => new Promise((resolve) => { finishStrava = resolve }),
     waitMs: 90_000
@@ -416,11 +431,12 @@ test('boot recovery: a click during the delay shares the recovered seq (one writ
 }))
 
 test('the min interval is measured from write COMPLETION: a slow Strava pull cannot yield two writes seconds apart', withFakeTimers(async () => {
+  /** @type {number | null} */
   let okAgo = null
   const status = fakeStatus({ seq: 1 })
   status.stravaFresh = (ms) => okAgo != null && okAgo < ms
   const { trigger, written } = deferredSetup({
-    runStrava: () => new Promise((resolve) => setTimeout(() => { okAgo = 0; resolve() }, 59_000)),
+    runStrava: () => /** @type {Promise<void>} */ (new Promise((resolve) => setTimeout(() => { okAgo = 0; resolve() }, 59_000))),
     status,
     waitMs: 90_000
   })

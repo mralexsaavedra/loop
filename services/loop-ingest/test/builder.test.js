@@ -9,15 +9,24 @@ import { createSyncStatus } from '../src/status.js'
 import { createSyncRoutes } from '../src/sync-routes.js'
 import { buildConfig } from '../src/server.js'
 
+/** @typedef {import('../src/builder.js').Exit} Exit @typedef {import('node:child_process').ChildProcess} ChildProcess */
+/** @typedef {(code?: number | null, signal?: NodeJS.Signals | null) => void} Finish */
+/** The fake child: only the fields the builder reads, plus the signals it was sent.
+ * @typedef {{ exitCode: null, signalCode: null, killed: string[], kill: (sig: string) => void }} FakeChild */
+
 /** A controllable fake child: finish(code) ends it. */
 function fakeSpawner () {
+  /** @type {{ seq: number, finish: Finish, child: FakeChild }[]} */
   const runs = []
+  /** @param {number} seq */
   function spawnRefresh (seq) {
-    let finish
+    let finish = /** @type {Finish} */ (/** @type {unknown} */ (undefined)) // set by the promise executor
+    /** @type {Promise<Exit>} */
     const exited = new Promise((resolve) => { finish = (code = 0, signal = null) => resolve({ code, signal }) })
+    /** @type {FakeChild} */
     const child = { exitCode: null, signalCode: null, killed: [], kill (sig) { this.killed.push(sig) } }
     runs.push({ seq, finish, child })
-    return { child, exited }
+    return { child: /** @type {ChildProcess} */ (/** @type {unknown} */ (child)), exited }
   }
   return { runs, spawnRefresh }
 }
@@ -66,6 +75,7 @@ test('requests during a build coalesce onto ONE follow-up run for the highest se
 
 test('a child that exits non-zero, dies on a signal or cannot start is reported as a failure for its seq', async () => {
   const { runs, spawnRefresh } = fakeSpawner()
+  /** @type {number[]} */
   const failed = []
   const builder = createBuilder({ spawnRefresh, onFailure: async (seq) => { failed.push(seq) }, log: () => {} })
   builder.request(7)
@@ -87,14 +97,17 @@ test('a child that exits non-zero, dies on a signal or cannot start is reported 
 
 test('the timer: one run after the boot delay, then one per interval, each for the CURRENT seq', async () => {
   const { runs, spawnRefresh } = fakeSpawner()
+  /** @type {{ fn: () => void, ms: number }[]} */
   const timeouts = []
+  /** @type {{ fn: () => void, ms: number }[]} */
   const intervals = []
   const builder = createBuilder({
     spawnRefresh,
     log: () => {},
-    setTimer: (fn, ms) => { timeouts.push({ fn, ms }); return { unref () {} } },
+    // a fake timer handle: the builder only calls unref() on it
+    setTimer: (fn, ms) => { timeouts.push({ fn, ms }); return /** @type {NodeJS.Timeout} */ (/** @type {unknown} */ ({ unref () {} })) },
     clearTimer: () => {},
-    setRepeat: (fn, ms) => { intervals.push({ fn, ms }); return { unref () {} } },
+    setRepeat: (fn, ms) => { intervals.push({ fn, ms }); return /** @type {NodeJS.Timeout} */ (/** @type {unknown} */ ({ unref () {} })) },
     clearRepeat: () => {}
   })
   let seq = 12
@@ -126,15 +139,17 @@ test('stop: the running child gets SIGTERM, nothing queued or requested afterwar
 })
 
 test('POST /sync in container mode: the seq protocol is unchanged, the build is started for the seq, a failed build shows as lastTriggerError build', async () => {
-  const pool = { async query (sql) { return /FROM sync_status/.test(sql) ? { rows: [{ trigger_seq: 41 }] } : { rows: [] } } }
+  const pool = /** @type {import('../src/db.js').Queryable} */ (/** @type {unknown} */ ({ async query (/** @type {string} */ sql) { return /FROM sync_status/.test(sql) ? { rows: [{ trigger_seq: 41 }] } : { rows: [] } } }))
   const status = createSyncStatus({ pool, stravaConfigured: false, log: () => {} })
   await status.load()
   const { runs, spawnRefresh } = fakeSpawner()
   const builder = createBuilder({ spawnRefresh, onFailure: (seq) => status.recordTriggerError(seq, 'build'), log: () => {} })
   const trigger = createSyncTrigger({ runStrava: null, writeTrigger: builder.writeTrigger, status, log: () => {} })
   const routes = createSyncRoutes({ trigger, status })
+  /** @type {{ status?: number, body?: any, writeHead: (s: number) => void, end: (p: string) => void }} */
   const res = { writeHead (s) { this.status = s }, end (p) { this.body = JSON.parse(p) } }
-  await routes.handleSync({ headers: {} }, res)
+  // the fake response has only writeHead and end; the fake request only headers
+  await routes.handleSync(/** @type {import('node:http').IncomingMessage} */ ({ headers: {} }), /** @type {import('node:http').ServerResponse} */ (/** @type {unknown} */ (res)))
   assert.equal(res.status, 202)
   assert.deepEqual(res.body, { ok: true, seq: 42, coalesced: false, strava: 'disabled' })
   assert.deepEqual(runs.map((r) => r.seq), [42])
@@ -189,6 +204,7 @@ test('the refresh child gets an allowlisted environment: what refresh.mjs, the s
     const script = path.join(root, 'scripts', 'refresh.mjs')
     const out = path.join(root, 'env.json')
     writeFileSync(script, `import fs from 'node:fs'; fs.writeFileSync(${JSON.stringify(out)}, JSON.stringify(process.env))\n`)
+    /** @type {Record<string, string | undefined>} */
     const env = {
       PATH: process.env.PATH, HOME: '/home/node', TZ: 'Europe/Madrid', LANG: 'C.UTF-8', LC_ALL: 'C.UTF-8', NODE_ENV: 'production', NODE_OPTIONS: '--max-old-space-size=512',
       HC_BUILD: 'container', HC_DATA_DIR: '/data', HC_SITE_DIR: '/site', HC_VERSION: '1.0.0', HC_IMPORT_TIMEOUT: '1800', HC_LOCALE: 'en', INGEST_TOKEN: 'tok', ASTRO_TELEMETRY_DISABLED: '1', LOCALE: 'es',

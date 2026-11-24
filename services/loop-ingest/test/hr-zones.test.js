@@ -6,8 +6,13 @@ import {
   STREAMS_TIMEOUT_MS, MAX_ATTEMPTS, BACKOFF_BASE_MIN, BACKOFF_CAP_MIN
 } from '../src/hr-zones.js'
 
+/** @typedef {import('../src/strava.js').FetchImpl} FetchImpl @typedef {import('../src/strava.js').StravaError} StravaError */
+/** One recorded statement. @typedef {{ sql: string, values: readonly unknown[] }} Call */
+
+/** @param {number[]} time @param {(number | null)[]} heartrate */
 const streams = (time, heartrate) => ({ time: { data: time }, heartrate: { data: heartrate } })
-const json = (status, body) => ({ status, ok: status >= 200 && status < 300, json: async () => body })
+/** A fetch answer with only the Response fields the client reads. @param {number} status @param {unknown} body */
+const json = (status, body) => /** @type {Response} */ (/** @type {unknown} */ ({ status, ok: status >= 200 && status < 300, json: async () => body }))
 
 test('hrHistogram: each sample owns the time until the next; the last sample adds nothing', () => {
   const h = hrHistogram(streams([0, 1, 3, 6], [100, 100.4, 150, 190]))
@@ -29,13 +34,14 @@ test('hrHistogram: missing or implausible HR samples are skipped; no heartrate s
 })
 
 test('fetchHrStreams: asks for time + heartrate keyed by type; 404 -> not_found, no HR -> no_hr, 429 throws rateLimited', async () => {
+  /** @type {string[]} */
   const urls = []
-  const ok = async (url) => { urls.push(String(url)); return json(200, streams([0, 2], [150, 151])) }
+  const ok = async (/** @type {string | URL | Request} */ url) => { urls.push(String(url)); return json(200, streams([0, 2], [150, 151])) }
   assert.deepEqual(await fetchHrStreams(async () => 'tok', '42', ok), { status: 'ok', hist: { 150: 2 }, seconds: 2 })
   assert.equal(urls[0], 'https://www.strava.com/api/v3/activities/42/streams?keys=time,heartrate&key_by_type=true')
   assert.deepEqual(await fetchHrStreams(async () => 'tok', '42', async () => json(404, {})), { status: 'not_found' })
   assert.deepEqual(await fetchHrStreams(async () => 'tok', '42', async () => json(200, { time: { data: [0, 1] } })), { status: 'no_hr' })
-  await assert.rejects(fetchHrStreams(async () => 'tok', '42', async () => json(429, {})), (e) => e.rateLimited === true)
+  await assert.rejects(fetchHrStreams(async () => 'tok', '42', async () => json(429, {})), (/** @type {StravaError} */ e) => e.rateLimited === true)
   await assert.rejects(fetchHrStreams(async () => 'tok', '42', async () => json(503, {})), /streams failed: 503/)
   assert.deepEqual(await fetchHrStreams(async () => 'tok', '../x', ok), { status: 'not_found' }) // never hits the network
   assert.equal(urls.length, 1)
@@ -50,27 +56,34 @@ test('streamBudget: the per-run batch, capped by the 15-min and 24-h budgets', (
 })
 
 // a fake pool for the backfill: the budget counts, the pending ids, and the saved rows
+/** @param {{ used?: { last_window: number, last_day: number }, pending?: (string | { id: string, attempts: number })[] }} [options] */
 function fakePool ({ used = { last_window: 0, last_day: 0 }, pending = [] } = {}) {
+  /** @type {(readonly unknown[])[]} */
   const saved = []
+  /** @type {Call[]} */
   const calls = []
-  return {
+  /** @type {unknown} only query(), plus what it recorded */
+  const pool = {
     saved,
     calls,
+    /** @param {string} sql @param {readonly unknown[]} values */
     async query (sql, values) {
       calls.push({ sql, values })
       if (/FROM strava_activity_hr\s*$/.test(sql.trim()) || /last_window/.test(sql)) return { rows: [used] }
-      if (/LEFT JOIN strava_activity_hr/.test(sql)) return { rows: pending.slice(0, values[0]).map((p) => (typeof p === 'string' ? { id: p, attempts: 0 } : p)) }
+      if (/LEFT JOIN strava_activity_hr/.test(sql)) return { rows: pending.slice(0, /** @type {number} */ (values[0])).map((p) => (typeof p === 'string' ? { id: p, attempts: 0 } : p)) }
       if (/INSERT INTO strava_activity_hr/.test(sql)) { saved.push(values); return { rows: [] } }
       throw new Error('unexpected sql ' + sql)
     }
   }
+  return /** @type {import('../src/db.js').Queryable & { saved: (readonly unknown[])[], calls: Call[] }} */ (pool)
 }
 
 test('backfill: fetches at most the budget, newest first as the query orders them, and stores every definite answer', async () => {
   const pool = fakePool({ used: { last_window: WINDOW_MAX - 2, last_day: 0 }, pending: ['9', '8', '7', '6'] })
+  /** @type {string[]} */
   const fetched = []
-  const fetchImpl = async (url) => {
-    const id = /activities\/(\d+)\//.exec(String(url))[1]
+  const fetchImpl = async (/** @type {string | URL | Request} */ url) => {
+    const id = /** @type {RegExpExecArray} */ (/activities\/(\d+)\//.exec(String(url)))[1]
     fetched.push(id)
     return id === '8' ? json(200, { time: { data: [0, 1] } }) : json(200, streams([0, 10], [140, 141]))
   }
@@ -78,30 +91,31 @@ test('backfill: fetches at most the budget, newest first as the query orders the
   assert.deepEqual(fetched, ['9', '8'])
   assert.deepEqual(r, { fetched: 2, stored: 2, retried: 0, pending: 2, stop: null })
   assert.deepEqual(pool.saved.map((v) => [v[0], v[1], v[2], v[3]]), [['9', 'ok', 10, '{"140":10}'], ['8', 'no_hr', 0, null]])
-  const q = pool.calls.find((c) => /LEFT JOIN/.test(c.sql)).sql
+  const q = /** @type {Call} */ (pool.calls.find((c) => /LEFT JOIN/.test(c.sql))).sql
   assert.match(q, /ORDER BY a\.payload->>'start_date_local' DESC/)
   assert.match(q, /h\.activity_id IS NULL/)
 })
 
 test('fetchHrStreams: a request slower than the timeout is aborted and thrown as transient', async () => {
   assert.equal(STREAMS_TIMEOUT_MS, 15_000)
+  /** A fetch that never answers until aborted. @param {unknown} url @param {{ signal: AbortSignal }} init */
   const hang = (url, { signal }) => new Promise((resolve, reject) => {
     signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })))
   })
-  await assert.rejects(fetchHrStreams(async () => 'tok', '42', hang, { timeoutMs: 5 }), (e) => e.transient === true && /timed out/.test(e.message))
+  await assert.rejects(fetchHrStreams(async () => 'tok', '42', /** @type {FetchImpl} */ (/** @type {unknown} */ (hang)), { timeoutMs: 5 }), (/** @type {StravaError} */ e) => e.transient === true && /timed out/.test(e.message))
   // a 5xx and a network error are transient too; a 401 is not (it is the whole service, not this activity)
-  await assert.rejects(fetchHrStreams(async () => 'tok', '42', async () => json(502, {})), (e) => e.transient === true)
-  await assert.rejects(fetchHrStreams(async () => 'tok', '42', async () => { throw new TypeError('fetch failed') }), (e) => e.transient === true)
-  await assert.rejects(fetchHrStreams(async () => 'tok', '42', async () => json(401, {})), (e) => !e.transient && !e.rateLimited)
+  await assert.rejects(fetchHrStreams(async () => 'tok', '42', async () => json(502, {})), (/** @type {StravaError} */ e) => e.transient === true)
+  await assert.rejects(fetchHrStreams(async () => 'tok', '42', async () => { throw new TypeError('fetch failed') }), (/** @type {StravaError} */ e) => e.transient === true)
+  await assert.rejects(fetchHrStreams(async () => 'tok', '42', async () => json(401, {})), (/** @type {StravaError} */ e) => !e.transient && !e.rateLimited)
 })
 
 test('backfill: a 5xx / timeout on one activity is recorded for back-off and the batch goes on with the next one', async () => {
   const pool = fakePool({ pending: ['3', { id: '2', attempts: 1 }, '1'] })
-  const fetchImpl = async (url) => (/\/2\//.test(String(url)) ? json(503, {}) : json(200, streams([0, 5], [150, 150])))
+  const fetchImpl = async (/** @type {string | URL | Request} */ url) => (/\/2\//.test(String(url)) ? json(503, {}) : json(200, streams([0, 5], [150, 150])))
   const r = await createHrBackfill({ pool, getAccessToken: async () => 't', fetchImpl, log: () => {} }).backfill()
   assert.deepEqual(r, { fetched: 3, stored: 2, retried: 1, pending: 3, stop: null })
   assert.deepEqual(pool.saved.map((v) => [v[0], v[1]]), [['3', 'ok'], ['2', 'retry'], ['1', 'ok']])
-  const failure = pool.calls.find((c) => /INSERT INTO strava_activity_hr/.test(c.sql) && c.values[1] === 'retry')
+  const failure = /** @type {Call} */ (pool.calls.find((c) => /INSERT INTO strava_activity_hr/.test(c.sql) && c.values[1] === 'retry'))
   assert.equal(failure.values[4], 2, 'attempts counts this failure')
   assert.match(failure.sql, /last_error_at/)
 })
@@ -109,7 +123,7 @@ test('backfill: a 5xx / timeout on one activity is recorded for back-off and the
 test('backfill: the pending query skips an activity still in its back-off window and every failed one', async () => {
   const pool = fakePool({ pending: [] })
   await createHrBackfill({ pool, getAccessToken: async () => 't', fetchImpl: async () => json(500, {}), log: () => {} }).backfill()
-  const c = pool.calls.find((x) => /LEFT JOIN strava_activity_hr/.test(x.sql))
+  const c = /** @type {Call} */ (pool.calls.find((x) => /LEFT JOIN strava_activity_hr/.test(x.sql)))
   assert.match(c.sql, /h\.status = 'retry'/)
   assert.match(c.sql, /h\.last_error_at <= now\(\) - make_interval/)
   assert.doesNotMatch(c.sql, /'failed'/, 'failed rows are never selected again')
@@ -134,13 +148,14 @@ test('backfill: a non-transient error (e.g. 401) still stops the whole batch', a
 
 test('backfill: an exhausted budget makes no Strava call; a 429 stops the batch without storing that activity', async () => {
   let calls = 0
-  const none = await createHrBackfill({ pool: fakePool({ used: { last_window: 0, last_day: DAY_MAX }, pending: ['1'] }), getAccessToken: async () => 't', fetchImpl: async () => { calls++ }, log: () => {} }).backfill()
+  const none = await createHrBackfill({ pool: fakePool({ used: { last_window: 0, last_day: DAY_MAX }, pending: ['1'] }), getAccessToken: async () => 't', fetchImpl: /** @type {FetchImpl} */ (/** @type {unknown} */ (async () => { calls++ })), log: () => {} }).backfill()
   assert.equal(none.stop, 'budget')
   assert.equal(calls, 0)
 
   const pool = fakePool({ pending: ['3', '2', '1'] })
+  /** @type {any[]} the parsed JSON log lines */
   const logs = []
-  const fetchImpl = async (url) => (/\/2\//.test(String(url)) ? json(429, {}) : json(200, streams([0, 5], [150, 150])))
+  const fetchImpl = async (/** @type {string | URL | Request} */ url) => (/\/2\//.test(String(url)) ? json(429, {}) : json(200, streams([0, 5], [150, 150])))
   const r = await createHrBackfill({ pool, getAccessToken: async () => 't', fetchImpl, log: (l) => logs.push(JSON.parse(l)) }).backfill()
   assert.deepEqual(r, { fetched: 2, stored: 1, retried: 0, pending: null, stop: 'rate_limited' })
   assert.deepEqual(pool.saved.map((v) => v[0]), ['3'])

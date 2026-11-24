@@ -12,15 +12,20 @@ const PLAN = { data: {}, targets: {}, dayPlan: {} }
 const TRAINING = { days: {} }
 const PROFILE = { name: 'Ana' }
 
+/** @typedef {import('../src/documents.js').DocumentRow} DocumentRow */
+
 /** An in-memory store with the same contract as documents-db.js (revision counter, conditional put). */
 function memoryStore () {
+  /** @type {Map<string, DocumentRow>} */
   const rows = new Map()
   return {
     rows,
+    /** @param {string} kind */
     async get (kind) {
       const r = rows.get(kind)
       return r ? { ...r } : null
     },
+    /** @param {string} kind @param {unknown} data @param {number} expected */
     async put (kind, data, expected) {
       const cur = rows.get(kind)
       if ((cur?.revision ?? 0) !== expected) return null
@@ -31,7 +36,9 @@ function memoryStore () {
   }
 }
 
+/** @param {{ available?: () => boolean, store?: ReturnType<typeof memoryStore> }} [options] */
 async function setup ({ available = () => true, store = memoryStore() } = {}) {
+  /** @type {unknown[]} */
   const logs = []
   const routes = createDocumentRoutes({
     store,
@@ -40,18 +47,19 @@ async function setup ({ available = () => true, store = memoryStore() } = {}) {
     log: (line) => logs.push(JSON.parse(line))
   })
   const server = http.createServer(async (req, res) => {
-    const url = new URL(req.url, 'http://localhost')
+    const url = new URL(/** @type {string} */ (req.url), 'http://localhost')
     if (!(await routes.handle(req, res, url))) {
       res.writeHead(599)
       res.end()
     }
   })
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
-  const base = `http://127.0.0.1:${server.address().port}`
+  await /** @type {Promise<void>} */ (new Promise((resolve) => server.listen(0, '127.0.0.1', resolve)))
+  const base = `http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}`
   return {
     store,
     logs,
     close: () => new Promise((resolve) => server.close(resolve)),
+    /** @param {string} method @param {string} path @param {{ headers?: Record<string, string>, body?: unknown }} [options] */
     async call (method, path, { headers = {}, body } = {}) {
       const res = await fetch(base + path, { method, headers, body: body === undefined ? undefined : typeof body === 'string' ? body : JSON.stringify(body) })
       const text = await res.text()
@@ -129,7 +137,7 @@ test('PUT stores the document, bumps the revision and GET returns it unchanged',
   assert.deepEqual(put.body, { kind: 'plan', revision: 1, updatedAt: '2030-01-01T00:00:01.000Z' })
   const got = await s.call('GET', '/documents/plan', { headers: AUTH })
   assert.deepEqual(got.body, { kind: 'plan', document: doc, revision: 1, updatedAt: '2030-01-01T00:00:01.000Z' })
-  assert.deepEqual(s.store.rows.get('plan').data, doc)
+  assert.deepEqual(/** @type {DocumentRow} */ (s.store.rows.get('plan')).data, doc)
   // the log line has the shape, never the content
   assert.deepEqual(s.logs, [{ event: 'document_saved', kind: 'plan', revision: 1, bytes: Buffer.byteLength(JSON.stringify(doc)) }])
   // the other kinds are untouched
@@ -157,6 +165,7 @@ test('a stale revision is 409 revision_conflict with the current revision; nothi
 test('PUT body checks: JSON content type, valid JSON, revision, document shape, U+0000', async (t) => {
   const s = await setup()
   t.after(s.close)
+  /** @param {unknown} body @param {Record<string, string>} [headers] */
   const put = (body, headers = JSON_AUTH) => s.call('PUT', '/documents/profile', { headers, body })
   assert.deepEqual(await put({ revision: 0, document: PROFILE }, { ...AUTH, 'content-type': 'text/plain' }).then((r) => [r.status, r.body]), [415, { error: 'unsupported_media_type' }])
   assert.deepEqual(await put('{nope').then((r) => [r.status, r.body]), [400, { error: 'bad_json' }])
@@ -186,7 +195,7 @@ test('the body limit is DOCUMENT_BODY_LIMIT (256 KB), far above the 16 KB of the
   const r = await s.call('PUT', '/documents/plan', { headers: JSON_AUTH, body: { revision: 1, document: over } })
   assert.equal(r.status, 413)
   assert.deepEqual(r.body, { error: 'payload_too_large' })
-  assert.equal(s.store.rows.get('plan').revision, 1)
+  assert.equal(/** @type {DocumentRow} */ (s.store.rows.get('plan')).revision, 1)
 })
 
 test('validateDocument: the structural shape each kind needs (the full check runs in the coach and the build)', () => {
@@ -194,6 +203,7 @@ test('validateDocument: the structural shape each kind needs (the full check run
   assert.equal(validateDocument('training', TRAINING), null)
   assert.equal(validateDocument('profile', {}), null)
   for (const key of ['data', 'targets', 'dayPlan']) {
+    /** @type {Record<string, unknown>} */
     const doc = { ...PLAN }
     delete doc[key]
     assert.equal(validateDocument('plan', doc), key)
@@ -209,7 +219,7 @@ test('validateDocument: the structural shape each kind needs (the full check run
 test('the tracked example seeds pass the service shape check', async () => {
   const { readFile } = await import('node:fs/promises')
   const root = new URL('../../../', import.meta.url)
-  const read = async (p) => JSON.parse(await readFile(new URL(p, root), 'utf8'))
+  const read = async (/** @type {string} */ p) => JSON.parse(await readFile(new URL(p, root), 'utf8'))
   assert.equal(validateDocument('plan', await read('data/nutrition/plan-data.example.json')), null)
   assert.equal(validateDocument('training', await read('data/training/training-data.example.json')), null)
   assert.equal(validateDocument('profile', await read('profile/profile.example.json')), null)

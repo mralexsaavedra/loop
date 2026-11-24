@@ -10,18 +10,30 @@ import { createBearerCheck } from '../src/auth.js'
 
 const TOKEN = 'x'.repeat(40)
 
-/** Every dependency stubbed: no Postgres, no Strava, no network beyond 127.0.0.1. */
+/** @typedef {import('../src/server.js').HandlerDeps} HandlerDeps @typedef {import('../src/server.js').RouteModule} RouteModule */
+/** @typedef {import('node:http').IncomingMessage} Req @typedef {import('node:http').ServerResponse} Res */
+/** The running stub server: what the handlers recorded, and one request helper (`body` is the parsed JSON).
+ * @typedef {{ calls: unknown[], base: string, close: () => Promise<unknown>,
+ *   call: (method: string, path: string, options?: { headers?: Record<string, string>, body?: string }) => Promise<{ status: number, body: any }> }} Stub */
+
+/** Every dependency stubbed: no Postgres, no Strava, no network beyond 127.0.0.1.
+ * @param {{ stravaSync?: HandlerDeps['stravaSync'], foodRoutes?: RouteModule, journalRoutes?: RouteModule, documentRoutes?: RouteModule,
+ *   filesExportRoutes?: RouteModule }} [options]
+ * @returns {Promise<Stub>} */
 function setup ({ stravaSync = null, foodRoutes, journalRoutes, documentRoutes, filesExportRoutes } = {}) {
+  /** @type {unknown[]} */
   const calls = []
-  const mark = (name, status = 200) => async (req, res) => {
+  /** @param {string} name */
+  const mark = (name, status = 200) => async (/** @type {Req} */ req, /** @type {Res} */ res) => {
     calls.push(name)
     res.writeHead(status, { 'content-type': 'application/json' })
     res.end(JSON.stringify({ route: name }))
   }
+  /** @type {HandlerDeps} */
   const deps = {
     token: TOKEN,
     maxBodyBytes: 64,
-    pool: {},
+    pool: /** @type {import('../src/db.js').Queryable} */ ({}), // never queried: ping and insertRawPayload are stubbed
     ping: async () => { calls.push('ping') },
     insertRawPayload: async (_pool, row) => { calls.push(['insert', row.source, row.byteSize]); return { id: 7, received_at: '2030-01-01T00:00:00Z' } },
     syncStatus: { health: () => ({ degraded: false }) },
@@ -44,7 +56,7 @@ function setup ({ stravaSync = null, foodRoutes, journalRoutes, documentRoutes, 
   }
   const server = http.createServer(createHandler(deps))
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => {
-    const base = `http://127.0.0.1:${server.address().port}`
+    const base = `http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}`
     resolve({
       calls,
       base,
@@ -61,6 +73,7 @@ function setup ({ stravaSync = null, foodRoutes, journalRoutes, documentRoutes, 
 test('each method + path reaches its handler', async (t) => {
   const s = await setup()
   t.after(s.close)
+  /** @type {[string, string, string, number][]} */
   const cases = [
     ['GET', '/sync/status', 'syncStatus', 200],
     ['POST', '/sync', 'sync', 202],
@@ -104,8 +117,8 @@ test('unknown paths and wrong methods on known paths answer 404 without reaching
 
 test('an unknown /food/* subpath is 404 through the real food routes, never another route', async (t) => {
   const foodRoutes = createFoodRoutes({
-    store: {},
-    off: {},
+    store: /** @type {Parameters<typeof createFoodRoutes>[0]['store']} */ ({}),
+    off: /** @type {Parameters<typeof createFoodRoutes>[0]['off']} */ ({}),
     available: () => false,
     settingsAvailable: () => false,
     allowedHosts: [],
@@ -124,7 +137,7 @@ test('an unknown /food/* subpath is 404 through the real food routes, never anot
 })
 
 test('/journal/* reaches the real journal routes (503 while its migration is missing, 404 unknown)', async (t) => {
-  const journalRoutes = createJournalRoutes({ store: {}, available: () => false, allowedHosts: [], log: () => {} })
+  const journalRoutes = createJournalRoutes({ store: /** @type {Parameters<typeof createJournalRoutes>[0]['store']} */ ({}), available: () => false, allowedHosts: [], log: () => {} })
   const s = await setup({ journalRoutes })
   t.after(s.close)
   const h = { 'x-hc-journal': '1' }
@@ -138,7 +151,7 @@ test('/journal/* reaches the real journal routes (503 while its migration is mis
 })
 
 test('/documents/* reaches the real document routes (401 without the token, 503 while its migration is missing)', async (t) => {
-  const documentRoutes = createDocumentRoutes({ store: {}, available: () => false, checkBearer: createBearerCheck(TOKEN, { log: () => {} }), log: () => {} })
+  const documentRoutes = createDocumentRoutes({ store: /** @type {Parameters<typeof createDocumentRoutes>[0]['store']} */ ({}), available: () => false, checkBearer: createBearerCheck(TOKEN, { log: () => {} }), log: () => {} })
   const s = await setup({ documentRoutes })
   t.after(s.close)
   assert.deepEqual((await s.call('GET', '/documents/plan')).body, { error: 'unauthorized' })
@@ -152,7 +165,7 @@ test('/documents/* reaches the real document routes (401 without the token, 503 
 
 test('/export/files and /export/file reach the files export routes in container mode, the plain 404 otherwise', async (t) => {
   const auth = { authorization: `Bearer ${TOKEN}` }
-  const routes = (available) => createFilesExportRoutes({ available: () => available, dataDir: '/nonexistent', siteDir: '/nonexistent', checkBearer: createBearerCheck(TOKEN, { log: () => {} }), log: () => {} })
+  const routes = (/** @type {boolean} */ available) => createFilesExportRoutes({ available: () => available, dataDir: '/nonexistent', siteDir: '/nonexistent', checkBearer: createBearerCheck(TOKEN, { log: () => {} }), log: () => {} })
   const container = await setup({ filesExportRoutes: routes(true) })
   t.after(container.close)
   assert.deepEqual((await container.call('GET', '/export/files')).body, { error: 'unauthorized' })
@@ -205,6 +218,7 @@ test('a failed bearer check on any token route is logged as a counted event with
   const s = await setup()
   t.after(s.close)
   const orig = console.log
+  /** @type {string[]} */
   const lines = []
   console.log = (l) => { lines.push(String(l)) }
   try {
@@ -224,7 +238,9 @@ test('maxBodyBytes: 8 MB by default (the size loop-web forwards), MAX_BODY_BYTES
   assert.equal(maxBodyBytes({ MAX_BODY_BYTES: '1048576' }), 1048576)
 })
 
-/** A raw request whose body is streamed in `chunks` (chunked encoding unless `length` is declared). */
+/** A raw request whose body is streamed in `chunks` (chunked encoding unless `length` is declared).
+ * @param {number} port @param {{ length?: number, chunks: string[] }} body
+ * @returns {Promise<{ status: number | undefined, connection: string | undefined, body: unknown }>} */
 function rawPost (port, { length, chunks }) {
   return new Promise((resolve, reject) => {
     const headers = { authorization: `Bearer ${TOKEN}`, 'content-type': 'application/json', ...(length ? { 'content-length': length } : {}) }

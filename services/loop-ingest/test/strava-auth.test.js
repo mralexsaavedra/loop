@@ -6,26 +6,35 @@ const ID = '12345'
 const SECRET = 's'.repeat(40)
 const REFRESH = 'r'.repeat(40)
 
-/** run() with every effect recorded; Strava answers `answer` (default: a refresh token). */
+/** Every effect run() had, and its exit code.
+ * @typedef {{ logs: string[], errors: string[], writes: { p: string, text: string }[], reads: string[],
+ *   requests: { url: unknown, body: any }[], code?: number }} Recorded */
+
+/** run() with every effect recorded; Strava answers `answer` (default: a refresh token): a fake with only the
+ * Response fields the script reads.
+ * @param {{ argv?: string[], env?: Record<string, string>, envText?: string | null, code?: string, answer?: object }} [options] */
 async function call ({ argv = [], env = {}, envText = `STRAVA_CLIENT_ID=${ID}\nSTRAVA_CLIENT_SECRET=${SECRET}\n`, code = 'abcdef123456', answer } = {}) {
+  /** @type {Recorded} */
   const out = { logs: [], errors: [], writes: [], reads: [], requests: [] }
   out.code = await run({
     argv,
     env,
     envPath: '/x/.env',
     ask: async () => code,
-    fetchImpl: async (url, init) => {
-      out.requests.push({ url, body: JSON.parse(init.body) })
-      return answer ?? { ok: true, json: async () => ({ refresh_token: REFRESH, scope: 'read', athlete: { firstname: 'Ana' } }) }
-    },
+    fetchImpl: /** @type {typeof fetch} */ (/** @type {unknown} */ (
+      /** @param {unknown} url @param {{ body: string }} init */
+      async (url, init) => {
+        out.requests.push({ url, body: JSON.parse(init.body) })
+        return answer ?? { ok: true, json: async () => ({ refresh_token: REFRESH, scope: 'read', athlete: { firstname: 'Ana' } }) }
+      })),
     read: async (p) => {
       out.reads.push(p)
       if (envText === null) throw Object.assign(new Error('missing'), { code: 'ENOENT' })
       return envText
     },
     write: async (p, text) => { out.writes.push({ p, text }) },
-    log: (m) => out.logs.push(m),
-    error: (m) => out.errors.push(m)
+    log: (m) => out.logs.push(/** @type {string} */ (m)),
+    error: (m) => out.errors.push(/** @type {string} */ (m))
   })
   return out
 }

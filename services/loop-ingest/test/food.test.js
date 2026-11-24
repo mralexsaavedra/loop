@@ -4,17 +4,26 @@ import http from 'node:http'
 import { createFoodRoutes, FOOD_BODY_LIMIT } from '../src/food.js'
 import { hostAllowed, parseAllowedHosts } from '../src/http.js'
 
+/** @typedef {import('../src/http.js').HttpError} HttpError */
+/** A row of the in-memory tables: a JSON clone of what the routes wrote, untyped like a pg row (db.js QueryResult).
+ * @typedef {Record<string, any>} Row */
+
 /** In-memory stand-in for src/food-db.js createFoodStore (same method contract). */
 function memoryStore () {
+  /** @type {{ product: Row[], recipe: Row[], log: Row[], settings: Row | null, profile: Row | null }} */
   const db = { product: [], recipe: [], log: [], settings: null, profile: null }
   let seq = 0
+  /** @type {<T>(v: T) => T} */
   const clone = (v) => (v == null ? v : JSON.parse(JSON.stringify(v)))
   const stamp = () => new Date(Date.UTC(2030, 0, 10, 12, 0, seq)).toISOString()
   return {
     db,
     async listProducts () { return clone(db.product.filter((p) => !p.archived)) },
+    /** @param {number[]} ids */
     async getProducts (ids) { return clone(db.product.filter((p) => ids.includes(p.id))) },
+    /** @param {number} id */
     async getProduct (id) { return clone(db.product.find((p) => p.id === id) ?? null) },
+    /** @param {Row} p */
     async insertProduct (p) {
       if (p.barcode && db.product.some((x) => !x.archived && x.barcode === p.barcode)) {
         throw Object.assign(new Error('dup'), { status: 409, code: 'barcode_exists' })
@@ -23,6 +32,7 @@ function memoryStore () {
       db.product.push(row)
       return clone(row)
     },
+    /** @param {number} id @param {Row} p */
     async updateProduct (id, p) {
       const row = db.product.find((x) => x.id === id && !x.archived)
       if (!row) return null
@@ -32,6 +42,7 @@ function memoryStore () {
       Object.assign(row, clone(p), { updatedAt: stamp() })
       return clone(row)
     },
+    /** @param {number} id */
     async archiveProduct (id) {
       const row = db.product.find((x) => x.id === id && !x.archived)
       if (!row) return false
@@ -39,43 +50,54 @@ function memoryStore () {
       return true
     },
     async listRecipes () { return clone(db.recipe.filter((r) => !r.archived)) },
+    /** @param {number} id */
     async getRecipe (id) { return clone(db.recipe.find((r) => r.id === id) ?? null) },
+    /** @param {Row} r */
     async insertRecipe (r) {
       const row = { id: ++seq, ...clone(r), archived: false, createdAt: stamp(), updatedAt: stamp() }
       db.recipe.push(row)
       return clone(row)
     },
+    /** @param {number} id @param {Row} r */
     async updateRecipe (id, r) {
       const row = db.recipe.find((x) => x.id === id && !x.archived)
       if (!row) return null
       Object.assign(row, clone(r), { updatedAt: stamp() })
       return clone(row)
     },
+    /** @param {number} id */
     async archiveRecipe (id) {
       const row = db.recipe.find((x) => x.id === id && !x.archived)
       if (!row) return false
       row.archived = true
       return true
     },
+    /** @param {string} date */
     async listLog (date) { return clone(db.log.filter((e) => e.date === date)) },
+    /** @param {string} requestId */
     async getLogByRequest (requestId) { return clone(db.log.find((e) => e.requestId === requestId) ?? null) },
+    /** @param {Row} e */
     async insertLog (e) {
       if (e.requestId && db.log.some((x) => x.requestId === e.requestId)) return null
       const row = { id: ++seq, ...clone(e), createdAt: stamp() }
       db.log.push(row)
       return clone(row)
     },
+    /** @param {string} from @param {string} to */
     async listLogRange (from, to) { return clone(db.log.filter((e) => e.date >= from && e.date <= to).sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id))) },
     async getSettings () { return clone(db.settings ?? { goal: null, targetWeightKg: null, locale: null, updatedAt: null }) },
+    /** @param {Row} patch */
     async updateSettings (patch) {
       db.settings = { ...(db.settings ?? { goal: null, targetWeightKg: null, locale: null }), ...clone(patch), updatedAt: stamp() }
       return clone(db.settings)
     },
     async getProfile () { return db.profile ? clone(db.profile) : null },
+    /** @param {Row} data */
     async putProfile (data) {
       db.profile = { ...clone(data), updatedAt: stamp() }
       return clone(db.profile)
     },
+    /** @param {number} id */
     async deleteLog (id) {
       const i = db.log.findIndex((e) => e.id === id)
       if (i < 0) return false
@@ -86,15 +108,18 @@ function memoryStore () {
 }
 
 function stubOff () {
+  /** @type {string[][]} */
   const calls = []
   return {
     calls,
+    /** @param {string} code */
     async byBarcode (code) {
       calls.push(['barcode', code])
       if (code === '00000000') throw Object.assign(new Error('nf'), { status: 404, code: 'off_not_found' })
       if (code === '11111111') throw Object.assign(new Error('limit'), { status: 429, code: 'off_rate_limited' })
       return { code, name: 'Demo yogurt', brand: 'Demo', stores: 'Demo store', unit: 'g', per100: { kcal: 60, protein: 10, carbs: 4, fat: null }, servingSize: 125, complete: false }
     },
+    /** @param {string} q */
     async search (q) {
       calls.push(['search', q])
       return [{ code: '8400000000001', name: 'Demo oats', brand: null, stores: null, unit: 'g', per100: { kcal: 372, protein: 13.5, carbs: 58.7, fat: 7 }, servingSize: null, complete: true }]
@@ -102,16 +127,27 @@ function stubOff () {
   }
 }
 
+/** The fakes hold only the methods the routes call.
+ * @param {{ store?: ReturnType<typeof memoryStore>, off?: ReturnType<typeof stubOff>, writeLimit?: number, summaryLimit?: number,
+ *   log?: (line: string) => void, available?: () => boolean, settingsAvailable?: () => boolean, profileAvailable?: () => boolean,
+ *   allowedHosts?: string[] }} [options] */
 async function setup ({ store = memoryStore(), off = stubOff(), writeLimit, summaryLimit, log = () => {}, available, settingsAvailable, profileAvailable, allowedHosts } = {}) {
-  const routes = createFoodRoutes({ store, off, writeLimit, summaryLimit, log, available, settingsAvailable, profileAvailable, allowedHosts })
+  const routes = createFoodRoutes({
+    store: /** @type {import('../src/food-db.js').FoodStore} */ (/** @type {unknown} */ (store)),
+    off: /** @type {import('../src/off.js').OffClient} */ (/** @type {unknown} */ (off)),
+    writeLimit, summaryLimit, log, available, settingsAvailable, profileAvailable, allowedHosts })
   const server = http.createServer(async (req, res) => {
-    const url = new URL(req.url, 'http://localhost')
+    const url = new URL(/** @type {string} */ (req.url), 'http://localhost')
     if (!(await routes.handle(req, res, url))) { res.writeHead(404); res.end() }
   })
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
-  const base = `http://127.0.0.1:${server.address().port}`
+  await /** @type {Promise<void>} */ (new Promise((resolve) => server.listen(0, '127.0.0.1', resolve)))
+  const base = `http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}`
+  /** @param {string} method @param {string} path @param {{ body?: unknown, headers?: Record<string, string>, raw?: string }} [options]
+   * @returns {Promise<{ status: number, headers: Headers, body: any }>} */
   async function call (method, path, { body, headers = {}, raw } = {}) {
+    /** @type {Record<string, string>} */
     const h = { 'x-hc-food': '1', ...headers }
+    /** @type {string | undefined} */
     let payload
     if (raw !== undefined) payload = raw
     else if (body !== undefined) { payload = JSON.stringify(body); h['content-type'] ??= 'application/json' }
@@ -120,9 +156,12 @@ async function setup ({ store = memoryStore(), off = stubOff(), writeLimit, summ
     return { status: res.status, headers: res.headers, body: text ? JSON.parse(text) : null }
   }
   /** A raw request with any Host / Origin (fetch does not let a test forge Host). */
+  /** @param {string} method @param {string} path @param {{ host?: string, headers?: Record<string, string>, body?: unknown }} [options]
+   * @returns {Promise<{ status: number | undefined, body: any }>} */
   function rawCall (method, path, { host, headers = {}, body } = {}) {
-    const port = server.address().port
+    const port = /** @type {import('node:net').AddressInfo} */ (server.address()).port
     const payload = body === undefined ? undefined : JSON.stringify(body)
+    /** @type {Record<string, string | number>} */
     const h = { 'x-hc-food': '1', host: host ?? `127.0.0.1:${port}`, ...headers }
     if (payload !== undefined) { h['content-type'] = 'application/json'; h['content-length'] = Buffer.byteLength(payload) }
     return new Promise((resolve, reject) => {
@@ -200,6 +239,7 @@ test('malformed JSON -> 400 bad_json; unknown keys and bad values -> 400 invalid
   const t = await setup()
   try {
     assert.deepEqual((await t.call('POST', '/food/products', { raw: '{"name":', headers: { 'content-type': 'application/json' } })).body, { error: 'bad_json' })
+    /** @type {[unknown, string][]} deliberately invalid inputs and the field each one names */
     const cases = [
       [{ ...YOGURT, extra: 1 }, 'extra'],
       [{ ...YOGURT, name: '   ' }, 'name'],
@@ -244,7 +284,7 @@ test('products: create (trimmed, 1 decimal), list, edit, archive; Atwater mismat
     const list = await t.call('GET', '/food/products')
     assert.equal(list.status, 200)
     assert.equal(list.body.products.length, 3)
-    assert.deepEqual(list.body.products.map((x) => x.store).sort(), ['dia', 'mercadona', 'mercadona'])
+    assert.deepEqual(list.body.products.map((/** @type {{ store: string }} */ x) => x.store).sort(), ['dia', 'mercadona', 'mercadona'])
 
     const edited = await t.call('PUT', `/food/products/${p.id}`, { body: { ...YOGURT, per100: { kcal: 62, protein: 10, carbs: 4.5, fat: 0.2 } } })
     assert.equal(edited.status, 200)
@@ -274,7 +314,7 @@ test('products: servingDefault (log by serving by default) is stored, false when
     const id = on.body.product.id
     assert.equal((await t.call('PUT', `/food/products/${id}`, { body: YOGURT })).body.product.servingDefault, false, 'PUT = the whole product')
     assert.equal((await t.call('PUT', `/food/products/${id}`, { body: { ...YOGURT, servingDefault: true } })).body.product.servingDefault, true)
-    assert.equal((await t.call('GET', '/food/products')).body.products.find((x) => x.id === id).servingDefault, true)
+    assert.equal((await t.call('GET', '/food/products')).body.products.find((/** @type {{ id: number }} */ x) => x.id === id).servingDefault, true)
   } finally { await t.close() }
 })
 
@@ -298,7 +338,7 @@ test('recipes: macros computed from the products (per serving / per 100 g cooked
     assert.deepEqual(r.body.recipe.perServing, { kcal: 218, protein: 10.5, carbs: 30.7, fat: 5.2 })
     assert.equal(r.body.recipe.per100, null)
     assert.equal(r.body.recipe.complete, true)
-    assert.deepEqual(r.body.recipe.ingredients.map((i) => i.name), ['Copos de avena', 'Leche semidesnatada'])
+    assert.deepEqual(r.body.recipe.ingredients.map((/** @type {{ name: string }} */ i) => i.name), ['Copos de avena', 'Leche semidesnatada'])
 
     const typed = await t.call('POST', '/food/recipes', { body: { name: 'X', kind: 'serving', servings: 1, ingredients: [{ productId: oats.id, amount: 50 }], kcal: 999 } })
     assert.deepEqual(typed.body, { error: 'invalid', field: 'kcal' })
@@ -442,9 +482,15 @@ test('unknown paths / methods and store failures answer coarse codes, never raw 
 })
 
 test('handle() returns false for non-/food paths so the server keeps routing', async () => {
-  const routes = createFoodRoutes({ store: memoryStore(), off: stubOff(), log: () => {} })
-  assert.equal(await routes.handle({ method: 'GET', headers: {} }, {}, new URL('http://x/foods')), false)
-  assert.equal(await routes.handle({ method: 'GET', headers: {} }, {}, new URL('http://x/sync')), false)
+  const routes = createFoodRoutes({
+    store: /** @type {import('../src/food-db.js').FoodStore} */ (/** @type {unknown} */ (memoryStore())),
+    off: /** @type {import('../src/off.js').OffClient} */ (/** @type {unknown} */ (stubOff())),
+    log: () => {}
+  })
+  // never read: a non-/food path is refused before the request or the response is touched
+  /** @typedef {import('node:http').IncomingMessage} Req @typedef {import('node:http').ServerResponse} Res */
+  assert.equal(await routes.handle(/** @type {Req} */ ({ method: 'GET', headers: {} }), /** @type {Res} */ ({}), new URL('http://x/foods')), false)
+  assert.equal(await routes.handle(/** @type {Req} */ ({ method: 'GET', headers: {} }), /** @type {Res} */ ({}), new URL('http://x/sync')), false)
 })
 
 test('DNS rebinding: a Host that is not an IP literal, localhost, loop-ingest (the loop-web hop), host.docker.internal or allowlisted -> 421, reads included', async () => {
@@ -484,13 +530,13 @@ test('writes through loop-web: the Origin must be the host nginx was asked for (
   try {
     const body = { date: '2030-01-10', meal: 'snack', refType: 'quick', label: 'x', kcal: 10 }
     const lan = { 'x-forwarded-host': '192.168.1.10:8090', 'sec-fetch-site': 'same-origin' }
-    for (const [headers, why] of [
+    for (const [headers, why] of /** @type {[Record<string, string>, string][]} */ ([
       [{ ...lan, origin: 'http://192.168.1.20:8090' }, 'another LAN address'],
       [{ ...lan, origin: 'http://192.168.1.10:9999' }, 'another port of the same address'],
       [{ ...lan, origin: 'http://192.168.1.10:8090', 'sec-fetch-site': 'cross-site' }, 'cross-site'],
       [{ ...lan, origin: 'http://192.168.1.10:8090', 'sec-fetch-site': 'same-site' }, 'same-site'],
       [{ 'x-forwarded-host': 'plan.example.com', origin: 'https://evil.example' }, 'tunnel host, foreign origin']
-    ]) {
+    ])) {
       const r = await t.rawCall('POST', '/food/log', { body, headers })
       assert.deepEqual([r.status, r.body.error], [403, 'forbidden_origin'], why)
     }
@@ -604,7 +650,7 @@ test('recipes mix products and basics: macros from the label + the snapshots (g 
 
     const list = (await t.call('GET', '/food/recipes')).body.recipes
     assert.equal(list.length, 2)
-    assert.ok(list.every((x) => x.complete))
+    assert.ok(list.every((/** @type {{ complete: boolean }} */ x) => x.complete))
   } finally { await t.close() }
 })
 
@@ -636,7 +682,8 @@ test('existing product-only recipes keep working unchanged (stored and listed in
 test('a basic ingredient is validated strictly: key pattern, name, unit, amount, per-100 macros; unknown keys refused', async () => {
   const t = await setup()
   try {
-    const recipe = (ing) => ({ name: 'R', kind: 'serving', servings: 1, ingredients: [ing] })
+    const recipe = (/** @type {unknown} */ ing) => ({ name: 'R', kind: 'serving', servings: 1, ingredients: [ing] })
+    /** @type {[unknown, string][]} deliberately invalid inputs and the field each one names */
     const cases = [
       [{ ...B_EGGS, extra: 1 }, 'ingredients.extra'],
       [{ ...B_EGGS, productId: 1 }, 'ingredients.productId'],
@@ -753,7 +800,7 @@ test('settings: GET before any write = nulls; PUT is a partial update; null clea
 test('settings: strict validation with coarse codes (unknown keys, bad goal, out-of-range weight, empty body)', async () => {
   const t = await setup()
   try {
-    const put = async (body) => (await t.call('PUT', '/food/settings', { body })).body
+    const put = async (/** @type {unknown} */ body) => (await t.call('PUT', '/food/settings', { body })).body
     assert.deepEqual(await put({ goal: 'shred' }), { error: 'invalid', field: 'goal' })
     assert.deepEqual(await put({ goal: null }), { error: 'invalid', field: 'goal' })
     assert.deepEqual(await put({ targetWeightKg: 34.9 }), { error: 'invalid', field: 'targetWeightKg' })
@@ -780,11 +827,11 @@ test('settings: the page language (locale es | en) is stored, partial like the r
     assert.deepEqual([r.body.settings.locale, r.body.settings.targetWeightKg], ['en', 70])
     r = await t.call('PUT', '/food/settings', { body: { locale: null } })
     assert.deepEqual([r.body.settings.goal, r.body.settings.locale], ['cut', null], 'null clears it')
-    const put = async (body) => (await t.call('PUT', '/food/settings', { body })).body
+    const put = async (/** @type {unknown} */ body) => (await t.call('PUT', '/food/settings', { body })).body
     for (const bad of ['fr', 'ES', 'es-ES', '', 1, true, ['es'], {}]) {
       assert.deepEqual(await put({ locale: bad }), { error: 'invalid', field: 'locale' }, JSON.stringify(bad))
     }
-    assert.equal(t.store.db.settings.locale, null, 'a refused PUT stores nothing')
+    assert.equal(/** @type {Row} */ (t.store.db.settings).locale, null, 'a refused PUT stores nothing')
   } finally { await t.close() }
 })
 
@@ -816,6 +863,7 @@ test('settings is its own migration group: 503 settings_unavailable alone, and i
 test('log summary: per-day sums + entries per group from the stored snapshots, inside [from, to]', async () => {
   const t = await setup()
   try {
+    /** @param {string} date @param {string} meal @param {number} kcal @param {number | null} [protein] */
     const add = (date, meal, kcal, protein = 10) => t.call('POST', '/food/log', { body: { date, meal, refType: 'quick', label: 'x', kcal, protein, carbs: 10, fat: 5, force: true } })
     await add('2030-01-08', 'breakfast', 300)
     await add('2030-01-09', 'breakfast', 400)
@@ -839,7 +887,7 @@ test('log summary: per-day sums + entries per group from the stored snapshots, i
 test('log summary: both dates required and real, from <= to, at most 120 days', async () => {
   const t = await setup()
   try {
-    const get = async (q) => (await t.call('GET', '/food/log/summary' + q)).body
+    const get = async (/** @type {string} */ q) => (await t.call('GET', '/food/log/summary' + q)).body
     assert.deepEqual(await get(''), { error: 'invalid', field: 'from' })
     assert.deepEqual(await get('?from=2030-01-01'), { error: 'invalid', field: 'to' })
     assert.deepEqual(await get('?from=2030-02-31&to=2030-03-01'), { error: 'invalid', field: 'from' })
@@ -875,11 +923,13 @@ test('log summary reads are rate limited per client address (429 rate_limited, n
 })
 
 /* ---------- the in-page onboarding profile ---------- */
+/** @param {number} kcal @param {number} p @param {number} f */
 const cells = (kcal, p, f) => ({
   rest: { kcal, p, f }, gym: { kcal: kcal + 350, p, f }, hybrid: { kcal: kcal + 500, p, f }, indoor: { kcal: kcal + 550, p, f },
   run: { kcal: kcal + 600, p, f }, bike: { kcal: kcal + 850, p, f }, bikeLong: { kcal: kcal + 1450, p, f }
 })
 // a page saved before the hybrid / indoor / run day types PUTs four cells per goal
+/** @param {number} kcal @param {number} p @param {number} f */
 const oldCells = (kcal, p, f) => ({ rest: { kcal, p, f }, gym: { kcal: kcal + 350, p, f }, bike: { kcal: kcal + 850, p, f }, bikeLong: { kcal: kcal + 1450, p, f } })
 const PROFILE = {
   name: 'Ana', sex: 'female', birthdate: '1997-05-20', heightCm: 165, weightKg: 60, activity: 'light',
@@ -907,11 +957,11 @@ test('profile: an OLD 4-cell PUT is accepted, each missing hybrid / indoor / run
     const old = { ...PROFILE, targets: { maintain: oldCells(1800, 108, 48), cut: oldCells(1550, 120, 48), bulk: oldCells(1950, 108, 48) } }
     const r = await t.call('PUT', '/food/profile', { body: old })
     assert.equal(r.status, 200)
-    for (const g of ['maintain', 'cut', 'bulk']) {
+    for (const g of /** @type {const} */ (['maintain', 'cut', 'bulk'])) {
       for (const d of ['hybrid', 'indoor', 'run']) assert.deepEqual(r.body.profile.targets[g][d], old.targets[g].gym, `${g}.${d}`)
-      for (const d of ['rest', 'gym', 'bike', 'bikeLong']) assert.deepEqual(r.body.profile.targets[g][d], old.targets[g][d], `${g}.${d}`)
+      for (const d of /** @type {const} */ (['rest', 'gym', 'bike', 'bikeLong'])) assert.deepEqual(r.body.profile.targets[g][d], old.targets[g][d], `${g}.${d}`)
     }
-    assert.deepEqual(t.store.db.profile.targets, r.body.profile.targets, 'stored filled')
+    assert.deepEqual(/** @type {Row} */ (t.store.db.profile).targets, r.body.profile.targets, 'stored filled')
     // a missing old cell is still refused; an unknown day type too
     const { bike: _b, ...noBike } = old.targets.cut
     assert.deepEqual((await t.call('PUT', '/food/profile', { body: { ...old, targets: { ...old.targets, cut: noBike } } })).body, { error: 'invalid', field: 'targets.cut.bike' })
@@ -926,21 +976,21 @@ test('profile: sports are stored when well-formed and refused otherwise', async 
     const r = await t.call('PUT', '/food/profile', { body: { ...PROFILE, sports } })
     assert.equal(r.status, 200)
     assert.deepEqual(r.body.profile.sports, sports)
-    const put = async (s) => (await t.call('PUT', '/food/profile', { body: { ...PROFILE, sports: s } })).body
+    const put = async (/** @type {unknown} */ s) => (await t.call('PUT', '/food/profile', { body: { ...PROFILE, sports: s } })).body
     assert.deepEqual(await put('running'), { error: 'invalid', field: 'sports' })
     assert.deepEqual(await put([{ sport: 'golf', minutes: 45, perWeek: 3 }]), { error: 'invalid', field: 'sports' })
     assert.deepEqual(await put([{ sport: 'running', minutes: 10, perWeek: 3 }]), { error: 'invalid', field: 'sports' })
     assert.deepEqual(await put([{ sport: 'running', minutes: 45, perWeek: 15 }]), { error: 'invalid', field: 'sports' })
     assert.deepEqual(await put([{ sport: 'running', minutes: 45, perWeek: 3, x: 1 }]), { error: 'invalid', field: 'sports' })
     assert.deepEqual(await put([sports[0], sports[0]]), { error: 'invalid', field: 'sports' })
-    assert.deepEqual(t.store.db.profile.sports, sports, 'refusals keep the stored document')
+    assert.deepEqual(/** @type {Row} */ (t.store.db.profile).sports, sports, 'refusals keep the stored document')
   } finally { await t.close() }
 })
 
 test('profile: strict validation with coarse codes; nothing stored on a refusal', async () => {
   const t = await setup()
   try {
-    const put = async (patch) => (await t.call('PUT', '/food/profile', { body: { ...PROFILE, ...patch } })).body
+    const put = async (/** @type {object} */ patch) => (await t.call('PUT', '/food/profile', { body: { ...PROFILE, ...patch } })).body
     assert.deepEqual(await put({ sex: 'x' }), { error: 'invalid', field: 'sex' })
     assert.deepEqual(await put({ birthdate: '1997-02-30' }), { error: 'invalid', field: 'birthdate' })
     assert.deepEqual(await put({ birthdate: '2015-01-01' }), { error: 'invalid', field: 'birthdate' }, 'under 18')

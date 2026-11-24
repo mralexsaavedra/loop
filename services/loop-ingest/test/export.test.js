@@ -5,8 +5,12 @@ import {
   parsePaging, listStravaActivities, createStravaExportHandler
 } from '../src/export.js'
 
+/** @typedef {import('../src/http.js').HttpError} HttpError @typedef {import('../src/db.js').Queryable} Queryable */
+/** @typedef {import('node:http').IncomingMessage} Req @typedef {import('node:http').ServerResponse} Res */
+/** One recorded statement. @typedef {{ sql: string, values: readonly unknown[] }} Call */
+
 const TOKEN = 'a'.repeat(64)
-const params = (qs) => new URL(`http://x/export/raw?${qs}`).searchParams
+const params = (/** @type {string} */ qs) => new URL(`http://x/export/raw?${qs}`).searchParams
 
 test('parses a full export query', () => {
   assert.deepEqual(parseExportQuery(params('automation=my-shortcut&since_id=12&limit=50')),
@@ -21,30 +25,41 @@ test('defaults since_id to 0 and caps the limit', () => {
 test('rejects a missing automation or non-numeric ids', () => {
   for (const qs of ['', 'automation=', 'automation=a&since_id=-1', 'automation=a&since_id=1;drop',
     'automation=a&limit=0', 'automation=a&limit=abc']) {
-    assert.throws(() => parseExportQuery(params(qs)), (err) => err.status === 400, qs)
+    assert.throws(() => parseExportQuery(params(qs)), (/** @type {HttpError} */ err) => err.status === 400, qs)
   }
 })
 
+/** A pool stand-in with only query(), answering `rows` to every statement. @param {unknown[]} rows */
 function fakePool (rows) {
+  /** @type {Call[]} */
   const calls = []
-  return { calls, query: async (sql, values) => { calls.push({ sql, values }); return { rows } } }
+  /** @type {unknown} */
+  const pool = { calls, query: async (/** @type {string} */ sql, /** @type {readonly unknown[]} */ values) => { calls.push({ sql, values }); return { rows } } }
+  return /** @type {Queryable & { calls: Call[] }} */ (pool)
 }
 
-/** A fake pool for the two-step raw export: the id + byte_size scan, then the payloads up to the chosen id. */
+/** A stored raw payload row. @typedef {{ id: string, received_at: string, byte_size: number, payload: unknown }} Stored */
+
+/** A fake pool for the two-step raw export: the id + byte_size scan, then the payloads up to the chosen id.
+ * @param {Stored[]} stored */
 function rawPool (stored) {
+  /** @type {Call[]} */
   const calls = []
-  return {
+  /** @type {unknown} */
+  const pool = {
     calls,
+    /** @param {string} sql @param {[string, string, number | string]} values automation, since id, then the limit (scan) or the last id */
     query: async (sql, values) => {
       calls.push({ sql, values })
       const after = stored.filter((r) => BigInt(r.id) > BigInt(values[1]))
-      if (/byte_size/.test(sql)) return { rows: after.slice(0, values[2]).map((r) => ({ id: r.id, byte_size: r.byte_size })) }
+      if (/byte_size/.test(sql)) return { rows: after.slice(0, /** @type {number} */ (values[2])).map((r) => ({ id: r.id, byte_size: r.byte_size })) }
       return { rows: after.filter((r) => BigInt(r.id) <= BigInt(values[2])).map(({ id, received_at: at, payload }) => ({ id, received_at: at, payload })) }
     }
   }
+  return /** @type {Queryable & { calls: Call[] }} */ (pool)
 }
 const MB = 1024 * 1024
-const stored = (sizes) => sizes.map((size, i) => ({ id: String(13 + i), received_at: 't', byte_size: size, payload: { n: i } }))
+const stored = (/** @type {number[]} */ sizes) => sizes.map((size, i) => ({ id: String(13 + i), received_at: 't', byte_size: size, payload: { n: i } }))
 
 test('lists payloads with parameterized, id-ordered queries', async () => {
   const pool = rawPool(stored([100]))
@@ -83,31 +98,38 @@ test('more is false on a full row-limited page (the client pages on as before) a
   assert.deepEqual(empty, { rows: [], more: false })
 })
 
+/** What the stand-in recorded; `headers` is read only after writeHead set it, `body` is the parsed JSON.
+ * @typedef {{ status: number | null, headers: Record<string, unknown>, body: any }} Recorded */
+
+/** A response stand-in (only writeHead and end). @returns {Res & Recorded} */
 function fakeRes () {
-  return {
+  return /** @type {Res & Recorded} */ (/** @type {unknown} */ ({
     status: null,
     body: null,
     headers: null,
+    /** @this {Recorded} @param {number} status @param {Record<string, unknown>} [headers] */
     writeHead (status, headers = {}) { this.status = status; this.headers = headers },
+    /** @this {Recorded} @param {string} payload */
     end (payload) { this.body = JSON.parse(payload) }
-  }
+  }))
 }
 
 test('export handler rejects requests without the bearer token', async () => {
   const pool = fakePool([])
   const handle = createExportHandler({ pool, token: TOKEN, log: () => {} })
   const res = fakeRes()
-  await handle({ headers: {} }, res, new URL('http://x/export/raw?automation=a'))
+  await handle(/** @type {Req} */ (/** @type {unknown} */ ({ headers: {} })), res, new URL('http://x/export/raw?automation=a'))
   assert.equal(res.status, 401)
   assert.equal(pool.calls.length, 0, 'no query before auth')
 })
 
 test('export handler returns rows and logs counts only', async () => {
+  /** @type {string[]} */
   const logged = []
   const pool = rawPool([{ id: '3', received_at: 't', byte_size: 30, payload: { hrv: 'secret-values' } }])
   const handle = createExportHandler({ pool, token: TOKEN, log: (line) => logged.push(line) })
   const res = fakeRes()
-  await handle({ headers: { authorization: `Bearer ${TOKEN}` } }, res,
+  await handle(/** @type {Req} */ (/** @type {unknown} */ ({ headers: { authorization: `Bearer ${TOKEN}` } })), res,
     new URL('http://x/export/raw?automation=a&since_id=2'))
   assert.equal(res.status, 200)
   assert.deepEqual(res.body, [{ id: '3', received_at: 't', payload: { hrv: 'secret-values' } }], 'the body stays a plain array')
@@ -119,7 +141,7 @@ test('export handler returns rows and logs counts only', async () => {
 test('export handler answers 400 on a bad query', async () => {
   const handle = createExportHandler({ pool: fakePool([]), token: TOKEN, log: () => {} })
   const res = fakeRes()
-  await handle({ headers: { authorization: `Bearer ${TOKEN}` } }, res, new URL('http://x/export/raw'))
+  await handle(/** @type {Req} */ (/** @type {unknown} */ ({ headers: { authorization: `Bearer ${TOKEN}` } })), res, new URL('http://x/export/raw'))
   assert.equal(res.status, 400)
 })
 
@@ -133,14 +155,14 @@ test('parsePaging defaults since_id to 0 and the limit to 500, caps at 1000', ()
 
 test('parsePaging rejects a non-numeric/negative since_id or a non-positive limit', () => {
   for (const qs of ['since_id=-1', 'since_id=1;drop', 'limit=0', 'limit=abc', 'limit=-5']) {
-    assert.throws(() => parsePaging(params(qs)), (err) => err.status === 400, qs)
+    assert.throws(() => parsePaging(params(qs)), (/** @type {HttpError} */ err) => err.status === 400, qs)
   }
 })
 
 test('parseExportQuery still requires automation and reuses parsePaging for since_id/limit', () => {
   assert.deepEqual(parseExportQuery(params('automation=a&since_id=12&limit=50')),
     { automation: 'a', sinceId: '12', limit: 50 })
-  assert.throws(() => parseExportQuery(params('automation=a&limit=0')), (err) => err.status === 400)
+  assert.throws(() => parseExportQuery(params('automation=a&limit=0')), (/** @type {HttpError} */ err) => err.status === 400)
 })
 
 test('lists strava activities with a parameterized, id-ordered query exposing only safe fields', async () => {
@@ -167,7 +189,7 @@ test('strava export handler rejects requests without the bearer token before any
   const pool = fakePool([])
   const handle = createStravaExportHandler({ pool, token: TOKEN, log: () => {} })
   const res = fakeRes()
-  await handle({ headers: {} }, res, new URL('http://x/export/strava'))
+  await handle(/** @type {Req} */ (/** @type {unknown} */ ({ headers: {} })), res, new URL('http://x/export/strava'))
   assert.equal(res.status, 401)
   assert.equal(pool.calls.length, 0, 'no query before auth')
 })
@@ -175,16 +197,17 @@ test('strava export handler rejects requests without the bearer token before any
 test('strava export handler answers 400 on a bad since_id/limit', async () => {
   const handle = createStravaExportHandler({ pool: fakePool([]), token: TOKEN, log: () => {} })
   const res = fakeRes()
-  await handle({ headers: { authorization: `Bearer ${TOKEN}` } }, res, new URL('http://x/export/strava?since_id=-1'))
+  await handle(/** @type {Req} */ (/** @type {unknown} */ ({ headers: { authorization: `Bearer ${TOKEN}` } })), res, new URL('http://x/export/strava?since_id=-1'))
   assert.equal(res.status, 400)
 })
 
 test('strava export handler returns 200 and logs counts + since_id only, never field values', async () => {
+  /** @type {string[]} */
   const logged = []
   const pool = fakePool([{ id: '99', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 1800, elapsed_time: 1900, distance: 5000, average_heartrate: 150, max_heartrate: 172 }])
   const handle = createStravaExportHandler({ pool, token: TOKEN, log: (line) => logged.push(line) })
   const res = fakeRes()
-  await handle({ headers: { authorization: `Bearer ${TOKEN}` } }, res, new URL('http://x/export/strava?since_id=5'))
+  await handle(/** @type {Req} */ (/** @type {unknown} */ ({ headers: { authorization: `Bearer ${TOKEN}` } })), res, new URL('http://x/export/strava?since_id=5'))
   assert.equal(res.status, 200)
   assert.deepEqual(res.body, pool.calls.length ? [{ id: '99', start_local: '2026-08-20T07:00:00', sport_type: 'Run', moving_time: 1800, elapsed_time: 1900, distance: 5000, average_heartrate: 150, max_heartrate: 172 }] : [])
   assert.equal(logged.length, 1)
@@ -241,10 +264,11 @@ test('strava export carries the HR histogram (hr_hist) of the activity, only for
 })
 
 test('export handler: a byte-capped page answers X-Has-More: true and logs it', async () => {
+  /** @type {unknown[]} */
   const logged = []
   const handle = createExportHandler({ pool: rawPool(stored([40 * MB, 1])), token: TOKEN, log: (line) => logged.push(JSON.parse(line)) })
   const res = fakeRes()
-  await handle({ headers: { authorization: `Bearer ${TOKEN}` } }, res, new URL('http://x/export/raw?automation=a'))
-  assert.deepEqual([res.status, res.body.map((r) => r.id), res.headers['x-has-more']], [200, ['13'], 'true'])
+  await handle(/** @type {Req} */ (/** @type {unknown} */ ({ headers: { authorization: `Bearer ${TOKEN}` } })), res, new URL('http://x/export/raw?automation=a'))
+  assert.deepEqual([res.status, res.body.map((/** @type {{ id: string }} */ r) => r.id), res.headers['x-has-more']], [200, ['13'], 'true'])
   assert.deepEqual(logged, [{ event: 'exported', automation: 'a', since_id: '0', count: 1, more: true }])
 })

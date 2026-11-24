@@ -4,37 +4,53 @@ import http from 'node:http'
 import { createJournalRoutes, validateDay } from '../src/journal.js'
 import { JOURNAL_BEHAVIORS } from '../src/journal-calc.js'
 
+/** @typedef {import('../src/journal.js').JournalDay} JournalDay @typedef {import('../src/journal.js').StoredJournalDay} StoredJournalDay */
+/** @typedef {import('../src/http.js').HttpError} HttpError */
+
 /** In-memory stand-in for src/journal-db.js createJournalStore (same method contract). */
 function memoryStore () {
+  /** @type {{ days: Map<string, StoredJournalDay>, disabled: string[] | null }} */
   const db = { days: new Map(), disabled: null }
+  /** @type {<T>(v: T) => T} */
   const clone = (v) => (v == null ? v : JSON.parse(JSON.stringify(v)))
   return {
     db,
+    /** @param {string} date */
     async getDay (date) { return clone(db.days.get(date) ?? null) },
+    /** @param {JournalDay} d */
     async putDay (d) {
       const row = { date: d.date, answers: clone(d.answers), notes: d.notes, updatedAt: '2030-01-10T12:00:00.000Z' }
       db.days.set(d.date, row)
       return clone(row)
     },
+    /** @param {string} date */
     async deleteDay (date) { db.days.delete(date) },
+    /** @param {string} from @param {string} to */
     async listRange (from, to) {
       return clone([...db.days.values()].filter((d) => d.date >= from && d.date <= to).sort((a, b) => (a.date < b.date ? -1 : 1)))
     },
     async getDisabled () { return clone(db.disabled ?? []) },
+    /** @param {string[]} list */
     async setDisabled (list) { db.disabled = clone(list); return clone(list) }
   }
 }
 
+/** @param {{ store?: ReturnType<typeof memoryStore>, available?: () => boolean, writeLimit?: number, summaryLimit?: number,
+ *   allowedHosts?: string[], log?: (line: string) => void }} [options] */
 async function setup ({ store = memoryStore(), available, writeLimit, summaryLimit, allowedHosts, log = () => {} } = {}) {
   const routes = createJournalRoutes({ store, available, writeLimit, summaryLimit, allowedHosts, log })
   const server = http.createServer(async (req, res) => {
-    const url = new URL(req.url, 'http://localhost')
+    const url = new URL(/** @type {string} */ (req.url), 'http://localhost')
     if (!(await routes.handle(req, res, url))) { res.writeHead(404); res.end('{"error":"outer"}') }
   })
-  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve))
-  const base = `http://127.0.0.1:${server.address().port}`
+  await /** @type {Promise<void>} */ (new Promise((resolve) => server.listen(0, '127.0.0.1', resolve)))
+  const base = `http://127.0.0.1:${/** @type {import('node:net').AddressInfo} */ (server.address()).port}`
+  /** @param {string} method @param {string} path @param {{ body?: unknown, headers?: Record<string, string>, raw?: string }} [options]
+   * @returns {Promise<{ status: number, body: any }>} */
   async function call (method, path, { body, headers = {}, raw } = {}) {
+    /** @type {Record<string, string>} */
     const h = { 'x-hc-journal': '1', ...headers }
+    /** @type {string | undefined} */
     let payload
     if (raw !== undefined) payload = raw
     else if (body !== undefined) { payload = JSON.stringify(body); h['content-type'] ??= 'application/json' }
@@ -42,9 +58,11 @@ async function setup ({ store = memoryStore(), available, writeLimit, summaryLim
     const text = await res.text()
     return { status: res.status, body: text ? JSON.parse(text) : null }
   }
+  /** @param {string} method @param {string} path @param {{ host?: string, headers?: Record<string, string> }} [options]
+   * @returns {Promise<{ status: number | undefined, body: any }>} */
   function rawCall (method, path, { host, headers = {} } = {}) {
     return new Promise((resolve, reject) => {
-      const req = http.request({ host: '127.0.0.1', port: server.address().port, method, path, headers: { 'x-hc-journal': '1', host, ...headers } }, (res) => {
+      const req = http.request({ host: '127.0.0.1', port: /** @type {import('node:net').AddressInfo} */ (server.address()).port, method, path, headers: { 'x-hc-journal': '1', host, ...headers } }, (res) => {
         let text = ''
         res.on('data', (c) => { text += c })
         res.on('end', () => resolve({ status: res.statusCode, body: text ? JSON.parse(text) : null }))
@@ -79,7 +97,7 @@ test('a missing X-HC-Journal header is 403; a foreign Host 421; a foreign Origin
 test('journal writes through loop-web: Origin bound to X-Forwarded-Host, Sec-Fetch-Site same-origin when sent; the tunnel host works', async (t) => {
   const s = await setup({ allowedHosts: ['plan.example.com'] })
   t.after(s.close)
-  const put = (headers) => s.call('PUT', '/journal/day', { body: { date: '2030-01-10', answers: {} }, headers })
+  const put = (/** @type {Record<string, string>} */ headers) => s.call('PUT', '/journal/day', { body: { date: '2030-01-10', answers: {} }, headers })
   const lan = { 'x-forwarded-host': '192.168.1.10:8090', 'sec-fetch-site': 'same-origin' }
   assert.equal((await put({ ...lan, origin: 'http://192.168.1.20:8090' })).status, 403)
   assert.equal((await put({ ...lan, origin: 'http://192.168.1.10:8090', 'sec-fetch-site': 'cross-site' })).status, 403)
@@ -140,7 +158,7 @@ test('PUT with no answer and no note removes the day (not journaled again)', asy
 })
 
 test('validateDay: strict keys, real dates, yes/no booleans, drink counts 0..20, notes <= 500', () => {
-  const field = (fn) => { try { fn(); return null } catch (e) { return e.field } }
+  const field = (/** @type {() => unknown} */ fn) => { try { fn(); return null } catch (e) { return /** @type {HttpError} */ (e).field } }
   assert.equal(field(() => validateDay({ date: '2030-02-31', answers: {} })), 'date')
   assert.equal(field(() => validateDay({ date: '2030-01-10', answers: {}, extra: 1 })), 'extra')
   assert.equal(field(() => validateDay({ date: '2030-01-10', answers: [] })), 'answers')
@@ -174,7 +192,7 @@ test('GET summary returns the journaled days in range, sorted; range capped at 3
   await s.call('PUT', '/journal/day', { body: { date: '2030-03-10', answers: { ill: true } } })
   const r = await s.call('GET', '/journal/summary?from=2030-01-01&to=2030-01-31')
   assert.equal(r.status, 200)
-  assert.deepEqual(r.body.days.map((d) => d.date), ['2030-01-10', '2030-01-12'])
+  assert.deepEqual(r.body.days.map((/** @type {{ date: string }} */ d) => d.date), ['2030-01-10', '2030-01-12'])
   assert.deepEqual(r.body.days[0], { date: '2030-01-10', answers: { alcohol: 3 }, notes: 'party' })
   assert.equal((await s.call('GET', '/journal/summary?from=2030-01-01&to=2031-01-02')).status, 400)
   assert.equal((await s.call('GET', '/journal/summary?from=2030-01-10&to=2030-01-09')).status, 400)
@@ -218,6 +236,7 @@ test('settings: every behaviour on by default; PUT is a partial on/off merge; un
 })
 
 test('a store failure is a coarse 500 internal, logged without data', async (t) => {
+  /** @type {any[]} the parsed JSON log lines */
   const logged = []
   const store = memoryStore()
   store.getDay = async () => { throw new Error('relation "journal_day" does not exist') }
@@ -228,7 +247,7 @@ test('a store failure is a coarse 500 internal, logged without data', async (t) 
 })
 
 test('prototype keys never pass as behaviours (answers and settings)', async (t) => {
-  const field = (fn) => { try { fn(); return null } catch (e) { return e.field } }
+  const field = (/** @type {() => unknown} */ fn) => { try { fn(); return null } catch (e) { return /** @type {HttpError} */ (e).field } }
   for (const k of ['__proto__', 'constructor', 'toString', 'hasOwnProperty']) {
     const answers = JSON.parse(`{"${k}": true}`)
     assert.equal(field(() => validateDay({ date: '2030-01-10', answers })), `answers.${k}`, k)
