@@ -162,7 +162,7 @@ type RowValue = { value: number; date: string; base: number | null; arrow: Arrow
         HC.stressChart(d.hours, P, function (v: number | null | undefined, dec: number) { return HC.num(v, dec); }, true) + '</div></li>';
     }
     function available() {
-      var out = D ? CATALOG.filter(function (k) { return own(D.metrics, k) && D.metrics[k] && Array.isArray(D.metrics[k].v); }) : [];
+      var out = D ? CATALOG.filter(function (k) { return own(D!.metrics, k) && D!.metrics[k] && Array.isArray(D!.metrics[k].v); }) : [];
       if (stressDay()) out.push('stress');
       return out;
     }
@@ -175,7 +175,7 @@ type RowValue = { value: number; date: string; base: number | null; arrow: Arrow
         list.forEach(function (p: { key: string; on: boolean }) {
           if (!p.on) return;
           if (p.key === 'stress') { var sd = stressDay(); if (sd) rows.push(stressCard(sd)); return; }
-          var m = D.metrics[p.key], r = rowValue(m, today);
+          var m = D!.metrics[p.key], r = rowValue(m, today);
           if (r) rows.push(rowHtml(p.key, m, r));
         });
         host.innerHTML = rows.length ? '<ul class="db-list">' + rows.join('') + '</ul>' : '<p class="db-empty">' + esc(TS.empty) + '</p>';

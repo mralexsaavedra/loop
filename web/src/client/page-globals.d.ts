@@ -1,5 +1,5 @@
 /* The shapes of the page globals the module client scripts (*.ts) read: HC, LOCALE, the copy tables (I18N_*) and
- * SCORES (inferred from lib/score/index.mjs) are typed; the baked data globals are `any` until each gets its own type (their shapes live in lib/). */
+ * SCORES / DETAIL / DIALS / DASH / INTAKE / ACTIVITY (from their builders) are typed; the baked data globals are `any` until each gets its own type (their shapes live in lib/). */
 /** A copy table the scripts also index by a runtime key (a kind, a range, a metric): each nested table keeps its
  * named keys and also takes any string key (an unknown key reads `undefined` at runtime, as before). */
 type Lookup<T> = T extends readonly unknown[]
@@ -15,13 +15,13 @@ type Copy<M extends { en: unknown }> = Lookup<M['en']>;
 export type PageGlobals = {
   /** util.ts's helper library (its own inferred type: every helper's parameters and result). */
   HC: import('./util').HCApi;
-  DETAIL: any;
+  DETAIL: ReturnType<typeof import('../../../lib/detail/detail.mjs').detailFrom>;
   SCORES: ReturnType<typeof import('../../../lib/score/index.mjs').buildScoresFrom>;
   TRAINING: any;
   I18N_SCORE: Copy<typeof import('../i18n/score-templates.mjs')>;
   I18N_SYNC: Copy<typeof import('../i18n/sync-templates.mjs')>;
   HC_BAND: any;
-  DASH: any;
+  DASH: ReturnType<typeof import('../bakes.mjs').computeBakes>['dash'];
   I18N_DASH: Copy<typeof import('../i18n/dash-templates.mjs')>;
   I18N_DETAIL: Copy<typeof import('../i18n/detail-templates.mjs')>;
   NAV: any;
@@ -29,7 +29,7 @@ export type PageGlobals = {
   I18N_PROFILE: Copy<typeof import('../i18n/profile-templates.mjs')>;
   LOCALE: 'es' | 'en';
   PROFILE: any;
-  ACTIVITY: any;
+  ACTIVITY: ReturnType<typeof import('../../../lib/training/activity.mjs').activityBake>;
   HC_FMT: any;
   HC_ENERGY: any;
   I18N_ACTIVITY: Lookup<Omit<typeof import('../i18n/activity-templates.mjs')['en'], 'head'>>; // Bake drops `head`
@@ -37,7 +37,7 @@ export type PageGlobals = {
   HCProgram: any;
   HEALTH: any;
   I18N_HEALTH: Copy<typeof import('../i18n/health-templates.mjs')>;
-  DIALS: any;
+  DIALS: ReturnType<typeof import('../view/dial.mjs').buildDials>;
   HCFoodInternal: any;
   HCDeep: any;
   HCDetailChart: any;
@@ -57,7 +57,7 @@ export type PageGlobals = {
   I18N_HOY: Copy<typeof import('../i18n/hoy-templates.mjs')>;
   I18N_INTAKE: Copy<typeof import('../i18n/intake-templates.mjs')>;
   I18N_NUTRI: Copy<typeof import('../i18n/nutri-templates.mjs')>;
-  INTAKE: any;
+  INTAKE: ReturnType<typeof import('../bakes.mjs').computeBakes>['intake'];
   NUTRI: any;
   NUTRI_ARC: any;
   TRAINING_META: any;

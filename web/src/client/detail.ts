@@ -87,7 +87,7 @@ type Sub = { cls?: string; text: string };
   var host = document.getElementById('detail') as DetailHost | null;
   var T = (typeof I18N_DETAIL === 'undefined' ? null : I18N_DETAIL)!;
   if (!host || !T) return;
-  var D = typeof DETAIL === 'undefined' || !DETAIL ? { asOf: null, metrics: {}, sessions: [] } : DETAIL;
+  var D: Omit<PageGlobals['DETAIL'], 'days'> = typeof DETAIL === 'undefined' || !DETAIL ? { asOf: null, metrics: {}, sessions: [] } : DETAIL;
   var esc = HC.esc, format = HC.format, isoDate = HC.isoDate, parseIso = HC.parseIso, shiftIso = HC.shiftIso;
   // lower bounds of HR zones 1-5, % of max HR (lib/training/hr-zones.mjs ZONE_CUTS)
   var ZONE_CUTS = [50, 60, 70, 80, 90];
@@ -477,7 +477,7 @@ type Sub = { cls?: string; text: string };
         '<span class="dt-zpct">' + HC.pct(p) + '</span><span class="dt-zdur">' + mss(sec) + '</span>' +
         '<span class="dt-zbar"><i style="width:' + p + '%"></i></span></li>');
     }
-    var note = zm ? format(Z.note, { max: fmt(zm.hr, 0), src: Z.src[zm.src] || '' }).replace(' ()', '') : Z.noteNoMax;
+    var note = zm ? format(Z.note, { max: fmt(zm.hr, 0), src: Z.src[zm.src as string] || '' }).replace(' ()', '') : Z.noteNoMax;
     return '<div class="dt-zones" role="group" aria-label="' + esc(Z.title) + '">' +
       '<p class="dt-zhead"><b>' + esc(Z.title) + '</b>' + (hr ? '<span>' + esc(hr) + '</span>' : '') + '</p>' +
       '<ol class="dt-zlist">' + rows.join('') + '</ol>' +
