@@ -18,14 +18,24 @@
 export const IDENTITY_KEYS = Object.freeze(['name', 'sex', 'birthdate', 'heightCm'])
 const MAX_ATTEMPTS = 3
 
-const iso = (v) => {
-  const d = new Date(v)
+/** @typedef {import('./db.js').Pool} Pool @typedef {import('./db.js').PoolClient} PoolClient */
+/** A JSON object of profile fields (a stored row's or document's `data`: untrusted beyond being an object).
+ * @typedef {Record<string, unknown>} ProfileFields */
+/** The page's onboarding document as GET /food/profile answers it: the identity, the own fields, updatedAt (ISO).
+ * @typedef {ProfileFields & { updatedAt: string | null }} ComposedProfile */
+/** The profile document row as locked for update. @typedef {{ data: ProfileFields }} DocumentRow */
+
+const iso = (/** @type {unknown} */ v) => {
+  const d = new Date(/** @type {string | number | Date} */ (v))
   return v == null || Number.isNaN(d.getTime()) ? null : d.toISOString()
 }
 
 /** {own, identity}: the onboarding's own fields and the identity fields present (undefined dropped). */
+/** @param {ProfileFields} data @returns {{ own: ProfileFields, identity: ProfileFields }} */
 export function splitProfile (data) {
+  /** @type {ProfileFields} */
   const own = {}
+  /** @type {ProfileFields} */
   const identity = {}
   // identity in IDENTITY_KEYS order (app_profile is JSONB, which reorders keys): the document gets a stable order
   for (const k of IDENTITY_KEYS) if (data[k] !== undefined) identity[k] = data[k]
@@ -34,13 +44,17 @@ export function splitProfile (data) {
 }
 
 /** The page's onboarding document: the identity from the profile document, then the row's own fields, updatedAt. */
+/** @param {ProfileFields} own @param {ProfileFields | null | undefined} doc @param {unknown} updatedAt
+ * @returns {ComposedProfile} */
 export function composeProfile (own, doc, updatedAt) {
+  /** @type {ProfileFields} */
   const identity = {}
   for (const k of IDENTITY_KEYS) if (doc && doc[k] !== undefined) identity[k] = doc[k]
   return { ...identity, ...own, updatedAt: iso(updatedAt) }
 }
 
 /** `doc` with `identity` merged in (existing keys keep their place, new ones go last), or null when nothing changes. */
+/** @param {ProfileFields | null | undefined} doc @param {ProfileFields} identity @returns {ProfileFields | null} */
 function mergedDocument (doc, identity) {
   const base = doc ?? {}
   const changed = Object.entries(identity).some(([k, v]) => JSON.stringify(base[k]) !== JSON.stringify(v))
@@ -48,6 +62,7 @@ function mergedDocument (doc, identity) {
 }
 
 /** Writes `data` as the profile document inside the open transaction: revision + 1, or the first row (false = lost a race). */
+/** @param {PoolClient} client @param {DocumentRow | null} current @param {ProfileFields} data @returns {Promise<boolean>} */
 async function writeDocument (client, current, data) {
   if (current) {
     await client.query(
@@ -61,6 +76,9 @@ async function writeDocument (client, current, data) {
   return rowCount === 1
 }
 
+/** Runs `fn` in one transaction: committed when it returns a value, rolled back on undefined (a retry) or a throw.
+ * @template T @param {Pool} pool @param {(client: PoolClient) => Promise<T | undefined>} fn
+ * @returns {Promise<T | undefined>} */
 async function inTransaction (pool, fn) {
   const client = await pool.connect()
   try {
@@ -80,12 +98,15 @@ async function inTransaction (pool, fn) {
   }
 }
 
+/** @type {(client: PoolClient) => Promise<DocumentRow | null>} */
 const lockDocument = async (client) =>
   (await client.query("SELECT data FROM app_document WHERE kind = 'profile' FOR UPDATE")).rows[0] ?? null
 
+/** @param {Pool} pool */
 export function createProfileStore (pool) {
   return {
     /** The composed onboarding document, or null before the wizard's first save. */
+    /** @returns {Promise<ComposedProfile | null>} */
     async getProfile () {
       const { rows } = await pool.query(
         `SELECT p.data, p.updated_at, d.data AS doc
@@ -96,6 +117,7 @@ export function createProfileStore (pool) {
     },
 
     /** Saves a validated wizard document (settings-profile.js validateProfile) across the two rows; returns it composed. */
+    /** @param {import('../../../lib/profile/onboarding.mjs').OnboardingProfile} data @returns {Promise<ComposedProfile>} */
     async putProfile (data) {
       const { own, identity } = splitProfile(data)
       for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
@@ -118,8 +140,10 @@ export function createProfileStore (pool) {
 }
 
 /** Moves the identity of an onboarding row from before this layout into the profile document. {moved: keys}. */
+/** @param {Pool} pool @param {(line: string) => void} [log] @returns {Promise<{ moved: string[] }>} */
 export async function moveIdentityToDocument (pool, log = console.log) {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    /** @type {{ moved: string[], dropped?: string[] } | undefined} */
     const result = await inTransaction(pool, async (client) => {
       const row = (await client.query('SELECT data FROM app_profile WHERE id = 1 FOR UPDATE')).rows[0]
       if (!row) return { moved: [] }

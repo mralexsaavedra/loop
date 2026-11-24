@@ -9,6 +9,7 @@
  * Nothing is converted between g and ml, a serving exists only when the product states its size, a
  * recipe with a missing product has no macros, and a log entry stores its rounded SNAPSHOT (kcal
  * whole, macros 1 decimal) so a later product edit never rewrites history. Pure: no I/O. */
+// @ts-nocheck: a generated copy of type-checked lib source (lib/build/esm-module.mjs)
 
 export const FOOD_STORES = Object.freeze(["mercadona","dia","eroski","other"]);
 export const FOOD_UNITS = Object.freeze(["g","ml"]);

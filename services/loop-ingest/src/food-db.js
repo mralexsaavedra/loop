@@ -17,19 +17,39 @@ const RECIPE_COLS = 'id, name, kind, servings, cooked_weight_g, ingredients, arc
 const LOG_COLS = `id, to_char(date, 'YYYY-MM-DD') AS date, meal, ref_type, ref_id, label, amount, unit,
   kcal, protein, carbs, fat, request_id, created_at`
 
+/** @typedef {import('../../../lib/nutrition/foodlog.mjs').Product} Product */
+/** @typedef {import('../../../lib/nutrition/foodlog.mjs').Ingredient} Ingredient */
+/** @typedef {import('../../../lib/nutrition/foodlog.mjs').Recipe} Recipe */
+/** @typedef {import('../../../lib/nutrition/foodlog.mjs').LogEntry} LogEntry */
+/** @typedef {import('./food-validate.js').ProductInput} ProductInput */
+/** @typedef {import('./food-validate.js').RecipeInput} RecipeInput */
+/** The settings patch validateSettings answers (settings-profile.js).
+ * @typedef {ReturnType<typeof import('./settings-profile.js').validateSettings>} SettingsPatch */
+/** A new food_log row: a validated entry plus its macros SNAPSHOT (food-usecases.js addLog).
+ * @typedef {{ date: string, meal: string, refType: string, refId: number | null, label: string, amount: number,
+ *   unit: string, kcal: number | null, protein: number | null, carbs: number | null, fat: number | null,
+ *   requestId: string | null }} LogInsert */
+/** What this module needs of a pg Pool: parameterized queries (db.js Queryable: rows are DB rows, re-shaped by the
+ * *FromRow helpers; rowCount is set for an UPDATE / DELETE), plus whatever the profile store needs.
+ * @typedef {import('./db.js').Queryable & Parameters<typeof createProfileStore>[0]} FoodPool */
+
+/** @param {unknown} v @returns {number | null} */
 function num (v) {
   if (v == null) return null
   const n = Number(v)
   return Number.isFinite(n) ? n : null
 }
+/** @param {unknown} v @returns {string | null} */
 function iso (v) {
   if (v == null) return null
-  const d = new Date(v)
+  const d = new Date(/** @type {string | number | Date} */ (v))
   return Number.isNaN(d.getTime()) ? null : d.toISOString()
 }
 
+// a row's NOT NULL columns come back non-null, so each converted value is set: the shapes are the lib's
+/** A food_product row as a Product. @param {any} r @returns {Product} */
 export function productFromRow (r) {
-  return {
+  return /** @type {Product} */ ({
     id: num(r.id),
     name: r.name,
     brand: r.brand ?? null,
@@ -44,21 +64,23 @@ export function productFromRow (r) {
     archived: r.archived === true,
     createdAt: iso(r.created_at),
     updatedAt: iso(r.updated_at)
-  }
+  })
 }
 
 /** A recipe ingredient: a product ({productId, amount}) or a basic SNAPSHOT ({basic, name, unit, amount,
- * per100}, see food-calc.js RECIPE_BASIC_UNITS), both kept in the JSONB `ingredients` column. */
+ * per100}, see food-calc.js RECIPE_BASIC_UNITS), both kept in the JSONB `ingredients` column.
+ * @param {any} i @returns {Ingredient} */
 export function ingredientFromJson (i) {
   if (i && i.basic != null) {
     const m = i.per100 || {}
-    return { basic: i.basic, name: i.name, unit: i.unit, amount: num(i.amount), per100: { kcal: num(m.kcal), protein: num(m.protein), carbs: num(m.carbs), fat: num(m.fat) } }
+    return /** @type {Ingredient} */ ({ basic: i.basic, name: i.name, unit: i.unit, amount: num(i.amount), per100: { kcal: num(m.kcal), protein: num(m.protein), carbs: num(m.carbs), fat: num(m.fat) } })
   }
-  return { productId: num(i?.productId), amount: num(i?.amount) }
+  return /** @type {Ingredient} */ ({ productId: num(i?.productId), amount: num(i?.amount) })
 }
 
+/** A food_recipe row as a Recipe. @param {any} r @returns {Recipe} */
 export function recipeFromRow (r) {
-  return {
+  return /** @type {Recipe} */ ({
     id: num(r.id),
     name: r.name,
     kind: r.kind,
@@ -68,11 +90,12 @@ export function recipeFromRow (r) {
     archived: r.archived === true,
     createdAt: iso(r.created_at),
     updatedAt: iso(r.updated_at)
-  }
+  })
 }
 
+/** A food_log row as a LogEntry. @param {any} r @returns {LogEntry} */
 export function logFromRow (r) {
-  return {
+  return /** @type {LogEntry} */ ({
     id: num(r.id),
     date: r.date,
     meal: r.meal,
@@ -87,19 +110,21 @@ export function logFromRow (r) {
     fat: num(r.fat),
     requestId: r.request_id ?? null,
     createdAt: iso(r.created_at)
-  }
+  })
 }
 
+/** @param {ProductInput} p */
 function productValues (p) {
   return [p.name, p.brand ?? null, p.store, p.barcode ?? null, p.unit, p.per100.kcal, p.per100.protein,
     p.per100.carbs, p.per100.fat, p.servingSize ?? null, p.source, p.offCode ?? null, p.servingDefault === true]
 }
 
+/** @template T @param {() => Promise<T>} fn @returns {Promise<T>} */
 async function guardUnique (fn) {
   try {
     return await fn()
   } catch (err) {
-    if (err && err.code === '23505') throw Object.assign(new Error('barcode exists'), { status: 409, code: 'barcode_exists' })
+    if (err && /** @type {{ code?: unknown }} */ (err).code === '23505') throw Object.assign(new Error('barcode exists'), { status: 409, code: 'barcode_exists' })
     throw err
   }
 }
@@ -108,16 +133,19 @@ const SETTINGS_COLS = 'goal, target_weight_kg, locale, updated_at'
 // a summary window's row cap (120 days x a generous ~165 entries a day): a read never grows unbounded
 export const LOG_RANGE_MAX_ROWS = 20000
 
-/** The settings row (sql/007_settings.sql + the locale column, sql/013_settings_locale.sql); no row yet = every field null. */
+/** The settings row (sql/007_settings.sql + the locale column, sql/013_settings_locale.sql); no row yet = every field null.
+ * @param {any} r */
 export function settingsFromRow (r) {
   return { goal: r?.goal ?? null, targetWeightKg: num(r?.target_weight_kg), locale: r?.locale ?? null, updatedAt: iso(r?.updated_at) }
 }
 
+/** @param {FoodPool} pool */
 export function createFoodStore (pool) {
   const profiles = createProfileStore(pool)
   return {
     // the onboarding's two rows (its own fields + the identity in the profile document): profile-db.js
     getProfile: () => profiles.getProfile(),
+    /** @param {Parameters<typeof profiles.putProfile>[0]} data */
     putProfile: (data) => profiles.putProfile(data),
 
     async getSettings () {
@@ -125,9 +153,10 @@ export function createFoodStore (pool) {
       return settingsFromRow(rows[0])
     },
 
-    /** Partial upsert of the one row: only the keys present in `patch` change (targetWeightKg / locale null clears it). */
+    /** Partial upsert of the one row: only the keys present in `patch` change (targetWeightKg / locale null clears it).
+     * @param {SettingsPatch} patch */
     async updateSettings (patch) {
-      const has = (k) => Object.prototype.hasOwnProperty.call(patch, k)
+      const has = (/** @type {string} */ k) => Object.prototype.hasOwnProperty.call(patch, k)
       const hasGoal = has('goal')
       const hasTarget = has('targetWeightKg')
       const hasLocale = has('locale')
@@ -144,7 +173,8 @@ export function createFoodStore (pool) {
       return settingsFromRow(rows[0])
     },
 
-    /** Every entry dated from..to (inclusive), oldest first: the adherence summary's input. */
+    /** Every entry dated from..to (inclusive), oldest first: the adherence summary's input.
+     * @param {string} from @param {string} to */
     async listLogRange (from, to) {
       const { rows } = await pool.query(
         `SELECT ${LOG_COLS} FROM food_log WHERE date BETWEEN $1::date AND $2::date ORDER BY date, created_at, id LIMIT $3`,
@@ -158,18 +188,20 @@ export function createFoodStore (pool) {
       return rows.map(productFromRow)
     },
 
-    /** Archived ones included: recipes and old entries keep their products. */
+    /** Archived ones included: recipes and old entries keep their products. @param {readonly number[]} ids */
     async getProducts (ids) {
       if (!ids.length) return []
       const { rows } = await pool.query(`SELECT ${PRODUCT_COLS} FROM food_product WHERE id = ANY($1::bigint[])`, [ids])
       return rows.map(productFromRow)
     },
 
+    /** @param {number} id */
     async getProduct (id) {
       const { rows } = await pool.query(`SELECT ${PRODUCT_COLS} FROM food_product WHERE id = $1`, [id])
       return rows[0] ? productFromRow(rows[0]) : null
     },
 
+    /** @param {ProductInput} p */
     insertProduct (p) {
       return guardUnique(async () => {
         const { rows } = await pool.query(
@@ -183,7 +215,8 @@ export function createFoodStore (pool) {
       })
     },
 
-    /** Only an active product can be edited; null when there is none with that id. */
+    /** Only an active product can be edited; null when there is none with that id.
+     * @param {number} id @param {ProductInput} p */
     updateProduct (id, p) {
       return guardUnique(async () => {
         const { rows } = await pool.query(
@@ -199,9 +232,10 @@ export function createFoodStore (pool) {
       })
     },
 
+    /** @param {number} id */
     async archiveProduct (id) {
       const { rowCount } = await pool.query('UPDATE food_product SET archived = true, updated_at = now() WHERE id = $1 AND NOT archived', [id])
-      return rowCount > 0
+      return (rowCount ?? 0) > 0 // null (no count) > 0 was false too
     },
 
     async listRecipes () {
@@ -209,11 +243,13 @@ export function createFoodStore (pool) {
       return rows.map(recipeFromRow)
     },
 
+    /** @param {number} id */
     async getRecipe (id) {
       const { rows } = await pool.query(`SELECT ${RECIPE_COLS} FROM food_recipe WHERE id = $1`, [id])
       return rows[0] ? recipeFromRow(rows[0]) : null
     },
 
+    /** @param {RecipeInput} r */
     async insertRecipe (r) {
       const { rows } = await pool.query(
         `INSERT INTO food_recipe (name, kind, servings, cooked_weight_g, ingredients)
@@ -224,6 +260,7 @@ export function createFoodStore (pool) {
       return recipeFromRow(rows[0])
     },
 
+    /** @param {number} id @param {RecipeInput} r */
     async updateRecipe (id, r) {
       const { rows } = await pool.query(
         `UPDATE food_recipe
@@ -235,22 +272,26 @@ export function createFoodStore (pool) {
       return rows[0] ? recipeFromRow(rows[0]) : null
     },
 
+    /** @param {number} id */
     async archiveRecipe (id) {
       const { rowCount } = await pool.query('UPDATE food_recipe SET archived = true, updated_at = now() WHERE id = $1 AND NOT archived', [id])
-      return rowCount > 0
+      return (rowCount ?? 0) > 0 // null (no count) > 0 was false too
     },
 
+    /** @param {string} date */
     async listLog (date) {
       const { rows } = await pool.query(`SELECT ${LOG_COLS} FROM food_log WHERE date = $1::date ORDER BY created_at, id`, [date])
       return rows.map(logFromRow)
     },
 
+    /** @param {string} requestId */
     async getLogByRequest (requestId) {
       const { rows } = await pool.query(`SELECT ${LOG_COLS} FROM food_log WHERE request_id = $1`, [requestId])
       return rows[0] ? logFromRow(rows[0]) : null
     },
 
-    /** null when a row with the same request id already exists (a concurrent retry won the race). */
+    /** null when a row with the same request id already exists (a concurrent retry won the race).
+     * @param {LogInsert} e */
     async insertLog (e) {
       const { rows } = await pool.query(
         `INSERT INTO food_log (date, meal, ref_type, ref_id, label, amount, unit, kcal, protein, carbs, fat, request_id)
@@ -262,9 +303,13 @@ export function createFoodStore (pool) {
       return rows[0] ? logFromRow(rows[0]) : null
     },
 
+    /** @param {number} id */
     async deleteLog (id) {
       const { rowCount } = await pool.query('DELETE FROM food_log WHERE id = $1', [id])
-      return rowCount > 0
+      return (rowCount ?? 0) > 0 // null (no count) > 0 was false too
     }
   }
 }
+
+/** The food log's store (createFoodStore, or an in-memory one with the same methods in the tests).
+ * @typedef {ReturnType<typeof createFoodStore>} FoodStore */

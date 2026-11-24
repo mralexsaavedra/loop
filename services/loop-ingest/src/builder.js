@@ -29,8 +29,14 @@ export const DEFAULT_SITE_DIR = '/site'
 export const BOOT_BUILD_DELAY_MS = 5_000
 const KILL_GRACE_MS = 10_000
 
+/** How a refresh child ended: its exit code (null when it could not start or was killed) and signal.
+ * @typedef {{ code: number | null, signal: NodeJS.Signals | null }} Exit */
+/** One started run: the child (null when spawning threw) and its end.
+ * @typedef {{ child: import('node:child_process').ChildProcess | null, exited: Promise<Exit> }} Spawned */
+
 /** HC_BUILD: unset / blank = 'trigger' (the host's trigger file), 'container' = build in this container; anything
  * else throws (main() turns it into one startup_failed line). */
+/** @param {NodeJS.ProcessEnv} env @returns {string} */
 export function buildMode (env) {
   const raw = String(env.HC_BUILD ?? '').trim()
   if (raw === '') return 'trigger'
@@ -39,6 +45,7 @@ export function buildMode (env) {
 }
 
 /** The processedSeq of the last publish in <siteDir>/status.json, or 0 (seeds the sequence like the trigger file). */
+/** @param {string} siteDir @returns {Promise<number>} */
 export async function readPublishedSeq (siteDir) {
   try {
     const n = JSON.parse(await readFile(path.join(siteDir, 'status.json'), 'utf8')).processedSeq
@@ -56,7 +63,9 @@ export const CHILD_ENV_NAMES = Object.freeze(['PATH', 'HOME', 'USER', 'TZ', 'LAN
 export const CHILD_ENV_PREFIXES = Object.freeze(['HC_', 'NODE_', 'LC_'])
 
 /** The allowlisted part of `env` (CHILD_ENV_NAMES, CHILD_ENV_PREFIXES). */
+/** @param {NodeJS.ProcessEnv} env @returns {Record<string, string>} */
 export function childEnvOf (env) {
+  /** @type {Record<string, string>} */
   const out = {}
   for (const [k, v] of Object.entries(env)) {
     if (v !== undefined && (CHILD_ENV_NAMES.includes(k) || CHILD_ENV_PREFIXES.some((p) => k.startsWith(p)))) out[k] = v
@@ -69,6 +78,8 @@ export function childEnvOf (env) {
  * allowlisted environment (childEnvOf). INGEST_URL defaults to this service on loopback (the syncs inside the child
  * call back into it). Returns { child, exited } where `exited` resolves to { code, signal } (code null when it could
  * not start).
+ * @param {{ script?: string, env?: NodeJS.ProcessEnv, port?: number, nodePath?: string, log?: (line: string) => void }} options
+ * @returns {(seq: number) => Spawned}
  */
 export function createRefreshSpawner ({ script = DEFAULT_REFRESH_SCRIPT, env = process.env, port = 8088, nodePath = process.execPath, log = console.log }) {
   const childEnv = { ...childEnvOf(env), INGEST_URL: env.INGEST_URL || `http://127.0.0.1:${port}` }
@@ -78,6 +89,7 @@ export function createRefreshSpawner ({ script = DEFAULT_REFRESH_SCRIPT, env = p
       env: childEnv,
       stdio: ['ignore', 'inherit', 'inherit']
     })
+    /** @type {Promise<Exit>} */
     const exited = new Promise((resolve) => {
       child.once('error', (err) => {
         log(JSON.stringify({ event: 'build_spawn_failed', seq, code: /** @type {NodeJS.ErrnoException} */ (err).code ?? null, message: err.message }))
@@ -92,25 +104,34 @@ export function createRefreshSpawner ({ script = DEFAULT_REFRESH_SCRIPT, env = p
 /**
  * The serialized builder. `spawnRefresh(seq)` -> { child, exited } (injected by the tests); `onFailure(seq)` is
  * awaited for a non-zero exit. Returns { request, writeTrigger, startTimer, idle, stop }.
+ * @param {{ spawnRefresh: (seq: number) => Spawned, onFailure?: (seq: number) => Promise<void>, log?: (line: string) => void,
+ *   setTimer?: (fn: () => void, ms: number) => NodeJS.Timeout, clearTimer?: (t: NodeJS.Timeout) => void,
+ *   setRepeat?: (fn: () => void, ms: number) => NodeJS.Timeout, clearRepeat?: (t: NodeJS.Timeout) => void }} options
  */
 export function createBuilder ({ spawnRefresh, onFailure = async (/** @type {number} */ _seq) => {}, log = console.log, setTimer = setTimeout, clearTimer = clearTimeout, setRepeat = setInterval, clearRepeat = clearInterval }) {
+  /** @type {{ seq: number, child: Spawned['child'], done: Promise<void> } | null} */
   let running = null // { seq, child, done }
+  /** @type {number | null} */
   let queued = null // the highest seq requested while a child runs
   let stopped = false
+  /** @type {(() => void)[]} */
   let timers = []
+  /** @type {(() => void)[]} */
   const waiters = []
 
   function settleIdle () {
     if (running || queued != null) return
-    while (waiters.length) waiters.shift()()
+    while (waiters.length) /** @type {() => void} */ (waiters.shift())()
   }
 
+  /** @param {number} seq */
   function start (seq) {
+    /** @type {Spawned} */
     let spawned
     try {
       spawned = spawnRefresh(seq)
     } catch (err) {
-      log(JSON.stringify({ event: 'build_spawn_failed', seq, code: /** @type {NodeJS.ErrnoException} */ (err).code ?? null, message: err.message }))
+      log(JSON.stringify({ event: 'build_spawn_failed', seq, code: /** @type {NodeJS.ErrnoException} */ (err).code ?? null, message: /** @type {Error} */ (err).message }))
       spawned = { child: null, exited: Promise.resolve({ code: null, signal: null }) }
     }
     log(JSON.stringify({ event: 'build_started', seq }))
@@ -119,7 +140,7 @@ export function createBuilder ({ spawnRefresh, onFailure = async (/** @type {num
         log(JSON.stringify({ event: 'build_finished', seq }))
       } else {
         log(JSON.stringify({ event: 'build_failed', seq, exitCode: code, signal: signal ?? null }))
-        try { await onFailure(seq) } catch (err) { log(JSON.stringify({ event: 'build_status_failed', message: err.message })) }
+        try { await onFailure(seq) } catch (err) { log(JSON.stringify({ event: 'build_status_failed', message: /** @type {Error} */ (err).message })) }
       }
     }).finally(() => {
       running = null
@@ -135,6 +156,7 @@ export function createBuilder ({ spawnRefresh, onFailure = async (/** @type {num
     running = { seq, child: spawned.child, done }
   }
 
+  /** @param {number} seq */
   function request (seq) {
     if (stopped) return
     if (running) {
@@ -149,9 +171,11 @@ export function createBuilder ({ spawnRefresh, onFailure = async (/** @type {num
     request,
 
     /** The createSyncTrigger writer: starts or queues the run, resolves at once. */
+    /** @param {number} seq */
     async writeTrigger (seq) { request(seq) },
 
-    /** One run `bootDelayMs` after the call, then one every `intervalMs`, each for `currentSeq()`. */
+    /** One run `bootDelayMs` after the call, then one every `intervalMs`, each for `currentSeq()`.
+     * @param {{ intervalMs: number, currentSeq: () => number, bootDelayMs?: number }} options */
     startTimer ({ intervalMs, currentSeq, bootDelayMs = BOOT_BUILD_DELAY_MS }) {
       const boot = setTimer(() => request(currentSeq()), bootDelayMs)
       const repeat = setRepeat(() => request(currentSeq()), intervalMs)
@@ -163,7 +187,7 @@ export function createBuilder ({ spawnRefresh, onFailure = async (/** @type {num
     /** Resolves once no child runs and nothing is queued. */
     idle () {
       if (!running && queued == null) return Promise.resolve()
-      return new Promise((resolve) => waiters.push(resolve))
+      return new Promise((/** @type {(value?: void) => void} */ resolve) => waiters.push(resolve))
     },
 
     /** Shutdown: no new runs, timers cleared, a running child asked to stop (SIGTERM, then SIGKILL). The refresh

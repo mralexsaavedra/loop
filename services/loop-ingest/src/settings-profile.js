@@ -13,11 +13,17 @@ import { bad, strictKeys, str, number, oneOf } from './validate.js'
 // the page languages (GET / PUT /food/settings `locale`, sql/013_settings_locale.sql CHECK, web/src/env.mjs)
 export const SETTINGS_LOCALES = Object.freeze(['es', 'en'])
 
+/** @typedef {import('../../../lib/profile/onboarding.mjs').OnboardingProfile} OnboardingProfile */
+/** @typedef {{ goal?: string, targetWeightKg?: number | null, locale?: string | null }} SettingsPatch */
+
 /** {goal?, targetWeightKg?, locale?}: at least one key; the goal is one of the plan goals, the target weight a
  * number of kg (1 decimal) within FOOD_LIMITS, or null to clear it; the locale (the page language the build uses)
  * es or en, or null to clear it. Only the keys sent are changed. */
+// the bodies are untrusted JSON (readJson): `any`, every field re-checked below
+/** @param {any} body @returns {SettingsPatch} */
 export function validateSettings (body) {
   strictKeys(body, ['goal', 'targetWeightKg', 'locale'])
+  /** @type {SettingsPatch} */
   const out = {}
   if ('goal' in body) out.goal = oneOf(body.goal, 'goal', SETTINGS_GOALS)
   if ('targetWeightKg' in body) {
@@ -31,6 +37,7 @@ export function validateSettings (body) {
 }
 
 /** The optional sports list: [{sport, minutes, perWeek}] within PROFILE_LIMITS, one entry per sport; any fault = 'sports'. */
+/** @param {unknown} v @returns {import('../../../lib/profile/onboarding.mjs').SportSessions[]} */
 function profileSports (v) {
   const ok = (/** @type {unknown} */ x, /** @type {readonly number[]} */ [lo, hi]) => Number.isInteger(x) && Number(x) >= lo && Number(x) <= hi
   if (!Array.isArray(v) || v.length > PROFILE_SPORTS.length) bad('sports')
@@ -44,6 +51,7 @@ function profileSports (v) {
 }
 
 /** A real YYYY-MM-DD calendar date from 1900 on (validDate is for log dates, 2000-2100), else null. */
+/** @param {unknown} v @returns {string | null} */
 function birthDate (v) {
   if (typeof v !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(v)) return null
   const [y, m, d] = v.split('-').map(Number)
@@ -51,6 +59,7 @@ function birthDate (v) {
 }
 
 /** Whole years from an ISO birthdate to the instant `nowMs` (UTC calendar). */
+/** @param {string} birthdate @param {number} nowMs */
 function ageAt (birthdate, nowMs) {
   const [by, bm, bd] = birthdate.split('-').map(Number)
   const t = new Date(nowMs)
@@ -61,18 +70,21 @@ function ageAt (birthdate, nowMs) {
 /** The whole onboarding document: {name?, sex, birthdate (adult), heightCm, weightKg, activity, sports?, goals (the
  * goals the safety screen allowed), targets {goal: {dayType: {kcal, p, f}}} (every cell; a page saved before the
  * PROFILE_FILL_FROM_GYM day types sends none for them, and each is filled with that goal's gym cell)}. */
+/** @param {any} body @param {number} [nowMs] @returns {OnboardingProfile} */
 export function validateProfile (body, nowMs = Date.now()) {
   strictKeys(body, ['name', 'sex', 'birthdate', 'heightCm', 'weightKg', 'activity', 'sports', 'goals', 'targets'])
-  const out = {}
+  /** @type {OnboardingProfile} filled field by field below (every required key is set before the return) */
+  const out = /** @type {OnboardingProfile} */ ({})
   const name = str(body.name, 'name', 60, true)
   if (name !== null) out.name = name
-  out.sex = oneOf(body.sex, 'sex', PROFILE_SEX)
+  // PROFILE_SEX / PROFILE_ACTIVITY are generated from the same vocabularies as the typedef's unions
+  out.sex = /** @type {OnboardingProfile['sex']} */ (oneOf(body.sex, 'sex', PROFILE_SEX))
   out.birthdate = birthDate(body.birthdate) ?? bad('birthdate')
   const age = ageAt(out.birthdate, nowMs)
   if (age < PROFILE_LIMITS.age[0] || age > PROFILE_LIMITS.age[1]) bad('birthdate')
   out.heightCm = number(body.heightCm, 'heightCm', { min: PROFILE_LIMITS.heightCm[0], max: PROFILE_LIMITS.heightCm[1] })
   out.weightKg = number(body.weightKg, 'weightKg', { min: PROFILE_LIMITS.weightKg[0], max: PROFILE_LIMITS.weightKg[1] })
-  out.activity = oneOf(body.activity, 'activity', PROFILE_ACTIVITY)
+  out.activity = /** @type {OnboardingProfile['activity']} */ (oneOf(body.activity, 'activity', PROFILE_ACTIVITY))
   if (body.sports !== undefined) out.sports = profileSports(body.sports)
   if (!Array.isArray(body.goals) || !body.goals.length || new Set(body.goals).size !== body.goals.length) bad('goals')
   for (const g of body.goals) oneOf(g, 'goals', SETTINGS_GOALS)

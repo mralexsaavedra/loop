@@ -20,11 +20,13 @@ export const BOOT_RECOVERY_DELAY_MS = 5_000
 const SEQ_LINE = /^(\d{1,15})\n?$/
 
 /** The trigger file holds ONE line, the sequence number. Anything else reads as 0. */
+/** @param {unknown} text @returns {number} */
 export function parseTriggerSeq (text) {
   const m = SEQ_LINE.exec(String(text ?? ''))
   return m ? Number(m[1]) : 0
 }
 
+/** The sequence in `<dir>/refresh`, 0 when missing or unreadable. @param {string} dir @returns {Promise<number>} */
 export async function readTriggerSeq (dir) {
   try {
     return parseTriggerSeq(await readFile(path.join(dir, TRIGGER_FILE), 'utf8'))
@@ -39,11 +41,12 @@ export async function readTriggerSeq (dir) {
  * then renamed over the target. A symlink planted at the target is refused
  * outright. The host's systemd path unit (PathModified) fires on the rename
  * (IN_MOVED_TO), and refresh.sh never sees a half-written file.
+ * @param {{ dir: string }} options @returns {(seq: number) => Promise<void>}
  */
 export function createTriggerWriter ({ dir }) {
   const file = path.join(dir, TRIGGER_FILE)
   return async function writeTrigger (seq) {
-    const target = await lstat(file).catch((err) => { if (err.code === 'ENOENT') return null; throw err })
+    const target = await lstat(file).catch((/** @type {NodeJS.ErrnoException} */ err) => { if (err.code === 'ENOENT') return null; throw err })
     if (target?.isSymbolicLink()) {
       throw Object.assign(new Error(`refusing to write trigger: ${file} is a symlink`), { code: 'ESYMLINK' })
     }
@@ -64,11 +67,25 @@ export function createTriggerWriter ({ dir }) {
   }
 }
 
+/** `promise` settled (either way) or `ms` elapsed, whichever comes first; never rejects.
+ * @param {Promise<unknown>} promise @param {number} ms @returns {Promise<unknown>} */
 function settleWithin (promise, ms) {
+  /** @type {NodeJS.Timeout | undefined} */
   let timer
   const timeout = new Promise((resolve) => { timer = setTimeout(resolve, ms) })
   return Promise.race([promise.catch(() => {}), timeout]).finally(() => clearTimeout(timer))
 }
+
+/**
+ * The slice of status.js createSyncStatus the trigger uses.
+ * @typedef {{ stravaFresh: (ms: number) => boolean, currentSeq: () => number, nextTriggerSeq: () => number,
+ *   recordTrigger: (seq: number) => Promise<void>, recordTriggerError: (seq: number) => Promise<void> }} TriggerStatus
+ * @typedef {{ runStrava?: (() => unknown) | null, writeTrigger: (seq: number) => Promise<void>, status: TriggerStatus,
+ *   now?: () => number, waitMs?: number, minTriggerIntervalMs?: number, minStravaIntervalMs?: number,
+ *   log?: (line: string) => void }} TriggerOptions
+ * A scheduled deferred write: its seq, timer, the promise handle() answered with and its resolver.
+ * @typedef {{ seq: number, timer: NodeJS.Timeout, done: Promise<void>, resolve: (done: Promise<void>) => void }} Deferred
+ */
 
 /**
  * POST /sync, sequence protocol. Every accepted click gets a sequence number;
@@ -108,6 +125,7 @@ function settleWithin (promise, ms) {
  * Returns synchronously with `status`/`body` plus `done` (the background work;
  * for a deferred answer, the deferred write) so the HTTP layer answers at once
  * and tests can await the side effects.
+ * @param {TriggerOptions} options
  */
 export function createSyncTrigger ({
   runStrava,
@@ -124,16 +142,20 @@ export function createSyncTrigger ({
   // from here, so a slow Strava pull cannot squeeze two writes seconds apart
   let lastWrittenAt = -Infinity
   // `done` of the run currently pulling Strava / writing, so flush() can await it
+  /** @type {Promise<void> | null} */
   let inflight = null
   // { seq, timer, done, resolve } while a deferred write is scheduled
+  /** @type {Deferred | null} */
   let deferred = null
 
+  /** @param {number} seq @param {{ skipStrava?: boolean }} [opts] */
   function run (seq, { skipStrava = false } = {}) {
     pending = true
 
     const stravaMode = !runStrava ? 'disabled' : skipStrava || status.stravaFresh(minStravaIntervalMs) ? 'recent' : 'started'
     // async wrapper: starts the pull now, and turns a synchronous throw into a rejection
-    const strava = stravaMode === 'started' ? (async () => runStrava())() : Promise.resolve()
+    // runStrava is set whenever stravaMode is 'started'
+    const strava = stravaMode === 'started' ? (async () => /** @type {() => unknown} */ (runStrava)())() : Promise.resolve()
 
     const done = settleWithin(strava, stravaMode === 'started' ? waitMs : 0)
       .then(() => writeTrigger(seq))
@@ -161,6 +183,7 @@ export function createSyncTrigger ({
     return { stravaMode, done }
   }
 
+  /** @param {{ skipStrava?: boolean }} [opts] @returns {Promise<void>} */
   function fireDeferred (opts) {
     const d = deferred
     if (!d) return Promise.resolve()
@@ -171,19 +194,26 @@ export function createSyncTrigger ({
     return done
   }
 
+  /** @param {number} seq @param {number} delay @param {string} event @returns {Promise<void>} */
   function defer (seq, delay, event) {
+    /** @type {((done: Promise<void>) => void) | undefined} */
     let resolve
+    /** @type {Promise<void>} */
     const done = new Promise((r) => { resolve = r })
     const timer = setTimeout(() => { fireDeferred() }, delay)
     timer.unref?.()
-    deferred = { seq, timer, done, resolve }
+    // the Promise executor ran synchronously: resolve is set
+    deferred = { seq, timer, done, resolve: /** @type {(done: Promise<void>) => void} */ (resolve) }
     log(JSON.stringify({ event, seq, delayMs: delay }))
     return done
   }
 
+  /** @param {number} t */
   function schedule (t) {
     if (!deferred) defer(status.nextTriggerSeq(), Math.max(0, lastWrittenAt + minTriggerIntervalMs - t), 'sync_deferred')
-    return { status: 202, body: { ok: true, seq: deferred.seq, coalesced: true, deferred: true }, done: deferred.done }
+    // defer() above set it when it was not already
+    const d = /** @type {Deferred} */ (deferred)
+    return { status: 202, body: { ok: true, seq: d.seq, coalesced: true, deferred: true }, done: d.done }
   }
 
   /** Last resort at shutdown: write the persisted seq now, no Strava pull, never throws. */
@@ -194,7 +224,8 @@ export function createSyncTrigger ({
       await writeTrigger(seq)
       lastWrittenAt = now()
       await status.recordTrigger(seq)
-    } catch (err) {
+    } catch (thrown) {
+      const err = /** @type {NodeJS.ErrnoException} */ (thrown)
       log(JSON.stringify({ event: 'trigger_write_failed', seq, code: err.code ?? null, message: err.message }))
     }
   }
@@ -221,7 +252,7 @@ export function createSyncTrigger ({
      * @param {{ fileSeq?: number, delayMs?: number, lastWrittenAt?: number | null }} [opts]
      */
     recover ({ fileSeq, delayMs = BOOT_RECOVERY_DELAY_MS, lastWrittenAt: lastAt = null } = {}) {
-      if (Number.isFinite(lastAt)) lastWrittenAt = Math.max(lastWrittenAt, lastAt)
+      if (Number.isFinite(lastAt)) lastWrittenAt = Math.max(lastWrittenAt, /** @type {number} */ (lastAt))
       const seq = status.currentSeq()
       if (deferred || pending || !(seq > (Number(fileSeq) || 0))) return Promise.resolve()
       const delay = Math.max(delayMs, lastWrittenAt + minTriggerIntervalMs - now())
@@ -238,6 +269,7 @@ export function createSyncTrigger ({
       if (deferred) fireDeferred({ skipStrava: true })
       if (!inflight) return
       const TIMEOUT = Symbol('timeout')
+      /** @type {NodeJS.Timeout | undefined} */
       let timer
       const timeout = new Promise((resolve) => { timer = setTimeout(resolve, budget, TIMEOUT) })
       const result = await Promise.race([inflight, timeout]).finally(() => clearTimeout(timer))

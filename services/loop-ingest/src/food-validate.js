@@ -16,6 +16,26 @@ const BASIC_KEY_RE = new RegExp(L.basicKeyPattern)
 const REQUEST_ID_RE = /^[A-Za-z0-9-]{8,64}$/ // the page's per-add id (a UUID), makes a retry idempotent
 const OFF_CODE_RE = /^[0-9]{1,14}$/
 
+/** @typedef {import('../../../lib/nutrition/foodlog.mjs').Macros} Macros */
+/** @typedef {import('../../../lib/nutrition/foodlog.mjs').MacroValues} MacroValues */
+/** @typedef {import('../../../lib/nutrition/foodlog.mjs').Ingredient} Ingredient */
+/** A validated product body (validateProduct): a new or edited product's label. The list fields are strings of
+ * their food-calc.js list (FOOD_STORES, FOOD_UNITS, FOOD_SOURCES).
+ * @typedef {{ name: string, brand: string | null, store: string, barcode: string | null, unit: string, per100: MacroValues,
+ *   servingSize: number | null, servingDefault: boolean, source: string, offCode: string | null }} ProductInput */
+/** A validated recipe ingredient: an Ingredient whose unit is a string of RECIPE_BASIC_UNITS.
+ * @typedef {Omit<Ingredient, 'unit'> & { unit?: string }} IngredientInput */
+/** A validated recipe body (validateRecipe); kind is one of RECIPE_KINDS.
+ * @typedef {{ name: string, kind: string, servings: number | null, cookedWeightG: number | null,
+ *   ingredients: IngredientInput[] }} RecipeInput */
+/** A validated log body (validateLog): a quick entry (typed macros) or a product / recipe reference.
+ * @typedef {{ date: string, meal: string, requestId: string | null }} LogInputBase
+ * @typedef {LogInputBase & { refType: 'quick', label: string, macros: Macros, force: boolean }} QuickLogInput
+ * @typedef {LogInputBase & { refType: 'product' | 'recipe', refId: number, amount: number, unit: string }} RefLogInput
+ * @typedef {QuickLogInput | RefLogInput} LogInput */
+
+// the bodies are untrusted JSON (readJson): `any`, every field re-checked below
+/** @param {any} body @returns {ProductInput} */
 export function validateProduct (body) {
   strictKeys(body, ['name', 'brand', 'store', 'barcode', 'unit', 'per100', 'servingSize', 'servingDefault', 'source', 'offCode', 'force'])
   const p = {
@@ -24,7 +44,7 @@ export function validateProduct (body) {
     store: oneOf(body.store, 'store', FOOD_STORES),
     barcode: pattern(body.barcode, 'barcode', BARCODE_RE),
     unit: oneOf(body.unit, 'unit', FOOD_UNITS),
-    per100: null,
+    per100: /** @type {MacroValues | null} */ (null),
     servingSize: number(body.servingSize, 'servingSize', { max: L.servingMax, above: true, optional: true }),
     // the log sheet starts in servings (sql/014); only with a serving size
     servingDefault: flag(body.servingDefault, 'servingDefault'),
@@ -41,11 +61,12 @@ export function validateProduct (body) {
   }
   const force = flag(body.force, 'force')
   if (!force && !atwaterOk(p.per100)) throw httpError(400, 'atwater')
-  return p
+  return /** @type {ProductInput} */ (p) // per100 set above
 }
 
 // a basic snapshot's per-100 (per unit for a 'ud' food) value: finite, >= 0, within the per-100 limits,
 // kept to 2 decimals (the precision of the baked basics table, so the page's preview is what is stored)
+/** @param {unknown} v @param {string} field @param {number} max */
 function snapshotValue (v, field, max) {
   if (typeof v !== 'number' || !Number.isFinite(v)) bad(field)
   const n = Math.round(v * 100 + 1e-9) / 100
@@ -54,7 +75,8 @@ function snapshotValue (v, field, max) {
 }
 
 /** A recipe ingredient: a product {productId, amount}, or a basic of the public food DB as a SNAPSHOT
- * {basic, name, unit, amount, per100} (food-calc.js RECIPE_BASIC_UNITS). */
+ * {basic, name, unit, amount, per100} (food-calc.js RECIPE_BASIC_UNITS).
+ * @param {any} ing @returns {IngredientInput} */
 function validateIngredient (ing) {
   if (!isObj(ing) || !('basic' in ing)) {
     strictKeys(ing, ['productId', 'amount'], 'ingredients.')
@@ -66,7 +88,7 @@ function validateIngredient (ing) {
     name: str(ing.name, 'ingredients.name', L.nameMax),
     unit: oneOf(ing.unit, 'ingredients.unit', RECIPE_BASIC_UNITS),
     amount: number(ing.amount, 'ingredients.amount', { max: L.ingredientAmountMax, above: true }),
-    per100: null
+    per100: /** @type {MacroValues | null} */ (null)
   }
   strictKeys(ing.per100, ['kcal', 'protein', 'carbs', 'fat'], 'ingredients.per100.')
   out.per100 = {
@@ -75,12 +97,14 @@ function validateIngredient (ing) {
     carbs: snapshotValue(ing.per100.carbs, 'ingredients.per100.carbs', L.macro100Max),
     fat: snapshotValue(ing.per100.fat, 'ingredients.per100.fat', L.macro100Max)
   }
-  return out
+  return /** @type {IngredientInput} */ (out) // per100 set above
 }
 
+/** @param {any} body @returns {RecipeInput} */
 export function validateRecipe (body) {
   strictKeys(body, ['name', 'kind', 'servings', 'cookedWeightG', 'ingredients', 'force'])
   const kind = oneOf(body.kind, 'kind', RECIPE_KINDS)
+  /** @type {RecipeInput} */
   const r = { name: str(body.name, 'name', L.nameMax), kind, servings: null, cookedWeightG: null, ingredients: [] }
   if (kind === 'serving') {
     if (!absent(body.cookedWeightG)) bad('cookedWeightG')
@@ -97,9 +121,11 @@ export function validateRecipe (body) {
   return r
 }
 
-/** Shape only; the snapshot needs the store (food-usecases.js addLog). */
+/** Shape only; the snapshot needs the store (food-usecases.js addLog).
+ * @param {any} body @returns {LogInput} */
 export function validateLog (body) {
   strictKeys(body, ['date', 'meal', 'refType', 'refId', 'amount', 'unit', 'label', 'kcal', 'protein', 'carbs', 'fat', 'force', 'requestId'])
+  /** @type {LogInputBase & { refType: string } & Partial<Omit<QuickLogInput, 'refType'> & Omit<RefLogInput, 'refType'>>} */
   const e = {
     date: validDate(body.date) ?? bad('date'),
     meal: oneOf(body.meal, 'meal', FOOD_MEALS),
@@ -116,16 +142,17 @@ export function validateLog (body) {
       fat: number(body.fat, 'fat', { max: L.quickMacroMax, optional: true })
     }
     e.force = flag(body.force, 'force')
-    return e
+    return /** @type {QuickLogInput} */ (e) // label, macros and force set above
   }
   for (const k of ['label', 'kcal', 'protein', 'carbs', 'fat', 'force']) if (!absent(body[k])) bad(k)
   e.refId = id(body.refId, 'refId')
   e.amount = number(body.amount, 'amount', { max: L.amountMax, above: true })
   e.unit = oneOf(body.unit, 'unit', ENTRY_UNITS)
-  return e
+  return /** @type {RefLogInput} */ (e) // refType product / recipe; refId, amount and unit set above
 }
 
-/** ?from=&to= (YYYY-MM-DD, from <= to, at most FOOD_LIMITS.summaryDaysMax days inclusive). */
+/** ?from=&to= (YYYY-MM-DD, from <= to, at most FOOD_LIMITS.summaryDaysMax days inclusive).
+ * @param {URLSearchParams} params */
 export function validateRange (params) {
   const from = validDate(params.get('from')) ?? bad('from')
   const to = validDate(params.get('to')) ?? bad('to')

@@ -68,7 +68,12 @@ export const FOOD_SUMMARY_LIMIT = 30 // GET /food/log/summary per client address
 const ID_RE = /^[1-9][0-9]{0,15}$/
 const WRITE_METHODS = new Set(['POST', 'PUT', 'DELETE'])
 
+/** @typedef {import('node:http').IncomingMessage} Req @typedef {import('node:http').ServerResponse} Res */
+/** @typedef {import('./food-usecases.js').FoodService} FoodService */
+/** @typedef {{ re: RegExp, methods: string[], group?: string }} Route */
+
 // path pattern -> allowed methods (+ the optional migration group it needs, default food)
+/** @type {Route[]} */
 const ROUTES = [
   { re: /^\/food\/settings$/, methods: ['GET', 'PUT'], group: 'settings' },
   { re: /^\/food\/profile$/, methods: ['GET', 'PUT'], group: 'profile' },
@@ -82,11 +87,12 @@ const ROUTES = [
   { re: /^\/food\/off$/, methods: ['GET'] }
 ]
 
+/** @param {string} s */
 function pathId (s) {
   return ID_RE.test(s) && Number.isSafeInteger(Number(s)) ? Number(s) : null
 }
 
-/** The ROUTES entry a path matches, with its regex match; null for an unknown path. */
+/** The ROUTES entry a path matches, with its regex match; null for an unknown path. @param {string} path */
 function routeOf (path) {
   for (const route of ROUTES) {
     const match = route.re.exec(path)
@@ -96,10 +102,13 @@ function routeOf (path) {
 }
 
 /** A failed request's answer: a known httpError as {error, field?} (an oversized upload is answered, then its
- * connection dropped), anything else logged and answered 500. */
+ * connection dropped), anything else logged and answered 500.
+ * @param {any} err whatever a route threw: an HttpError (http.js), or anything a bug threw
+ * @param {Req} req @param {Res} res @param {(line: string) => void} log */
 function sendError (err, req, res, log) {
   if (res.headersSent) return
   if (err && err.status && err.code) {
+    /** @type {{ error: string, field?: string }} */
     const body = { error: err.code }
     if (err.field) body.field = err.field
     if (err.status === 413) {
@@ -117,6 +126,7 @@ function sendError (err, req, res, log) {
 }
 
 // /food/products and /food/products/:id (DELETE = archive)
+/** @param {FoodService} food @param {Req} req @param {Res} res @param {string} path @param {number | null} idParam */
 async function products (food, req, res, path, idParam) {
   if (path === '/food/products') {
     if (req.method === 'GET') return send(res, 200, { products: await food.listProducts() })
@@ -131,6 +141,7 @@ async function products (food, req, res, path, idParam) {
 }
 
 // /food/recipes and /food/recipes/:id (DELETE = archive), answered with their computed macros
+/** @param {FoodService} food @param {Req} req @param {Res} res @param {string} path @param {number | null} idParam */
 async function recipes (food, req, res, path, idParam) {
   if (path === '/food/recipes') {
     if (req.method === 'GET') return send(res, 200, { recipes: await food.listRecipes() })
@@ -145,6 +156,7 @@ async function recipes (food, req, res, path, idParam) {
 }
 
 // /food/log?date= (a day + its totals), POST /food/log (add) and DELETE /food/log/:id
+/** @param {FoodService} food @param {Req} req @param {Res} res @param {URL} url @param {number | null} idParam */
 async function logEntries (food, req, res, url, idParam) {
   if (url.pathname === '/food/log') {
     if (req.method === 'GET') {
@@ -161,6 +173,7 @@ async function logEntries (food, req, res, url, idParam) {
 }
 
 // /food/off?barcode= | ?q=: the Open Food Facts lookup (src/off.js)
+/** @param {import('./off.js').OffClient} off @param {Res} res @param {URL} url */
 async function offLookup (off, res, url) {
   const barcode = url.searchParams.get('barcode')
   if (barcode != null) {
@@ -172,11 +185,17 @@ async function offLookup (off, res, url) {
   return send(res, 200, { results: await off.search(q) })
 }
 
+/**
+ * @param {{ store: import('./food-db.js').FoodStore, off: import('./off.js').OffClient, now?: () => number,
+ *   log?: (line: string) => void, writeLimit?: number, summaryLimit?: number, available?: () => boolean,
+ *   settingsAvailable?: () => boolean, profileAvailable?: () => boolean, allowedHosts?: string[] }} opts
+ */
 export function createFoodRoutes ({ store, off, now = Date.now, log = console.log, writeLimit = FOOD_WRITE_LIMIT, summaryLimit = FOOD_SUMMARY_LIMIT, available = () => true, settingsAvailable = () => true, profileAvailable = () => true, allowedHosts = [] }) {
   const writes = createWindowLimiter({ limit: writeLimit, windowMs: 60_000, now })
   const summaries = createWindowLimiter({ limit: summaryLimit, windowMs: 60_000, now })
   const food = createFoodService(store)
 
+  /** @param {Req} req @param {Res} res @param {URL} url @param {number | null} idParam */
   async function dispatch (req, res, url, idParam) {
     const m = req.method
     const path = url.pathname
@@ -199,17 +218,18 @@ export function createFoodRoutes ({ store, off, now = Date.now, log = console.lo
     return offLookup(off, res, url)
   }
   /** The checks before a known route runs: its migration group is ready, the method is allowed (else a 405 is
-   * sent and false returned) and a write passes the origin, rate and content-type checks. */
+   * sent and false returned) and a write passes the origin, rate and content-type checks.
+   * @param {Req} req @param {Res} res @param {Route} route (a server request always has its method) */
   function admit (req, res, route) {
     const group = route.group ?? 'food'
     const ready = group === 'settings' ? settingsAvailable() : group === 'profile' ? profileAvailable() : available()
     if (!ready) throw httpError(503, `${group}_unavailable`)
-    if (!route.methods.includes(req.method)) {
+    if (!route.methods.includes(/** @type {string} */ (req.method))) {
       req.resume()
       send(res, 405, { error: 'method_not_allowed' }, { allow: route.methods.join(', ') })
       return false
     }
-    if (WRITE_METHODS.has(req.method)) {
+    if (WRITE_METHODS.has(/** @type {string} */ (req.method))) {
       if (!writeOriginOk(req.headers, allowedHosts)) throw httpError(403, 'forbidden_origin')
       if (!writes.take(req.socket?.remoteAddress ?? 'unknown')) throw httpError(429, 'rate_limited')
       if (req.method !== 'DELETE' && !isJson(req)) throw httpError(415, 'unsupported_media_type')
@@ -218,7 +238,8 @@ export function createFoodRoutes ({ store, off, now = Date.now, log = console.lo
   }
 
   return {
-    /** Handles /food and /food/*; false for any other path (the caller keeps routing). */
+    /** Handles /food and /food/*; false for any other path (the caller keeps routing).
+     * @param {Req} req @param {Res} res @param {URL} url */
     async handle (req, res, url) {
       const path = url.pathname
       if (path !== '/food' && !path.startsWith('/food/')) return false

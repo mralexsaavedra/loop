@@ -9,6 +9,10 @@ export const BACKOFF_BASE_MIN = 30
 export const BACKOFF_CAP_MIN = 24 * 60
 export const MAX_ATTEMPTS = 5
 
+/** @typedef {import('./db.js').Queryable} Queryable */
+/** One stored answer for an activity's HR stream (hr-zones.js fetchHrStreams). @typedef {{ status: string, hist?: Record<string, number> | null, seconds?: number }} HrResult */
+
+/** Streams fetched in the last 15 min and 24 h. @param {Queryable} pool @returns {Promise<{ lastWindow: number, lastDay: number }>} */
 export async function usedBudget (pool) {
   const { rows } = await pool.query(
     `SELECT count(*) FILTER (WHERE fetched_at > now() - interval '15 minutes')::int AS last_window,
@@ -21,6 +25,7 @@ export async function usedBudget (pool) {
 /**
  * Activities with heart rate and no stored answer yet, plus the 'retry' ones whose back-off has
  * elapsed, newest first -> [{id, attempts}]. 'failed' rows are never selected again.
+ * @param {Queryable} pool @param {number} limit @returns {Promise<{ id: string, attempts: number }[]>}
  */
 export async function pendingHrActivities (pool, limit) {
   const { rows } = await pool.query(
@@ -38,6 +43,7 @@ export async function pendingHrActivities (pool, limit) {
   return rows.map((r) => ({ id: r.id, attempts: Number(r.attempts) || 0 }))
 }
 
+/** @param {Queryable} pool @param {string} id @param {HrResult} result */
 export async function saveHr (pool, id, { status, hist = null, seconds = 0 }) {
   await pool.query(
     `INSERT INTO strava_activity_hr (activity_id, fetched_at, status, seconds, hr_hist)
@@ -51,6 +57,7 @@ export async function saveHr (pool, id, { status, hist = null, seconds = 0 }) {
 /**
  * Records one transient failure: 'retry' (or 'failed' once attempts reaches MAX_ATTEMPTS). fetched_at
  * is set too, so the failed call still counts against the 15-min / 24-h budget.
+ * @param {Queryable} pool @param {string} id @param {number} attempts @returns {Promise<'failed' | 'retry'>}
  */
 export async function saveFailure (pool, id, attempts) {
   const status = attempts >= MAX_ATTEMPTS ? 'failed' : 'retry'

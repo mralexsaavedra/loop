@@ -7,6 +7,16 @@ const FETCH_TIMEOUT_MS = 15_000
 // Every page is stored as it arrives (pullActivitiesSince), so even hitting this cap keeps the progress.
 const MAX_PAGES = 200
 
+/** Resolves a valid Strava access token (createTokenProvider's single-flight provider). @typedef {() => Promise<string>} GetAccessToken */
+/** The fetch the Strava calls use (tests pass a fake). @typedef {typeof fetch} FetchImpl */
+/** One JSON log line. @typedef {(line: string) => void} Log */
+/**
+ * A failed Strava call: `rateLimited` on a 429, `transient` for one activity's failure (hr-zones.js), `code` /
+ * `cause.code` from a network error.
+ * @typedef {Error & { rateLimited?: boolean, transient?: boolean, code?: string, cause?: { code?: string } }} StravaError
+ */
+/** @typedef {import('./strava-db.js').TokenStore} TokenStore @typedef {import('./strava-db.js').StravaPayload} StravaPayload */
+
 /**
  * Strava access tokens live ~6 hours and stay in memory. The refresh token is
  * the durable credential, and Strava may ROTATE it on any refresh: the token
@@ -27,8 +37,14 @@ const MAX_PAGES = 200
  */
 const SAVE_ATTEMPTS = 3
 const SAVE_BACKOFF_MS = 250
-const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+const delay = (/** @type {number} */ ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
+/**
+ * @param {{ clientId: string | undefined, clientSecret: string | undefined, refreshToken: string | undefined,
+ *   store?: TokenStore | null, fetchImpl?: FetchImpl, sleep?: (ms: number) => Promise<unknown>,
+ *   onSaveResult?: ((ok: boolean) => unknown) | null, log?: Log }} options
+ * @returns {GetAccessToken}
+ */
 export function createTokenProvider ({
   clientId,
   clientSecret,
@@ -39,10 +55,13 @@ export function createTokenProvider ({
   onSaveResult = null,
   log = console.log
 }) {
+  /** @type {string | null} */
   let accessToken = null
   let expiresAt = 0
+  /** @type {string | null | undefined} */
   let current = null // from a successful store load or a rotation
   let loaded = false // true only after a store load SUCCEEDED
+  /** @type {string | null} */
   let unsaved = null // a rotated token whose save failed
 
   async function loadCurrent () {
@@ -53,24 +72,26 @@ export function createTokenProvider ({
       loaded = true
       if (stored) current = stored
     } catch (err) {
-      log(JSON.stringify({ event: 'strava_token_load_failed', message: err.message }))
+      log(JSON.stringify({ event: 'strava_token_load_failed', message: /** @type {Error} */ (err).message }))
     }
     return current || refreshToken
   }
 
+  /** Only called with a store (refresh checks it). @param {string} token */
   async function saveWithRetry (token) {
     for (let attempt = 1; attempt <= SAVE_ATTEMPTS; attempt++) {
       try {
-        await store.save(token)
+        await /** @type {TokenStore} */ (store).save(token)
         return true
       } catch (err) {
-        log(JSON.stringify({ event: 'strava_token_save_failed', attempt, message: err.message }))
+        log(JSON.stringify({ event: 'strava_token_save_failed', attempt, message: /** @type {Error} */ (err).message }))
         if (attempt < SAVE_ATTEMPTS) await sleep(SAVE_BACKOFF_MS * 2 ** (attempt - 1))
       }
     }
     return false
   }
 
+  /** @param {string | undefined} token */
   function requestToken (token) {
     return fetchImpl(TOKEN_URL, {
       method: 'POST',
@@ -115,6 +136,7 @@ export function createTokenProvider ({
   // Single flight: callers that find no valid token while a refresh is running (the activity pull, the
   // athlete refresh and the HR backfill share this provider) wait for THAT refresh instead of starting
   // their own, so a rotating refresh token is never spent twice.
+  /** @type {Promise<string> | null} */
   let inflight = null
   return function getAccessToken () {
     // 60s of slack so a token cannot expire mid-request.
@@ -124,6 +146,8 @@ export function createTokenProvider ({
   }
 }
 
+// typed to take a missing code too (has(undefined) is false)
+/** @type {Set<string | undefined>} */
 const NETWORK_CODES = new Set(['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'ENOTFOUND', 'EAI_AGAIN', 'ENETUNREACH', 'EHOSTUNREACH', 'EPIPE',
   'UND_ERR_CONNECT_TIMEOUT', 'UND_ERR_HEADERS_TIMEOUT', 'UND_ERR_BODY_TIMEOUT', 'UND_ERR_SOCKET'])
 
@@ -131,6 +155,7 @@ const NETWORK_CODES = new Set(['ECONNRESET', 'ECONNREFUSED', 'ETIMEDOUT', 'ENOTF
  * Coarse, non-sensitive code for a failed pull (GET /sync/status exposes only
  * this; the message stays in the logs): strava_auth (the token or the grant
  * was rejected), strava_network (could not reach Strava), strava_other.
+ * @param {StravaError | null | undefined} err anything a pull threw
  */
 export function classifyStravaError (err) {
   if (!err) return 'strava_other'
@@ -149,6 +174,8 @@ export function classifyStravaError (err) {
  * the next one is requested: the caller stores it right away, and a rate limit (429) or any failure partway
  * keeps everything already stored. The next run then resumes from the newest stored activity instead of
  * starting over, so a long first history completes over a few runs. Resolves the number of activities.
+ * @param {GetAccessToken} getAccessToken @param {number} sinceEpochSeconds
+ * @param {(batch: StravaPayload[]) => unknown} onPage @param {FetchImpl} [fetchImpl] @returns {Promise<number>}
  */
 export async function pullActivitiesSince (getAccessToken, sinceEpochSeconds, onPage, fetchImpl = fetch) {
   let total = 0
@@ -168,7 +195,7 @@ export async function pullActivitiesSince (getAccessToken, sinceEpochSeconds, on
     }
     if (!res.ok) throw new Error(`strava activities failed: ${res.status}`)
 
-    const batch = /** @type {object[]} */ (await res.json())
+    const batch = /** @type {StravaPayload[]} */ (await res.json())
     if (batch.length > 0) await onPage(batch)
     total += batch.length
     if (batch.length < PAGE_SIZE) return total
@@ -178,8 +205,12 @@ export async function pullActivitiesSince (getAccessToken, sinceEpochSeconds, on
   }
 }
 
-/** pullActivitiesSince, collected into one array (no incremental storage). */
+/**
+ * pullActivitiesSince, collected into one array (no incremental storage).
+ * @param {GetAccessToken} getAccessToken @param {number} sinceEpochSeconds @param {FetchImpl} [fetchImpl]
+ */
 export async function fetchActivitiesSince (getAccessToken, sinceEpochSeconds, fetchImpl = fetch) {
+  /** @type {StravaPayload[]} */
   const collected = []
   await pullActivitiesSince(getAccessToken, sinceEpochSeconds, (batch) => { collected.push(...batch) }, fetchImpl)
   return collected

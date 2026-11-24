@@ -5,6 +5,7 @@
  * and lib/nutrition/targets.mjs are AUTHORITATIVE: these are their own values (the SERVER descriptor of
  * lib/profile/onboarding.mjs), because this service is built from its own directory (see the Dockerfile) and
  * cannot import lib/. The repo's root suite checks this file is current (scripts/gen-profile-rules.test.mjs). */
+// @ts-nocheck: a generated copy of type-checked lib source (lib/build/esm-module.mjs)
 
 export const PROFILE_SEX = Object.freeze(["male","female"]);
 export const PROFILE_ACTIVITY = Object.freeze(["sedentary","light","active"]);

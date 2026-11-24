@@ -4,7 +4,15 @@
  * bookkeeping must never fail a sync or a request).
  */
 
-/** Writes the in-memory state; `trigger_seq` only ever grows (GREATEST). */
+/** @typedef {import('./db.js').Queryable} Queryable */
+/**
+ * status.js's in-memory freshness state, as written to the row (times are ISO strings).
+ * @typedef {{ stravaOkAt: string | null, stravaError: string | null, stravaErrorAt: string | null,
+ *   tokenSaveFailed: boolean, triggerAt: string | null, triggerSeq: number, triggerError: string | null,
+ *   triggerErrorSeq: number | null }} SyncStatusState
+ */
+
+/** Writes the in-memory state; `trigger_seq` only ever grows (GREATEST). @param {Queryable} pool @param {SyncStatusState} state */
 export async function saveSyncStatus (pool, state) {
   await pool.query(
     `UPDATE sync_status
@@ -17,7 +25,10 @@ export async function saveSyncStatus (pool, state) {
   )
 }
 
-/** The stored row, or undefined before the first write. */
+/**
+ * The stored row, or undefined before the first write (an untyped row: status.js re-reads every field).
+ * @param {Queryable} pool @returns {Promise<Record<string, any> | undefined>}
+ */
 export async function loadSyncStatus (pool) {
   const { rows } = await pool.query(
     `SELECT last_strava_ok_at, last_strava_error, last_strava_error_at, last_trigger_at, trigger_seq,

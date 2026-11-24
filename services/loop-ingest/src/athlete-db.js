@@ -4,6 +4,15 @@
  * the Strava modules; the refresher and the /export/athlete handler (athlete.js) call them. No fetch here.
  */
 
+/** @typedef {import('./db.js').Queryable} Queryable */
+/**
+ * The snapshot to store: Strava's athlete payload (untrusted JSON) and the shaped gear (athlete.js buildGear).
+ * @typedef {{ athlete: Record<string, any> | null | undefined, gear: { bikes: object[], shoes: object[] } | null | undefined,
+ *   gearScopeMissing: boolean, gearPartial?: boolean }} AthleteSnapshot
+ */
+/** One device seen on stored activities. @typedef {{ name: string, count: number, lastUsed: string | null }} Device */
+
+/** @param {Queryable} pool @param {AthleteSnapshot} snapshot */
 export async function saveAthlete (pool, { athlete, gear, gearScopeMissing, gearPartial = false }) {
   await pool.query(
     `INSERT INTO strava_athlete (id, fetched_at, athlete, gear, gear_scope_missing, gear_partial, last_ok_at, last_failure_at)
@@ -17,7 +26,7 @@ export async function saveAthlete (pool, { athlete, gear, gearScopeMissing, gear
   )
 }
 
-/** Stamps a failed refresh; before any snapshot exists it creates a row with no snapshot (fetched_at NULL). */
+/** Stamps a failed refresh; before any snapshot exists it creates a row with no snapshot (fetched_at NULL). @param {Queryable} pool @param {number} at epoch ms */
 export async function recordAthleteFailure (pool, at) {
   await pool.query(
     `INSERT INTO strava_athlete (id, fetched_at, athlete, last_failure_at) VALUES (1, NULL, '{}', $1)
@@ -26,12 +35,13 @@ export async function recordAthleteFailure (pool, at) {
   )
 }
 
+/** The snapshot row, or null (untyped: toAthleteExport re-reads every field). @param {Queryable} pool @returns {Promise<Record<string, any> | null>} */
 export async function loadAthlete (pool) {
   const { rows } = await pool.query('SELECT fetched_at, athlete, gear, gear_scope_missing, gear_partial, last_ok_at, last_failure_at FROM strava_athlete WHERE id = 1')
   return rows[0] ?? null
 }
 
-/** Devices seen on stored activities (Strava's `device_name`), newest use first. */
+/** Devices seen on stored activities (Strava's `device_name`), newest use first. @param {Queryable} pool @returns {Promise<Device[]>} */
 export async function listDevices (pool) {
   const { rows } = await pool.query(
     `SELECT payload->>'device_name' AS name, count(*)::int AS count, max(payload->>'start_date_local') AS last
@@ -43,6 +53,7 @@ export async function listDevices (pool) {
   return rows.map((r) => ({ name: r.name, count: Number(r.count) || 0, lastUsed: typeof r.last === 'string' ? r.last.slice(0, 10) : null }))
 }
 
+/** Gear ids referenced by stored activities. @param {Queryable} pool @returns {Promise<string[]>} */
 export async function activityGearIds (pool) {
   const { rows } = await pool.query(
     `SELECT DISTINCT payload->>'gear_id' AS id

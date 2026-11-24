@@ -6,7 +6,12 @@
  * (strava-annotate.js) and the export handler (export.js) call them. No fetch here.
  */
 
+/** @typedef {import('./db.js').Queryable} Queryable @typedef {import('./db.js').Pool} Pool */
+/** The rotated refresh token's store (createTokenStore; strava.js createTokenProvider). @typedef {{ load: () => Promise<string | null>, save: (token: string) => Promise<void> }} TokenStore */
+/** One activity as Strava's list returns it, stored whole as the payload (untrusted JSON). @typedef {Record<string, any>} StravaPayload */
+
 /** Persistence for the rotated refresh token (single row, sql/003_sync.sql). */
+/** @param {Queryable} pool @returns {TokenStore} */
 export function createTokenStore (pool) {
   return {
     async load () {
@@ -23,6 +28,7 @@ export function createTokenStore (pool) {
   }
 }
 
+/** @param {Pick<Pool, 'connect'>} pool @param {StravaPayload[]} activities @returns {Promise<number>} */
 export async function upsertActivities (pool, activities) {
   if (activities.length === 0) return 0
 
@@ -64,12 +70,14 @@ export async function upsertActivities (pool, activities) {
   return activities.length
 }
 
+/** The newest stored start (a `timestamp` column: a Date from pg), or null when nothing is stored. @param {Queryable} pool @returns {Promise<Date | string | null>} */
 export async function lastSyncedStart (pool) {
   const { rows } = await pool.query('SELECT MAX(start_local) AS newest FROM strava_activity')
   return rows[0]?.newest ?? null
 }
 
 /** Keeps the stored row's name in step after a rename on Strava (strava-annotate.js). */
+/** @param {Queryable} pool @param {string | number} id @param {string} name */
 export async function renameStoredActivity (pool, id, name) {
   await pool.query(
     `UPDATE strava_activity SET name = $2, payload = jsonb_set(payload, '{name}', to_jsonb($2::text)) WHERE id = $1`,
@@ -91,6 +99,7 @@ export async function renameStoredActivity (pool, id, name) {
  * from the activity's HR stream (hr-zones.js, sql/008_strava_hr.sql), null until the backfill has
  * reached it or when it has no HR — the repo cuts the HR zones from it). `name` and the raw
  * payload are never selected — privacy boundary for this endpoint.
+ * @param {Queryable} pool @param {{ sinceId: string, limit: number }} page
  */
 export async function listStravaActivities (pool, { sinceId, limit }) {
   const { rows } = await pool.query(

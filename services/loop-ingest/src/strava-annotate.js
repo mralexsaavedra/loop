@@ -29,6 +29,16 @@ export const NAME_MAX = 255
 export const DESCRIPTION_MAX = 8000
 const ROUTE_RE = /^\/strava\/activities\/(\d{1,20})\/annotate$/
 
+/**
+ * @typedef {import('./strava.js').GetAccessToken} GetAccessToken @typedef {import('./strava.js').FetchImpl} FetchImpl
+ * @typedef {import('./strava.js').Log} Log @typedef {import('./db.js').Queryable} Queryable
+ * @typedef {import('./http.js').HttpError} HttpError @typedef {import('./server.js').RouteModule} RouteModule
+ * @typedef {import('node:http').IncomingMessage} Req
+ */
+/** A checked request body (parseAnnotateBody). @typedef {{ name?: string, description?: string, dryRun: boolean, overwrite: boolean }} AnnotateRequest */
+/** The fields one PUT may change. @typedef {{ name?: string, description?: string }} AnnotateFields */
+/** The annotator (createActivityAnnotator). @typedef {ReturnType<typeof createActivityAnnotator>} Annotator */
+
 // Strava titles an activity "<time of day> <sport>" in the athlete's language: "Morning Run", "Lunch Ride",
 // "Evening Weight Training"; in Spanish "<sport> <time of day>": "Carrera matutina", "Bicicleta por la tarde",
 // "Entrenamiento nocturno". Only a WHOLE title of that shape is automatic: a word like "Night" or "de la tarde"
@@ -46,27 +56,31 @@ const SPORTS_ES = [
   'Entrenamiento de intervalos de alta intensidad', 'HIIT', 'Crossfit', 'Remo', 'Remo virtual', 'Yoga', 'Pilates',
   'Elíptica', 'Escaladora', 'Tenis', 'Pádel', 'Pickleball', 'Actividad'
 ]
-const alt = (list) => list.map((w) => w.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&')).sort((a, b) => b.length - a.length).join('|')
+const alt = (/** @type {string[]} */ list) => list.map((w) => w.replace(/[.*+?^${}()|[\]\\-]/g, '\\$&')).sort((a, b) => b.length - a.length).join('|')
 const DEFAULT_NAME_RES = [
   new RegExp(`^(Morning|Afternoon|Evening|Night|Lunch) (${alt(SPORTS_EN)})$`, 'i'),
   new RegExp(`^(${alt(SPORTS_ES)}) (matutin[oa]|vespertin[oa]|nocturn[oa]|por la (mañana|tarde|noche)|de (la )?(mañana|tarde|noche|madrugada)|a la hora del almuerzo|al mediodía|de mediodía)$`, 'i')
 ]
 
-/** Whether `name` is Strava's automatic title (empty counts as automatic: there is nothing to keep). */
+/** Whether `name` is Strava's automatic title (empty counts as automatic: there is nothing to keep). @param {unknown} name */
 export function isDefaultActivityName (name) {
   const s = String(name ?? '').trim().replace(/\s+/g, ' ')
   if (s === '') return true
   return DEFAULT_NAME_RES.some((re) => re.test(s))
 }
 
-/** Validate the request body: `{ name?, description?, dry_run?, overwrite? }`, at least one of name / description. */
+/**
+ * Validate the request body: `{ name?, description?, dry_run?, overwrite? }`, at least one of name / description.
+ * @param {any} body the parsed, untrusted JSON (every field is checked here) @returns {AnnotateRequest}
+ */
 export function parseAnnotateBody (body) {
   if (!body || typeof body !== 'object' || Array.isArray(body)) throw httpError(400, 'bad_body')
   const allowed = new Set(['name', 'description', 'dry_run', 'overwrite'])
   for (const key of Object.keys(body)) if (!allowed.has(key)) throw httpError(400, 'unknown_field', key)
   if (containsNul(body)) throw httpError(400, 'nul_character')
+  /** @type {AnnotateRequest} */
   const out = { dryRun: false, overwrite: false }
-  for (const [key, prop] of [['dry_run', 'dryRun'], ['overwrite', 'overwrite']]) {
+  for (const [key, prop] of /** @type {[string, 'dryRun' | 'overwrite'][]} */ ([['dry_run', 'dryRun'], ['overwrite', 'overwrite']])) {
     if (body[key] === undefined) continue
     if (typeof body[key] !== 'boolean') throw httpError(400, 'bad_field', key)
     out[prop] = body[key]
@@ -94,12 +108,15 @@ export function parseAnnotateBody (body) {
 /**
  * What may be written, given the activity's current name and description. Pure. Without `overwrite` only the
  * automatic title and an empty description are replaced; with it any given field that differs is.
+ * @param {{ name?: unknown, description?: unknown } | null | undefined} current Strava's activity detail (untrusted JSON)
+ * @param {Partial<AnnotateRequest>} wanted
  */
 export function decideAnnotation (current, wanted) {
   const currentName = String(current?.name ?? '')
   const currentDescription = String(current?.description ?? '')
   const hasDescription = currentDescription.trim() !== ''
   const nameIsDefault = isDefaultActivityName(currentName)
+  /** @type {AnnotateFields} */
   const fields = {}
   if (wanted.name !== undefined && wanted.name !== currentName && (nameIsDefault || wanted.overwrite)) fields.name = wanted.name
   if (wanted.description !== undefined && wanted.description !== currentDescription.trim() && (!hasDescription || wanted.overwrite)) {
@@ -108,6 +125,7 @@ export function decideAnnotation (current, wanted) {
   return { fields, currentName, currentDescription, nameIsDefault, hasDescription }
 }
 
+/** @param {Response} res @param {'read' | 'write'} phase @returns {HttpError} */
 function stravaFailure (res, phase) {
   if (res.status === 404) return httpError(404, 'activity_not_found')
   if (res.status === 429) return httpError(429, 'strava_rate_limited')
@@ -119,25 +137,29 @@ function stravaFailure (res, phase) {
 /**
  * The annotator: `annotate(id, { name?, description?, dryRun, overwrite })` → the decision and what was written.
  * `pool` (optional) keeps the stored row's name in step after a rename.
+ * @param {{ getAccessToken: GetAccessToken, pool?: Queryable | null, fetchImpl?: FetchImpl, log?: Log }} options
  */
 export function createActivityAnnotator ({ getAccessToken, pool = null, fetchImpl = fetch, log = console.log }) {
+  /** @param {'GET' | 'PUT'} method @param {string | number} id @param {AnnotateFields} [body] @returns {Promise<Response>} */
   async function call (method, id, body) {
     let token
     try {
       token = await getAccessToken()
     } catch (err) {
-      log(JSON.stringify({ event: 'strava_annotate_failed', message: err.message }))
+      log(JSON.stringify({ event: 'strava_annotate_failed', message: /** @type {Error} */ (err).message }))
       throw httpError(502, 'strava_auth')
     }
     try {
       return await send(method, id, body, token)
     } catch (err) {
-      log(JSON.stringify({ event: 'strava_annotate_failed', message: err.message }))
+      log(JSON.stringify({ event: 'strava_annotate_failed', message: /** @type {Error} */ (err).message }))
       throw httpError(502, 'strava_network')
     }
   }
 
+  /** @param {'GET' | 'PUT'} method @param {string | number} id @param {AnnotateFields | undefined} body @param {string} token */
   function send (method, id, body, token) {
+    /** @type {Record<string, string>} */
     const headers = { authorization: `Bearer ${token}` }
     if (body) headers['content-type'] = 'application/json'
     return fetchImpl(ACTIVITY_URL + id, {
@@ -148,10 +170,12 @@ export function createActivityAnnotator ({ getAccessToken, pool = null, fetchImp
     })
   }
 
+  /** @param {string | number} id @param {AnnotateRequest} wanted */
   return async function annotate (id, wanted) {
     const read = await call('GET', id)
     if (!read.ok) throw stravaFailure(read, 'read')
-    const current = await read.json()
+    // untrusted JSON: decideAnnotation only reads name and description through String()
+    const current = /** @type {Record<string, unknown> | null} */ (await read.json())
     const { fields, currentName, currentDescription, nameIsDefault, hasDescription } = decideAnnotation(current, wanted)
     const result = {
       id: String(id),
@@ -174,7 +198,7 @@ export function createActivityAnnotator ({ getAccessToken, pool = null, fetchImp
         await renameStoredActivity(pool, id, fields.name)
       } catch (err) {
         // Strava already holds the new name; the next pull of this activity stores it anyway
-        log(JSON.stringify({ event: 'strava_annotate_store_failed', message: err.message }))
+        log(JSON.stringify({ event: 'strava_annotate_store_failed', message: /** @type {Error} */ (err).message }))
       }
     }
     log(JSON.stringify({ event: 'strava_annotated', id: String(id), name: 'name' in fields, description: 'description' in fields }))
@@ -185,6 +209,8 @@ export function createActivityAnnotator ({ getAccessToken, pool = null, fetchImp
 /**
  * The route module (server.js `stravaAnnotateRoutes`): `handle(req, res, url)` → true when it answered.
  * `annotate` is null when Strava is not configured (409 strava not configured, like POST /sync/strava).
+ * @param {{ checkBearer: (req: Req) => boolean, annotate: ((id: string, wanted: AnnotateRequest) => Promise<object>) | null }} deps
+ * @returns {RouteModule}
  */
 export function createStravaAnnotateRoutes ({ checkBearer, annotate }) {
   return {
@@ -212,9 +238,11 @@ export function createStravaAnnotateRoutes ({ checkBearer, annotate }) {
         const result = await annotate(m[1], wanted)
         writeJson(res, 200, { ok: true, ...result })
       } catch (err) {
-        if (!err.code || !err.status) throw err
-        if (err.status === 415) req.resume()
-        writeJson(res, err.status, { error: err.code, ...(err.field ? { field: err.field } : {}) })
+        // an HttpError (httpError) answers; anything else is the server's 500
+        const e = /** @type {Partial<HttpError>} */ (err)
+        if (!e.code || !e.status) throw err
+        if (e.status === 415) req.resume()
+        writeJson(res, e.status, { error: e.code, ...(e.field ? { field: e.field } : {}) })
       }
       return true
     }

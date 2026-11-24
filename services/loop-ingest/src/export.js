@@ -11,6 +11,9 @@ export { EXPORT_PAGE_BYTES, listRawPayloads } from './raw-payload-db.js'
 const DEFAULT_LIMIT = 500
 const MAX_LIMIT = 1000
 
+/** @typedef {import('node:http').IncomingMessage} Req @typedef {import('node:http').ServerResponse} Res */
+
+/** @param {string} message */
 function badRequest (message) {
   return Object.assign(new Error(message), { status: 400 })
 }
@@ -19,6 +22,7 @@ function badRequest (message) {
  * Validate `?since_id=…&limit=…`, shared by every paged export endpoint. Ids
  * stay strings: they are BIGINT/BIGSERIAL and must not lose precision in a
  * JS number.
+ * @param {URLSearchParams} searchParams
  */
 export function parsePaging (searchParams) {
   const sinceId = searchParams.get('since_id') ?? '0'
@@ -34,7 +38,7 @@ export function parsePaging (searchParams) {
   return { sinceId, limit }
 }
 
-/** Validate `?automation=…&since_id=…&limit=…`. */
+/** Validate `?automation=…&since_id=…&limit=…`. @param {URLSearchParams} searchParams */
 export function parseExportQuery (searchParams) {
   const automation = searchParams.get('automation')
   if (!automation) throw badRequest('automation is required')
@@ -47,8 +51,11 @@ export function parseExportQuery (searchParams) {
  * GET /export/raw — hands stored payloads back to the local sync script,
  * oldest first, paged by `since_id`. Same bearer check as ingest; logs counts
  * only, never payload contents.
+ * @param {{ pool: Parameters<typeof listRawPayloads>[0], token: string, log?: (line: string) => void,
+ *   checkBearer?: (req: Req) => boolean }} opts
  */
 export function createExportHandler ({ pool, token, log = console.log, checkBearer = createBearerCheck(token) }) {
+  /** @param {Req} req @param {Res} res @param {URL} url */
   return async function handleExport (req, res, url) {
     if (!checkBearer(req)) {
       send(res, 401, { error: 'unauthorized' })
@@ -59,7 +66,7 @@ export function createExportHandler ({ pool, token, log = console.log, checkBear
     try {
       query = parseExportQuery(url.searchParams)
     } catch (err) {
-      send(res, 400, { error: err.message })
+      send(res, 400, { error: /** @type {Error} */ (err).message })
       return
     }
 
@@ -76,8 +83,11 @@ export function createExportHandler ({ pool, token, log = console.log, checkBear
  * GET /export/strava — hands stored Strava activities back to the local sync
  * script, oldest first, paged by `since_id`. Same bearer check and
  * counts-only logging as `/export/raw`; never logs activity field values.
+ * @param {{ pool: Parameters<typeof listStravaActivities>[0], token: string, log?: (line: string) => void,
+ *   checkBearer?: (req: Req) => boolean }} opts
  */
 export function createStravaExportHandler ({ pool, token, log = console.log, checkBearer = createBearerCheck(token) }) {
+  /** @param {Req} req @param {Res} res @param {URL} url */
   return async function handleStravaExport (req, res, url) {
     if (!checkBearer(req)) {
       send(res, 401, { error: 'unauthorized' })
@@ -88,7 +98,7 @@ export function createStravaExportHandler ({ pool, token, log = console.log, che
     try {
       query = parsePaging(url.searchParams)
     } catch (err) {
-      send(res, 400, { error: err.message })
+      send(res, 400, { error: /** @type {Error} */ (err).message })
       return
     }
 

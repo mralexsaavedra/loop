@@ -42,15 +42,25 @@ const HR_MAX = 250
 const ID_RE = /^\d{1,19}$/
 
 /**
+ * @typedef {import('./strava.js').GetAccessToken} GetAccessToken @typedef {import('./strava.js').FetchImpl} FetchImpl
+ * @typedef {import('./strava.js').Log} Log @typedef {import('./strava.js').StravaError} StravaError
+ * @typedef {import('./db.js').Queryable} Queryable @typedef {import('./hr-db.js').HrResult} HrResult
+ */
+/** One backfill batch's outcome. @typedef {{ fetched: number, stored: number, retried: number, pending: number | null, stop: 'budget' | 'rate_limited' | 'failed' | null }} BackfillResult */
+
+/**
  * Streams (key_by_type) -> {hist: {bpm: seconds}, seconds} or null when there is no usable heart
  * rate. Each sample owns the time until the next one (time[i+1] - time[i]); a gap > MAX_GAP_S, a
  * non-increasing time, or a missing / implausible HR sample adds nothing. The last sample has no
  * successor and adds nothing.
+ * @param {any} streams Strava's streams JSON (untrusted; every sample is checked)
+ * @returns {{ hist: Record<number, number>, seconds: number } | null}
  */
 export function hrHistogram (streams) {
   const t = streams?.time?.data
   const hr = streams?.heartrate?.data
   if (!Array.isArray(t) || !Array.isArray(hr)) return null
+  /** @type {Record<number, number>} */
   const hist = {}
   let seconds = 0
   const n = Math.min(t.length, hr.length)
@@ -66,11 +76,13 @@ export function hrHistogram (streams) {
   return seconds > 0 ? { hist, seconds } : null
 }
 
-const transient = (message) => Object.assign(new Error(message), { transient: true })
+const transient = (/** @type {string} */ message) => Object.assign(new Error(message), { transient: true })
 
 /**
  * One streams call -> {status: 'ok'|'no_hr'|'not_found', hist?, seconds?}. Throws {rateLimited} on a
  * 429, {transient} on a 5xx, a network error or a timeout (this activity only), a plain error otherwise.
+ * @param {GetAccessToken} getAccessToken @param {string | number} id @param {FetchImpl} [fetchImpl]
+ * @param {{ timeoutMs?: number }} [options] @returns {Promise<HrResult>}
  */
 export async function fetchHrStreams (getAccessToken, id, fetchImpl = fetch, { timeoutMs = STREAMS_TIMEOUT_MS } = {}) {
   if (!ID_RE.test(String(id))) return { status: 'not_found' }
@@ -87,7 +99,8 @@ export async function fetchHrStreams (getAccessToken, id, fetchImpl = fetch, { t
     const h = hrHistogram(await res.json())
     return h ? { status: 'ok', ...h } : { status: 'no_hr' }
   } catch (err) {
-    if (err.rateLimited || err.transient) throw err
+    const e = /** @type {StravaError} */ (err)
+    if (e.rateLimited || e.transient) throw err
     if (ctrl.signal.aborted) throw transient(`strava streams timed out after ${timeoutMs} ms`)
     if (err instanceof TypeError) throw transient(`strava streams network error: ${err.message}`)
     throw err
@@ -96,7 +109,11 @@ export async function fetchHrStreams (getAccessToken, id, fetchImpl = fetch, { t
   }
 }
 
-/** How many streams this run may fetch: the per-run batch, capped by the 15-min and 24-h budgets. */
+/**
+ * How many streams this run may fetch: the per-run batch, capped by the 15-min and 24-h budgets.
+ * @param {{ lastWindow: unknown, lastDay: unknown }} used
+ * @param {{ batch?: number, windowMax?: number, dayMax?: number }} [limits]
+ */
 export function streamBudget ({ lastWindow, lastDay }, { batch = BATCH_PER_RUN, windowMax = WINDOW_MAX, dayMax = DAY_MAX } = {}) {
   return Math.max(0, Math.min(batch, windowMax - (Number(lastWindow) || 0), dayMax - (Number(lastDay) || 0)))
 }
@@ -105,10 +122,14 @@ export function streamBudget ({ lastWindow, lastDay }, { batch = BATCH_PER_RUN, 
  * backfill(): one bounded batch (see the budget above). Never throws; returns {fetched, stored,
  * retried, pending, stop} where retried = transient failures recorded for back-off and stop =
  * 'budget' | 'rate_limited' | 'failed' | null. Concurrent calls share one in-flight batch.
+ * @param {{ pool: Queryable, getAccessToken: GetAccessToken, fetchImpl?: FetchImpl, log?: Log,
+ *   limits?: { batch?: number, windowMax?: number, dayMax?: number } }} options
  */
 export function createHrBackfill ({ pool, getAccessToken, fetchImpl = fetch, log = console.log, limits = {} }) {
+  /** @type {Promise<BackfillResult> | null} */
   let inflight = null
 
+  /** @returns {Promise<BackfillResult>} */
   async function run () {
     let fetched = 0
     let stored = 0
@@ -123,10 +144,11 @@ export function createHrBackfill ({ pool, getAccessToken, fetchImpl = fetch, log
         try {
           r = await fetchHrStreams(getAccessToken, id, fetchImpl)
         } catch (err) {
-          if (!err.transient) throw err
+          const e = /** @type {StravaError} */ (err)
+          if (!e.transient) throw err
           const status = await saveFailure(pool, id, attempts + 1)
           retried++
-          log(JSON.stringify({ event: 'strava_hr_activity_failed', id, attempts: attempts + 1, status, message: err.message }))
+          log(JSON.stringify({ event: 'strava_hr_activity_failed', id, attempts: attempts + 1, status, message: e.message }))
           continue
         }
         await saveHr(pool, id, r)
@@ -135,8 +157,9 @@ export function createHrBackfill ({ pool, getAccessToken, fetchImpl = fetch, log
       log(JSON.stringify({ event: 'strava_hr_backfill', fetched, stored, retried }))
       return { fetched, stored, retried, pending: pending.length, stop: null }
     } catch (err) {
-      log(JSON.stringify({ event: 'strava_hr_backfill_failed', fetched, stored, retried, message: err.message, rateLimited: Boolean(err.rateLimited) }))
-      return { fetched, stored, retried, pending: null, stop: err.rateLimited ? 'rate_limited' : 'failed' }
+      const e = /** @type {StravaError} */ (err)
+      log(JSON.stringify({ event: 'strava_hr_backfill_failed', fetched, stored, retried, message: e.message, rateLimited: Boolean(e.rateLimited) }))
+      return { fetched, stored, retried, pending: null, stop: e.rateLimited ? 'rate_limited' : 'failed' }
     }
   }
 
