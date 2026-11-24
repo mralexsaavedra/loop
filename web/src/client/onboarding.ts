@@ -39,7 +39,7 @@ type State = {
 /** The person HC_ENERGY computes for. */
 type Person = { sex: string; age: number | null; heightCm: number | null; weightKg: number | null; activity: string; sports: Sport[] };
 /** The targets: goal → day type → { kcal, p, f }. */
-type Targets = Record<string, Record<string, Record<string, number>>>;
+type Targets = ReturnType<typeof HC_ENERGY.computeTargets>['targets'];
 /** A bound check (HC_ENERGY.checkTargets): its code, goal and day type. */
 type Check = { code: string; goal: string; day: string };
 /** A big option card. */
@@ -53,7 +53,7 @@ type OnbDoc = {
 };
 
 (function () {
-  var T = (typeof I18N_ONB !== 'undefined' ? I18N_ONB : null)!, E = typeof HC_ENERGY !== 'undefined' ? HC_ENERGY : null;
+  var T = (typeof I18N_ONB !== 'undefined' ? I18N_ONB : null)!, E = (typeof HC_ENERGY !== 'undefined' ? HC_ENERGY : null)!;
   if (!T || !E) return;
   var esc = HC.esc, format = HC.format;
   var LATER_KEY = 'hc.onboarding.later';
@@ -104,7 +104,7 @@ type OnbDoc = {
   function targets(): Targets {
     var t: Targets = E.computeTargets(person()).targets;
     DAYS.forEach(function (d: string) {
-      ['kcal', 'p', 'f'].forEach(function (k) {
+      (['kcal', 'p', 'f'] as const).forEach(function (k) {
         var v = S.edits[d + '.' + k];
         if (v != null) t[S.goal][d][k] = v;
       });
@@ -196,7 +196,7 @@ type OnbDoc = {
       var msgs = own.map(function (x, i) {
         return '<small class="' + (T.errors[x.code] ? 'food-err' : 'pf-note') + '" id="' + ids[i] + '">' + esc(checkText(x, p)) + '</small>';
       }).join('');
-      function cell(k: string, lbl: string) {
+      function cell(k: 'kcal' | 'p' | 'f', lbl: string) {
         var bad = S.errors[d + '.' + k] || own.some(function (x) { return T.errors[x.code] && CELL_OF[x.code] === k; });
         return '<label class="onb-cell"><span class="food-lbl"><span class="sr-only">' + esc(N.days[d]) + ' </span>' + esc(lbl) + '</span><input class="food-in" data-onb-cell="' + d + '.' + k +
           '" inputmode="numeric" value="' + esc(String(c[k])) + '"' + (bad ? ' aria-invalid="true"' : '') + (ids.length ? ' aria-describedby="' + ids.join(' ') + '"' : '') + '></label>';

@@ -86,7 +86,7 @@ type View = { head: { date: string; r: DayScore } | null; run: DayScore | null; 
     var today = HC.todayIso();
     if (cache && cache.today === today) return cache;
     var dates = windowDates(), days = logDays();
-    var s = days.length ? scoreSeries(dates, days, targetsFor(dates), today) : { days: {}, avg: null, n: 0 };
+    var s = (days.length ? scoreSeries(dates, days, targetsFor(dates), today) : { days: {}, avg: null, n: 0 }) as Series; // completed below
     s.dates = dates;
     s.any = days.length > 0;
     s.today = today;
@@ -131,7 +131,7 @@ type View = { head: { date: string; r: DayScore } | null; run: DayScore | null; 
         '<span class="nt-mac-track"></span></li>';
     }
     var w = pts ? x.pts : x.t > 0 ? Math.min(100, Math.round((100 * x.v) / x.t)) : 0;
-    return '<li class="nt-mac ' + (pts ? BAND_CLS[scoreBand(x.pts)] : 'ns-run') + '"><span class="nt-mac-lbl">' +
+    return '<li class="nt-mac ' + (pts ? BAND_CLS[scoreBand(x.pts) as string] : 'ns-run') + '"><span class="nt-mac-lbl">' +
       esc(pts ? format(TS.ptsTpl, { name: L, pts: HC.nf(x.pts) }) : L) + '</span>' +
       '<span class="nt-mac-val"><b>' + (x.min ? '≥ ' : '') + esc(kf(x.v)) + '</b><small> / ' + esc(kf(x.t)) + unit + '</small></span>' +
       '<span class="nt-mac-track">' + (w > 0 ? '<i style="width:' + w + '%"></i>' : '') + '</span></li>';
@@ -167,7 +167,7 @@ type View = { head: { date: string; r: DayScore } | null; run: DayScore | null; 
         '<span class="tn-lbl">' + esc(dayWord(h.date)) + '</span></div>';
     var right = run ? '<div class="ns-run-box">' + partRows(run, false) + '</div>' : partRows(h.r, true);
     // named by its content (WCAG 2.5.3 Label in Name): heading, the headline %, the parts, the footer line
-    return '<div class="sc-card tn en ns' + (run ? '' : ' ' + BAND_CLS[scoreBand(h.r.score)]) + '"' + HC.detailAttrs('nutrition', opens) + '>' +
+    return '<div class="sc-card tn en ns' + (run ? '' : ' ' + BAND_CLS[scoreBand(h.r.score) as string]) + '"' + HC.detailAttrs('nutrition', opens) + '>' +
       '<h3 class="tn-h">' + esc(TS.heading + (tag ? ' · ' + tag : '')) + '</h3>' + (run ? '<span class="sr-only">' + esc(TS.srRun) + '</span>' : '') +
       '<div class="tn-row">' + left + right + '</div>' + (o.extra || '') + '</div>';
   }

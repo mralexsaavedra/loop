@@ -89,7 +89,7 @@ type RingTarget = { k: number; p: number; c: number; g: number; fatMax: number; 
   var KEY_OLD_PICKS = 'hc.nutri.picks';
   // a goal picked here and not yet confirmed by the settings server (client/settings.ts retries it)
   var KEY_GOAL_PENDING = 'hc.nutri.goalPending';
-  var RANK = HC_DAYTYPE.RANK; // how demanding a day type is (the override rule below)
+  var RANK: Readonly<Record<string, number>> = HC_DAYTYPE.RANK; // how demanding a day type is (the override rule below)
   // icons (inline SVG line icons, no emoji): the supplement pill of Plan de hoy
   var PILL_SVG = '<svg class="supp-ico" viewBox="0 0 24 24" aria-hidden="true"><g transform="rotate(-45 12 12)"><rect x="3" y="8.5" width="18" height="7" rx="3.5"/><path d="M12 8.5v7"/></g></svg>';
   var state = { goal: N.goal, override: null as string | null, auto: null as Auto | null, ride: null as { type: string; min: number } | null, raised: null as string | null, guide: {} as Record<string, string> };
@@ -438,7 +438,7 @@ type RingTarget = { k: number; p: number; c: number; g: number; fatMax: number; 
     var html = mains.map(function (slot: string) { return mealGuideHtml(slot, B.meals[slot], L ? L.meals[slot] || zero4() : null, opts, x.base, canAdd, dayCap); }).join('');
     html += extrasHtml(B, L ? L.addon || zero4() : null, dayType(), dayCap);
     if (L) {
-      var left = dayLeft, A = T.plan.macroAbbr;
+      var left = dayLeft!, A = T.plan.macroAbbr; // with the food log (L), dayRemaining has a value
       html += '<p class="gd-left"><span class="gd-left-lbl">' + esc(T.guide.left) + '</span> <b>' + esc(kf(left.k)) + '</b> kcal · ' +
         A.p + ' <b>' + left.p + '</b> · ' + A.c + ' <b>' + left.c + '</b> · ' + A.f + ' <b>' + left.f + '</b></p>';
     }
@@ -459,8 +459,8 @@ type RingTarget = { k: number; p: number; c: number; g: number; fatMax: number; 
     host.innerHTML = '<label class="fuel-dur" for="nutri-ride">' + esc(T.fuel.durationLabel) + '</label><select id="nutri-ride" class="fuel-select sel">' + opts + '</select><span class="chev sel-chev" aria-hidden="true">›</span>';
   }
   function li(text: string) { return '<li>' + esc(text) + '</li>'; }
-  function renderFuelBody(host: HTMLElement) {
-    var f = fuelNow(), F = T.fuel, U = N.fuel.rates.units;
+  function renderFuelBody(host: HTMLElement) { // only on a bike day (renderFuel): fuelPlan has a plan
+    var f = fuelNow()!, F = T.fuel, U = N.fuel.rates.units;
     var b = f.before, du = f.during, a = f.after;
     var before = b.carbsG
       ? format(F.beforeCarbs, { hmin: b.hoursBefore[0], hmax: b.hoursBefore[1], lo: b.carbsG[0], hi: b.carbsG[1], kgLo: HC.nf(b.gPerKg[0]), kgHi: HC.nf(b.gPerKg[1]) })

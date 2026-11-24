@@ -1,7 +1,10 @@
 /* The shapes of the page globals the module client scripts (*.ts) read: HC, LOCALE, the copy tables (I18N_*) and
  * SCORES / DETAIL / DIALS / DASH / INTAKE / ACTIVITY / HEALTH / NUTRI / FOOD_BASICS (from their builders), NUTRI_ARC,
- * TRAINING_META, PROFILE, NAV and FOOD_CONST are typed; TRAINING (lib/training/program.mjs) too;
- * the HC_* emissions are still `any`. */
+ * TRAINING_META, PROFILE, NAV and FOOD_CONST are typed; TRAINING (lib/training/program.mjs) and
+ * the HC_* globals (the lib functions classicGlobal emits, lib/nutrition/client.mjs) too. */
+/** A classic global lib/format/numbers.mjs classicGlobal emits from a module's `CLIENT` descriptor: its public
+ * constants and functions (`hidden` constants are declared inside, never returned). */
+type ClientOf<C extends { consts?: object; fns?: object }> = C['consts'] & C['fns'];
 /** A copy table the scripts also index by a runtime key (a kind, a range, a metric): each nested table keeps its
  * named keys and also takes any string key (an unknown key reads `undefined` at runtime, as before). */
 type Lookup<T> = T extends readonly unknown[]
@@ -23,7 +26,7 @@ export type PageGlobals = {
   TRAINING: Record<string, import('../../../lib/training/program.mjs').ProgramSession>;
   I18N_SCORE: Copy<typeof import('../i18n/score-templates.mjs')>;
   I18N_SYNC: Copy<typeof import('../i18n/sync-templates.mjs')>;
-  HC_BAND: any;
+  HC_BAND: Pick<typeof import('../../../lib/score/recovery.mjs'), 'PCT_GOOD' | 'PCT_LOW' | 'pctBand'>;
   DASH: ReturnType<typeof import('../bakes.mjs').computeBakes>['dash'];
   I18N_DASH: Copy<typeof import('../i18n/dash-templates.mjs')>;
   I18N_DETAIL: Copy<typeof import('../i18n/detail-templates.mjs')>;
@@ -38,8 +41,8 @@ export type PageGlobals = {
   /** computeBakes' profile (lib/profile/read.mjs loadProfile + the goal options) with `photo` reduced to a flag (Avatar.astro). */
   PROFILE: Omit<ReturnType<typeof import('../bakes.mjs').computeBakes>['profile'], 'photo'> & { photo: boolean };
   ACTIVITY: ReturnType<typeof import('../../../lib/training/activity.mjs').activityBake>;
-  HC_FMT: any;
-  HC_ENERGY: any;
+  HC_FMT: Pick<typeof import('../../../lib/format/numbers.mjs'), 'DASH' | 'toNum' | 'groupDigits' | 'localise' | 'fmtNumber' | 'fmtInt' | 'fmtRaw' | 'fmtPercent' | 'fmtMinutes' | 'fmtHours' | 'fmtPlain'>;
+  HC_ENERGY: ClientOf<typeof import('../../../lib/nutrition/energy.mjs')['CLIENT']>;
   I18N_ACTIVITY: Lookup<Omit<typeof import('../i18n/activity-templates.mjs')['en'], 'head'>>; // Bake drops `head`
   I18N_ONB: Copy<typeof import('../i18n/onboarding-templates.mjs')>;
   HCProgram: any;
@@ -62,9 +65,9 @@ export type PageGlobals = {
     addonSlot: typeof import('../../../lib/nutrition/slots.mjs')['ADDON_SLOT']; lateNightHour: typeof import('../../../lib/nutrition/slots.mjs')['LATE_NIGHT_HOUR'] };
   HCAdherence: any;
   HCFood: any;
-  HC_ADH: any;
-  HC_NSCORE: any;
-  HC_PROG: any;
+  HC_ADH: ClientOf<typeof import('../../../lib/nutrition/adherence.mjs')['CLIENT']>;
+  HC_NSCORE: ClientOf<typeof import('../../../lib/nutrition/nutri-score.mjs')['CLIENT']>;
+  HC_PROG: ClientOf<typeof import('../../../lib/nutrition/progress.mjs')['CLIENT']>;
   I18N_HOY: Copy<typeof import('../i18n/hoy-templates.mjs')>;
   I18N_INTAKE: Copy<typeof import('../i18n/intake-templates.mjs')>;
   I18N_NUTRI: Copy<typeof import('../i18n/nutri-templates.mjs')>;
@@ -74,15 +77,15 @@ export type PageGlobals = {
   /** Bake.astro's trainingMeta prop (the program's header line). */
   TRAINING_META: ReturnType<typeof import('../../../lib/training/program.mjs').trainingMeta>;
   nutriTarget: any;
-  HC_DAYTYPE: any;
-  HC_FUEL: any;
-  HC_GUIDE: any;
-  HC_SCALE: any;
+  HC_DAYTYPE: ClientOf<typeof import('../../../lib/nutrition/daytype.mjs')['CLIENT']>;
+  HC_FUEL: ClientOf<typeof import('../../../lib/nutrition/fuel.mjs')['CLIENT']>;
+  HC_GUIDE: Pick<typeof import('../../../lib/nutrition/num.mjs'), 'fin'> & Pick<typeof import('../../../lib/nutrition/amounts.mjs'), 'floorToStep'> & Pick<typeof import('../../../lib/nutrition/names.mjs'), 'foldName'> & ClientOf<typeof import('../../../lib/nutrition/guide.mjs')['CLIENT']>;
+  HC_SCALE: ClientOf<typeof import('../../../lib/nutrition/amounts.mjs')['CLIENT']> & Pick<typeof import('../../../lib/nutrition/num.mjs'), 'round2'> & ClientOf<typeof import('../../../lib/nutrition/units.mjs')['CLIENT']> & ClientOf<typeof import('../../../lib/nutrition/fill.mjs')['CLIENT']> & ClientOf<typeof import('../../../lib/nutrition/fuel.mjs')['CLIENT']> & ClientOf<typeof import('../../../lib/nutrition/scale.mjs')['CLIENT']>;
   intakeWaiting: any;
   foodTotals: any;
   intakeRefresh: any;
   HCNutriScore: any;
-  HC_FOODLOG: any;
+  HC_FOODLOG: ClientOf<typeof import('../../../lib/nutrition/foodlog.mjs')['CLIENT']>;
   I18N_FOOD: Copy<typeof import('../i18n/food-templates.mjs')>;
 };
 

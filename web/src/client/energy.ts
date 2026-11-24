@@ -35,7 +35,7 @@ type EnergyDayOk = import('../../../lib/score/energy-bank.mjs').EnergyDayOk;
   var DAY = typeof HCDay !== 'undefined' && HCDay ? HCDay : null;
 
   function band(lv: number): string {
-    return ({ good: 'hi', mid: 'mid', low: 'lo' } as Record<string, string>)[HC_BAND.pctBand(lv)] || 'mid';
+    return ({ good: 'hi', mid: 'mid', low: 'lo' } as Record<string, string>)[HC_BAND.pctBand(lv) as string] || 'mid';
   }
   function clock(h: number): string {
     return (h < 10 ? '0' : '') + h + ':00';
