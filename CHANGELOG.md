@@ -4,6 +4,13 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [1.9.1] - 2026-11-25
+
+- **Easier-to-read Garmin plans.** In the day detail, a warm-up or cool-down made of several short steps now reads
+  as one step with its total time and the power or heart-rate ramp ("Warm-up 10 min 97→146 W"), every step starts
+  with a capital letter, and the session's source line says the plan came from Garmin ("Source: Strava · plan:
+  Garmin").
+
 ## [1.9.0] - 2026-11-25
 
 - **Garmin: plan vs done (optional).** With a Garmin Connect personal API key on the server, LOOP reads the
