@@ -10,7 +10,7 @@ security and exposure, health + tokens; the older host mode (`services/loop-web`
 ## On this page
 
 - [The stack — `docker/`](#the-stack--docker): [a second install](#a-second-install), [network and bind address](#network-and-bind-address)
-- [The page and its data routes](#the-page-and-its-data-routes) (both modes: sync protocol, freshness line, security, limits, Strava health)
+- [The page and its data routes](#the-page-and-its-data-routes) (both modes: sync protocol, freshness line, security, limits, Strava health, Garmin)
 - [Development / legacy host mode](#development--legacy-host-mode--servicesloop-web--servicesloop-ingest)
 
 ## The stack — `docker/`
@@ -87,6 +87,12 @@ published).
   `docker compose up -d`, then `docker compose exec loop-server node services/loop-ingest/scripts/strava-auth.js --print`:
   it asks for the code and prints the `STRAVA_REFRESH_TOKEN=...` line for `docker/.env` (the image writes no file);
   `docker compose up -d` again ([`services/loop-ingest/README.md` → Getting the Strava credentials](../services/loop-ingest/README.md#getting-the-strava-credentials-once-5-minutes)).
+- **Garmin (optional).** Create a personal API key at <https://connect.garmin.com/app/settings/personalApiToken>, put
+  it in `docker/.env` as `GARMIN_API_KEY` with the expiry date Garmin shows as `GARMIN_API_KEY_EXPIRES` (`YYYY-MM-DD`;
+  a key lasts at most a year), optionally `GARMIN_SYNC_MINUTES` (default 60), then `docker compose up -d`. The key stays
+  in `loop-server`'s environment only (never in the database, a log, an error or the page build's environment);
+  `curl -s localhost:8088/sync/status` then shows `"garminConfigured":true` and, after the first pull, `lastGarminOkAt`
+  ([Garmin](#garmin) below). Without the key nothing changes.
 - **Same-host rule.** The container names (`loop-db`, `loop-web`), the database volume (`loop-db-data`) and `loop-net`
   are the host-mode ones on purpose: the database carries over when an install moves to the images, and the old and
   the new stack of one install can never run side by side on one host (stop the host-mode stacks first).
@@ -152,7 +158,8 @@ BREACH-style oracle; pinned by `scripts/loop-web-config.test.mjs`). The page is 
 - **Security + exposure.** `POST /sync` and `GET /sync/status` are UNAUTHENTICATED on purpose (a
   static page cannot hold a secret): the trigger only schedules work the services already do on a
   timer, reads no body and returns only a seq; status returns timestamps, seqs and COARSE codes
-  (`strava_auth`, `strava_network`, `strava_other`, `strava_token_save`, `trigger_write`, `build` in the server image's container mode), cached 5 s,
+  (`strava_auth`, `strava_network`, `strava_other`, `strava_token_save`, `trigger_write`, `build` in the server image's container mode;
+  `garmin_auth`, `garmin_network`, `garmin_other` in `lastGarminError`), cached 5 s,
   never health data or raw error text (messages stay in logs; tests pin the key set and no leaks).
   loop-web nginx proxies EXACTLY `/api/sync` + `/api/sync/status` (exact-match, method-restricted;
   `POST /api/sync` deliberately needs no custom CSRF header, unlike `/api/food/*` and `/api/journal/*`: a
@@ -167,7 +174,7 @@ BREACH-style oracle; pinned by `scripts/loop-web-config.test.mjs`). The page is 
   before the body is read, ingest checks the bearer, `client_max_body_size 8m` = ingest's
   `MAX_BODY_BYTES` default, 8 MB; a payload holding `\u0000` is a `400 nul_character`, which jsonb cannot
   store); every other `/api/` or `/ingest/`
-  path 404, never `/export/*` or `/sync/strava` (pinned by `scripts/loop-web-config.test.mjs`).
+  path 404, never `/export/*`, `/sync/strava` or `/sync/garmin` (pinned by `scripts/loop-web-config.test.mjs`).
   Static device manuals: EXACTLY `/manuales/<MANUAL_FILE_RE>` (a quoted regex location; GET / HEAD,
   `types { }` + `default_type application/pdf`, `Content-Disposition: inline`, `X-Content-Type-Options:
   nosniff`, `Content-Security-Policy: default-src 'none'; object-src 'self'` (not `sandbox`, which
@@ -221,6 +228,22 @@ BREACH-style oracle; pinned by `scripts/loop-web-config.test.mjs`). The page is 
   activity can not block the rest. Rollout: `docker compose up -d --build loop-ingest` (runs the
   idempotent `sql/008_strava_hr.sql` and `sql/009_strava_hr_retry.sql`), then `npm run sync` once the
   backfill has run.
+- <a id="garmin"></a>**Garmin.** Optional (`GARMIN_API_KEY`), apart from Strava in every way: its own loop
+  (`GARMIN_SYNC_MINUTES`, default 60), its own guard (the timer, `POST /sync` under the same 5 min cooldown, and the
+  bearer `POST /sync/garmin` share one run), its own status row (`garmin_sync_state`) and its own optional migration
+  group (`sql/015_garmin.sql`; a failure leaves Garmin off and its routes at `503`). A run pulls the activity list
+  newest first into `garmin_activity` (a full walk until one has finished, then the newest stored start − 7 days);
+  after an ok run up to 50 activities get their planned workout (`garmin_activity_workout`: the compact steps, no names
+  or notes; per-activity retry and back-off like the HR backfill). `GET /export/garmin` (bearer, `since_id` paging like
+  `/export/strava`) returns per activity the start, type, duration, power, HR and `plan_status` / `plan`, never names,
+  notes or the raw payload; without the key it answers `200 []`. `/sync/status` adds `garminConfigured`,
+  `lastGarminOkAt`, `lastGarminError` and `garminKeyExpires` (from `GARMIN_API_KEY_EXPIRES`; the API does not report
+  the expiry), and `/healthz` reports `garmin: enabled | disabled` (Garmin never makes it `degraded`).
+  **When the key expires or is refused**: the token exchange answers `401` / `403`, the run records `garmin_auth`, the
+  page's freshness line shows Garmin as failing (and warns from 7 days before `GARMIN_API_KEY_EXPIRES`); everything
+  stored stays and the Strava pull, the build and the other routes go on. Fix: create a new key at the address above,
+  replace `GARMIN_API_KEY` and `GARMIN_API_KEY_EXPIRES` in `docker/.env`, `docker compose up -d`. Details:
+  [`services/loop-ingest/README.md` → Garmin](../services/loop-ingest/README.md#garmin).
 
 ## Development / legacy host mode — `services/loop-web` + `services/loop-ingest`
 

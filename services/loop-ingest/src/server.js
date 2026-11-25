@@ -4,7 +4,9 @@ import path from 'node:path'
 import { pathToFileURL } from 'node:url'
 import { createBearerCheck } from './auth.js'
 import { createStravaSync, startSyncLoop, isConfigured as stravaConfigured } from './sync.js'
-import { createExportHandler, createStravaExportHandler } from './export.js'
+import { createExportHandler, createStravaExportHandler, createGarminExportHandler } from './export.js'
+import { createGarminSync, startGarminLoop, DEFAULT_GARMIN_SYNC_MINUTES } from './garmin-sync.js'
+import { isGarminConfigured, garminKeyExpires } from './garmin.js'
 import { createAthleteExportHandler } from './athlete.js'
 import { createSyncStatus } from './status.js'
 import { createTriggerWriter, createSyncTrigger, readTriggerSeq } from './trigger.js'
@@ -104,6 +106,22 @@ export function envConfig (env) {
 }
 
 /**
+ * The optional Garmin source (garmin-sync.js): `enabled` with a non-blank GARMIN_API_KEY; `syncMinutes` =
+ * GARMIN_SYNC_MINUTES (default 60, 1-10080, checked only when enabled, so an install without Garmin never fails on
+ * it); `keyExpires` = GARMIN_API_KEY_EXPIRES as YYYY-MM-DD, else null. The key itself is not returned: only
+ * createGarminSync reads it. Throws on an invalid interval, like envConfig.
+ * @param {Env} env
+ */
+export function garminConfig (env) {
+  const enabled = isGarminConfigured(env)
+  return {
+    enabled,
+    syncMinutes: enabled ? numericEnv(env, 'GARMIN_SYNC_MINUTES', { def: DEFAULT_GARMIN_SYNC_MINUTES, min: 1, max: 10_080 }) : DEFAULT_GARMIN_SYNC_MINUTES,
+    keyExpires: enabled ? garminKeyExpires(env) : null
+  }
+}
+
+/**
  * How the page gets rebuilt (builder.js): `mode` 'trigger' (HC_BUILD unset: write TRIGGER_DIR/refresh for the host)
  * or 'container' (HC_BUILD=container: run scripts/refresh.mjs in this container, publishing into `siteDir` =
  * HC_SITE_DIR, default /site, on POST /sync and every `refreshMinutes` = HC_REFRESH_MINUTES, default 60, 5-1440).
@@ -142,6 +160,8 @@ const NO_ROUTES = { handle: async () => false }
  *   ping: (pool: Queryable) => Promise<unknown>,
  *   insertRawPayload: (pool: Queryable, record: import('./raw-payload-db.js').RawPayloadRecord) => Promise<{ id: string | number, received_at: unknown }>,
  *   syncStatus: { health: () => object }, stravaEnabled: boolean, stravaSync: { runOnce: () => Promise<{ count: number }> } | null,
+ *   garminEnabled?: boolean, garminSync?: { runOnce: () => Promise<{ count: number }> } | null, garminAvailable?: () => boolean,
+ *   handleGarminExport?: (req: Req, res: Res, url: URL) => Promise<void>,
  *   foodRoutes: RouteModule, journalRoutes?: RouteModule, documentRoutes?: RouteModule, filesExportRoutes?: RouteModule,
  *   stravaAnnotateRoutes?: RouteModule,
  *   syncRoutes: { handleSync: (req: Req, res: Res) => unknown, handleStatus: (req: Req, res: Res) => Promise<void> },
@@ -172,7 +192,12 @@ export function createHandler ({
   syncRoutes,
   handleExport,
   handleStravaExport,
-  handleAthleteExport
+  handleAthleteExport,
+  // the optional Garmin source (garmin-sync.js); absent = not configured
+  garminEnabled = false,
+  garminSync = null,
+  garminAvailable = () => false,
+  handleGarminExport = createGarminExportHandler({ pool, token: token ?? '', configured: false, available: () => false, checkBearer })
 }) {
   /** @param {Req} req @param {Res} res @param {string} source */
   async function handleIngest (req, res, source) {
@@ -235,7 +260,7 @@ export function createHandler ({
         await ping(pool)
         // Still 200 when degraded: the container is alive and ingesting; the flag
         // says the Strava pull has not succeeded for 6 h (see status.js).
-        send(res, 200, { ok: true, strava: stravaEnabled ? 'enabled' : 'disabled', ...syncStatus.health() })
+        send(res, 200, { ok: true, strava: stravaEnabled ? 'enabled' : 'disabled', garmin: garminEnabled ? 'enabled' : 'disabled', ...syncStatus.health() })
         return
       }
 
@@ -271,6 +296,11 @@ export function createHandler ({
         return
       }
 
+      if (req.method === 'GET' && url.pathname === '/export/garmin') {
+        await handleGarminExport(req, res, url)
+        return
+      }
+
       if (req.method === 'GET' && url.pathname === '/export/athlete') {
         await handleAthleteExport(req, res)
         return
@@ -286,6 +316,24 @@ export function createHandler ({
           return
         }
         const { count } = await stravaSync.runOnce()
+        send(res, 200, { ok: true, activities: count })
+        return
+      }
+
+      if (req.method === 'POST' && url.pathname === '/sync/garmin') {
+        if (!checkBearer(req)) {
+          send(res, 401, { error: 'unauthorized' })
+          return
+        }
+        if (!garminSync) {
+          send(res, 409, { error: 'garmin not configured' })
+          return
+        }
+        if (!garminAvailable()) {
+          send(res, 503, { error: 'garmin_unavailable' })
+          return
+        }
+        const { count } = await garminSync.runOnce()
         send(res, 200, { ok: true, activities: count })
         return
       }
@@ -374,6 +422,7 @@ async function main () {
   // a numeric variable that is set but invalid throws here: one startup_failed line, exit 1 (the catch below)
   const { port: PORT, maxBodyBytes: MAX_BODY_BYTES, stravaSyncMinutes } = envConfig(process.env)
   const build = buildConfig(process.env)
+  const garmin = garminConfig(process.env)
   // container mode needs the repo's refresh script next to the service (the loop-server image); the plain
   // loop-ingest image does not ship it, so HC_BUILD=container there is a configuration error, not a failing build
   if (build.mode === 'container' && !fs.existsSync(DEFAULT_REFRESH_SCRIPT)) {
@@ -409,11 +458,22 @@ async function main () {
   const syncStatus = createSyncStatus({
     pool,
     stravaConfigured: STRAVA_ENABLED,
+    garminConfigured: garmin.enabled,
+    garminKeyExpires: garmin.keyExpires,
     readTriggerSeq: fileSeq
   })
   const stravaSync = STRAVA_ENABLED ? createStravaSync(pool, process.env, { status: syncStatus }) : null
   /** @type {ReturnType<typeof startSyncLoop> | null} */
   let stravaLoop = null
+
+  // Garmin is optional too (GARMIN_API_KEY; docs/lan-services.md -> Garmin): its own loop, guard and status fields,
+  // so a refused key or Garmin being down never touches Strava, the build or another route. Its tables are an
+  // optional migration group: until 015_garmin.sql ran (or if it failed) the loop stays off and its routes answer 503.
+  let garminReady = false
+  const garminSync = garmin.enabled ? createGarminSync(pool, process.env, { status: syncStatus }) : null
+  /** @type {ReturnType<typeof startGarminLoop> | null} */
+  let garminLoop = null
+  const handleGarminExport = createGarminExportHandler({ pool, token: INGEST_TOKEN, configured: garmin.enabled, available: () => garminReady, checkBearer })
 
   // On-demand refresh, sequence protocol: POST /sync assigns a sequence number,
   // kicks the (shared, never overlapping) Strava pull unless one succeeded in the
@@ -434,6 +494,7 @@ async function main () {
     : null
   const syncTrigger = createSyncTrigger({
     runStrava: stravaSync ? () => stravaSync.runOnce() : null,
+    runGarmin: garminSync ? () => (garminReady ? garminSync.runOnce() : undefined) : null,
     writeTrigger: builder ? builder.writeTrigger : createTriggerWriter({ dir: TRIGGER_DIR }),
     status: syncStatus
   })
@@ -507,7 +568,11 @@ async function main () {
     syncRoutes,
     handleExport,
     handleStravaExport,
-    handleAthleteExport
+    handleAthleteExport,
+    garminEnabled: garmin.enabled,
+    garminSync,
+    garminAvailable: () => garminReady,
+    handleGarminExport
   }))
 
   async function start () {
@@ -518,6 +583,7 @@ async function main () {
     settingsReady = optional.settings === true
     journalReady = optional.journal === true
     documentsReady = optional.documents === true
+    garminReady = optional.garmin === true
     // the onboarding needs both of its tables: app_profile (011) and the profile document (012) that holds the
     // identity; an onboarding row from before that layout moves its identity there first (profile-db.js)
     if (optional.profile === true && documentsReady) {
@@ -544,8 +610,11 @@ async function main () {
         intervalMinutes: stravaSyncMinutes
       })
     }
+    if (garminSync && garminReady) {
+      garminLoop = startGarminLoop(garminSync, { intervalMinutes: garmin.syncMinutes })
+    }
     server.listen(PORT, () => {
-      console.log(JSON.stringify({ event: 'listening', port: PORT, strava: STRAVA_ENABLED, build: build.mode }))
+      console.log(JSON.stringify({ event: 'listening', port: PORT, strava: STRAVA_ENABLED, garmin: garmin.enabled, build: build.mode }))
       // after listen: the build's syncs call back into this service
       builder?.startTimer({ intervalMs: build.refreshMinutes * 60_000, currentSeq: () => syncStatus.currentSeq() })
     })
@@ -559,7 +628,7 @@ async function main () {
   const shutdown = createShutdown({
     server,
     pool,
-    stop: () => { stravaLoop?.stop(); builder?.stop() },
+    stop: () => { stravaLoop?.stop(); garminLoop?.stop(); builder?.stop() },
     flush: () => Promise.race([syncTrigger.flush(), new Promise((resolve) => setTimeout(resolve, 3_000).unref())])
   })
   for (const signal of ['SIGTERM', 'SIGINT']) process.on(signal, shutdown)

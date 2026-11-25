@@ -88,6 +88,10 @@ services:
       STRAVA_CLIENT_SECRET: ${STRAVA_CLIENT_SECRET:-}
       STRAVA_REFRESH_TOKEN: ${STRAVA_REFRESH_TOKEN:-}
       STRAVA_SYNC_MINUTES: ${STRAVA_SYNC_MINUTES:-30}
+      # optional Garmin Connect personal API key (docs/lan-services.md -> Garmin); never passed to the page build
+      GARMIN_API_KEY: ${GARMIN_API_KEY:-}
+      GARMIN_API_KEY_EXPIRES: ${GARMIN_API_KEY_EXPIRES:-}
+      GARMIN_SYNC_MINUTES: ${GARMIN_SYNC_MINUTES:-}
       FOOD_ALLOWED_HOSTS: ${FOOD_ALLOWED_HOSTS:-}
       # the in-container build (the image sets HC_BUILD=container, HC_DATA_DIR=/data, HC_SITE_DIR=/site)
       HC_REFRESH_MINUTES: ${HC_REFRESH_MINUTES:-60}

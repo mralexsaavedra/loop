@@ -1,7 +1,7 @@
 import test from 'node:test'
 import assert from 'node:assert/strict'
 import http from 'node:http'
-import { createHandler, maxBodyBytes } from '../src/server.js'
+import { createHandler, maxBodyBytes, garminConfig } from '../src/server.js'
 import { createFoodRoutes } from '../src/food.js'
 import { createJournalRoutes } from '../src/journal.js'
 import { createDocumentRoutes } from '../src/documents.js'
@@ -18,9 +18,9 @@ const TOKEN = 'x'.repeat(40)
 
 /** Every dependency stubbed: no Postgres, no Strava, no network beyond 127.0.0.1.
  * @param {{ stravaSync?: HandlerDeps['stravaSync'], foodRoutes?: RouteModule, journalRoutes?: RouteModule, documentRoutes?: RouteModule,
- *   filesExportRoutes?: RouteModule }} [options]
+ *   filesExportRoutes?: RouteModule, garmin?: Partial<HandlerDeps> }} [options]
  * @returns {Promise<Stub>} */
-function setup ({ stravaSync = null, foodRoutes, journalRoutes, documentRoutes, filesExportRoutes } = {}) {
+function setup ({ stravaSync = null, foodRoutes, journalRoutes, documentRoutes, filesExportRoutes, garmin = {} } = {}) {
   /** @type {unknown[]} */
   const calls = []
   /** @param {string} name */
@@ -52,7 +52,8 @@ function setup ({ stravaSync = null, foodRoutes, journalRoutes, documentRoutes, 
     syncRoutes: { handleSync: mark('sync', 202), handleStatus: mark('syncStatus') },
     handleExport: mark('exportRaw'),
     handleStravaExport: mark('exportStrava'),
-    handleAthleteExport: mark('exportAthlete')
+    handleAthleteExport: mark('exportAthlete'),
+    ...garmin
   }
   const server = http.createServer(createHandler(deps))
   return new Promise((resolve) => server.listen(0, '127.0.0.1', () => {
@@ -95,7 +96,7 @@ test('GET /healthz pings the pool and reports strava + status health', async (t)
   t.after(s.close)
   const r = await s.call('GET', '/healthz')
   assert.equal(r.status, 200)
-  assert.deepEqual(r.body, { ok: true, strava: 'disabled', degraded: false })
+  assert.deepEqual(r.body, { ok: true, strava: 'disabled', garmin: 'disabled', degraded: false })
   assert.deepEqual(s.calls, ['ping'])
 })
 
@@ -302,4 +303,52 @@ test('a handler that throws answers a coarse 500, never the error text', async (
 test('importing server.js has no side effects (no listener, no exit without env)', async () => {
   // reaching this file at all proves the import did not call process.exit despite the missing env
   assert.equal(typeof createHandler, 'function')
+})
+
+test('GET /export/garmin: without Garmin it is the bearer-checked empty source (401, then 200 [])', async (t) => {
+  const s = await setup()
+  t.after(s.close)
+  assert.equal((await s.call('GET', '/export/garmin')).status, 401)
+  assert.deepEqual(await s.call('GET', '/export/garmin', { headers: { authorization: `Bearer ${TOKEN}` } }), { status: 200, body: [] })
+})
+
+test('GET /export/garmin reaches the wired Garmin export handler; /healthz reports garmin enabled', async (t) => {
+  /** @type {string[]} */
+  const hits = []
+  const s = await setup({
+    garmin: {
+      garminEnabled: true,
+      handleGarminExport: async (_req, res) => { hits.push('garmin'); res.writeHead(200, { 'content-type': 'application/json' }); res.end('[]') }
+    }
+  })
+  t.after(s.close)
+  assert.equal((await s.call('GET', '/export/garmin?since_id=3')).status, 200)
+  assert.deepEqual(hits, ['garmin'])
+  assert.deepEqual((await s.call('GET', '/healthz')).body, { ok: true, strava: 'disabled', garmin: 'enabled', degraded: false })
+})
+
+test('POST /sync/garmin: 401 without the bearer, 409 when Garmin is off, 503 while its migration is unavailable, else one pull', async (t) => {
+  const auth = { authorization: `Bearer ${TOKEN}` }
+  const off = await setup()
+  t.after(off.close)
+  assert.equal((await off.call('POST', '/sync/garmin')).status, 401)
+  assert.deepEqual(await off.call('POST', '/sync/garmin', { headers: auth }), { status: 409, body: { error: 'garmin not configured' } })
+
+  let runs = 0
+  let ready = false
+  const on = await setup({ garmin: { garminEnabled: true, garminSync: { runOnce: async () => { runs++; return { count: 2 } } }, garminAvailable: () => ready } })
+  t.after(on.close)
+  assert.deepEqual(await on.call('POST', '/sync/garmin', { headers: auth }), { status: 503, body: { error: 'garmin_unavailable' } })
+  ready = true
+  assert.deepEqual(await on.call('POST', '/sync/garmin', { headers: auth }), { status: 200, body: { ok: true, activities: 2 } })
+  assert.equal(runs, 1)
+})
+
+test('garminConfig: off without a key (an invalid interval is then ignored); with a key the interval is checked (1-10080, default 60)', () => {
+  assert.deepEqual(garminConfig({}), { enabled: false, syncMinutes: 60, keyExpires: null })
+  assert.deepEqual(garminConfig({ GARMIN_SYNC_MINUTES: 'abc', GARMIN_API_KEY_EXPIRES: '2031-01-01' }), { enabled: false, syncMinutes: 60, keyExpires: null })
+  assert.deepEqual(garminConfig({ GARMIN_API_KEY: 'k', GARMIN_SYNC_MINUTES: '15', GARMIN_API_KEY_EXPIRES: '2031-01-01' }), { enabled: true, syncMinutes: 15, keyExpires: '2031-01-01' })
+  assert.equal(garminConfig({ GARMIN_API_KEY: 'k', GARMIN_API_KEY_EXPIRES: '2031-02-30' }).keyExpires, null)
+  for (const bad of ['0', '10081', 'abc']) assert.throws(() => garminConfig({ GARMIN_API_KEY: 'k', GARMIN_SYNC_MINUTES: bad }), /^Error: invalid GARMIN_SYNC_MINUTES=/)
+  assert.ok(!JSON.stringify(garminConfig({ GARMIN_API_KEY: 'the-secret' })).includes('the-secret'), 'the key is never part of the config object')
 })

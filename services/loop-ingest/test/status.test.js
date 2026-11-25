@@ -8,9 +8,11 @@ const ISO = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/
 
 /** One recorded statement (the writes the tests read all pass values). @typedef {{ sql: string, values: readonly unknown[] }} Call */
 
-/** Fake pg pool: answers the few statements status.js issues, records every call.
- * @param {{ state?: Record<string, unknown> | null, lastPayload?: Date | null, failWrites?: boolean, failReads?: number }} [options] */
-function fakePool ({ state = null, lastPayload = null, failWrites = false, failReads = 0 } = {}) {
+/** Fake pg pool: answers the few statements status.js issues, records every call. `garmin` = the garmin_sync_state
+ * row (an Error = that read fails).
+ * @param {{ state?: Record<string, unknown> | null, lastPayload?: Date | null, failWrites?: boolean, failReads?: number,
+ *   garmin?: Record<string, unknown> | Error | null }} [options] */
+function fakePool ({ state = null, lastPayload = null, failWrites = false, failReads = 0, garmin = null } = {}) {
   /** @type {Call[]} */
   const calls = []
   let readFailures = failReads
@@ -24,6 +26,11 @@ function fakePool ({ state = null, lastPayload = null, failWrites = false, failR
         return { rows: state ? [state] : [] }
       }
       if (/FROM raw_payload/.test(sql)) return { rows: [{ last: lastPayload }] }
+      if (/FROM garmin_sync_state/.test(sql)) {
+        if (garmin instanceof Error) throw garmin
+        return { rows: garmin ? [garmin] : [] }
+      }
+      if (/^\s*UPDATE garmin_sync_state/.test(sql)) return { rows: [] }
       if (/^\s*UPDATE sync_status/.test(sql)) {
         if (failWrites) throw new Error('db down')
         return { rows: [] }
@@ -33,7 +40,7 @@ function fakePool ({ state = null, lastPayload = null, failWrites = false, failR
   }))
 }
 
-const KEYS = ['lastShortcutAt', 'lastStravaError', 'lastStravaOkAt', 'lastTriggerAt', 'lastTriggerError', 'lastTriggerErrorSeq', 'stravaConfigured', 'triggerSeq']
+const KEYS = ['garminConfigured', 'garminKeyExpires', 'lastGarminError', 'lastGarminOkAt', 'lastShortcutAt', 'lastStravaError', 'lastStravaOkAt', 'lastTriggerAt', 'lastTriggerError', 'lastTriggerErrorSeq', 'stravaConfigured', 'triggerSeq']
 
 test('snapshot: exact key set, ISO timestamps, coarse codes, the configured flag', async () => {
   const pool = fakePool({
@@ -51,7 +58,11 @@ test('snapshot: exact key set, ISO timestamps, coarse codes, the configured flag
     lastTriggerError: null,
     lastTriggerErrorSeq: null,
     triggerSeq: 12,
-    stravaConfigured: true
+    stravaConfigured: true,
+    garminConfigured: false,
+    lastGarminOkAt: null,
+    lastGarminError: null,
+    garminKeyExpires: null
   })
   const payloadQuery = /** @type {Call} */ (pool.calls.find((c) => /FROM raw_payload/.test(c.sql))).sql
   assert.equal(/** @type {RegExpExecArray} */ (/SELECT\s+([\s\S]*?)\s+FROM/i.exec(payloadQuery))[1], 'MAX(received_at) AS last', 'selects one timestamp, never payload columns')
@@ -67,7 +78,7 @@ test('an empty database reports nulls and seq 0, not errors', async () => {
 })
 
 test('status codes are the fixed coarse set', () => {
-  assert.deepEqual([...STATUS_CODES].sort(), ['build', 'strava_auth', 'strava_network', 'strava_other', 'strava_token_save', 'trigger_write'])
+  assert.deepEqual([...STATUS_CODES].sort(), ['build', 'garmin_auth', 'garmin_network', 'garmin_other', 'strava_auth', 'strava_network', 'strava_other', 'strava_token_save', 'trigger_write'])
 })
 
 test('Strava errors are exposed ONLY as coarse codes; no raw error text ever leaks', async () => {
@@ -243,9 +254,10 @@ test('every snapshot value is a timestamp, a code, a number or a boolean', async
   await status.recordTriggerError(1)
   for (const [key, value] of Object.entries(await status.snapshot())) {
     if (value === null) continue
-    if (key === 'stravaConfigured') assert.equal(typeof value, 'boolean')
+    if (key === 'stravaConfigured' || key === 'garminConfigured') assert.equal(typeof value, 'boolean')
+    else if (key === 'garminKeyExpires') assert.match(/** @type {string} */ (value), /^\d{4}-\d{2}-\d{2}$/)
     else if (key === 'triggerSeq' || key === 'lastTriggerErrorSeq') assert.ok(Number.isInteger(value))
-    else if (key === 'lastStravaError' || key === 'lastTriggerError') assert.ok(STATUS_CODES.has(/** @type {string} */ (value)))
+    else if (key === 'lastStravaError' || key === 'lastTriggerError' || key === 'lastGarminError') assert.ok(STATUS_CODES.has(/** @type {string} */ (value)))
     else assert.match(/** @type {string} */ (value), ISO, key)
   }
 })
@@ -285,4 +297,57 @@ test('container mode: recordTriggerError(seq, build) is exposed and persisted, s
   snap = await restarted.snapshot()
   assert.equal(snap.lastTriggerError, 'build')
   assert.equal(snap.lastTriggerErrorSeq, 6)
+})
+
+test('garmin unconfigured: the snapshot says so with nulls, and status never reads or writes the Garmin row', async () => {
+  const pool = fakePool()
+  const status = createSyncStatus({ pool, stravaConfigured: true, now: () => T0 })
+  await status.load()
+  const snap = await status.snapshot()
+  assert.equal(snap.garminConfigured, false)
+  assert.equal(snap.lastGarminOkAt, null)
+  assert.equal(snap.lastGarminError, null)
+  assert.equal(snap.garminKeyExpires, null)
+  assert.equal(status.garminFresh(60_000), false)
+  assert.ok(!pool.calls.some((c) => /garmin/.test(c.sql)))
+})
+
+test('garmin: the persisted state loads back; ok clears the error; errors are coarse garmin_* codes; expiry passes through', async () => {
+  const pool = fakePool({ garmin: { ok_at: new Date(T0 - 3_600_000), error: 'raw text from an old version', error_at: new Date(T0 - 60_000), history_complete: true } })
+  const status = createSyncStatus({ pool, stravaConfigured: false, garminConfigured: true, garminKeyExpires: '2031-01-31', now: () => T0 })
+  await status.load()
+  let snap = await status.snapshot()
+  assert.equal(snap.garminConfigured, true)
+  assert.equal(snap.lastGarminOkAt, '2030-01-02T09:00:00.000Z')
+  assert.equal(snap.lastGarminError, 'garmin_other', 'a stored non-code is coerced')
+  assert.equal(snap.garminKeyExpires, '2031-01-31')
+  assert.equal(snap.lastStravaError, null, 'Garmin never shows in the Strava field')
+
+  await status.recordGarminError('garmin_auth')
+  snap = await status.snapshot()
+  assert.equal(snap.lastGarminError, 'garmin_auth')
+  assert.equal(snap.lastGarminOkAt, '2030-01-02T09:00:00.000Z', 'an error never erases the last success')
+  await status.recordGarminError('fetch failed: secret')
+  assert.equal((await status.snapshot()).lastGarminError, 'garmin_other')
+  await status.recordGarminOk()
+  snap = await status.snapshot()
+  assert.equal(snap.lastGarminError, null)
+  assert.equal(snap.lastGarminOkAt, new Date(T0).toISOString())
+  assert.equal(status.garminFresh(60_000), true)
+  const write = pool.calls.filter((c) => /UPDATE garmin_sync_state/.test(c.sql)).at(-1)
+  assert.deepEqual(write?.values, [new Date(T0).toISOString(), null, null])
+  assert.deepEqual(status.health(), { degraded: false }, 'Garmin never degrades /healthz (Strava owns that flag)')
+})
+
+test('garmin: a failed read of its row (migration unavailable) is logged and leaves the rest of the status intact', async () => {
+  /** @type {string[]} */
+  const lines = []
+  const pool = fakePool({ state: { last_strava_ok_at: new Date(T0), trigger_seq: '3' }, garmin: new Error('relation "garmin_sync_state" does not exist') })
+  const status = createSyncStatus({ pool, stravaConfigured: true, garminConfigured: true, now: () => T0, log: (l) => lines.push(l) })
+  await status.load()
+  const snap = await status.snapshot()
+  assert.equal(snap.triggerSeq, 3)
+  assert.equal(snap.lastStravaOkAt, new Date(T0).toISOString())
+  assert.equal(snap.lastGarminOkAt, null)
+  assert.ok(lines.some((l) => JSON.parse(l).event === 'garmin_status_load_failed'))
 })
