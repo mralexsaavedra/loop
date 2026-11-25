@@ -491,6 +491,7 @@ export {
   WORKOUTS_HEADER,
   translateType,
   workoutType,
+  localIsoWithOffset,
   INDOOR_RIDE_TYPE,
   staleTrainerWarning,
   toRow,

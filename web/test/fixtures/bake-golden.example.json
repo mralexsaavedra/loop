@@ -6964,6 +6964,32 @@
     "m": "bike",
     "min": 47,
     "n": 1,
+    "pl": {
+     "done": {
+      "hr": 136,
+      "min": 47,
+      "np": 130,
+      "w": 126
+     },
+     "min": 45,
+     "steps": [
+      {
+       "k": "warmup",
+       "s": 600
+      },
+      {
+       "hi": 135,
+       "k": "active",
+       "lo": 125,
+       "s": 1500,
+       "t": "w"
+      },
+      {
+       "k": "cooldown",
+       "s": 600
+      }
+     ]
+    },
     "re": 38,
     "src": "Demo Strava",
     "t": "Cycling",
@@ -7056,6 +7082,44 @@
     "m": "bike",
     "min": 77,
     "n": 1,
+    "pl": {
+     "done": {
+      "hr": 137,
+      "min": 77,
+      "np": 190,
+      "w": 170
+     },
+     "min": 68,
+     "steps": [
+      {
+       "k": "warmup",
+       "s": 600
+      },
+      {
+       "steps": [
+        {
+         "hi": 235,
+         "k": "interval",
+         "lo": 220,
+         "s": 480,
+         "t": "w"
+        },
+        {
+         "hi": 130,
+         "k": "recovery",
+         "lo": 100,
+         "s": 240,
+         "t": "w"
+        }
+       ],
+       "x": 4
+      },
+      {
+       "k": "cooldown",
+       "s": 600
+      }
+     ]
+    },
     "re": 65,
     "src": "Demo Strava",
     "t": "Cycling",
@@ -7147,6 +7211,32 @@
     "m": "bike",
     "min": 74,
     "n": 1,
+    "pl": {
+     "done": {
+      "hr": 139,
+      "min": 74,
+      "np": 128,
+      "w": 124
+     },
+     "min": 75,
+     "steps": [
+      {
+       "k": "warmup",
+       "s": 600
+      },
+      {
+       "hi": 135,
+       "k": "active",
+       "lo": 125,
+       "s": 3300,
+       "t": "w"
+      },
+      {
+       "k": "cooldown",
+       "s": 600
+      }
+     ]
+    },
     "re": 59,
     "src": "Demo Strava",
     "t": "Cycling",
@@ -7239,6 +7329,44 @@
     "m": "bike",
     "min": 70,
     "n": 1,
+    "pl": {
+     "done": {
+      "hr": 138,
+      "min": 70,
+      "np": 186,
+      "w": 166
+     },
+     "min": 68,
+     "steps": [
+      {
+       "k": "warmup",
+       "s": 600
+      },
+      {
+       "steps": [
+        {
+         "hi": 235,
+         "k": "interval",
+         "lo": 220,
+         "s": 480,
+         "t": "w"
+        },
+        {
+         "hi": 130,
+         "k": "recovery",
+         "lo": 100,
+         "s": 240,
+         "t": "w"
+        }
+       ],
+       "x": 4
+      },
+      {
+       "k": "cooldown",
+       "s": 600
+      }
+     ]
+    },
     "re": 59,
     "src": "Demo Strava",
     "t": "Cycling",
@@ -7330,6 +7458,32 @@
     "m": "bike",
     "min": 76,
     "n": 1,
+    "pl": {
+     "done": {
+      "hr": 138,
+      "min": 76,
+      "np": 130,
+      "w": 126
+     },
+     "min": 75,
+     "steps": [
+      {
+       "k": "warmup",
+       "s": 600
+      },
+      {
+       "hi": 135,
+       "k": "active",
+       "lo": 125,
+       "s": 3300,
+       "t": "w"
+      },
+      {
+       "k": "cooldown",
+       "s": 600
+      }
+     ]
+    },
     "re": 62,
     "src": "Demo Strava",
     "t": "Cycling",
@@ -7422,6 +7576,44 @@
     "m": "bike",
     "min": 77,
     "n": 1,
+    "pl": {
+     "done": {
+      "hr": 134,
+      "min": 77,
+      "np": 192,
+      "w": 171
+     },
+     "min": 68,
+     "steps": [
+      {
+       "k": "warmup",
+       "s": 600
+      },
+      {
+       "steps": [
+        {
+         "hi": 235,
+         "k": "interval",
+         "lo": 220,
+         "s": 480,
+         "t": "w"
+        },
+        {
+         "hi": 130,
+         "k": "recovery",
+         "lo": 100,
+         "s": 240,
+         "t": "w"
+        }
+       ],
+       "x": 4
+      },
+      {
+       "k": "cooldown",
+       "s": 600
+      }
+     ]
+    },
     "re": 67,
     "src": "Demo Strava",
     "t": "Cycling",

@@ -34,7 +34,7 @@ built, for anyone changing the code.
 | Detail views: the history sheet behind every card | [`detail-views.md`](detail-views.md) |
 | Profile sheet, goal setting, the in-page onboarding | [`profile.md`](profile.md) |
 | Design system: tokens, components, the guard test | [`design-system.md`](design-system.md) |
-| Data pipeline: Apple Health extract, Shortcut and Strava sync | [`data-pipeline.md`](data-pipeline.md) |
+| Data pipeline: Apple Health extract, Shortcut, Strava and Garmin sync | [`data-pipeline.md`](data-pipeline.md) |
 | LOOP server: the images, page + data service, sync protocol, security | [`lan-services.md`](lan-services.md) |
 | Coach subagents and their knowledge base | [`knowledge-base.md`](knowledge-base.md) |
 | The guard hook that keeps personal data out of git | [`guard-hook.md`](guard-hook.md) |

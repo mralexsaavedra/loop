@@ -110,6 +110,17 @@ has no such key. None has a host tab except
 - When `workout-zones.csv` has that date + modality (`lib/training/read.mjs` `readWorkoutZones`): `z` =
   seconds in HR zone 0–5 summed over its Strava activities (left out when none or all zero) and `hx` =
   their highest max HR.
+- When `workout-plans.csv` (the optional Garmin sync, [`data-pipeline.md`](data-pipeline.md) → Garmin sync) has
+  that date + modality (`readWorkoutPlans`, joined with `scoreModality` like the zones; the longest activity's
+  plan when several): `pl` = `{min, steps, done}` (`lib/detail/detail.mjs` `planView`), always the LAST key so a
+  session without a plan bakes exactly as before.
+  - `min`: planned minutes = the TIME steps, a `REPEAT_UNTIL_STEPS_CMPLT` block counted its number of times;
+    `null` when any step is not timed (distance, open, lap button).
+  - `steps`: compact steps `{k, s?, t?, lo?, hi?, z?}` (`k` = intensity lower-cased, `s` = planned seconds, `t` =
+    target kind `w` / `hr` / `rpm` / `pace` / `speed` with its range `lo`..`hi` or zone `z`; pace / speed in m/s)
+    and repeat blocks `{x, steps}` (done `x` times in all).
+  - `done`: `{min, w, np, hr}` = minutes, avg / normalized power and avg HR done; a figure not recorded is left
+    out.
 - `zoneMax` = `{hr, src}`: the max HR the zones were cut with and its source (`profile` / `observed`);
   absent without the file.
 - `habits`: Salud's healthspan habits of the last 28 full days (`lib/score/healthspan.mjs`, shape and rules
@@ -304,6 +315,12 @@ bottom: header → ⓘ block → hero ring → contributors → insight → week
   avg / max HR, rows ZONE 5…0 with the bpm range from `zoneMax`, % of the zoned time, m:ss and a bar in the
   zone colour, and an ⓘ `<details>` with the model and the max HR; [`training.md`](training.md) "Per-workout
   HR zones"); no `z` → no block.
+- A session with a planned Garmin workout (`pl`) gets the plan block under its meta line, before the zones
+  (`planHtml`, `.dt-plan`, laid out by the zones block's `.dt-zones` / `.dt-zhead` rules, no CSS of its own): "PLAN 1:30 · 125–135 W" (planned time + the main target: the active / interval step
+  with the most planned time that has one; pace as min/km, speed as km/h, a zone target as "HR zone 2"),
+  "DONE 1:00 · 118 W · NP 122 W · 132 bpm", then the compact steps ("Warm-up 10 min · 2× (8 min 220–235 W ·
+  recovery 4 min) · cool-down 10 min"; an active step needs no name). Copy in `I18N_DETAIL.day.plan` ("Plan" vs
+  "Hecho" / "Done"); no `pl` → no block.
 
 ### Strain, stress and energy bank pages
 

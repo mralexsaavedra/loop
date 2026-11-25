@@ -678,7 +678,8 @@ button.dt-day {
   font-size: var(--fs-xs);
 }
 
-/* per-workout HR zones in a session (detail.ts zonesHtml): ZONE 5…0 tiles, each with its bpm range,
+/* per-workout HR zones in a session (detail.ts zonesHtml; its block and head rows also lay out planHtml's plan vs
+ * done, so that block adds no CSS of its own): ZONE 5…0 tiles, each with its bpm range,
  * % of the zoned time, duration and a bar in the zone's colour, warm (5) -> cool (0) */
 .dt-zones {
   display: flex;

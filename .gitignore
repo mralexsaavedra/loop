@@ -19,10 +19,11 @@ data/apple-health/*
 !data/apple-health/.gitkeep
 # extract.mjs is plain tooling (no data) → trackable; its extract/ output stays ignored.
 !data/apple-health/extract.mjs
-# The Shortcut/Strava syncs and their tests are tooling (synthetic fixtures only, no personal
+# The Shortcut/Strava/Garmin syncs and their tests are tooling (synthetic fixtures only, no personal
 # values).
 !data/apple-health/sync-shortcut.mjs
 !data/apple-health/sync-strava.mjs
+!data/apple-health/sync-garmin.mjs
 !data/apple-health/*.test.mjs
 # The Apple Health export ships as an `export*.zip` / `exportación.zip` archive and
 # unzips to an `apple_health_export/` folder (a ~400MB+ export_cda.xml + workout-routes

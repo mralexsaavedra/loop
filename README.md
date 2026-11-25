@@ -163,6 +163,11 @@ and the endpoint the iOS Shortcut sends your Apple Health data to. Three contain
 
    It asks for the code from the authorization page and prints a `STRAVA_REFRESH_TOKEN=...` line: put it in
    `.env` and run `docker compose up -d` again.
+8. **Garmin** (optional, read-only): shows the structured workout a session followed (plan vs done) in the day
+   detail. Create a personal API key at [Garmin Connect → Personal API key](https://connect.garmin.com/app/settings/personalApiToken),
+   put it in `.env` as `GARMIN_API_KEY`, and the expiry date Garmin shows as `GARMIN_API_KEY_EXPIRES=YYYY-MM-DD`
+   (the page warns a week before), then `docker compose up -d`. Details:
+   [`docs/lan-services.md`](docs/lan-services.md) → Garmin.
 
 Updating: [`docs/guides/upgrading.md`](docs/guides/upgrading.md) (`docker compose pull && docker compose up -d`);
 something not working: [`docs/guides/troubleshooting.md`](docs/guides/troubleshooting.md); how the server works

@@ -286,8 +286,11 @@ test('sync-templates.mjs (freshness line + Sync button) has identical key trees 
       assert.notEqual(/** @type {string} */ (value).trim(), '', `${locale} sync-templates.${path} must not be empty`);
     }
     for (const k of /** @type {const} */ (['minAgo', 'hAgo', 'dAgo'])) assert.match(dict[k], /\{n\}/, `${locale}.${k}`);
-    assert.deepEqual(Object.keys(dict.labels), ['shortcut', 'strava', 'page']);
-    assert.deepEqual(Object.keys(dict.hints), ['shortcut', 'strava', 'page']);
+    assert.deepEqual(Object.keys(dict.labels), ['shortcut', 'strava', 'garmin', 'page']);
+    assert.deepEqual(Object.keys(dict.hints), ['shortcut', 'strava', 'garmin', 'page']);
+    // the Garmin key copy names what to change on the server, and the expiry lines the date
+    for (const k of /** @type {const} */ (['refused', 'expires', 'expired'])) assert.match(dict.garminKey[k], /GARMIN_API_KEY\b.*GARMIN_API_KEY_EXPIRES/, `${locale}.garminKey.${k}`);
+    for (const k of /** @type {const} */ (['expires', 'expired'])) assert.match(dict.garminKey[k], /\{date\}/, `${locale}.garminKey.${k}`);
     assert.match(dict.failedCode, /\{reason\}/, `${locale}.failedCode`);
     // every coarse code refresh.sh (status.json error) or ingest (lastTriggerError) can report, + a fallback
     assert.deepEqual(Object.keys(dict.errors), ['branch', 'install', 'build', 'sanity', 'lock', 'trigger_write', 'unknown']);

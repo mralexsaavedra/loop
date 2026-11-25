@@ -173,6 +173,51 @@ test('Strava configured but never succeeded -> "nunca" in the low colour; no Sho
   assert.match(s.line.innerHTML, /fresh-low">Strava: nunca/);
 });
 
+// ---- Garmin (optional source, S2 / S3): only when configured; failing on a garmin_* error; key expiry warning ----
+
+const DAY = 24 * H;
+/** the local calendar date `days` from the fake now, as YYYY-MM-DD @param {number} days */
+const localDay = (days) => { const d = new Date(NOW + days * DAY); return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`; };
+const garminOn = { ...freshStatus, garminConfigured: true, lastGarminOkAt: iso(NOW - 3 * H), lastGarminError: null, garminKeyExpires: null };
+/** @param {Record<string, unknown>} status @param {string} [locale] */
+async function garminLine(status, locale = 'es') {
+  const s = setup({ locale, routes: { 'GET /api/sync/status': json(status), 'GET /status.json': json({ publishedAt: iso(NOW - MIN) }) } });
+  await s.advance(0);
+  return s.line.innerHTML;
+}
+
+test('Garmin not configured (no garminConfigured, or false) -> no Garmin item; the Strava and Shortcut items as before', async () => {
+  assert.equal(text(await garminLine(freshStatus)), 'Atajo: hace 5 min · Strava: hace 2 h · Página: hace 1 min');
+  assert.equal(text(await garminLine({ ...garminOn, garminConfigured: false })), 'Atajo: hace 5 min · Strava: hace 2 h · Página: hace 1 min');
+});
+
+test('Garmin configured -> "Garmin: hace 3 h" after Strava, from lastGarminOkAt; English copy', async () => {
+  assert.equal(text(await garminLine(garminOn)), 'Atajo: hace 5 min · Strava: hace 2 h · Garmin: hace 3 h · Página: hace 1 min');
+  assert.match(text(await garminLine(garminOn, 'en')), /Strava: 2 h ago · Garmin: 3 h ago · Page/);
+});
+
+test('Garmin failing: a refused key (garmin_auth) shows the item in the low colour with what to do on the server', async () => {
+  const html = await garminLine({ ...garminOn, lastGarminError: 'garmin_auth' });
+  assert.match(html, /<span class="fresh-item fresh-low">Garmin: hace 3 h <em class="fresh-hint">\(Garmin rechaza la clave: crea una nueva en Garmin Connect y cámbiala en GARMIN_API_KEY y GARMIN_API_KEY_EXPIRES del servidor\)<\/em><\/span>/);
+  const net = await garminLine({ ...garminOn, lastGarminError: 'garmin_network' });
+  assert.match(net, /fresh-low">Garmin: hace 3 h <em class="fresh-hint">\(revisa la conexión con Garmin\)/);
+  assert.match(await garminLine({ ...garminOn, lastGarminError: 'garmin_auth' }, 'en'), /Garmin refuses the key: create a new one in Garmin Connect and set it as GARMIN_API_KEY and GARMIN_API_KEY_EXPIRES on the server/);
+  // a Strava code is not a Garmin failure
+  assert.match(await garminLine({ ...garminOn, lastStravaError: 'strava_auth' }), /<span class="fresh-item">Garmin: hace 3 h<\/span>/);
+});
+
+test('Garmin key expiry (GARMIN_API_KEY_EXPIRES): a warning from 7 days before, low once past; none further out', async () => {
+  assert.match(await garminLine({ ...garminOn, garminKeyExpires: localDay(8) }), /<span class="fresh-item">Garmin: hace 3 h<\/span>/);
+  const soon = await garminLine({ ...garminOn, garminKeyExpires: localDay(7) });
+  assert.match(soon, /fresh-mid">Garmin: hace 3 h <em class="fresh-hint">\(la clave de Garmin caduca el [^)]+: crea una nueva en Garmin Connect y cámbiala en GARMIN_API_KEY y GARMIN_API_KEY_EXPIRES del servidor\)/);
+  const past = await garminLine({ ...garminOn, garminKeyExpires: localDay(-1) });
+  assert.match(past, /fresh-low">Garmin: hace 3 h <em class="fresh-hint">\(la clave de Garmin caducó el [^)]+:/);
+  assert.match(await garminLine({ ...garminOn, garminKeyExpires: localDay(3) }, 'en'), /fresh-mid">Garmin: 3 h ago <em class="fresh-hint">\(the Garmin key expires on [^)]+: create a new one in Garmin Connect/);
+  // a refused key outranks the expiry note; a malformed date is ignored
+  assert.match(await garminLine({ ...garminOn, garminKeyExpires: localDay(3), lastGarminError: 'garmin_auth' }), /fresh-low">Garmin: hace 3 h <em class="fresh-hint">\(Garmin rechaza la clave/);
+  assert.match(await garminLine({ ...garminOn, garminKeyExpires: 'soon' }), /<span class="fresh-item">Garmin: hace 3 h<\/span>/);
+});
+
 /** @param {number} seq @param {boolean} [coalesced] */
 const accepted = (seq, coalesced = false) => json({ ok: true, seq, coalesced }, 202);
 
