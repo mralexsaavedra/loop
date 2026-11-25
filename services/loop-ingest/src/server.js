@@ -259,8 +259,9 @@ export function createHandler ({
       if (req.method === 'GET' && url.pathname === '/healthz') {
         await ping(pool)
         // Still 200 when degraded: the container is alive and ingesting; the flag
-        // says the Strava pull has not succeeded for 6 h (see status.js).
-        send(res, 200, { ok: true, strava: stravaEnabled ? 'enabled' : 'disabled', garmin: garminEnabled ? 'enabled' : 'disabled', ...syncStatus.health() })
+        // says the Strava pull has not succeeded for 6 h (see status.js). `garmin` is there only when
+        // Garmin is configured, so an install without it answers exactly as before.
+        send(res, 200, { ok: true, strava: stravaEnabled ? 'enabled' : 'disabled', ...(garminEnabled ? { garmin: 'enabled' } : {}), ...syncStatus.health() })
         return
       }
 

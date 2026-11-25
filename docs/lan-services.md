@@ -238,7 +238,8 @@ BREACH-style oracle; pinned by `scripts/loop-web-config.test.mjs`). The page is 
   `/export/strava`) returns per activity the start, type, duration, power, HR and `plan_status` / `plan`, never names,
   notes or the raw payload; without the key it answers `200 []`. `/sync/status` adds `garminConfigured`,
   `lastGarminOkAt`, `lastGarminError` and `garminKeyExpires` (from `GARMIN_API_KEY_EXPIRES`; the API does not report
-  the expiry), and `/healthz` reports `garmin: enabled | disabled` (Garmin never makes it `degraded`).
+  the expiry), and `/healthz` adds `garmin: enabled` only when Garmin is configured (without it the body is unchanged; Garmin never
+  makes it `degraded`).
   **When the key expires or is refused**: the token exchange answers `401` / `403`, the run records `garmin_auth`, the
   page's freshness line shows Garmin as failing (and warns from 7 days before `GARMIN_API_KEY_EXPIRES`); everything
   stored stays and the Strava pull, the build and the other routes go on. Fix: create a new key at the address above,

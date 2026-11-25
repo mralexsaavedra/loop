@@ -103,6 +103,27 @@ test('token: a network error carrying the key in its message is scrubbed and cla
   })
 })
 
+test('token: the key is scrubbed from every nested cause and from AggregateError entries', async () => {
+  const inner = new Error(`deep ${KEY}`)
+  const agg = new AggregateError([new Error(`one ${KEY}`), new Error(`two ${KEY}`)], `agg ${KEY}`)
+  const f = fakeFetch(() => { throw new TypeError('fetch failed', { cause: new Error(`mid ${KEY}`, { cause: new Error(`low ${KEY}`, { cause: inner }) }) }) })
+  const getToken = createGarminTokenProvider({ apiKey: KEY, baseUrl: BASE, fetchImpl: f.fetchImpl })
+  await assert.rejects(getToken, (/** @type {Error & { cause?: any }} */ err) => {
+    const texts = []
+    for (let c = /** @type {any} */ (err); c; c = c.cause) texts.push(c.message, c.stack)
+    assert.ok(!texts.join('\n').includes(KEY), 'no cause level keeps the key')
+    return true
+  })
+  const g = fakeFetch(() => { throw new TypeError('fetch failed', { cause: agg }) })
+  const getToken2 = createGarminTokenProvider({ apiKey: KEY, baseUrl: BASE, fetchImpl: g.fetchImpl })
+  await assert.rejects(getToken2, (/** @type {Error & { cause?: any }} */ err) => {
+    const a = err.cause
+    const texts = [a.message, a.stack, ...a.errors.flatMap((/** @type {Error} */ x) => [x.message, x.stack])]
+    assert.ok(!texts.join('\n').includes(KEY), 'no AggregateError entry keeps the key')
+    return true
+  })
+})
+
 test('token: an empty token body or a 500 is garmin_other', async () => {
   for (const [status, body] of /** @type {[number, string][]} */ ([[200, ''], [200, '{}'], [500, 'oops']])) {
     const f = fakeFetch(() => reply(status, body))

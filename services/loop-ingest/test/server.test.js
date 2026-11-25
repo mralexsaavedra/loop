@@ -96,7 +96,7 @@ test('GET /healthz pings the pool and reports strava + status health', async (t)
   t.after(s.close)
   const r = await s.call('GET', '/healthz')
   assert.equal(r.status, 200)
-  assert.deepEqual(r.body, { ok: true, strava: 'disabled', garmin: 'disabled', degraded: false })
+  assert.deepEqual(r.body, { ok: true, strava: 'disabled', degraded: false }, 'without Garmin the body is the previous one (no garmin key)')
   assert.deepEqual(s.calls, ['ping'])
 })
 

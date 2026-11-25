@@ -59,20 +59,28 @@ export function garminKeyExpires (env) {
 }
 
 /**
- * Removes every occurrence of the key from an error's message, stack and cause (in place) and returns it.
+ * Removes every occurrence of the key from an error's message and stack, through its whole `cause` chain and the
+ * `errors` of an AggregateError (in place, cycles skipped), and returns it.
  * @param {unknown} err @param {string} apiKey @returns {GarminError}
  */
 function scrubKey (err, apiKey) {
   const e = /** @type {GarminError} */ (err instanceof Error ? err : new Error(String(err)))
   if (!apiKey) return e
-  const clean = (/** @type {unknown} */ s) => typeof s === 'string' ? s.split(apiKey).join('[redacted]') : s
-  for (const target of [e, e.cause]) {
-    if (!target || typeof target !== 'object') continue
+  const clean = (/** @type {string} */ s) => s.split(apiKey).join('[redacted]')
+  const seen = new Set()
+  /** @type {unknown[]} */
+  const queue = [e]
+  while (queue.length) {
+    const target = /** @type {any} */ (queue.shift())
+    if (!target || typeof target !== 'object' || seen.has(target)) continue
+    seen.add(target)
     for (const field of ['message', 'stack']) {
       try {
         if (typeof target[field] === 'string' && target[field].includes(apiKey)) target[field] = clean(target[field])
       } catch {}
     }
+    try { queue.push(target.cause) } catch {}
+    try { if (Array.isArray(target.errors)) queue.push(...target.errors) } catch {}
   }
   return e
 }

@@ -23,7 +23,7 @@ parses it into the extract CSVs. A parsing fix later is a re-sync, not a re-impo
 
 | Method | Path                          | Auth   | Response |
 | ------ | ----------------------------- | ------ | -------- |
-| GET    | `/healthz`                    | none   | `200` `{ok, strava, garmin, degraded}` when the database answers (`strava` / `garmin`: `enabled` or `disabled`); `degraded: true, reason: "strava_stale"` when Strava is configured and its last PERSISTED success is older than 6 h (or it never succeeded); Garmin never degrades it |
+| GET    | `/healthz`                    | none   | `200` `{ok, strava, garmin?, degraded}` when the database answers (`strava`: `enabled` or `disabled`; `garmin: enabled` only when Garmin is configured); `degraded: true, reason: "strava_stale"` when Strava is configured and its last PERSISTED success is older than 6 h (or it never succeeded); Garmin never degrades it |
 | POST   | `/sync`                       | none   | `202` `{ok, seq, coalesced, deferred?, strava?, garmin?}` (`garmin` only when Garmin is configured); never refuses (repeated clicks coalesce or defer) |
 | GET    | `/sync/status`                | none   | `200` `{lastShortcutAt, lastStravaOkAt, lastStravaError, lastTriggerAt, lastTriggerError, lastTriggerErrorSeq, triggerSeq, stravaConfigured, garminConfigured, lastGarminOkAt, lastGarminError, garminKeyExpires}` (coarse codes only, cached 5 s) |
 | POST   | `/ingest/health-auto-export`  | bearer | `202` with the stored row id; `400` on an empty body, invalid JSON or a `\u0000` anywhere in it (`code: "nul_character"`: Postgres cannot store it, so it is refused rather than a `500` the client retries forever); `413` over `MAX_BODY_BYTES` |
