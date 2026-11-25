@@ -29,6 +29,7 @@
     "sync": "node scripts/sync-all.mjs",
     "sync:shortcut": "node data/apple-health/sync-shortcut.mjs",
     "sync:strava": "node data/apple-health/sync-strava.mjs",
+    "sync:garmin": "node data/apple-health/sync-garmin.mjs",
     "sync:profile": "node data/profile/sync-profile.mjs",
     "publish:manuals": "node scripts/publish-manuals.mjs",
     "sync:settings": "node data/profile/sync-settings.mjs",

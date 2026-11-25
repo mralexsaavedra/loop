@@ -2,7 +2,7 @@ import test from 'node:test'
 import assert from 'node:assert/strict'
 import {
   parseExportQuery, listRawPayloads, createExportHandler, EXPORT_PAGE_BYTES,
-  parsePaging, listStravaActivities, createStravaExportHandler
+  parsePaging, listStravaActivities, createStravaExportHandler, createGarminExportHandler
 } from '../src/export.js'
 
 /** @typedef {import('../src/http.js').HttpError} HttpError @typedef {import('../src/db.js').Queryable} Queryable */
@@ -271,4 +271,55 @@ test('export handler: a byte-capped page answers X-Has-More: true and logs it', 
   await handle(/** @type {Req} */ (/** @type {unknown} */ ({ headers: { authorization: `Bearer ${TOKEN}` } })), res, new URL('http://x/export/raw?automation=a'))
   assert.deepEqual([res.status, res.body.map((/** @type {{ id: string }} */ r) => r.id), res.headers['x-has-more']], [200, ['13'], 'true'])
   assert.deepEqual(logged, [{ event: 'exported', automation: 'a', since_id: '0', count: 1, more: true }])
+})
+
+/** @param {Record<string, string>} [headers] */
+const reqWith = (headers = { authorization: `Bearer ${TOKEN}` }) => /** @type {Req} */ (/** @type {unknown} */ ({ headers }))
+
+test('garmin export: 401 without the bearer and 400 on bad paging, before any query', async () => {
+  const pool = fakePool([])
+  const handle = createGarminExportHandler({ pool, token: TOKEN, configured: true, available: () => true, log: () => {} })
+  const res = fakeRes()
+  await handle(reqWith({}), res, new URL('http://x/export/garmin'))
+  assert.equal(res.status, 401)
+  const bad = fakeRes()
+  await handle(reqWith(), bad, new URL('http://x/export/garmin?limit=0'))
+  assert.equal(bad.status, 400)
+  assert.equal(pool.calls.length, 0)
+})
+
+test('garmin export: unconfigured answers 200 [] without a query; migration unavailable answers 503', async () => {
+  const pool = fakePool([])
+  const off = fakeRes()
+  await createGarminExportHandler({ pool, token: TOKEN, configured: false, available: () => false, log: () => {} })(reqWith(), off, new URL('http://x/export/garmin'))
+  assert.equal(off.status, 200)
+  assert.deepEqual(off.body, [])
+  const down = fakeRes()
+  await createGarminExportHandler({ pool, token: TOKEN, configured: true, available: () => false, log: () => {} })(reqWith(), down, new URL('http://x/export/garmin'))
+  assert.equal(down.status, 503)
+  assert.deepEqual(down.body, { error: 'garmin_unavailable' })
+  assert.equal(pool.calls.length, 0)
+})
+
+test('garmin export: the Contract rows, paged ascending by since_id, logs counts only, no names / notes / payload', async () => {
+  /** @type {string[]} */
+  const logged = []
+  const pool = fakePool([{
+    id: '7', start_local: '2030-03-01T09:00:00', start_utc: '2030-03-01T08:00:00Z', type: 'indoor_cycling', duration_s: 3600,
+    avg_power: 118, norm_power: 125, avg_hr: 140, max_hr: 170, plan_status: 'ok',
+    steps: [{ i: 1, intensity: 'ACTIVE', dur_type: 'TIME', dur: 4200, target: 'POWER_3S', low: 125, high: 135, value: null, notes: 'coach' }],
+    activityName: 'My ride', payload: { activityName: 'My ride' }
+  }])
+  const handle = createGarminExportHandler({ pool, token: TOKEN, configured: true, available: () => true, log: (l) => logged.push(l) })
+  const res = fakeRes()
+  await handle(reqWith(), res, new URL('http://x/export/garmin?since_id=5&limit=10'))
+  assert.equal(res.status, 200)
+  assert.deepEqual(res.body, [{
+    id: '7', start_local: '2030-03-01T09:00:00', start_utc: '2030-03-01T08:00:00Z', type: 'indoor_cycling', duration_s: 3600,
+    avg_power: 118, norm_power: 125, avg_hr: 140, max_hr: 170, plan_status: 'ok',
+    plan: { steps: [{ i: 1, intensity: 'ACTIVE', dur_type: 'TIME', dur: 4200, target: 'POWER_3S', low: 125, high: 135, value: null }] }
+  }])
+  assert.deepEqual(pool.calls[0].values, ['5', 10])
+  assert.match(pool.calls[0].sql, /ORDER BY a\.id ASC/)
+  assert.deepEqual(JSON.parse(logged[0]), { event: 'exported', source: 'garmin', since_id: '5', count: 1 })
 })

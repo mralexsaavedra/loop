@@ -78,9 +78,9 @@ function settleWithin (promise, ms) {
 
 /**
  * The slice of status.js createSyncStatus the trigger uses.
- * @typedef {{ stravaFresh: (ms: number) => boolean, currentSeq: () => number, nextTriggerSeq: () => number,
+ * @typedef {{ stravaFresh: (ms: number) => boolean, garminFresh?: (ms: number) => boolean, currentSeq: () => number, nextTriggerSeq: () => number,
  *   recordTrigger: (seq: number) => Promise<void>, recordTriggerError: (seq: number) => Promise<void> }} TriggerStatus
- * @typedef {{ runStrava?: (() => unknown) | null, writeTrigger: (seq: number) => Promise<void>, status: TriggerStatus,
+ * @typedef {{ runStrava?: (() => unknown) | null, runGarmin?: (() => unknown) | null, writeTrigger: (seq: number) => Promise<void>, status: TriggerStatus,
  *   now?: () => number, waitMs?: number, minTriggerIntervalMs?: number, minStravaIntervalMs?: number,
  *   log?: (line: string) => void }} TriggerOptions
  * A scheduled deferred write: its seq, timer, the promise handle() answered with and its resolver.
@@ -115,6 +115,11 @@ function settleWithin (promise, ms) {
  * The window is measured from the last write's COMPLETION, not from when its
  * run started, so a slow Strava pull cannot yield two writes seconds apart.
  *
+ * Garmin (optional, garmin-sync.js): with `runGarmin` set, a run also starts the Garmin pull under the same 5 min
+ * cooldown (its own last success, status.garminFresh), in parallel with Strava; the write waits for both, still
+ * bounded by waitMs, and a Garmin failure is only its own (never the Strava pull's, never the write's). The
+ * answer then carries `garmin: started | recent`; without `runGarmin` it is exactly the previous one.
+ *
  * Nothing new is persisted: the deferred seq goes through the same
  * nextTriggerSeq(). On shutdown call flush(): it writes a pending deferred seq
  * at once (no Strava pull) and awaits an in-flight run, forcing a direct write
@@ -129,6 +134,7 @@ function settleWithin (promise, ms) {
  */
 export function createSyncTrigger ({
   runStrava,
+  runGarmin = null,
   writeTrigger,
   status,
   now = Date.now,
@@ -156,8 +162,13 @@ export function createSyncTrigger ({
     // async wrapper: starts the pull now, and turns a synchronous throw into a rejection
     // runStrava is set whenever stravaMode is 'started'
     const strava = stravaMode === 'started' ? (async () => /** @type {() => unknown} */ (runStrava)())() : Promise.resolve()
+    const garminMode = !runGarmin ? null : skipStrava || status.garminFresh?.(minStravaIntervalMs) ? 'recent' : 'started'
+    const garmin = garminMode === 'started' ? (async () => /** @type {() => unknown} */ (runGarmin)())() : Promise.resolve()
+    const started = stravaMode === 'started' || garminMode === 'started'
+    // allSettled: a Garmin failure never cuts the wait for Strava short, nor the other way round
+    const pulls = garminMode ? Promise.allSettled([strava, garmin]) : strava
 
-    const done = settleWithin(strava, stravaMode === 'started' ? waitMs : 0)
+    const done = settleWithin(pulls, started ? waitMs : 0)
       .then(() => writeTrigger(seq))
       .then(
         async () => {
@@ -180,7 +191,7 @@ export function createSyncTrigger ({
       })
     inflight = done
 
-    return { stravaMode, done }
+    return { stravaMode, garminMode, done }
   }
 
   /** @param {{ skipStrava?: boolean }} [opts] @returns {Promise<void>} */
@@ -239,8 +250,9 @@ export function createSyncTrigger ({
       }
       if (t - lastWrittenAt < minTriggerIntervalMs) return schedule(t)
       const seq = status.nextTriggerSeq()
-      const { stravaMode, done } = run(seq)
-      return { status: 202, body: { ok: true, seq, coalesced: false, strava: stravaMode }, done }
+      const { stravaMode, garminMode, done } = run(seq)
+      const body = { ok: true, seq, coalesced: false, strava: stravaMode, ...(garminMode ? { garmin: garminMode } : {}) }
+      return { status: 202, body, done }
     },
 
     /**

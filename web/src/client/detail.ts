@@ -441,8 +441,63 @@ type Sub = { cls?: string; text: string };
     if (s.n > 1) parts.push(format(D2.parts, { n: s.n }));
     var mod = T.modalities[s.m] || s.m, type = T.types[s.t] || String(s.t || '').replace(/([a-z])([A-Z])/g, '$1 $2');
     return '<li class="dt-sess"><b class="dt-sess-name">' + esc(mod + (type && type !== mod ? ' · ' + type : '')) + '</b>' +
-      '<span class="dt-sess-meta">' + esc(parts.join(' · ')) + '</span>' + zonesHtml(s) +
+      '<span class="dt-sess-meta">' + esc(parts.join(' · ')) + '</span>' + planHtml(s) + zonesHtml(s) +
       (s.src ? '<small class="dt-sess-src">' + esc(format(D2.source, { src: s.src })) + '</small>' : '') + '</li>';
+  }
+  // a planned step's target (DETAIL sessions `pl`, lib/detail/detail.mjs planView): its range ("125–135 W", pace as
+  // min/km fastest first, speed as km/h) or its zone ("HR zone 2"); '' without one
+  function planTarget(st: Baked): string {
+    var P = T.day.plan, t = st && st.t;
+    if (!t || !own(P.range, t)) return '';
+    if (st.lo != null && st.hi != null) {
+      if (t === 'pace') return format(P.range.pace, { lo: mss(1000 / st.hi), hi: mss(1000 / st.lo) });
+      if (t === 'speed') return format(P.range.speed, { lo: fmt(st.lo * 3.6, 1), hi: fmt(st.hi * 3.6, 1) });
+      return format(P.range[t], { lo: fmt(st.lo, 0), hi: fmt(st.hi, 0) });
+    }
+    return st.z != null ? format(P.zone[t], { n: fmt(st.z, 0) }) : '';
+  }
+  // a step's planned time: whole minutes as "10 min", under a minute "45 s", else m:ss
+  function stepTime(sec: number): string {
+    var P = T.day.plan;
+    if (sec % 60 === 0) return format(P.min, { n: sec / 60 });
+    return sec < 60 ? format(P.sec, { n: sec }) : mss(sec);
+  }
+  // the compact step list: "warm-up 10 min · 2× (35 min 125–135 W · recovery 1:30) · cool-down 10 min"
+  function planSteps(items: Baked[]): string {
+    var P = T.day.plan;
+    return (items || []).map(function (it: Baked) {
+      if (it && it.x != null && Array.isArray(it.steps)) return format(P.repeat, { n: it.x, steps: planSteps(it.steps) });
+      var kind = it && own(P.kinds, it.k) ? P.kinds[it.k] : '';
+      return [kind, it && it.s != null ? stepTime(it.s) : '', planTarget(it)].filter(Boolean).join(' ');
+    }).join(' · ');
+  }
+  // the main target: the active / interval step with the most planned time (repeats counted) that has a target
+  function mainTarget(items: Baked[]): string {
+    var best = '', most = -1;
+    (function walk(list: Baked[], times: number) {
+      (list || []).forEach(function (it: Baked) {
+        if (it && it.x != null && Array.isArray(it.steps)) { walk(it.steps, times * it.x); return; }
+        var tg = it && (it.k === 'active' || it.k === 'interval') ? planTarget(it) : '';
+        var sec = it && it.s != null ? it.s * times : 0;
+        if (tg && sec > most) { best = tg; most = sec; }
+      });
+    })(items, 1);
+    return best;
+  }
+  // "Plan 1:30 · 125–135 W" vs "Done 1:00 · 118 W · NP 122 W · 132 bpm" + the compact steps. No `pl` -> nothing.
+  function planHtml(s: Session): string {
+    var P = T.day.plan, pl = s && s.pl;
+    if (!P || !pl || !Array.isArray(pl.steps)) return '';
+    var dn = pl.done || {};
+    var plan = [pl.min != null ? HC.duration(pl.min) : '', mainTarget(pl.steps)].filter(Boolean).join(' · ') || '—';
+    var done = [dn.min != null ? HC.duration(dn.min) : '', dn.w != null ? format(P.w, { n: fmt(dn.w, 0) }) : '',
+      dn.np != null ? format(P.np, { n: fmt(dn.np, 0) }) : '', dn.hr != null ? format(P.hr, { n: fmt(dn.hr, 0) }) : ''].filter(Boolean).join(' · ') || '—';
+    var steps = planSteps(pl.steps);
+    // laid out by the zones block's own rules (.dt-zones column, .dt-zhead caps label + figures): no CSS of its own
+    return '<div class="dt-zones dt-plan" role="group" aria-label="' + esc(P.title) + '">' +
+      '<p class="dt-zhead"><b>' + esc(P.plan) + '</b><span>' + esc(plan) + '</span></p>' +
+      '<p class="dt-zhead"><b>' + esc(P.done) + '</b><span>' + esc(done) + '</span></p>' +
+      (steps ? '<p class="dt-zhead"><span>' + esc(steps.charAt(0).toUpperCase() + steps.slice(1)) + '</span></p>' : '') + '</div>';
   }
   // seconds -> "m:ss" / "h:mm:ss"
   function mss(sec: number): string {

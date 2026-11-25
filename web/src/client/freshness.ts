@@ -9,7 +9,9 @@
  * the worst source level), an icon-only Sync button (spinner class `is-busy` while syncing) and the
  * avatar. The full per-source line "Atajo: hace 5 min · Strava: hace 2 h · Página: hace 1 min" is the
  * summary's title / aria-label and sits in a popover (#fresh-pop) a tap on the summary toggles. A
- * source older than MID_HOURS turns --mid with a short hint, older than LOW_HOURS --low. When /api/sync/status is not
+ * source older than MID_HOURS turns --mid with a short hint, older than LOW_HOURS --low. The optional Garmin item
+ * (only when garminConfigured) also turns --low on a garmin_* error code (a refused key names what to do on the
+ * server) and warns about its key from KEY_WARN_DAYS before GARMIN_API_KEY_EXPIRES (--mid; --low once past). When /api/sync/status is not
  * reachable (example build, file://, a claude.ai artifact, a clone without the ingest service) the
  * line AND the button stay hidden — nothing to sync against.
  *
@@ -30,12 +32,15 @@ declare const I18N_SYNC: PageGlobals['I18N_SYNC'];
 type SyncStatus = {
   lastShortcutAt?: string | null; lastStravaOkAt?: string | null; stravaConfigured?: boolean;
   lastTriggerError?: string | null; lastTriggerErrorSeq?: number | null;
+  // the optional Garmin source: its last success, its coarse error code (garmin_auth / garmin_network /
+  // garmin_other) and the owner-given key expiry date (GARMIN_API_KEY_EXPIRES, YYYY-MM-DD)
+  garminConfigured?: boolean; lastGarminOkAt?: string | null; lastGarminError?: string | null; garminKeyExpires?: string | null;
 };
 /** GET /status.json (written after each publish): when the page was built and which sync seq it covers. */
 type PageStatus = { publishedAt?: string | null; processedSeq?: number | null; error?: string | null; errorSeq?: number | null };
 type Level = 'mid' | 'low' | null;
 type Age = { text: string; level: Level };
-type Source = 'shortcut' | 'strava' | 'page';
+type Source = 'shortcut' | 'strava' | 'garmin' | 'page';
 type Item = { a: Age; plain: string; html: string };
 
 (function () {
@@ -64,6 +69,7 @@ type Item = { a: Age; plain: string; html: string };
     var DAYS_AFTER_HOURS = 48; // "hace 30 h" up to 2 days, then "hace 3 d"
     var POLL_MS = 5000;
     var TIMEOUT_MS = 5 * MIN_MS;
+    var KEY_WARN_DAYS = 7; // the Garmin key warning starts this many days before its expiry date
     var REQ_MS = 15000; // one request (a status read, the Sync POST): a hung service fails it, never a forever-busy button
 
     var busy = false;
@@ -87,16 +93,42 @@ type Item = { a: Age; plain: string; html: string };
       return { text: txt, level: hours >= LOW_HOURS ? 'low' : hours >= MID_HOURS ? 'mid' : null };
     }
 
-    function item(key: Source, iso: string | null | undefined): Item {
+    // `over` (the Garmin item): a level and hint that replace the age's when set
+    function item(key: Source, iso: string | null | undefined, over?: { level: Level; hint: string } | null): Item {
       var a = age(iso);
+      var hint = T.hints[key];
+      if (over && over.level && (over.level === 'low' || a.level !== 'low')) { a = { text: a.text, level: over.level }; hint = over.hint; }
       var body = esc(T.labels[key] + ': ' + a.text);
-      if (a.level) body += ' <em class="fresh-hint">(' + esc(T.hints[key]) + ')</em>';
+      if (a.level) body += ' <em class="fresh-hint">(' + esc(hint) + ')</em>';
       return { a: a, plain: T.labels[key] + ': ' + a.text, html: '<span class="fresh-item' + (a.level ? ' fresh-' + a.level : '') + '">' + body + '</span>' };
+    }
+
+    // whole days from the viewer's today to a YYYY-MM-DD date (negative = past), null for anything else
+    function daysUntil(date: unknown): number | null {
+      var m = typeof date === 'string' ? /^(\d{4})-(\d{2})-(\d{2})$/.exec(date) : null;
+      if (!m) return null;
+      var now = new Date();
+      var d = (Date.UTC(+m[1], +m[2] - 1, +m[3]) - Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) / (24 * HOUR_MS);
+      return isFinite(d) ? d : null;
+    }
+
+    // the Garmin item's override: a refused key first, then the key's expiry, then any other garmin_* failure
+    function garminState(status: SyncStatus): { level: Level; hint: string } | null {
+      var code = typeof status.lastGarminError === 'string' ? status.lastGarminError : '';
+      var K = T.garminKey;
+      if (code === 'garmin_auth') return { level: 'low', hint: K.refused };
+      var days = daysUntil(status.garminKeyExpires);
+      var date = days == null ? '' : HC.fmtDate(status.garminKeyExpires, { weekday: false });
+      if (days != null && days < 0) return { level: 'low', hint: format(K.expired, { date: date }) };
+      if (/^garmin_/.test(code)) return { level: 'low', hint: T.hints.garmin };
+      if (days != null && days <= KEY_WARN_DAYS) return { level: 'mid', hint: format(K.expires, { date: date }) };
+      return null;
     }
 
     function render(status: SyncStatus, page: PageStatus | null): void {
       var items = [item('shortcut', status.lastShortcutAt)];
       if (status.stravaConfigured) items.push(item('strava', status.lastStravaOkAt));
+      if (status.garminConfigured === true) items.push(item('garmin', status.lastGarminOkAt, garminState(status)));
       if (page && page.publishedAt) items.push(item('page', page.publishedAt));
       line.innerHTML = items.map(function (x) { return x.html; }).join(' · ');
       var worst: Level = null;

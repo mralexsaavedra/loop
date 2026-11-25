@@ -9,17 +9,25 @@
  * that drives the 6 h degraded check. The last Shortcut time is read live as
  * MAX(received_at). The snapshot is cached for SNAPSHOT_TTL_MS so polling (or
  * a flood) costs at most one DB read per 5 s.
+ *
+ * Garmin (optional, garmin-sync.js): only when `garminConfigured`, its last success and coarse code
+ * (garmin_auth / garmin_network / garmin_other) live in their own row (garmin_sync_state, sql/015_garmin.sql,
+ * through garmin-db.js), never in the Strava fields, and never degrade /healthz. `garminKeyExpires` is the
+ * owner-given GARMIN_API_KEY_EXPIRES date (the API does not report it), already validated (garmin.js).
  */
 import { saveSyncStatus, loadSyncStatus } from './sync-status-db.js'
+import { loadGarminState, saveGarminStatus } from './garmin-db.js'
 import { lastRawPayloadAt } from './raw-payload-db.js'
 
 export const STRAVA_STALE_MS = 6 * 3_600_000
 export const SNAPSHOT_TTL_MS = 5000
-export const STATUS_CODES = new Set(['strava_auth', 'strava_network', 'strava_other', 'strava_token_save', 'trigger_write', 'build'])
+export const STATUS_CODES = new Set(['strava_auth', 'strava_network', 'strava_other', 'strava_token_save', 'trigger_write', 'build',
+  'garmin_auth', 'garmin_network', 'garmin_other'])
 // the trigger's codes: trigger_write = the host trigger file could not be written; build = the in-container build
 // (container mode, builder.js) exited non-zero or could not start
 const TRIGGER_CODES = new Set(['trigger_write', 'build'])
 const STRAVA_PULL_CODES = new Set(['strava_auth', 'strava_network', 'strava_other'])
+const GARMIN_CODES = new Set(['garmin_auth', 'garmin_network', 'garmin_other'])
 
 /** The in-memory sync state (persisted by sync-status-db.js): ISO times, sequence numbers and coarse codes only.
  * @typedef {{ stravaOkAt: string | null, stravaError: string | null, stravaErrorAt: string | null,
@@ -27,7 +35,8 @@ const STRAVA_PULL_CODES = new Set(['strava_auth', 'strava_network', 'strava_othe
  *   triggerErrorSeq: number | null }} SyncState */
 /** GET /sync/status's body. @typedef {{ lastShortcutAt: string | null, lastStravaOkAt: string | null,
  *   lastStravaError: string | null, lastTriggerAt: string | null, lastTriggerError: string | null,
- *   lastTriggerErrorSeq: number | null, triggerSeq: number, stravaConfigured: boolean }} SyncSnapshot */
+ *   lastTriggerErrorSeq: number | null, triggerSeq: number, stravaConfigured: boolean, garminConfigured: boolean,
+ *   lastGarminOkAt: string | null, lastGarminError: string | null, garminKeyExpires: string | null }} SyncSnapshot */
 
 /** @param {unknown} value a timestamp (Date, string or epoch ms) @returns {string | null} */
 function toIso (value) {
@@ -50,11 +59,21 @@ function pullCode (value) {
   return STRAVA_PULL_CODES.has(code) ? code : 'strava_other'
 }
 
+/** A Garmin code, or garmin_other for anything else. @param {unknown} value @returns {string} */
+function garminCode (value) {
+  const code = /** @type {string} */ (value)
+  return GARMIN_CODES.has(code) ? code : 'garmin_other'
+}
+
 /**
- * @param {{ pool: import('./db.js').Queryable, stravaConfigured?: unknown, now?: () => number,
+ * @param {{ pool: import('./db.js').Queryable, stravaConfigured?: unknown, garminConfigured?: unknown,
+ *   garminKeyExpires?: string | null, now?: () => number,
  *   readTriggerSeq?: (() => Promise<number>) | null, log?: (line: string) => void }} options
  */
-export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, readTriggerSeq = null, log = console.log }) {
+export function createSyncStatus ({ pool, stravaConfigured, garminConfigured = false, garminKeyExpires = null, now = Date.now, readTriggerSeq = null, log = console.log }) {
+  /** The Garmin freshness (its own row; only touched when configured). @type {import('./garmin-db.js').GarminStatusState} */
+  const garmin = { okAt: null, error: null, errorAt: null }
+  let garminLoaded = !garminConfigured
   /** @type {SyncState} */
   const state = {
     stravaOkAt: null,
@@ -81,7 +100,32 @@ export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, read
     }
   }
 
+  async function persistGarmin () {
+    try {
+      await saveGarminStatus(pool, garmin)
+    } catch (err) {
+      log(JSON.stringify({ event: 'garmin_status_persist_failed', message: /** @type {Error} */ (err).message }))
+    }
+  }
+
+  // its own read, apart from the main row: a missing Garmin table (its optional migration failed) never hides the rest
+  async function loadGarmin () {
+    try {
+      const row = await loadGarminState(pool)
+      garminLoaded = true
+      changed()
+      garmin.okAt = garmin.okAt ?? row.okAt
+      if (garmin.error == null && row.error != null) {
+        garmin.error = garminCode(row.error)
+        garmin.errorAt = row.errorAt
+      }
+    } catch (err) {
+      log(JSON.stringify({ event: 'garmin_status_load_failed', message: /** @type {Error} */ (err).message }))
+    }
+  }
+
   async function load () {
+    if (!garminLoaded) await loadGarmin()
     const fileSeq = readTriggerSeq ? toSeq(await readTriggerSeq().catch(() => 0)) : 0
     state.triggerSeq = Math.max(state.triggerSeq, fileSeq)
     try {
@@ -149,6 +193,28 @@ export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, read
       await persist()
     },
 
+    /** @param {number} ms */
+    garminFresh (ms) {
+      return garmin.okAt != null && now() - Date.parse(garmin.okAt) < ms
+    },
+
+    async recordGarminOk () {
+      garmin.okAt = new Date(now()).toISOString()
+      garmin.error = null
+      garmin.errorAt = null
+      changed()
+      await persistGarmin()
+    },
+
+    /** `code` should be garmin_auth / garmin_network / garmin_other; anything else is coerced to garmin_other. */
+    /** @param {unknown} code */
+    async recordGarminError (code) {
+      garmin.error = garminCode(code)
+      garmin.errorAt = new Date(now()).toISOString()
+      changed()
+      await persistGarmin()
+    },
+
     /** @param {boolean} ok */
     async recordTokenSave (ok) {
       state.tokenSaveFailed = !ok
@@ -181,6 +247,7 @@ export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, read
       const t = now()
       if (cache && t - cache.at < SNAPSHOT_TTL_MS) return cache.value
       if (!loaded) await load()
+      else if (!garminLoaded) await loadGarmin()
       let lastShortcutAt = null
       try {
         lastShortcutAt = toIso(await lastRawPayloadAt(pool))
@@ -195,7 +262,11 @@ export function createSyncStatus ({ pool, stravaConfigured, now = Date.now, read
         lastTriggerError: state.triggerError,
         lastTriggerErrorSeq: state.triggerErrorSeq,
         triggerSeq: state.triggerSeq,
-        stravaConfigured: Boolean(stravaConfigured)
+        stravaConfigured: Boolean(stravaConfigured),
+        garminConfigured: Boolean(garminConfigured),
+        lastGarminOkAt: garmin.okAt,
+        lastGarminError: garmin.error,
+        garminKeyExpires: garminConfigured ? garminKeyExpires : null
       }
       cache = { at: t, value }
       return value

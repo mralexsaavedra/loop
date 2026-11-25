@@ -169,6 +169,11 @@ página) y la imagen `loop-web` (sirve la página).
 
    Te pide el código de la página de autorización e imprime una línea `STRAVA_REFRESH_TOKEN=...`: ponla en `.env`
    y vuelve a ejecutar `docker compose up -d`.
+8. **Garmin** (opcional, solo lectura): muestra en el detalle del día el entrenamiento estructurado que siguió una
+   sesión (plan frente a lo hecho). Crea una clave API personal en [Garmin Connect → Clave API personal](https://connect.garmin.com/app/settings/personalApiToken),
+   ponla en `.env` como `GARMIN_API_KEY` y la fecha de caducidad que muestra Garmin como
+   `GARMIN_API_KEY_EXPIRES=YYYY-MM-DD` (la página avisa una semana antes); después, `docker compose up -d`. Detalles:
+   [`docs/lan-services.md`](docs/lan-services.md) → Garmin (en inglés).
 
 Para actualizar: [`docs/guides/upgrading.es.md`](docs/guides/upgrading.es.md) (`docker compose pull && docker compose up -d`);
 si algo no funciona: [`docs/guides/troubleshooting.es.md`](docs/guides/troubleshooting.es.md); cómo funciona el

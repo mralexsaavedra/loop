@@ -1,4 +1,4 @@
-# Data pipeline — Apple Health extract, Shortcut sync, Strava sync
+# Data pipeline — Apple Health extract, Shortcut sync, Strava and Garmin syncs
 
 How the raw sources become the CSVs in `loop-data/extract/` that every page and analysis reads.
 
@@ -37,6 +37,8 @@ check it.
 - [Strava sync](#strava-sync)
   - [`rides.csv`](#ridescsv)
   - [Per-workout HR zones (`workout-zones.csv`)](#per-workout-hr-zones-workout-zonescsv)
+- [Garmin sync](#garmin-sync)
+  - [`workout-plans.csv`](#workout-planscsv)
 - [Journal export (`scripts/sync-journal.mjs`, part of `npm run sync`)](#journal-export-scriptssync-journalmjs-part-of-npm-run-sync)
 - [Owner documents (`scripts/sync-documents.mjs`, first step of `npm run sync`)](#owner-documents-scriptssync-documentsmjs-first-step-of-npm-run-sync)
 - [Coach as a client of a LOOP server](#coach-as-a-client-of-a-loop-server)
@@ -457,6 +459,44 @@ Zone model (`lib/training/hr-zones.mjs`, the reference's), % of max HR:
 - `_meta.json`: `rows['workout-zones']` and `stravaSync.zones = {rows, maxHr, maxHrSource}`.
 - Strava's own athlete HR zones (`GET /athlete/zones`, needs `profile:read_all`) are an alternative
   that is NOT used, so the page keeps one documented model.
+
+## Garmin sync
+
+**`npm run sync:garmin`, part of `npm run sync` (right after the Strava sync). Optional.** Pulls every
+activity the ingest service has stored from the Garmin Connect Personal API via `GET /export/garmin` (same
+token, base URL and keyset paging as `/export/strava`; the server side, the key and its status fields are in
+[`lan-services.md`](lan-services.md)) and rebuilds `workout-plans.csv`: what was planned vs what was done, per
+session (shown in the day sheet, [`detail-views.md`](detail-views.md)).
+
+- **Optional:** with no `GARMIN_API_KEY` on the server, `/export/garmin` answers `[]` and the sync keeps the
+  file as it is (none is created). No ingest token, an older ingest image (`404`), a `503` or a refused
+  connection is a one-line note and exit 0, never a failed `npm run sync`, and the file is left untouched:
+  stored plans stay.
+- **Type mapping:** the Garmin `typeKey` is mapped onto a Strava sport type and run through the Strava sync's
+  own `workoutType` (so the same `SPORT_TYPE_MAP` and indoor rule): `indoor_cycling` / `virtual_ride` →
+  `IndoorCycling`, the other cycling keys → `Cycling`, the running keys → `Running`, an unknown key →
+  `Unmapped`. A Garmin and a Strava copy of one session land in the same modality.
+- **Privacy:** only the contract's step keys are written (no activity or workout names, no notes), even if the
+  server sent more.
+
+### `workout-plans.csv`
+
+Gitignored, rebuilt from scratch every run, sorted by local start, one row per activity whose
+`plan_status` is `"ok"` (`"none"` = no planned workout, `"pending"` = not fetched yet; both skipped):
+
+| Column | Meaning |
+| --- | --- |
+| `date` | Local date |
+| `start` | The local start as ISO WITH its UTC offset (as `rides.csv`), blank when unusable |
+| `type` | The workouts.csv type (see the mapping above) |
+| `duration_s` | Duration done, whole seconds |
+| `avg_power` / `norm_power` | Average / normalized power done, W (blank when absent) |
+| `avg_hr` | Average HR done, bpm (blank when absent) |
+| `plan` | The planned steps as CSV-quoted JSON: `[{i, intensity, dur_type, dur, target, low, high, value}]` (Garmin's stepIndex, intensity, duration type and value, target type and range; a `REPEAT_UNTIL_STEPS_CMPLT` step repeats the steps from stepIndex `dur` up to it, `value` times in all) |
+
+- Read by `lib/training/read.mjs` `readWorkoutPlans` (null without the file); `web/src/bakes.mjs` hands the rows
+  to the DETAIL bake.
+- `_meta.json` is not touched.
 
 ## Journal export (`scripts/sync-journal.mjs`, part of `npm run sync`)
 

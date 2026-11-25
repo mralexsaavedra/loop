@@ -23,6 +23,7 @@ import { isMain } from './lib/is-main.mjs';
 import { READING_HEADER, SLEEP_HEADER, WORKOUTS_HEADER } from '../lib/extract/samples.mjs';
 import { HR_HOURLY_HEADER, HR_HOURLY_CSV } from '../lib/health/hr-hourly.mjs';
 import { ZONES_HEADER, ZONES_CSV } from '../lib/training/hr-zones.mjs';
+import { WORKOUT_PLANS_CSV, WORKOUT_PLANS_HEADER } from '../lib/training/read.mjs';
 import { addDays, isIsoDate } from '../lib/date.mjs';
 import { runCli } from './lib/sync-common.mjs';
 
@@ -31,6 +32,10 @@ import { runCli } from './lib/sync-common.mjs';
 const JOURNAL_DAYS = 70;
 // hr-hourly.csv covers only the last four weeks (the Shortcut key is recent; enough to calibrate strain)
 const HR_DAYS = 28;
+// workout-plans.csv: the planned (Garmin) workouts of the shorter rides of the last PLAN_DAYS days
+const PLAN_DAYS = 42;
+/** ~N(0, sd) from its own stream @param {() => number} r @param {number} sd */
+const noisePlan = (r, sd) => (r() + r() + r() - 1.5) * sd * 1.41;
 // foodlog-daily.csv: the last FOOD_DAYS days, most of them logged (the example's nutrition score)
 const FOOD_DAYS = 60;
 
@@ -201,6 +206,29 @@ export function makeDemoData({ end = DEMO_DEFAULTS.end, days = DEMO_DEFAULTS.day
       `${c[0]}T18:00:00+02:00`, Math.round(parseFloat(c[2]) * 60)].join(',');
   });
   out[ZONES_CSV] = csv(ZONES_HEADER, zoneRows);
+
+  // ---- planned workouts (workout-plans.csv, as sync-garmin.mjs writes it) ---------------------------------
+  // the Demo Strava rides under 90 min of the last PLAN_DAYS days followed a structured workout: alternately a
+  // steady ride (10 min warm-up, the rest at 125-135 W, 10 min cool-down) and intervals (4 x 8 min at 220-235 W
+  // with 4 min easy). What was done comes from the ride (duration, avg HR) plus invented power. Its own PRNG,
+  // so the other files never change because of it.
+  const prnd = prng(seed + 5);
+  const planFrom = addDays(end, -(PLAN_DAYS - 1));
+  /** @param {number} i @param {string} intensity @param {string} durType @param {number} dur @param {Record<string, unknown>} [t] */
+  const pstep = (i, intensity, durType, dur, t = {}) => ({ i, intensity, dur_type: durType, dur, target: 'NO_TARGET', low: null, high: null, value: null, ...t });
+  const planRows = stravaRows.filter((c) => c[1] === 'Cycling' && c[0] >= planFrom && parseFloat(c[2]) < 90).map((c, i) => {
+    const sec = Math.round(parseFloat(c[2]) * 60);
+    const steady = i % 2 === 0;
+    const main = Math.max(600, Math.round((sec - 1200) / 300) * 300);
+    const steps = steady
+      ? [pstep(1, 'WARMUP', 'TIME', 600), pstep(2, 'ACTIVE', 'TIME', main, { target: 'POWER_3S', low: 125, high: 135 }), pstep(3, 'COOLDOWN', 'TIME', 600)]
+      : [pstep(1, 'WARMUP', 'TIME', 600), pstep(2, 'INTERVAL', 'TIME', 480, { target: 'POWER_3S', low: 220, high: 235 }),
+        pstep(3, 'RECOVERY', 'TIME', 240, { target: 'POWER_3S', low: 100, high: 130 }), pstep(4, 'REPEAT', 'REPEAT_UNTIL_STEPS_CMPLT', 2, { value: 4 }),
+        pstep(5, 'COOLDOWN', 'TIME', 600)];
+    const w = Math.round((steady ? 124 : 168) + noisePlan(prnd, 4)), np = Math.round(w * (steady ? 1.03 : 1.12));
+    return [c[0], `${c[0]}T18:00:00+02:00`, 'Cycling', sec, w, np, c[4], '"' + JSON.stringify(steps).replace(/"/g, '""') + '"'].join(',');
+  });
+  out[WORKOUT_PLANS_CSV] = csv(WORKOUT_PLANS_HEADER, planRows);
 
   // ---- Watch heart rate per clock hour (hr-hourly.csv, as the Shortcut sync writes it) ---------
   // the last HR_DAYS days, a sample every 5 min: nights ~55 bpm, days ~58-70 with the odd walk at

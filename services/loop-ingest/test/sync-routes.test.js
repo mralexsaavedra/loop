@@ -91,7 +91,7 @@ test('GET /sync/status: exact key set, no-store, the trigger seq', async () => {
   assert.equal(res.status, 200)
   assert.equal(res.headers['cache-control'], 'no-store')
   assert.deepEqual(Object.keys(res.body).sort(), [
-    'lastShortcutAt', 'lastStravaError', 'lastStravaOkAt', 'lastTriggerAt', 'lastTriggerError', 'lastTriggerErrorSeq', 'stravaConfigured', 'triggerSeq'
+    'garminConfigured', 'garminKeyExpires', 'lastGarminError', 'lastGarminOkAt', 'lastShortcutAt', 'lastStravaError', 'lastStravaOkAt', 'lastTriggerAt', 'lastTriggerError', 'lastTriggerErrorSeq', 'stravaConfigured', 'triggerSeq'
   ])
   assert.equal(res.body.lastShortcutAt, '2030-01-02T09:55:00.000Z')
   assert.equal(res.body.lastTriggerAt, '2030-01-02T10:00:00.000Z')

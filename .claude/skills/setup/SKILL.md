@@ -1,6 +1,6 @@
 ---
 name: setup
-description: "Trigger: setup, install, instalar, configurar, get started, empezar, first run, server, servidor, coach, Docker, docker compose, Strava, Shortcut, update, upgrade, actualizar, second install, segunda instalación, not working, no funciona. Walks the user through installing LOOP (the server from the Docker images, the coach clone, or both) one step at a time, checking state at every step; also updating an install, adding a second one, and troubleshooting."
+description: "Trigger: setup, install, instalar, configurar, get started, empezar, first run, server, servidor, coach, Docker, docker compose, Strava, Garmin, Shortcut, update, upgrade, actualizar, second install, segunda instalación, not working, no funciona. Walks the user through installing LOOP (the server from the Docker images, the coach clone, or both) one step at a time, checking state at every step; also updating an install, adding a second one, and troubleshooting."
 ---
 
 # Guided setup: server and coach
@@ -124,7 +124,7 @@ Server step by step; reference: `docs/lan-services.md` → The stack.
    overwrites it later). Spanish speaker? set `"locale": "es"` in `loop-data/cache/plan.json` and regenerate.
 7. Offer the first analysis.
 
-## Extras — Shortcut, Strava, knowledge base
+## Extras — Shortcut, Strava, Garmin, knowledge base
 
 - **iOS Shortcut**: `docs/ios-shortcut.md`. First pick the address (*Where the phone sends the data*:
   home Wi-Fi `http://<server-ip>:8090` unless they want to sync away from home), then import the
@@ -139,6 +139,10 @@ Server step by step; reference: `docs/lan-services.md` → The stack.
   `docker compose exec loop-server node services/loop-ingest/scripts/strava-auth.js --print`, which prints the
   `STRAVA_REFRESH_TOKEN=` line the user pastes into `.env` (then `docker compose up -d`). Host mode:
   `node scripts/strava-auth.js` from `services/loop-ingest` writes it into `services/loop-ingest/.env` itself.
+- **Garmin** (optional, read-only; plan vs done in the day detail): the user creates a personal API key at
+  https://connect.garmin.com/app/settings/personalApiToken and types `GARMIN_API_KEY` (and the expiry date Garmin
+  shows as `GARMIN_API_KEY_EXPIRES=YYYY-MM-DD`) into the server's `.env` themselves, then `docker compose up -d`;
+  never ask for the key in the chat. Details: `docs/lan-services.md` → Garmin.
 - **Knowledge base**: `docs/knowledge-base.md`, `knowledge/README.md`. `yt-dlp` is optional; content is
   for personal use only. Ingest with `scripts/ingest-youtube.mjs`, then register each source in
   `profile/coaches.md`.

@@ -16,8 +16,8 @@ function clock (start = Date.parse('2030-01-02T10:00:00Z')) {
 }
 
 /** In-memory stand-in for status.js: just the calls the trigger makes.
- * @param {{ seq?: number, stravaOkAgoMs?: number | null }} [options] */
-function fakeStatus ({ seq = 0, stravaOkAgoMs = null } = {}) {
+ * @param {{ seq?: number, stravaOkAgoMs?: number | null, garminOkAgoMs?: number | null }} [options] */
+function fakeStatus ({ seq = 0, stravaOkAgoMs = null, garminOkAgoMs = null } = {}) {
   /** @type {string[]} */
   const events = []
   const s = {
@@ -26,6 +26,7 @@ function fakeStatus ({ seq = 0, stravaOkAgoMs = null } = {}) {
     currentSeq: () => s.seq,
     nextTriggerSeq: () => { s.seq += 1; return s.seq },
     stravaFresh: (/** @type {number} */ ms) => stravaOkAgoMs != null && stravaOkAgoMs < ms,
+    garminFresh: (/** @type {number} */ ms) => garminOkAgoMs != null && garminOkAgoMs < ms,
     recordTrigger: async (/** @type {number} */ n) => { events.push(`trigger ${n}`) },
     recordTriggerError: async (/** @type {number} */ n) => { events.push(`trigger_error ${n}`) }
   }
@@ -455,3 +456,57 @@ test('the min interval is measured from write COMPLETION: a slow Strava pull can
   await next.done
   assert.deepEqual(written, [{ seq: 2, at: 59_000 }, { seq: 3, at: 119_000 }])
 }))
+
+test('Garmin configured: POST /sync pulls it next to Strava and says so; a failing or hung Garmin never blocks Strava or the write', async () => {
+  /** @type {string[]} */
+  const order = []
+  const trigger = createSyncTrigger({
+    runStrava: async () => { order.push('strava') },
+    runGarmin: async () => { order.push('garmin'); throw new Error('garmin token refused: 401') },
+    writeTrigger: async (seq) => { order.push(`write ${seq}`) },
+    status: fakeStatus(),
+    log: () => {}
+  })
+  const res = trigger.handle()
+  assert.deepEqual(res.body, { ok: true, seq: 1, coalesced: false, strava: 'started', garmin: 'started' })
+  await res.done
+  assert.deepEqual(order, ['strava', 'garmin', 'write 1'])
+
+  /** @type {number[]} */
+  const written = []
+  let stravaRuns = 0
+  const hung = createSyncTrigger({
+    runStrava: async () => { stravaRuns++ },
+    runGarmin: () => new Promise(() => {}),
+    writeTrigger: async (seq) => { written.push(seq) },
+    status: fakeStatus(),
+    waitMs: 20,
+    log: () => {}
+  })
+  await hung.handle().done
+  assert.equal(stravaRuns, 1)
+  assert.deepEqual(written, [1], 'a hung Garmin pull is bounded by waitMs like Strava')
+})
+
+test('Garmin: a success under 5 min old skips its pull (recent), independently of Strava', async () => {
+  let garminRuns = 0
+  const trigger = createSyncTrigger({
+    runStrava: async () => {},
+    runGarmin: async () => { garminRuns++ },
+    writeTrigger: async () => {},
+    status: fakeStatus({ garminOkAgoMs: 60_000 }),
+    log: () => {}
+  })
+  const res = trigger.handle()
+  assert.equal(/** @type {{ garmin?: string }} */ (res.body).garmin, 'recent')
+  assert.equal(/** @type {{ strava?: string }} */ (res.body).strava, 'started')
+  await res.done
+  assert.equal(garminRuns, 0)
+})
+
+test('Garmin not configured: the POST /sync body has no garmin field (the previous answer, unchanged)', async () => {
+  const trigger = createSyncTrigger({ runStrava: null, writeTrigger: async () => {}, status: fakeStatus(), log: () => {} })
+  const res = trigger.handle()
+  assert.deepEqual(res.body, { ok: true, seq: 1, coalesced: false, strava: 'disabled' })
+  await res.done
+})

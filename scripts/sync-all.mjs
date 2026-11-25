@@ -34,6 +34,9 @@ export const SCRIPTS = [
   // maxHr from profile.json; a missing / old service or no token only warns (exit 0)
   path.join(ROOT, 'scripts', 'sync-documents.mjs'),
   path.join(ROOT, 'data', 'apple-health', 'sync-strava.mjs'),
+  // the optional Garmin source (workout-plans.csv: planned workout vs done): a server without Garmin, an older
+  // ingest image or no service only notes it (exit 0) and keeps the file
+  path.join(ROOT, 'data', 'apple-health', 'sync-garmin.mjs'),
   path.join(ROOT, 'data', 'apple-health', 'sync-shortcut.mjs'),
   path.join(ROOT, 'data', 'profile', 'sync-profile.mjs'),
   // the settings snapshot (loop-data/profile/settings.json) never fails the run: a missing / old ingest
@@ -129,7 +132,7 @@ export async function main ({ full = false, 'no-refresh': noRefresh = false, 'al
 
 const USAGE = `Usage: node scripts/sync-all.mjs [--full] [--no-refresh] [--allow-empty] [--allow-removals] [--verbose]
 
-Runs every sync (Strava, Shortcut, profile, settings, onboarding, food log, journal) in order, even when
+Runs every sync (Strava, Garmin, Shortcut, profile, settings, onboarding, food log, journal) in order, even when
 one fails; exits 1 if any failed. Against a LOOP server in container mode (it answers GET /export/files)
 this clone is its client instead: it asks the server to refresh (POST /sync) and waits for it, pulls the
 documents, then mirrors the server's extract/, profile/, foodlog/, files/documents/ and files/manuals/.

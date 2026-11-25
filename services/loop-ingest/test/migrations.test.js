@@ -113,3 +113,13 @@ test('migrations run without the pool\'s 30 s statement_timeout, which is restor
   assert.equal(f.log.at(-1), 'RESET statement_timeout')
   assert.equal(f.released(), 1)
 })
+
+test('the Garmin tables are their own optional group (a failure disables only Garmin), the other groups unchanged', async () => {
+  const { CORE_MIGRATIONS, OPTIONAL_MIGRATIONS } = await import('../src/migrations.js')
+  assert.deepEqual(OPTIONAL_MIGRATIONS.garmin, ['015_garmin.sql'])
+  assert.ok(!CORE_MIGRATIONS.includes('015_garmin.sql'))
+  assert.deepEqual(Object.keys(OPTIONAL_MIGRATIONS), ['food', 'settings', 'profile', 'journal', 'documents', 'garmin'])
+  const f = fakePool({ fail: { 'SQL 015_garmin.sql': 'boom' } })
+  const r = await runMigrations(f.pool, { core: ['001'], optional: { food: ['006'], garmin: ['015_garmin.sql'] }, readSql, log: () => {} })
+  assert.deepEqual(r, { food: true, garmin: false })
+})

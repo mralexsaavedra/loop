@@ -23,13 +23,15 @@ parses it into the extract CSVs. A parsing fix later is a re-sync, not a re-impo
 
 | Method | Path                          | Auth   | Response |
 | ------ | ----------------------------- | ------ | -------- |
-| GET    | `/healthz`                    | none   | `200` when the database answers; `degraded: true, reason: "strava_stale"` when Strava is configured and its last PERSISTED success is older than 6 h (or it never succeeded) |
-| POST   | `/sync`                       | none   | `202` `{ok, seq, coalesced, deferred?, strava?}`; never refuses (repeated clicks coalesce or defer) |
-| GET    | `/sync/status`                | none   | `200` `{lastShortcutAt, lastStravaOkAt, lastStravaError, lastTriggerAt, lastTriggerError, lastTriggerErrorSeq, triggerSeq, stravaConfigured}` (coarse codes only, cached 5 s) |
+| GET    | `/healthz`                    | none   | `200` `{ok, strava, garmin?, degraded}` when the database answers (`strava`: `enabled` or `disabled`; `garmin: enabled` only when Garmin is configured); `degraded: true, reason: "strava_stale"` when Strava is configured and its last PERSISTED success is older than 6 h (or it never succeeded); Garmin never degrades it |
+| POST   | `/sync`                       | none   | `202` `{ok, seq, coalesced, deferred?, strava?, garmin?}` (`garmin` only when Garmin is configured); never refuses (repeated clicks coalesce or defer) |
+| GET    | `/sync/status`                | none   | `200` `{lastShortcutAt, lastStravaOkAt, lastStravaError, lastTriggerAt, lastTriggerError, lastTriggerErrorSeq, triggerSeq, stravaConfigured, garminConfigured, lastGarminOkAt, lastGarminError, garminKeyExpires}` (coarse codes only, cached 5 s) |
 | POST   | `/ingest/health-auto-export`  | bearer | `202` with the stored row id; `400` on an empty body, invalid JSON or a `\u0000` anywhere in it (`code: "nul_character"`: Postgres cannot store it, so it is refused rather than a `500` the client retries forever); `413` over `MAX_BODY_BYTES` |
 | POST   | `/sync/strava`                | bearer | `200` with the activity count; `409` when unconfigured |
+| POST   | `/sync/garmin`                | bearer | `200` `{ok, activities}`; `409` when Garmin is not configured; `503 garmin_unavailable` while its migration group is unavailable |
 | GET    | `/export/raw`                 | bearer | `200` with `[{id, received_at, payload}]` (at most `limit` rows and about 32 MB of payloads per page; `X-Has-More: true` when the byte budget cut it); `400` on a bad query |
 | GET    | `/export/strava`              | bearer | `200` with `[{id, start_local, sport_type, moving_time, elapsed_time, distance, average_heartrate, max_heartrate, suffer_score, kilojoules, total_elevation_gain, start_utc, device_watts, trainer, hr_hist}]`; `400` on a bad query |
+| GET    | `/export/garmin`              | bearer | `200` with `[{id, start_local, start_utc, type, duration_s, avg_power, norm_power, avg_hr, max_hr, plan_status, plan}]` (`plan_status`: `ok` / `none` / `pending`; `plan` = `{steps: [{i, intensity, dur_type, dur, target, low, high, value}]}` only when `ok`; never names, notes or the payload); `200 []` when Garmin is not configured; `503 garmin_unavailable` while its migration group is unavailable; `400` on a bad query |
 | POST   | `/strava/activities/:id/annotate` | bearer | `200` `{ok, id, updated, name_changed, description_changed, current_name, current_description, name_is_default, had_description, dry_run, overwrite}`: writes `{name?, description?}` to the Strava activity, the description only when it has none and the name only over Strava's automatic title (`overwrite: true`: an edit the owner asked for replaces both) (see "Naming and describing an activity" below); `400` (`bad_body`, `unknown_field`, `bad_field` + `field`, `nothing_to_write`), `404 activity_not_found`, `409 strava_write_scope_missing` / `strava not configured`, `415`, `429 strava_rate_limited`, `502 strava_auth` / `strava_network` / `strava_error` |
 | GET    | `/food/products`              | header | `200` `{products}`: active products (per-100 macros, store, serving size, `servingDefault`) |
 | POST / PUT / DELETE | `/food/products[/:id]` | header | create `201` / edit `200` (PUT = the whole product) / archive `200`; `409 barcode_exists`, `400 atwater` unless `force`; `servingDefault: true` (log by serving by default) only with a `servingSize`, else `400 invalid` |
@@ -665,6 +667,41 @@ statement after 30 s.
 A `401` / `invalid_grant` in step 3 means the code was used or expired: repeat step 2. Revoke access any
 time at <https://www.strava.com/settings/apps>.
 
+## Garmin
+
+Optional. Without `GARMIN_API_KEY` nothing changes: no Garmin loop, `/sync/status` says `garminConfigured: false`,
+`GET /export/garmin` answers `200 []` and `POST /sync/garmin` `409`. It feeds the plan page's **planned workout vs
+what was done** per session (Garmin Connect Personal API; the client side is `docs/data-pipeline.md`).
+
+- **The key.** Create a personal API key at <https://connect.garmin.com/app/settings/personalApiToken> and put it in
+  `GARMIN_API_KEY` (`docker/.env` on a loop-server install, then `docker compose up -d`). It lives in the server's
+  environment only: never logged, never stored in the database, never in an error (it is scrubbed), never passed
+  to the page build (not in `builder.js`'s child allowlist). The service exchanges it for a short-lived access token
+  (`POST /personalapitoken-service/personal-api/personal-api-key/token`, `Authorization: ApiKey <key>`), kept in
+  memory and re-obtained 60 s before it runs out (23 h when Garmin does not say); a data call answered `401` gets
+  one fresh token and one retry.
+- **Expiry.** A key lasts at most a year and the API does not report its expiry date: copy the date Garmin shows
+  into `GARMIN_API_KEY_EXPIRES` (`YYYY-MM-DD`; anything else reads as unset). `/sync/status` returns it as
+  `garminKeyExpires` and the page warns from 7 days before. A refused key (`401` / `403` on the token exchange, or a
+  data call still refused with a fresh token) is recorded as `lastGarminError: "garmin_auth"` and the page shows
+  the Garmin item as failing: create a new key, replace both values, `docker compose up -d`. Other failures are
+  `garmin_network` (Garmin unreachable, a 15 s timeout) or `garmin_other`.
+- **The loop.** Every `GARMIN_SYNC_MINUTES` (default 60, 1-10080; checked only when the key is set), plus `POST /sync`
+  (under the same 5 min cooldown as Strava, its own last success) and `POST /sync/garmin`, all sharing ONE in-flight
+  run. A run walks the activity list newest first (pages of 100, at most 100 pages) and upserts every page into
+  `garmin_activity` as it arrives. Until one full walk of the history has finished, every run walks it all (so a
+  first pull cut short never leaves a gap); afterwards a run stops at the newest stored start minus seven days.
+- **The planned workout.** After an ok run a background batch asks, for at most 50 activities with no answer yet,
+  newest first, `GET /activity-service/activity/{id}/workouts`, and stores in `garmin_activity_workout` the first
+  workout's steps in a compact form (`i, intensity, dur_type, dur, target, low, high, value`: no workout or step
+  names, no notes) as `ok`, or `none` when it followed no workout. A failure of one activity stores `retry` and
+  backs off like the HR backfill (30 min doubling, capped at 24 h; the fifth failure gives up as `failed`, exported
+  as `none`); a refused token or a `429` stops the batch.
+- **Isolation.** Its tables are their own optional migration group (`015_garmin.sql`): a failure leaves the loop off
+  and its routes at `503`. Its status lives in its own row (`garmin_sync_state`), never in the Strava fields, and a
+  Garmin failure never touches the Strava pull, the build trigger (`POST /sync` still writes it, bounded by the same
+  90 s wait) or any other route; what is stored stays.
+
 ## Database migrations
 
 On every start the service applies the `sql/` files listed in `src/migrations.js`, in order:
@@ -679,7 +716,7 @@ On every start the service applies the `sql/` files listed in `src/migrations.js
   run, the lock wait included (`SET statement_timeout = 0`); the client gets it back (`RESET`) before it returns
   to the pool.
 - **Optional groups.** A failing core file fails the start; a failing optional group (`food`, `settings`,
-  `profile`, `journal`, `documents`) is rolled back, logged (`<group>_migration_failed`), left unrecorded and retried on
+  `profile`, `journal`, `documents`, `garmin`) is rolled back, logged (`<group>_migration_failed`), left unrecorded and retried on
   the next start, and only its routes answer `503` meanwhile. `013_settings_locale.sql` sits in the `settings`
   group, so if it ever failed, all of `/food/settings` (goal, target weight and language) would answer
   `503 settings_unavailable` until it applies.

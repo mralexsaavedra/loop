@@ -2,6 +2,7 @@ import { createBearerCheck } from './auth.js'
 import { writeJson as send } from './http.js'
 import { listStravaActivities } from './strava-db.js'
 import { listRawPayloads } from './raw-payload-db.js'
+import { listGarminActivities } from './garmin-db.js'
 
 // the strava_activity read moved to strava-db.js; it keeps its historical import path
 export { listStravaActivities } from './strava-db.js'
@@ -104,6 +105,45 @@ export function createStravaExportHandler ({ pool, token, log = console.log, che
 
     const rows = await listStravaActivities(pool, query)
     log(JSON.stringify({ event: 'exported', since_id: query.sinceId, count: rows.length }))
+    send(res, 200, rows)
+  }
+}
+
+/**
+ * GET /export/garmin — the stored Garmin activities with their planned workout (the Contract row: garmin-db.js
+ * toExportRow), oldest id first, paged by `since_id` like /export/strava. Same bearer check and counts-only logging;
+ * never a name, a note or the raw payload. Garmin not configured -> 200 [] (an empty source); its optional
+ * migration group unavailable -> 503 garmin_unavailable.
+ * @param {{ pool: Parameters<typeof listGarminActivities>[0], token: string, configured: boolean, available: () => boolean,
+ *   log?: (line: string) => void, checkBearer?: (req: Req) => boolean }} opts
+ */
+export function createGarminExportHandler ({ pool, token, configured, available, log = console.log, checkBearer = createBearerCheck(token) }) {
+  /** @param {Req} req @param {Res} res @param {URL} url */
+  return async function handleGarminExport (req, res, url) {
+    if (!checkBearer(req)) {
+      send(res, 401, { error: 'unauthorized' })
+      return
+    }
+
+    let query
+    try {
+      query = parsePaging(url.searchParams)
+    } catch (err) {
+      send(res, 400, { error: /** @type {Error} */ (err).message })
+      return
+    }
+
+    if (!configured) {
+      send(res, 200, [])
+      return
+    }
+    if (!available()) {
+      send(res, 503, { error: 'garmin_unavailable' })
+      return
+    }
+
+    const rows = await listGarminActivities(pool, query)
+    log(JSON.stringify({ event: 'exported', source: 'garmin', since_id: query.sinceId, count: rows.length }))
     send(res, 200, rows)
   }
 }

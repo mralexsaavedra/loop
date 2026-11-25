@@ -31,7 +31,7 @@ test('an empty database: every migration runs once, every group is available, th
   /** @type {{ file?: string }[]} */
   const events = []
   const available = await migrate(pool, (l) => events.push(JSON.parse(l)))
-  assert.deepEqual(available, { food: true, settings: true, profile: true, journal: true, documents: true })
+  assert.deepEqual(available, { food: true, settings: true, profile: true, journal: true, documents: true, garmin: true })
   assert.deepEqual(events.map((e) => e.file).sort(), [...ALL].sort())
   const rows = await ledger(pool)
   assert.deepEqual(rows.map((/** @type {{ name: string }} */ r) => r.name), [...ALL].sort())
@@ -48,7 +48,7 @@ test('a second boot runs nothing: 009 no longer re-creates its CHECK on every st
   const before = await oid()
   /** @type {string[]} */
   const events = []
-  assert.deepEqual(await migrate(pool, (l) => events.push(l)), { food: true, settings: true, profile: true, journal: true, documents: true })
+  assert.deepEqual(await migrate(pool, (l) => events.push(l)), { food: true, settings: true, profile: true, journal: true, documents: true, garmin: true })
   assert.deepEqual(events, [], 'nothing applied')
   assert.equal(await oid(), before, 'the constraint was not dropped and re-added')
 }))
@@ -74,7 +74,7 @@ test('an install from before the ledger (every file applied, none recorded, data
   const before = await counts()
   assert.deepEqual(before, { raw: 1, strava: 1, hr: 1, products: 1, log: 1, goal: 'cut', journal: 1, sex: 'm', seq: 17 })
 
-  assert.deepEqual(await migrate(pool, quiet), { food: true, settings: true, profile: true, journal: true, documents: true })
+  assert.deepEqual(await migrate(pool, quiet), { food: true, settings: true, profile: true, journal: true, documents: true, garmin: true })
   assert.deepEqual(await counts(), before, 'every row survives')
   assert.deepEqual((await ledger(pool)).map((/** @type {{ name: string }} */ r) => r.name), [...ALL].sort(), 'the ledger is filled')
 }))
@@ -99,7 +99,7 @@ test('two processes booting at once on an empty database: the advisory lock seri
     const applied = []
     const log = (/** @type {string} */ l) => { const e = JSON.parse(l); if (e.event === 'migration_applied') applied.push(e.file) }
     const results = await Promise.all([migrate(pool, log), migrate(other, log), migrate(pool, log)])
-    for (const r of results) assert.deepEqual(r, { food: true, settings: true, profile: true, journal: true, documents: true })
+    for (const r of results) assert.deepEqual(r, { food: true, settings: true, profile: true, journal: true, documents: true, garmin: true })
     assert.deepEqual([...applied].sort(), [...ALL].sort(), 'no file ran twice')
     assert.equal((await ledger(pool)).length, ALL.length)
   } finally { await other.end() }

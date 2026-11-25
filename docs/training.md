@@ -15,6 +15,7 @@ On this page:
 - [Running, cycling, load vs recovery](#running-cycling-load-vs-recovery)
 - [Intensity (HR)](#intensity-hr)
 - [Per-workout HR zones](#per-workout-hr-zones)
+- [Plan vs done (Garmin)](#plan-vs-done-garmin)
 - [Today's session (Hoy)](#todays-session-hoy): [training-data.json is optional](#training-datajson-is-optional), [the Hoy section is optional and source-agnostic](#the-hoy-section-is-optional-and-source-agnostic)
 - [Program source](#program-source)
 - [Fresh-clone bootstrap and checks](#fresh-clone-bootstrap-and-checks)
@@ -34,6 +35,9 @@ The single-file build carries two training data sets, same single-source pattern
 - The programmed session is not a Training block: it is a row of Home's "Today's activities"
   ([Today's session](#todays-session-hoy)).
 - Strava sync (`npm run sync:strava`): see `docs/data-pipeline.md` → Strava sync.
+- Garmin sync (`npm run sync:garmin`, optional): the planned workout of each Garmin activity
+  (`workout-plans.csv`, read by `lib/training/read.mjs` `readWorkoutPlans` in `web/src/bakes.mjs`); see
+  `docs/data-pipeline.md` → Garmin sync and [Plan vs done](#plan-vs-done-garmin).
 
 ## Training tab layout
 
@@ -233,6 +237,21 @@ What it shows: for one session, the time in each HR zone (session / day panel).
 - Several Strava activities of the same date + modality are summed.
 - No zones for that session (a Watch-only session, an activity the backfill has not reached, no HR, no
   file): no block.
+
+## Plan vs done (Garmin)
+
+- Optional: only with Garmin on the server (`GARMIN_API_KEY`, [`lan-services.md`](lan-services.md)); without it
+  nothing changes on the page.
+- A session in the day sheet whose date + modality has a planned Garmin workout (`workout-plans.csv`) shows
+  "Plan" vs "Hecho" / "Done": the planned time and main target (e.g. 125–135 W for 70 min) against the time,
+  avg power, normalized power and avg HR done, plus the compact step list
+  ([`detail-views.md`](detail-views.md) → `sessions`, `pl`).
+- The plan joins a session of `workouts.csv` (the Watch or Strava copy): a Garmin activity with no session that
+  day shows nothing. Several planned activities on one date + modality: the longest one's plan.
+- Planned time = the timed steps (repeats expanded); a distance / open step makes it unknown ("—" when there is
+  no target either).
+- "Today" from Garmin is out of scope: the Personal API has no calendar endpoint, so the Hoy row keeps its own
+  program source.
 
 ## Today's session (Hoy)
 
