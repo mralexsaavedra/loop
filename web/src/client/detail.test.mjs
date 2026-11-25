@@ -1645,11 +1645,11 @@ test('a session with a planned Garmin workout (`pl`) shows Plan vs Done: planned
   const block = s.host.innerHTML.match(/<div class="dt-zones dt-plan"[\s\S]*?<\/div>/);
   assert.ok(block, 'a plan block in the session');
   assert.match(block[0], /role="group" aria-label="Plan vs done"/);
-  assert.equal(flat(block[0]), 'Plan 1:30 · 125–135 W Done 1:00 · 118 W · NP 122 W · 132 bpm Warm-up 10 min · 2× (35 min 125–135 W · recovery 1:30) · cool-down 7 min HR zone 1');
+  assert.equal(flat(block[0]), 'Plan 1:30 · 125–135 W Done 1:00 · 118 W · NP 122 W · 132 bpm Warm-up 10 min · 2× (35 min 125–135 W · Recovery 1:30) · Cool-down 7 min HR zone 1');
   const es = setup({ locale: 'es', detail: { ...DEMO, sessions } });
   es.api.open('load-bike', day.d);
   const esBlock = /** @type {RegExpMatchArray} */ (es.host.innerHTML.match(/<div class="dt-zones dt-plan"[\s\S]*?<\/div>/));
-  assert.match(flat(esBlock[0]), /^Plan 1:30 · 125–135 W Hecho 1:00 · 118 W · NP 122 W · 132 ppm Calentamiento 10 min · 2× \(35 min 125–135 W · recuperación 1:30\) · vuelta a la calma 7 min zona FC 1$/);
+  assert.match(flat(esBlock[0]), /^Plan 1:30 · 125–135 W Hecho 1:00 · 118 W · NP 122 W · 132 ppm Calentamiento 10 min · 2× \(35 min 125–135 W · Recuperación 1:30\) · Vuelta a la calma 7 min zona FC 1$/);
   // unknown planned time (a distance step), no target, partial done figures; pace targets in min/km
   const run = { min: null, steps: [{ k: 'active', t: 'pace', lo: 3.33, hi: 3.7 }], done: { min: 25, hr: 150 } };
   const r = setup({ detail: { ...DEMO, sessions: DEMO.sessions.map((x) => (x === day ? { ...x, pl: run } : x)) } });
@@ -1661,6 +1661,34 @@ test('a session with a planned Garmin workout (`pl`) shows Plan vs Done: planned
   const none = setup({ detail: { ...DEMO, sessions: DEMO.sessions.map((x) => (({ pl: _p, ...rest }) => rest)(/** @type {DetailSession & {pl?: unknown}} */ (x))) } });
   none.api.open('load-bike', day.d);
   assert.doesNotMatch(none.host.innerHTML, /dt-plan/);
+});
+
+test('plan steps: consecutive steps of one kind merge into one ramp ("Warm-up 10 min 97→146 W"), every step starts capitalized, and the source names Garmin for the plan', () => {
+  const day = /** @type {DetailSession} */ (DEMO.sessions.find((x) => x.m === 'bike'));
+  const w = (/** @type {string} */ k, /** @type {number} */ s, /** @type {number} */ lo, /** @type {number} */ hi) => ({ k, s, t: 'w', lo, hi });
+  const pl = {
+    min: 75,
+    steps: [w('warmup', 150, 97, 107), w('warmup', 150, 110, 120), w('warmup', 150, 123, 133), w('warmup', 150, 136, 146),
+      w('active', 2400, 134, 144), w('active', 1200, 148, 158), w('cooldown', 150, 122, 132), w('cooldown', 150, 101, 111)],
+    done: { min: 75, w: 140, np: 142, hr: 134 },
+  };
+  const sessions = DEMO.sessions.map((x) => (x === day ? { ...x, src: 'Strava', pl } : x));
+  const flat = (/** @type {string} */ h) => h.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+  const s = setup({ detail: { ...DEMO, sessions } });
+  s.api.open('load-bike', day.d);
+  const block = /** @type {RegExpMatchArray} */ (s.host.innerHTML.match(/<div class="dt-zones dt-plan"[\s\S]*?<\/div>/));
+  assert.equal(flat(block[0]), 'Plan 1:15 · 134–144 W Done 1:15 · 140 W · NP 142 W · 134 bpm Warm-up 10 min 97→146 W · 40 min 134–144 W · 20 min 148–158 W · Cool-down 5 min 132→101 W');
+  assert.match(s.host.innerHTML, /Source: Strava · plan: Garmin/);
+  const es = setup({ locale: 'es', detail: { ...DEMO, sessions } });
+  es.api.open('load-bike', day.d);
+  const eb = /** @type {RegExpMatchArray} */ (es.host.innerHTML.match(/<div class="dt-zones dt-plan"[\s\S]*?<\/div>/));
+  assert.match(flat(eb[0]), /Calentamiento 10 min 97→146 W · 40 min 134–144 W · 20 min 148–158 W · Vuelta a la calma 5 min 132→101 W$/);
+  assert.match(es.host.innerHTML, /Fuente: Strava · plan: Garmin/);
+  // a session without a plan keeps its plain source line
+  const none = setup({ detail: { ...DEMO, sessions: DEMO.sessions.map((x) => (x === day ? (({ pl: _p, ...rest }) => ({ ...rest, src: 'Strava' }))(/** @type {DetailSession & {pl?: unknown}} */ (x)) : x)) } });
+  none.api.open('load-bike', day.d);
+  assert.doesNotMatch(none.host.innerHTML, /plan: Garmin/);
+  assert.match(none.host.innerHTML, /Source: Strava</);
 });
 
 /* ---------- day strain deep-dive (key 'strain') ---------- */

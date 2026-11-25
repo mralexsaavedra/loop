@@ -442,7 +442,7 @@ type Sub = { cls?: string; text: string };
     var mod = T.modalities[s.m] || s.m, type = T.types[s.t] || String(s.t || '').replace(/([a-z])([A-Z])/g, '$1 $2');
     return '<li class="dt-sess"><b class="dt-sess-name">' + esc(mod + (type && type !== mod ? ' · ' + type : '')) + '</b>' +
       '<span class="dt-sess-meta">' + esc(parts.join(' · ')) + '</span>' + planHtml(s) + zonesHtml(s) +
-      (s.src ? '<small class="dt-sess-src">' + esc(format(D2.source, { src: s.src })) + '</small>' : '') + '</li>';
+      (s.src ? '<small class="dt-sess-src">' + esc(format(D2.source, { src: s.pl && D2.plan && D2.plan.src ? s.src + ' · ' + D2.plan.src : s.src })) + '</small>' : '') + '</li>';
   }
   // a planned step's target (DETAIL sessions `pl`, lib/detail/detail.mjs planView): its range ("125–135 W", pace as
   // min/km fastest first, speed as km/h) or its zone ("HR zone 2"); '' without one
@@ -462,13 +462,37 @@ type Sub = { cls?: string; text: string };
     if (sec % 60 === 0) return format(P.min, { n: sec / 60 });
     return sec < 60 ? format(P.sec, { n: sec }) : mss(sec);
   }
-  // the compact step list: "warm-up 10 min · 2× (35 min 125–135 W · recovery 1:30) · cool-down 10 min"
+  // consecutive plain steps of one kind (a stepped warm-up or cool-down) -> one step: their summed time and, when
+  // each has a range of the same rampable target, `ramp` = first range's start -> last one's end (descending
+  // when the last range starts lower). Repeats and steps that differ stay as they are.
+  function groupSteps(items: Baked[]): Baked[] {
+    var P = T.day.plan, out: Baked[] = [], run: Baked[] = [];
+    var plain = function (it: Baked): boolean { return !!it && it.x == null && it.k != null && it.k !== 'active' && it.k !== 'interval'; };
+    var same = function (a: Baked, b: Baked): boolean { return a.k === b.k && a.t === b.t && (a.t == null || (a.lo != null && a.hi != null && b.lo != null && b.hi != null && !!P.ramp && own(P.ramp, a.t))); };
+    var flush = function (): void {
+      if (run.length < 2) { out.push.apply(out, run); run = []; return; }
+      var first = run[0], last = run[run.length - 1];
+      var g: Baked = { k: first.k, s: run.every(function (x: Baked) { return x.s != null; }) ? run.reduce(function (a: number, x: Baked) { return a + x.s; }, 0) : null };
+      if (first.t != null) g.ramp = last.lo < first.lo ? format(P.ramp[first.t], { from: fmt(first.hi, 0), to: fmt(last.lo, 0) }) : format(P.ramp[first.t], { from: fmt(first.lo, 0), to: fmt(last.hi, 0) });
+      out.push(g); run = [];
+    };
+    (items || []).forEach(function (it: Baked) {
+      if (plain(it) && run.length && same(run[0], it)) { run.push(it); return; }
+      flush();
+      if (plain(it)) run.push(it); else out.push(it);
+    });
+    flush();
+    return out;
+  }
+  // the compact step list: "Warm-up 10 min 97→146 W · 2× (35 min 125–135 W · Recovery 1:30) · Cool-down 10 min";
+  // every step that starts with its kind is capitalized
   function planSteps(items: Baked[]): string {
     var P = T.day.plan;
-    return (items || []).map(function (it: Baked) {
+    return groupSteps(items).map(function (it: Baked) {
       if (it && it.x != null && Array.isArray(it.steps)) return format(P.repeat, { n: it.x, steps: planSteps(it.steps) });
       var kind = it && own(P.kinds, it.k) ? P.kinds[it.k] : '';
-      return [kind, it && it.s != null ? stepTime(it.s) : '', planTarget(it)].filter(Boolean).join(' ');
+      if (kind) kind = kind.charAt(0).toUpperCase() + kind.slice(1);
+      return [kind, it && it.s != null ? stepTime(it.s) : '', it && it.ramp ? it.ramp : planTarget(it)].filter(Boolean).join(' ');
     }).join(' · ');
   }
   // the main target: the active / interval step with the most planned time (repeats counted) that has a target

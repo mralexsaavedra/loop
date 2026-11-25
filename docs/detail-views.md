@@ -318,9 +318,13 @@ bottom: header → ⓘ block → hero ring → contributors → insight → week
 - A session with a planned Garmin workout (`pl`) gets the plan block under its meta line, before the zones
   (`planHtml`, `.dt-plan`, laid out by the zones block's `.dt-zones` / `.dt-zhead` rules, no CSS of its own): "PLAN 1:30 · 125–135 W" (planned time + the main target: the active / interval step
   with the most planned time that has one; pace as min/km, speed as km/h, a zone target as "HR zone 2"),
-  "DONE 1:00 · 118 W · NP 122 W · 132 bpm", then the compact steps ("Warm-up 10 min · 2× (8 min 220–235 W ·
-  recovery 4 min) · cool-down 10 min"; an active step needs no name). Copy in `I18N_DETAIL.day.plan` ("Plan" vs
-  "Hecho" / "Done"); no `pl` → no block.
+  "DONE 1:00 · 118 W · NP 122 W · 132 bpm", then the compact steps ("Warm-up 10 min 97→146 W · 2× (8 min 220–235 W ·
+  Recovery 4 min) · Cool-down 10 min"; an active step needs no name, every named step starts capitalized).
+  Consecutive steps of one kind other than active / interval (a stepped warm-up or cool-down) merge into one
+  (`groupSteps`): their summed time and, when each has a W / HR / rpm range, a ramp from the first range's start to
+  the last one's end (`I18N_DETAIL.day.plan.ramp`; descending when the last range starts lower, "132→101 W").
+  The session's source line then adds "· plan: Garmin" (`day.plan.src`). Copy in `I18N_DETAIL.day.plan` ("Plan"
+  vs "Hecho" / "Done"); no `pl` → no block and the plain source line.
 
 ### Strain, stress and energy bank pages
 
