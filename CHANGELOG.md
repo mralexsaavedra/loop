@@ -4,6 +4,19 @@ Dated history of structural work on this repo: the append-only narrative of what
 operating facts live in `CLAUDE.md` and the docs ([`docs/README.md`](docs/README.md)).
 
 
+## [1.9.0] - 2026-11-25
+
+- **Garmin: plan vs done (optional).** With a Garmin Connect personal API key on the server, LOOP reads the
+  structured workout each session followed and shows it in the day detail next to what you did: the planned time
+  and target (watts or heart rate) and the steps, against the time, average power, normalized power and average
+  heart rate of the session. Read-only; nothing is sent to Garmin. Set it up with `GARMIN_API_KEY` (and the expiry
+  date Garmin shows, `GARMIN_API_KEY_EXPIRES`) in the server's `.env` ([README → Setup](README.md), step 8). Without
+  the key nothing changes.
+- **Garmin in the sync panel.** When Garmin is set up, the freshness panel shows when it last synced, turns red if
+  Garmin refuses the key, and warns a week before the key expires.
+- Garmin's Personal API has no calendar, so the programmed session in "Today" still comes from your training plan
+  as before.
+
 ## [1.8.1] - 2026-11-24
 
 - **A night with blank hours no longer counts as sleep.** A sleep row whose hours are empty is skipped instead of
