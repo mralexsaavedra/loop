@@ -398,6 +398,10 @@ export const en = {
       sec: '{n} s',
       repeat: '{n}× ({steps})',
       range: { w: '{lo}–{hi} W', hr: '{lo}–{hi} bpm', rpm: '{lo}–{hi} rpm', pace: '{lo}–{hi} /km', speed: '{lo}–{hi} km/h' },
+      // consecutive steps of one kind merged into one ramp (a stepped warm-up: first range's start → last one's end)
+      ramp: { w: '{from}→{to} W', hr: '{from}→{to} bpm', rpm: '{from}→{to} rpm' },
+      // appended to the session's source line when the plan came from Garmin
+      src: 'plan: Garmin',
       zone: { w: 'power zone {n}', hr: 'HR zone {n}', rpm: 'cadence zone {n}', pace: 'pace zone {n}', speed: 'speed zone {n}' },
       // step intensities (Garmin's); an active / interval step (not listed) needs no name
       kinds: { warmup: 'warm-up', recovery: 'recovery', rest: 'rest', cooldown: 'cool-down' },
@@ -793,6 +797,8 @@ export const es = {
       sec: '{n} s',
       repeat: '{n}× ({steps})',
       range: { w: '{lo}–{hi} W', hr: '{lo}–{hi} ppm', rpm: '{lo}–{hi} rpm', pace: '{lo}–{hi} /km', speed: '{lo}–{hi} km/h' },
+      ramp: { w: '{from}→{to} W', hr: '{from}→{to} ppm', rpm: '{from}→{to} rpm' },
+      src: 'plan: Garmin',
       zone: { w: 'zona de potencia {n}', hr: 'zona FC {n}', rpm: 'zona de cadencia {n}', pace: 'zona de ritmo {n}', speed: 'zona de velocidad {n}' },
       kinds: { warmup: 'calentamiento', recovery: 'recuperación', rest: 'descanso', cooldown: 'vuelta a la calma' },
     },
